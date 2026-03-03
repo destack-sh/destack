@@ -1,5 +1,5 @@
-use std::ffi::{CStr, c_int, c_void};
-use std::sync::{Arc, OnceLock};
+use std::ffi::{CStr, c_int};
+use std::sync::Arc;
 
 use super::abi::AAudioApi;
 use super::constants::*;
@@ -10,34 +10,17 @@ use crate::platform::{PlatformError, core as core_platform};
 
 /// Return whether AAudio backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
-    cfg!(target_os = "android") && aaudio_library().is_some()
+    cfg!(target_os = "android") && load_aaudio_library().is_ok()
 }
-
-/// One process-global AAudio dynamic library slot.
-static AAUDIO_LIBRARY_SLOT: OnceLock<Option<Arc<AAudioLibrary>>> = OnceLock::new();
 
 /// One loaded AAudio dynamic library payload.
 #[derive(Debug)]
 pub(super) struct AAudioLibrary {
-    /// Raw dynamic-library handle from `dlopen`.
-    handle: *mut c_void,
+    /// Loaded dynamic-library lifetime owner.
+    _library: core_platform::DynamicLibrary,
     /// Loaded AAudio function table.
     pub(super) api: AAudioApi,
 }
-
-impl Drop for AAudioLibrary {
-    fn drop(&mut self) {
-        if self.handle.is_null() {
-            return;
-        }
-
-        // close one open dynamic-library handle
-        core_platform::close_dynamic_library(self.handle);
-    }
-}
-
-unsafe impl Send for AAudioLibrary {}
-unsafe impl Sync for AAudioLibrary {}
 
 /// Return one normalized channel layout from one channel count.
 pub(super) fn channel_layout(channel_count: u16) -> audio_core::AudioChannelLayout {
@@ -111,15 +94,8 @@ pub(super) fn aaudio_succeeded(status: c_int) -> bool {
 }
 
 /// Return one loaded AAudio library or one not-supported error.
-pub(super) fn require_aaudio_library(
-    operation: &'static str,
-) -> RuntimeResult<&'static Arc<AAudioLibrary>> {
-    aaudio_library().ok_or_else(|| {
-        aaudio_not_supported(
-            operation,
-            "AAudio dynamic library is unavailable on this host",
-        )
-    })
+pub(super) fn require_aaudio_library(operation: &'static str) -> RuntimeResult<Arc<AAudioLibrary>> {
+    load_aaudio_library().map_err(|error| aaudio_not_supported(operation, error))
 }
 
 /// Return one AAudio sample format for one runtime format.
@@ -166,116 +142,52 @@ pub(super) fn io_timeout_nanoseconds(period: std::time::Duration) -> i64 {
     period.as_nanos().min(i64::MAX as u128) as i64
 }
 
-/// Return one pointer to one loaded AAudio library when available.
-fn aaudio_library() -> Option<&'static Arc<AAudioLibrary>> {
-    AAUDIO_LIBRARY_SLOT
-        .get_or_init(load_aaudio_library)
-        .as_ref()
-}
-
 /// Load one AAudio dynamic library and required symbol table.
-fn load_aaudio_library() -> Option<Arc<AAudioLibrary>> {
+fn load_aaudio_library() -> Result<Arc<AAudioLibrary>, String> {
     // try common AAudio soname candidates in deterministic order
-    for candidate in ["libaaudio.so"] {
-        let Some(handle) = core_platform::open_dynamic_library(candidate) else {
-            continue;
-        };
+    let (library, api) = core_platform::load_library_with_api(&["libaaudio.so"], load_aaudio_api)?;
 
-        // resolve all required AAudio symbols
-        let api = match load_aaudio_api(handle) {
-            Some(api) => api,
-            None => {
-                core_platform::close_dynamic_library(handle);
-
-                continue;
-            }
-        };
-
-        return Some(Arc::new(AAudioLibrary { handle, api }));
-    }
-
-    None
+    Ok(Arc::new(AAudioLibrary {
+        _library: library,
+        api,
+    }))
 }
 
 /// Load one AAudio symbol table from one open dynamic-library handle.
-fn load_aaudio_api(handle: *mut c_void) -> Option<AAudioApi> {
-    Some(AAudioApi {
-        create_stream_builder: core_platform::load_dynamic_symbol(
-            handle,
-            b"AAudio_createStreamBuilder\0",
-        )?,
-        stream_builder_delete: core_platform::load_dynamic_symbol(
-            handle,
-            b"AAudioStreamBuilder_delete\0",
-        )?,
-        stream_builder_set_direction: core_platform::load_dynamic_symbol(
-            handle,
-            b"AAudioStreamBuilder_setDirection\0",
-        )?,
-        stream_builder_set_sample_rate: load_symbol(
-            handle,
-            b"AAudioStreamBuilder_setSampleRate\0",
-        )?,
-        stream_builder_set_channel_count: load_symbol(
-            handle,
-            b"AAudioStreamBuilder_setChannelCount\0",
-        )?,
-        stream_builder_set_format: load_symbol(handle, b"AAudioStreamBuilder_setFormat\0")?,
-        stream_builder_set_sharing_mode: load_symbol(
-            handle,
-            b"AAudioStreamBuilder_setSharingMode\0",
-        )?,
-        stream_builder_set_performance_mode: load_symbol(
-            handle,
-            b"AAudioStreamBuilder_setPerformanceMode\0",
-        )?,
-        stream_builder_set_buffer_capacity_frames: load_symbol(
-            handle,
-            b"AAudioStreamBuilder_setBufferCapacityInFrames\0",
-        )?,
-        stream_builder_open_stream: load_symbol(handle, b"AAudioStreamBuilder_openStream\0")?,
-        stream_close: load_symbol(handle, b"AAudioStream_close\0")?,
-        stream_request_start: load_symbol(handle, b"AAudioStream_requestStart\0")?,
-        stream_request_pause: load_symbol(handle, b"AAudioStream_requestPause\0")?,
-        stream_request_stop: load_symbol(handle, b"AAudioStream_requestStop\0")?,
-        stream_request_flush: load_symbol(handle, b"AAudioStream_requestFlush\0")?,
-        stream_read: core_platform::load_dynamic_symbol(handle, b"AAudioStream_read\0")?,
-        stream_write: core_platform::load_dynamic_symbol(handle, b"AAudioStream_write\0")?,
-        stream_get_sample_rate: core_platform::load_dynamic_symbol(
-            handle,
-            b"AAudioStream_getSampleRate\0",
-        )?,
-        stream_get_channel_count: core_platform::load_dynamic_symbol(
-            handle,
-            b"AAudioStream_getChannelCount\0",
-        )?,
-        stream_get_frames_per_burst: core_platform::load_dynamic_symbol(
-            handle,
-            b"AAudioStream_getFramesPerBurst\0",
-        )?,
-        stream_get_format: core_platform::load_dynamic_symbol(handle, b"AAudioStream_getFormat\0")?,
-        stream_get_sharing_mode: core_platform::load_dynamic_symbol(
-            handle,
-            b"AAudioStream_getSharingMode\0",
-        )?,
-        convert_result_to_text: core_platform::load_dynamic_symbol(
-            handle,
-            b"AAudio_convertResultToText\0",
-        )?,
+fn load_aaudio_api(
+    library: &core_platform::DynamicLibrary,
+    candidate: &str,
+) -> Result<AAudioApi, String> {
+    core_platform::load_dll_api_bytes!(library, candidate, AAudioApi {
+        create_stream_builder => b"AAudio_createStreamBuilder\0",
+        stream_builder_delete => b"AAudioStreamBuilder_delete\0",
+        stream_builder_set_direction => b"AAudioStreamBuilder_setDirection\0",
+        stream_builder_set_sample_rate => b"AAudioStreamBuilder_setSampleRate\0",
+        stream_builder_set_channel_count => b"AAudioStreamBuilder_setChannelCount\0",
+        stream_builder_set_format => b"AAudioStreamBuilder_setFormat\0",
+        stream_builder_set_sharing_mode => b"AAudioStreamBuilder_setSharingMode\0",
+        stream_builder_set_performance_mode => b"AAudioStreamBuilder_setPerformanceMode\0",
+        stream_builder_set_buffer_capacity_frames => b"AAudioStreamBuilder_setBufferCapacityInFrames\0",
+        stream_builder_open_stream => b"AAudioStreamBuilder_openStream\0",
+        stream_close => b"AAudioStream_close\0",
+        stream_request_start => b"AAudioStream_requestStart\0",
+        stream_request_pause => b"AAudioStream_requestPause\0",
+        stream_request_stop => b"AAudioStream_requestStop\0",
+        stream_request_flush => b"AAudioStream_requestFlush\0",
+        stream_read => b"AAudioStream_read\0",
+        stream_write => b"AAudioStream_write\0",
+        stream_get_sample_rate => b"AAudioStream_getSampleRate\0",
+        stream_get_channel_count => b"AAudioStream_getChannelCount\0",
+        stream_get_frames_per_burst => b"AAudioStream_getFramesPerBurst\0",
+        stream_get_format => b"AAudioStream_getFormat\0",
+        stream_get_sharing_mode => b"AAudioStream_getSharingMode\0",
+        convert_result_to_text => b"AAudio_convertResultToText\0",
     })
-}
-
-/// Load one typed symbol from one dynamic-library handle.
-fn load_symbol<T>(handle: *mut c_void, name: &[u8]) -> Option<T>
-where
-    T: Copy,
-{
-    core_platform::load_dynamic_symbol(handle, name)
 }
 
 /// Return one human-readable AAudio status text.
 fn aaudio_status_text(status: c_int) -> String {
-    let Some(library) = aaudio_library() else {
+    let Ok(library) = load_aaudio_library() else {
         return String::from("unknown status");
     };
 

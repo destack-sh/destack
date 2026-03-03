@@ -15,8 +15,7 @@ use crate::platform::input::{
     InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputPointerState,
     InputReadMode, InputScrollEventPayload,
 };
-use crate::platform::resource::ResourceKind;
-use crate::platform::{PlatformError, resource};
+use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 /// Stable runtime identifier for macOS global session input.
@@ -449,8 +448,8 @@ fn configure_macos_event_queue_limit(
         .runtime()
         .module_options
         .input
-        .macos_event_queue_capacity
-        .and_then(|value| usize::try_from(value).ok())
+        .macos_event_queue_capacity;
+    let configured = core_platform::option_u64_to_usize(configured)
         .unwrap_or(MACOS_EVENT_QUEUE_LIMIT)
         .max(1);
 
@@ -964,18 +963,7 @@ fn resolve_subscription_id(
         .runtime()
         .resources
         .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-
-            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
+            let binding = entry.payload_mut::<input_core::UnixInputBinding>()?;
             if binding.backend != input_core::UnixInputBackend::Platform {
                 return None;
             }
@@ -1045,18 +1033,7 @@ pub(super) fn release_macos_session_subscription(
         .runtime()
         .resources
         .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-
-            if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
+            let binding = entry.payload_mut::<input_core::UnixInputBinding>()?;
             if binding.backend != input_core::UnixInputBackend::Platform {
                 return None;
             }

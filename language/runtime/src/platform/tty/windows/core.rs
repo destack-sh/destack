@@ -203,11 +203,7 @@ pub(super) fn tty_binding(
                 return None;
             }
 
-            entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<Arc<WindowsTtyBinding>>())
-                .map(Arc::clone)
+            entry.payload_cloned::<Arc<WindowsTtyBinding>>()
         })
         .flatten();
 

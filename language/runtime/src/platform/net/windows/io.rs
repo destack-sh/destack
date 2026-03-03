@@ -45,7 +45,7 @@ fn receive_message_extension(socket: usize) -> RuntimeResult<LPFN_WSARECVMSG> {
             return Ok(None);
         }
 
-        return Err(net_error_with_code(
+        return Err(core_platform::net_error_with_code(
             "WSAIoctl(SIO_GET_EXTENSION_FUNCTION_POINTER)",
             error_code,
         ));
@@ -119,7 +119,10 @@ pub(crate) unsafe fn destack_net_read(
     // read from the socket
     let rc = unsafe { recv(socket, buffer.as_mut_ptr() as *mut _, buffer_len, 0) };
     if rc < 0 {
-        return Err(last_net_error("recv"));
+        return Err(core_platform::net_error_with_code(
+            "recv",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // write the output
@@ -174,7 +177,10 @@ pub(crate) unsafe fn destack_net_write(
     // write to the socket
     let rc = unsafe { send(socket, buffer.as_ptr() as *const _, buffer_len, 0) };
     if rc < 0 {
-        return Err(last_net_error("send"));
+        return Err(core_platform::net_error_with_code(
+            "send",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // write the output
@@ -365,7 +371,10 @@ pub(crate) unsafe fn destack_net_recv_msg(
             if error_code == WSAEMSGSIZE {
                 (buffer_len as u64, true)
             } else {
-                return Err(last_net_error("recvfrom"));
+                return Err(core_platform::net_error_with_code(
+                    "recvfrom",
+                    core_platform::last_wsa_error_code(),
+                ));
             }
         };
 
@@ -455,7 +464,10 @@ pub(crate) unsafe fn destack_net_recv_msg(
         if error_code == WSAEMSGSIZE {
             payload_truncated = true;
         } else {
-            return Err(last_net_error("WSARecvMsg"));
+            return Err(core_platform::net_error_with_code(
+                "WSARecvMsg",
+                core_platform::last_wsa_error_code(),
+            ));
         }
     }
 
@@ -646,7 +658,10 @@ pub(crate) unsafe fn destack_net_send_msg(
                     )
                 };
                 if rc == SOCKET_ERROR {
-                    return Err(last_net_error("sendto"));
+                    return Err(core_platform::net_error_with_code(
+                        "sendto",
+                        core_platform::last_wsa_error_code(),
+                    ));
                 }
 
                 Ok(rc as u64)
@@ -661,7 +676,10 @@ pub(crate) unsafe fn destack_net_send_msg(
                 )
             };
             if rc == SOCKET_ERROR {
-                return Err(last_net_error("send"));
+                return Err(core_platform::net_error_with_code(
+                    "send",
+                    core_platform::last_wsa_error_code(),
+                ));
             }
             rc as u64
         };
@@ -720,7 +738,7 @@ pub(crate) unsafe fn destack_net_send_msg(
                     .boxed());
                 }
 
-                return Err(net_error_with_code("WSASendMsg", error_code));
+                return Err(core_platform::net_error_with_code("WSASendMsg", error_code));
             }
 
             Ok(())
@@ -745,7 +763,7 @@ pub(crate) unsafe fn destack_net_send_msg(
                 .boxed());
             }
 
-            return Err(net_error_with_code("WSASendMsg", error_code));
+            return Err(core_platform::net_error_with_code("WSASendMsg", error_code));
         }
     }
 
@@ -837,7 +855,7 @@ pub(crate) unsafe fn destack_net_recv_from(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve runtime values
     let socket = socket_descriptor(context, handle)?;
@@ -864,7 +882,10 @@ pub(crate) unsafe fn destack_net_recv_from(
         )
     };
     if bytes == SOCKET_ERROR {
-        return Err(last_net_error("recvfrom"));
+        return Err(core_platform::net_error_with_code(
+            "recvfrom",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // encode sender metadata and payload length
@@ -911,7 +932,7 @@ pub(crate) unsafe fn destack_net_send_to(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve runtime values
     let socket = socket_descriptor(context, handle)?;
@@ -937,7 +958,10 @@ pub(crate) unsafe fn destack_net_send_to(
             )
         };
         if bytes == SOCKET_ERROR {
-            return Err(last_net_error("sendto"));
+            return Err(core_platform::net_error_with_code(
+                "sendto",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         unsafe {

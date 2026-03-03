@@ -26,7 +26,9 @@ use crate::platform::tls::{
     TlsContextOptions, TlsHandshakeStatus, TlsHostnameVerificationMode, TlsRole,
     TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion,
 };
-use crate::platform::{NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, resource};
+use crate::platform::{
+    NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, core as core_platform, resource,
+};
 use crate::runtime::BindingCallContext;
 
 /// Canonical resource kind used for tls context resources.
@@ -204,25 +206,13 @@ pub(crate) fn resolve_context_resource(
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<Arc<Mutex<TlsContextResource>>> {
     // resolve one context payload
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != TLS_CONTEXT_RESOURCE_KIND {
-            return None;
-        }
-
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<TlsContextResource>>>())
-            .map(Arc::clone)
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown tls context handle",
-        ))
-        .boxed()
-    })
+    resource::resolve_payload::<Arc<Mutex<TlsContextResource>>>(
+        context,
+        handle.0,
+        TLS_CONTEXT_RESOURCE_KIND,
+        None,
+    )
+    .ok_or_else(|| core_platform::unknown_handle("handle", "tls context"))
 }
 
 /// Remove one TLS context resource.
@@ -236,26 +226,16 @@ pub(crate) fn remove_context_resource(
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown tls context handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "tls context"));
     };
 
     // validate the removed payload type
     let is_valid = entry.kind == TLS_CONTEXT_RESOURCE_KIND
         && entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<TlsContextResource>>>())
+            .payload_ref::<Arc<Mutex<TlsContextResource>>>()
             .is_some();
     if !is_valid {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown tls context handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "tls context"));
     }
 
     Ok(())
@@ -289,25 +269,13 @@ pub(crate) fn resolve_session_resource(
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<Arc<TlsSessionResource>> {
     // resolve one session payload
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != TLS_SESSION_RESOURCE_KIND {
-            return None;
-        }
-
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<TlsSessionResource>>())
-            .map(Arc::clone)
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown tls session handle",
-        ))
-        .boxed()
-    })
+    resource::resolve_payload::<Arc<TlsSessionResource>>(
+        context,
+        handle.0,
+        TLS_SESSION_RESOURCE_KIND,
+        None,
+    )
+    .ok_or_else(|| core_platform::unknown_handle("handle", "tls session"))
 }
 
 /// Remove one TLS session resource.
@@ -321,26 +289,14 @@ pub(crate) fn remove_session_resource(
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown tls session handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "tls session"));
     };
 
     // validate the removed payload type
     let is_valid = entry.kind == TLS_SESSION_RESOURCE_KIND
-        && entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<TlsSessionResource>>())
-            .is_some();
+        && entry.payload_ref::<Arc<TlsSessionResource>>().is_some();
     if !is_valid {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown tls session handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "tls session"));
     }
 
     Ok(())

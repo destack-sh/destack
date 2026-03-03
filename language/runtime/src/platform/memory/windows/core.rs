@@ -4,11 +4,9 @@ use windows_sys::Win32::System::Memory::{
 };
 use windows_sys::Win32::System::SystemInformation::{GetNativeSystemInfo, SYSTEM_INFO};
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
-use crate::platform::memory::{MemoryProtection, MemoryReserveFlags, core as memory_core};
-
-use memory_core::{invalid_argument, not_supported, unsupported_flags};
+use crate::platform::memory::{MemoryProtection, MemoryReserveFlags};
 
 /// Operation tag for reserve bindings.
 pub(crate) const RESERVE_OPERATION: &str = "destack.memory.map.reserve";
@@ -39,7 +37,7 @@ pub(crate) const REMAP_MAY_MOVE_FLAG: u32 = 0x1;
 pub(crate) fn windows_protection(protection: MemoryProtection) -> RuntimeResult<u32> {
     // reject unknown protection bits
     if protection.0 & !0x7 != 0 {
-        return Err(unsupported_flags("protection", protection.0));
+        return Err(core_platform::unsupported_flags("protection", protection.0));
     }
 
     // decode portable permission bits
@@ -66,16 +64,16 @@ pub(crate) fn windows_protection(protection: MemoryProtection) -> RuntimeResult<
 pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<u32> {
     // reject unknown reserve bits
     if flags.0 & !RESERVE_FLAG_MASK != 0 {
-        return Err(unsupported_flags("flags", flags.0));
+        return Err(core_platform::unsupported_flags("flags", flags.0));
     }
 
     // reject unsupported reserve modes
     if flags.0 & RESERVE_LARGE_PAGES_FLAG != 0 {
-        return Err(not_supported(RESERVE_OPERATION));
+        return Err(core_platform::not_supported(RESERVE_OPERATION));
     }
 
     if flags.0 & RESERVE_NO_RESERVE_FLAG != 0 {
-        return Err(not_supported(RESERVE_OPERATION));
+        return Err(core_platform::not_supported(RESERVE_OPERATION));
     }
 
     // map supported top-down behavior to windows flags
@@ -91,7 +89,7 @@ pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<u
 pub(crate) fn decode_remap_flags(flags: u32) -> RuntimeResult<bool> {
     // reject unknown remap bits
     if flags & !REMAP_FLAG_MASK != 0 {
-        return Err(unsupported_flags("flags", flags));
+        return Err(core_platform::unsupported_flags("flags", flags));
     }
 
     Ok(flags & REMAP_MAY_MOVE_FLAG != 0)
@@ -112,7 +110,7 @@ pub(crate) fn page_size() -> RuntimeResult<usize> {
     // read page size from host system info
     let info = system_info();
     if info.dwPageSize == 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "pageSize",
             "GetNativeSystemInfo returned zero page size",
         ));
@@ -126,16 +124,11 @@ pub(crate) fn allocation_granularity() -> RuntimeResult<usize> {
     // read allocation granularity from host system info
     let info = system_info();
     if info.dwAllocationGranularity == 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "allocationGranularity",
             "GetNativeSystemInfo returned zero allocation granularity",
         ));
     }
 
     Ok(info.dwAllocationGranularity as usize)
-}
-
-/// Build one windows-io runtime error.
-pub(crate) fn io_error(syscall: &str) -> Box<RuntimeError> {
-    core_platform::io_error(syscall)
 }

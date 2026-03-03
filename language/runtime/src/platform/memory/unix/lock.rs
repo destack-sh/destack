@@ -1,7 +1,8 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::runtime::BindingCallContext;
 
-use super::core::{io_error, page_size, validated_range};
+use super::core::{page_size, validated_range};
 
 /// Lock one memory range into physical memory.
 pub(crate) unsafe fn destack_memory_lock(
@@ -16,7 +17,7 @@ pub(crate) unsafe fn destack_memory_lock(
     // request page lock from the host
     let status = unsafe { libc::mlock(pointer, length) };
     if status != 0 {
-        return Err(io_error("mlock"));
+        return Err(core_platform::io_error("mlock", None));
     }
 
     Ok(())
@@ -35,7 +36,7 @@ pub(crate) unsafe fn destack_memory_unlock(
     // release the page lock
     let status = unsafe { libc::munlock(pointer, length) };
     if status != 0 {
-        return Err(io_error("munlock"));
+        return Err(core_platform::io_error("munlock", None));
     }
 
     Ok(())

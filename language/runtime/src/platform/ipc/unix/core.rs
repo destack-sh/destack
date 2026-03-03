@@ -86,28 +86,6 @@ impl ResourceFinalizer for UnixMessageQueueFinalizer {
     }
 }
 
-/// Validate one out-pointer argument.
-pub(super) fn ensure_out<T>(out: *mut T, field: &'static str) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer(field)).boxed());
-    }
-
-    Ok(())
-}
-
-/// Build one invalid-argument runtime error.
-pub(super) fn invalid_argument(
-    field: &'static str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(field, message.into())).boxed()
-}
-
-/// Build one not-supported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
-}
-
 /// Build one mapped unix I/O error from explicit errno.
 pub(super) fn io_error_with_errno(
     operation: &'static str,
@@ -163,23 +141,14 @@ pub(super) fn would_block(operation: &'static str, message: &str) -> Box<Runtime
     .boxed()
 }
 
-/// Validate one flag word for the currently supported subset.
-pub(super) fn ensure_zero_flags(flags: u32, field: &'static str) -> RuntimeResult<()> {
-    if flags != 0 {
-        return Err(invalid_argument(
-            field,
-            "only flags=0 is currently supported",
-        ));
-    }
-
-    Ok(())
-}
-
 /// Decode one native name and normalize it for POSIX object APIs.
 pub(super) fn posix_name(name: NativeStringRef, field: &'static str) -> RuntimeResult<CString> {
     let name = unsafe { name.as_str()? };
     if name.is_empty() {
-        return Err(invalid_argument(field, "name must not be empty"));
+        return Err(core_platform::invalid_argument(
+            field,
+            "name must not be empty",
+        ));
     }
 
     let normalized_name = if name.starts_with('/') {
@@ -188,8 +157,9 @@ pub(super) fn posix_name(name: NativeStringRef, field: &'static str) -> RuntimeR
         format!("/{name}")
     };
 
-    CString::new(normalized_name)
-        .map_err(|_| invalid_argument(field, "name must not contain interior nul bytes"))
+    CString::new(normalized_name).map_err(|_| {
+        core_platform::invalid_argument(field, "name must not contain interior nul bytes")
+    })
 }
 
 /// Convert one timeout to an absolute realtime deadline.
@@ -226,7 +196,7 @@ pub(super) fn realtime_deadline(
     }
 
     if deadline_seconds > i128::from(i64::MAX) {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "timeoutNs",
             "timeout produced a realtime deadline outside host range",
         ));
@@ -256,7 +226,7 @@ pub(super) fn pipe_descriptor(
         })
         .flatten()
         .ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "handle",
                 format!("{operation} expected one valid pipe handle"),
             )
@@ -283,7 +253,7 @@ pub(super) fn shared_memory_descriptor(
         })
         .flatten()
         .ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "handle",
                 format!("{operation} expected one valid shared-memory handle"),
             )
@@ -310,7 +280,7 @@ pub(super) fn socket_descriptor(
         })
         .flatten()
         .ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "socket",
                 format!("{operation} expected one valid socket handle"),
             )
@@ -330,7 +300,7 @@ pub(super) fn transferable_descriptor(
         .resources
         .with_entry(handle.0, |entry| entry.fd())
         .flatten()
-        .ok_or_else(|| invalid_argument(field, "handle is not fd-backed"))?;
+        .ok_or_else(|| core_platform::invalid_argument(field, "handle is not fd-backed"))?;
 
     Ok(descriptor)
 }
@@ -351,14 +321,12 @@ pub(super) fn message_queue_descriptor(
             }
 
             entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<UnixMessageQueueState>())
+                .payload_ref::<UnixMessageQueueState>()
                 .map(|payload| payload.queue)
         })
         .flatten()
         .ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "handle",
                 format!("{operation} expected one valid message-queue handle"),
             )
@@ -382,14 +350,12 @@ pub(super) fn semaphore_pointer(
             }
 
             entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<UnixSemaphoreState>())
+                .payload_ref::<UnixSemaphoreState>()
                 .map(|payload| payload.semaphore as *mut libc::sem_t)
         })
         .flatten()
         .ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "handle",
                 format!("{operation} expected one valid semaphore handle"),
             )
@@ -403,10 +369,12 @@ pub(super) fn register_pipe_descriptor(
     context: &BindingCallContext,
     descriptor: RawFd,
 ) -> resource::PipeHandle {
-    let entry = ResourceEntry::new(ResourceKind::Pipe)
-        .with_label(PIPE_RESOURCE_LABEL)
-        .with_fd(descriptor)
-        .with_finalizer(UnixFileDescriptorFinalizer { descriptor });
+    let entry = ResourceEntry::labeled_fd_finalizer(
+        ResourceKind::Pipe,
+        PIPE_RESOURCE_LABEL,
+        descriptor,
+        UnixFileDescriptorFinalizer { descriptor },
+    );
     let resource_id = context
         .runtime()
         .resources
@@ -420,10 +388,12 @@ pub(super) fn register_shared_memory_descriptor(
     context: &BindingCallContext,
     descriptor: RawFd,
 ) -> resource::SharedMemoryHandle {
-    let entry = ResourceEntry::new(ResourceKind::SharedMemory)
-        .with_label(SHARED_MEMORY_RESOURCE_LABEL)
-        .with_fd(descriptor)
-        .with_finalizer(UnixFileDescriptorFinalizer { descriptor });
+    let entry = ResourceEntry::labeled_fd_finalizer(
+        ResourceKind::SharedMemory,
+        SHARED_MEMORY_RESOURCE_LABEL,
+        descriptor,
+        UnixFileDescriptorFinalizer { descriptor },
+    );
     let resource_id = context
         .runtime()
         .resources
@@ -437,14 +407,16 @@ pub(super) fn register_semaphore(
     context: &BindingCallContext,
     semaphore: *mut libc::sem_t,
 ) -> resource::SemaphoreHandle {
-    let entry = ResourceEntry::new(ResourceKind::Semaphore)
-        .with_label(SEMAPHORE_RESOURCE_LABEL)
-        .with_payload(UnixSemaphoreState {
+    let entry = ResourceEntry::labeled_payload_finalizer(
+        ResourceKind::Semaphore,
+        SEMAPHORE_RESOURCE_LABEL,
+        UnixSemaphoreState {
             semaphore: semaphore as usize,
-        })
-        .with_finalizer(UnixSemaphoreFinalizer {
+        },
+        UnixSemaphoreFinalizer {
             semaphore: semaphore as usize,
-        });
+        },
+    );
     let resource_id = context
         .runtime()
         .resources
@@ -458,10 +430,12 @@ pub(super) fn register_transferred_descriptor(
     context: &BindingCallContext,
     descriptor: RawFd,
 ) -> resource::TransferredHandle {
-    let entry = ResourceEntry::new(ResourceKind::Transferred)
-        .with_label(TRANSFERRED_RESOURCE_LABEL)
-        .with_fd(descriptor)
-        .with_finalizer(UnixFileDescriptorFinalizer { descriptor });
+    let entry = ResourceEntry::labeled_fd_finalizer(
+        ResourceKind::Transferred,
+        TRANSFERRED_RESOURCE_LABEL,
+        descriptor,
+        UnixFileDescriptorFinalizer { descriptor },
+    );
     let resource_id = context
         .runtime()
         .resources
@@ -476,10 +450,12 @@ pub(super) fn register_message_queue(
     context: &BindingCallContext,
     queue: libc::mqd_t,
 ) -> resource::MessageQueueHandle {
-    let entry = ResourceEntry::new(ResourceKind::MessageQueue)
-        .with_label(MESSAGE_QUEUE_RESOURCE_LABEL)
-        .with_payload(UnixMessageQueueState { queue })
-        .with_finalizer(UnixMessageQueueFinalizer { queue });
+    let entry = ResourceEntry::labeled_payload_finalizer(
+        ResourceKind::MessageQueue,
+        MESSAGE_QUEUE_RESOURCE_LABEL,
+        UnixMessageQueueState { queue },
+        UnixMessageQueueFinalizer { queue },
+    );
     let resource_id = context
         .runtime()
         .resources

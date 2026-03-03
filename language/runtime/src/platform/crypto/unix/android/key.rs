@@ -26,12 +26,10 @@ use crate::platform::crypto::{
     CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve,
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
 };
-use crate::platform::{NativeSlice, NativeStringRef};
+use crate::platform::{NativeSlice, NativeStringRef, core as core_platform};
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    callback_runtime_id, host_status_result, host_store_kind, invalid_data, not_supported,
-};
+use super::core::{callback_runtime_id, host_status_result, host_store_kind, invalid_data};
 
 /// Supported software host-key backends for Android key operations.
 const ANDROID_SOFTWARE_BACKENDS: [HostKeyBackend; 2] = [
@@ -49,7 +47,7 @@ fn host_key_algorithm(
         CryptoKeyAlgorithm::Ec => 2,
         CryptoKeyAlgorithm::Aes => 3,
         CryptoKeyAlgorithm::Hmac => 4,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(encoded)
@@ -62,7 +60,7 @@ fn host_named_curve(named_curve: CryptoNamedCurve, operation: &'static str) -> R
         CryptoNamedCurve::P256 => 1,
         CryptoNamedCurve::P384 => 2,
         CryptoNamedCurve::P521 => 3,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(encoded)
@@ -77,7 +75,7 @@ fn host_signature_algorithm(
         CryptoSignatureAlgorithm::RsaPkcs1v15 => 1,
         CryptoSignatureAlgorithm::RsaPss => 2,
         CryptoSignatureAlgorithm::Ecdsa => 3,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(encoded)
@@ -93,7 +91,7 @@ fn host_digest_algorithm(
         CryptoDigestAlgorithm::Sha256 => 2,
         CryptoDigestAlgorithm::Sha384 => 3,
         CryptoDigestAlgorithm::Sha512 => 4,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(encoded)
@@ -107,7 +105,7 @@ fn host_asymmetric_algorithm(
     let encoded = match algorithm {
         CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15 => 1,
         CryptoAsymmetricEncryptionAlgorithm::RsaOaep => 2,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(encoded)
@@ -123,7 +121,7 @@ fn host_cipher_algorithm(
         CryptoCipherAlgorithm::AesCtr => 2,
         CryptoCipherAlgorithm::AesCbc => 3,
         CryptoCipherAlgorithm::ChaCha20Poly1305 => 4,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(encoded)
@@ -136,7 +134,7 @@ fn host_mac_algorithm(
 ) -> RuntimeResult<u32> {
     let encoded = match algorithm {
         CryptoMacAlgorithm::Hmac => 1,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(encoded)
@@ -263,7 +261,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
 ) -> RuntimeResult<HostKeyMaterial> {
     // enforce user-lane hardware secret generation
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // enforce supported hardware-backed secret families
@@ -271,7 +269,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
         algorithm,
         CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::Hmac
     ) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // resolve runtime id
@@ -305,7 +303,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
     let backend = match algorithm {
         CryptoKeyAlgorithm::Aes => HostKeyBackend::AndroidHardwareKeystoreAes,
         CryptoKeyAlgorithm::Hmac => HostKeyBackend::AndroidHardwareKeystoreHmac,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(HostKeyMaterial {
@@ -476,12 +474,12 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 ) -> RuntimeResult<HostGeneratedKeyPair> {
     // enforce user-lane hardware key generation
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // enforce algorithm and curve compatibility
     if algorithm == CryptoKeyAlgorithm::Rsa && named_curve != CryptoNamedCurve::Unknown {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if algorithm == CryptoKeyAlgorithm::Ec
         && !matches!(
@@ -492,7 +490,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
                 | CryptoNamedCurve::P521
         )
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // resolve runtime id
@@ -539,7 +537,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
     let backend = match algorithm {
         CryptoKeyAlgorithm::Rsa => HostKeyBackend::AndroidHardwareKeystoreRsa,
         CryptoKeyAlgorithm::Ec => HostKeyBackend::AndroidHardwareKeystoreEc,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
     let private_material = crypto_core::CryptoKeyMaterial::Host(HostKeyMaterial {
         backend,
@@ -582,11 +580,11 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
                 Nid::X9_62_PRIME256V1 => (CryptoNamedCurve::P256, 256),
                 Nid::SECP384R1 => (CryptoNamedCurve::P384, 384),
                 Nid::SECP521R1 => (CryptoNamedCurve::P521, 521),
-                _ => return Err(not_supported(operation)),
+                _ => return Err(core_platform::not_supported(operation)),
             };
             (curve, bits, 0, 0)
         }
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(HostGeneratedKeyPair {
@@ -669,18 +667,18 @@ pub(crate) fn host_key_sign(
         HostKeyBackend::AndroidHardwareKeystoreRsa | HostKeyBackend::AndroidHardwareKeystoreEc
     ) {
         if store_kind != CryptoStoreKind::User {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         if key.backend == HostKeyBackend::AndroidHardwareKeystoreRsa
             && algorithm != CryptoKeyAlgorithm::Rsa
         {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
         if key.backend == HostKeyBackend::AndroidHardwareKeystoreEc
             && algorithm != CryptoKeyAlgorithm::Ec
         {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
@@ -735,11 +733,11 @@ pub(crate) fn host_key_decrypt(
     // route hardware-backed decryption through host callbacks
     if key.backend == HostKeyBackend::AndroidHardwareKeystoreRsa {
         if store_kind != CryptoStoreKind::User {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         if algorithm != CryptoKeyAlgorithm::Rsa {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
@@ -805,7 +803,7 @@ pub(crate) fn host_key_delete(
         HostKeyBackend::AndroidHardwareKeystoreRsa | HostKeyBackend::AndroidHardwareKeystoreEc
     ) {
         if store_kind != CryptoStoreKind::User {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
@@ -823,7 +821,7 @@ pub(crate) fn host_key_delete(
             HostKeyBackend::AndroidHardwareKeystoreHmac => {
                 host_key_algorithm(CryptoKeyAlgorithm::Hmac, operation)?
             }
-            _ => return Err(not_supported(operation)),
+            _ => return Err(core_platform::not_supported(operation)),
         };
         let key_label = NativeStringRef::from(&key.key_label);
         let status = unsafe {
@@ -854,7 +852,7 @@ pub(crate) fn host_key_derive_shared_secret(
     // route hardware-backed derive through host callbacks
     if key.backend == HostKeyBackend::AndroidHardwareKeystoreEc {
         if store_kind != CryptoStoreKind::User {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
@@ -911,7 +909,7 @@ pub(crate) fn host_key_cipher_encrypt(
         || algorithm != CryptoKeyAlgorithm::Aes
         || store_kind != CryptoStoreKind::User
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;
@@ -969,7 +967,7 @@ pub(crate) fn host_key_cipher_decrypt(
         || algorithm != CryptoKeyAlgorithm::Aes
         || store_kind != CryptoStoreKind::User
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;
@@ -1029,7 +1027,7 @@ pub(crate) fn host_key_mac_compute(
         || algorithm != CryptoKeyAlgorithm::Hmac
         || store_kind != CryptoStoreKind::User
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;

@@ -18,7 +18,7 @@ use crate::platform::process::{
     ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags, ProcessWaitStatus, Signal, SignalEvent,
     SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
 };
-use crate::platform::{fs, resource};
+use crate::platform::{core as core_platform, fs, resource};
 use std::ffi::{CStr, CString};
 
 /// Decode a native string slice into owned UTF-8 strings.
@@ -38,20 +38,15 @@ fn resolve_directory_fd(
     context: &BindingCallContext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<i32> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != resource::ResourceKind::Directory {
-            return None;
-        }
-        entry.fd()
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "directory",
-            "unknown directory handle",
-        ))
-        .boxed()
-    })
+    resource::with_entry(
+        context,
+        handle.0,
+        resource::ResourceKind::Directory,
+        None,
+        |entry| entry.fd(),
+    )
+    .flatten()
+    .ok_or_else(|| core_platform::unknown_handle("directory", "directory"))
 }
 
 /// Resolve a file handle into a unix descriptor.
@@ -59,20 +54,15 @@ fn resolve_file_fd(
     context: &BindingCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<i32> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != resource::ResourceKind::File {
-            return None;
-        }
-        entry.fd()
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "executable",
-            "unknown file handle",
-        ))
-        .boxed()
-    })
+    resource::with_entry(
+        context,
+        handle.0,
+        resource::ResourceKind::File,
+        None,
+        |entry| entry.fd(),
+    )
+    .flatten()
+    .ok_or_else(|| core_platform::unknown_handle("executable", "file"))
 }
 /// Replace the current process image with a command path.
 ///

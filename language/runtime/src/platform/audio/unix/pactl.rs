@@ -6,6 +6,7 @@ use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "linux")]
 use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use crate::platform::core as core_platform;
 #[cfg(target_os = "linux")]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::runtime::BindingCallContext;
@@ -257,7 +258,7 @@ fn run_pactl_monitor_thread(
         Ok(child) => child,
         Err(error) => {
             let startup = if error.kind() == std::io::ErrorKind::NotFound {
-                audio_core::audio_not_found(
+                core_platform::io_not_found(
                     "destack.audio.event.open",
                     "pactl executable was not found on this host",
                 )

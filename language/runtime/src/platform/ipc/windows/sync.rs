@@ -1,16 +1,13 @@
-use windows_sys::Win32::Foundation::{WAIT_ABANDONED, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT};
 use windows_sys::Win32::System::Threading::{
     CreateSemaphoreW, ReleaseSemaphore, WaitForSingleObject,
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::{NativeStringRef, resource};
+use crate::platform::{NativeStringRef, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    ensure_out, ensure_zero_flags, invalid_argument, io_error, not_supported,
-    register_semaphore_handle, semaphore_handle, timed_out, timeout_to_wait_milliseconds,
-    wide_name,
+    register_semaphore_handle, semaphore_handle, timed_out, timeout_to_wait_milliseconds, wide_name,
 };
 
 /// Increment one semaphore count.
@@ -48,7 +45,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 ) -> RuntimeResult<()> {
     let _ = (sharedmemory, offset, expected, timeoutns);
 
-    Err(not_supported(FUTEX_WAIT_OPERATION))
+    Err(core_platform::not_supported(FUTEX_WAIT_OPERATION))
 }
 
 /// Wake futex waiters for one shared-memory word.
@@ -75,10 +72,10 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
     offset: u64,
     count: u32,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let _ = (sharedmemory, offset, count);
 
-    Err(not_supported(FUTEX_WAKE_OPERATION))
+    Err(core_platform::not_supported(FUTEX_WAKE_OPERATION))
 }
 
 /// Create one named semaphore.
@@ -106,15 +103,16 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and input flags
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
 
     // decode one UTF-16 semaphore name
     let name = wide_name(name, "name")?;
 
     // decode semaphore counts into windows host ranges
-    let initial_count = i32::try_from(initial)
-        .map_err(|_| invalid_argument("initial", "initial count exceeds windows i32 range"))?;
+    let initial_count = i32::try_from(initial).map_err(|_| {
+        core_platform::invalid_argument("initial", "initial count exceeds windows i32 range")
+    })?;
     let maximum_count = i32::MAX;
 
     // create one named semaphore object
@@ -127,7 +125,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
         )
     };
     if semaphore == 0 {
-        return Err(io_error("CreateSemaphoreW"));
+        return Err(core_platform::io_error("CreateSemaphoreW"));
     }
 
     // register semaphore handle and write output
@@ -164,12 +162,12 @@ pub(crate) unsafe fn destack_ipc_semaphore_post(
     // resolve one semaphore handle and decode count range
     let semaphore = semaphore_handle(context, handle, SEMAPHORE_POST_OPERATION)?;
     let release_count = i32::try_from(count)
-        .map_err(|_| invalid_argument("count", "count exceeds windows i32 range"))?;
+        .map_err(|_| core_platform::invalid_argument("count", "count exceeds windows i32 range"))?;
 
     // release one or more semaphore permits
     let status = unsafe { ReleaseSemaphore(semaphore, release_count, std::ptr::null_mut()) };
     if status == 0 {
-        return Err(io_error("ReleaseSemaphore"));
+        return Err(core_platform::io_error("ReleaseSemaphore"));
     }
 
     Ok(())
@@ -203,21 +201,12 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
 
     // wait on one semaphore permit
     let status = unsafe { WaitForSingleObject(semaphore, timeout_milliseconds) };
-    if status == WAIT_OBJECT_0 {
-        return Ok(());
-    }
-    if status == WAIT_TIMEOUT {
-        return Err(timed_out(
+    match core_platform::decode_wait_for_single_object_status(status, "WaitForSingleObject")? {
+        core_platform::WaitStatus::Signaled => Ok(()),
+        core_platform::WaitStatus::TimedOut => Err(timed_out(
             SEMAPHORE_WAIT_OPERATION,
             "failed to wait semaphore: timed out",
-        ));
+        )),
+        core_platform::WaitStatus::Abandoned => Err(core_platform::io_error("WaitForSingleObject")),
     }
-    if status == WAIT_ABANDONED {
-        return Err(io_error("WaitForSingleObject"));
-    }
-    if status == WAIT_FAILED {
-        return Err(io_error("WaitForSingleObject"));
-    }
-
-    Err(io_error("WaitForSingleObject"))
 }

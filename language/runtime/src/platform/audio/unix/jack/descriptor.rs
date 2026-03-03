@@ -1,5 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::core as core_platform;
 
 use super::core::{channel_layout, channel_mask};
 use super::host::{JackEndpointSnapshot, probe_jack_endpoints};
@@ -34,7 +35,7 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
     }
 
     if descriptors.is_empty() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.device.list",
             "JACK reported no physical audio endpoints",
         ));

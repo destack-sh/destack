@@ -12,7 +12,7 @@ use crate::platform::io::{
 };
 use crate::platform::proactor::Proactor;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-use crate::platform::{IocpProactor, PlatformError, ResourceId, core as core_platform};
+use crate::platform::{IocpProactor, PlatformError, ResourceId, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::poller::{HostPollerBackend, PlatformHandle};
 
@@ -156,7 +156,12 @@ pub(crate) fn host_control_ioctl(
         .runtime()
         .resources
         .with_entry(handle, |entry| (entry.socket(), entry.handle()))
-        .ok_or_else(|| io_core::io_target_not_found("destack.io.control.ioctl", handle))?;
+        .ok_or_else(|| {
+            core_platform::io_not_found(
+                "destack.io.control.ioctl",
+                format!("target resource {} not found", handle.0),
+            )
+        })?;
     let (socket, host_handle) = entry;
 
     // dispatch to winsock when the resource is socket-backed
@@ -259,15 +264,15 @@ pub(crate) fn host_poll_resolve_target_handle(
     target: ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = context.runtime().resources.with_entry(target, |entry| {
+    let resolved = resource::with_any_entry(context, target, |entry| {
         entry.socket().map(PlatformHandle::from_raw_socket)
     });
 
     // reject unknown resources first
     let Some(handle) = resolved else {
-        return Err(io_core::io_target_not_found(
+        return Err(core_platform::io_not_found(
             "destack.io.poll.target",
-            target,
+            format!("target resource {} not found", target.0),
         ));
     };
 
@@ -290,7 +295,7 @@ pub(crate) fn host_completion_resolve_target_handle(
     operation: &'static str,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = context.runtime().resources.with_entry(target, |entry| {
+    let resolved = resource::with_any_entry(context, target, |entry| {
         if let Some(socket) = entry.socket() {
             return Some(PlatformHandle::from_raw_socket(socket));
         }
@@ -300,7 +305,10 @@ pub(crate) fn host_completion_resolve_target_handle(
 
     // reject unknown targets first
     let Some(handle) = resolved else {
-        return Err(io_core::io_target_not_found(operation, target));
+        return Err(core_platform::io_not_found(
+            operation,
+            format!("target resource {} not found", target.0),
+        ));
     };
 
     // reject targets without host handles
@@ -375,7 +383,10 @@ pub(crate) fn host_event_close(
         .resources
         .remove_and_finalize(ResourceId(token.0), Some(context.engine()));
     if !removed {
-        return Err(io_core::event_not_found("destack.io.event.close", token));
+        return Err(core_platform::io_not_found(
+            "destack.io.event.close",
+            format!("event token {} not found", token.0),
+        ));
     }
 
     Ok(())
@@ -390,18 +401,20 @@ pub(crate) fn host_event_signal(
     let _ = value;
 
     // resolve one event handle from the token resource
-    let handle = context
-        .runtime()
-        .resources
-        .with_entry(ResourceId(token.0), |entry| {
-            if entry.label.as_deref() != Some(io_core::EVENT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            entry.handle()
-        })
-        .flatten()
-        .ok_or_else(|| io_core::event_not_found("destack.io.event.signal", token))?;
+    let handle = resource::with_entry(
+        context,
+        ResourceId(token.0),
+        ResourceKind::Event,
+        Some(io_core::EVENT_RESOURCE_LABEL),
+        |entry| entry.handle(),
+    )
+    .flatten()
+    .ok_or_else(|| {
+        core_platform::io_not_found(
+            "destack.io.event.signal",
+            format!("event token {} not found", token.0),
+        )
+    })?;
 
     // signal the event object
     let ok = unsafe { SetEvent(handle as HANDLE) };

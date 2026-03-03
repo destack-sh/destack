@@ -3,17 +3,12 @@
 #![allow(clippy::missing_safety_doc)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::core::not_supported;
 use crate::platform::memory::{
     MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRange, MemoryRemapFlags,
     MemoryReserveFlags, ProtectedMemoryRange,
 };
 use crate::runtime::BindingCallContext;
-
-/// Build one unsupported-platform runtime error.
-fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
-}
 
 /// Apply memory access advice.
 pub(crate) unsafe fn destack_memory_advise(

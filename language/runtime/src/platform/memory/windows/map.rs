@@ -3,15 +3,13 @@ use windows_sys::Win32::System::Memory::{
 };
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::memory::{
     MemoryNumaPolicy, MemoryProtection, MemoryRange, MemoryReserveFlags, core as memory_core,
 };
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    NUMA_BIND_OPERATION, decode_reserve_flags, io_error, page_size, windows_protection,
-};
-use memory_core::{ensure_out, not_supported, usize_to_u64};
+use super::core::{NUMA_BIND_OPERATION, decode_reserve_flags, page_size, windows_protection};
 
 /// Reserve one virtual memory range.
 pub(crate) unsafe fn destack_memory_reserve(
@@ -22,7 +20,7 @@ pub(crate) unsafe fn destack_memory_reserve(
     flags: MemoryReserveFlags,
 ) -> RuntimeResult<()> {
     // validate output pointer and reserve parameters
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let page_size = page_size()?;
     let length = memory_core::nonzero_length(length, "length")?;
     memory_core::require_page_alignment(length, page_size, "length")?;
@@ -41,12 +39,12 @@ pub(crate) unsafe fn destack_memory_reserve(
     let allocation_type = MEM_RESERVE | reserve_flags;
     let pointer = unsafe { VirtualAlloc(hint, length, allocation_type, PAGE_NOACCESS) };
     if pointer.is_null() {
-        return Err(io_error("VirtualAlloc"));
+        return Err(core_platform::io_error("VirtualAlloc"));
     }
 
     // write resulting range metadata
-    let mapped_address = usize_to_u64(pointer as usize, "out.address")?;
-    let mapped_length = usize_to_u64(length, "out.length")?;
+    let mapped_address = core_platform::usize_to_u64(pointer as usize, "out.address")?;
+    let mapped_length = core_platform::usize_to_u64(length, "out.length")?;
     unsafe {
         out.write(MemoryRange {
             address: mapped_address,
@@ -82,7 +80,7 @@ pub(crate) unsafe fn destack_memory_commit(
         )
     };
     if pointer.is_null() {
-        return Err(io_error("VirtualAlloc"));
+        return Err(core_platform::io_error("VirtualAlloc"));
     }
 
     Ok(())
@@ -104,7 +102,7 @@ pub(crate) unsafe fn destack_memory_decommit(
     // decommit pages while preserving reservation
     let status = unsafe { VirtualFree(address as *mut core::ffi::c_void, length, MEM_DECOMMIT) };
     if status == 0 {
-        return Err(io_error("VirtualFree"));
+        return Err(core_platform::io_error("VirtualFree"));
     }
 
     Ok(())
@@ -126,7 +124,7 @@ pub(crate) unsafe fn destack_memory_release(
     // release the reservation back to the host
     let status = unsafe { VirtualFree(address as *mut core::ffi::c_void, 0, MEM_RELEASE) };
     if status == 0 {
-        return Err(io_error("VirtualFree"));
+        return Err(core_platform::io_error("VirtualFree"));
     }
 
     Ok(())
@@ -142,5 +140,5 @@ pub(crate) unsafe fn destack_memory_numa_bind(
 ) -> RuntimeResult<()> {
     // mark numa binding as unsupported on this backend
     let _ = (address, length, policy, nodemask);
-    Err(not_supported(NUMA_BIND_OPERATION))
+    Err(core_platform::not_supported(NUMA_BIND_OPERATION))
 }

@@ -40,9 +40,7 @@ fn directory_cursor(
         "directory",
         |entry| {
             entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<DirectoryResource>())
+                .payload_ref::<DirectoryResource>()
                 .map(|directory| directory.cursor.clone())
                 .ok_or_else(|| {
                     RuntimeError::from(PlatformError::generic(

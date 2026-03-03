@@ -3,10 +3,11 @@ use crate::host::{
     HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
     HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, HOST_STATUS_PERMISSION_DENIED,
 };
+use crate::platform::core as core_platform;
 use crate::platform::os::CredentialAuthenticationMechanism;
 use crate::runtime::BindingCallContext;
 
-use super::super::super::core::{invalid_data, not_found, not_supported, permission_denied};
+use super::super::super::core::{invalid_data, permission_denied};
 
 /// Mechanism code for one unknown host authentication method.
 const AUTHENTICATION_MECHANISM_UNKNOWN_CODE: u32 = 1;
@@ -21,7 +22,7 @@ pub(super) fn callback_runtime_id(
     operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
     let Some(runtime_id) = context.host().callback_runtime_id() else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
 
     Ok(runtime_id)
@@ -62,7 +63,7 @@ pub(super) fn host_status_result(
     }
 
     if status == HOST_STATUS_NOT_SUPPORTED {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     if status == HOST_STATUS_INVALID_ARGUMENT {
@@ -73,7 +74,7 @@ pub(super) fn host_status_result(
     }
 
     if status == HOST_STATUS_NOT_FOUND {
-        return Err(not_found(
+        return Err(core_platform::io_not_found(
             operation,
             format!("android host credentials {action} could not find one credential"),
         ));

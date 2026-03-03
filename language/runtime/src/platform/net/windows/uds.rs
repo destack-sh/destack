@@ -11,10 +11,10 @@ use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::fs::OsPath;
 use crate::platform::net::{AcceptFlags, ListenerHandle, SocketHandle, SocketPair, SocketType};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Monotonic suffix for temporary UDS socket-pair paths.
@@ -157,7 +157,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // build the socket address
     let (addr, len) = uds_sockaddr(path)?;
@@ -165,14 +165,20 @@ pub(crate) unsafe fn destack_net_uds_connect(
     // create and connect the socket
     let socket = unsafe { socket(AF_UNIX as i32, SOCK_STREAM, 0) };
     if socket == INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     let rc = unsafe { connect(socket, &addr as *const _ as *const SOCKADDR, len) };
     if rc != 0 {
         unsafe {
             windows_sys::Win32::Networking::WinSock::closesocket(socket);
         }
-        return Err(last_net_error("connect"));
+        return Err(core_platform::net_error_with_code(
+            "connect",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // register the socket
@@ -219,7 +225,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // build the socket address
     let (addr, len) = uds_sockaddr(path)?;
@@ -227,7 +233,10 @@ pub(crate) unsafe fn destack_net_uds_listen(
     // create the socket
     let socket = unsafe { socket(AF_UNIX as i32, SOCK_STREAM, 0) };
     if socket == INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // bind the socket
@@ -236,7 +245,10 @@ pub(crate) unsafe fn destack_net_uds_listen(
         unsafe {
             windows_sys::Win32::Networking::WinSock::closesocket(socket);
         }
-        return Err(last_net_error("bind"));
+        return Err(core_platform::net_error_with_code(
+            "bind",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // listen for connections
@@ -246,7 +258,10 @@ pub(crate) unsafe fn destack_net_uds_listen(
         unsafe {
             windows_sys::Win32::Networking::WinSock::closesocket(socket);
         }
-        return Err(last_net_error("listen"));
+        return Err(core_platform::net_error_with_code(
+            "listen",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // register the listener
@@ -349,7 +364,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // allocate one temporary filesystem path for the pair setup
     let socket_path = temporary_uds_socket_pair_path(context);
@@ -358,7 +373,10 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     // create one listener socket
     let listener_socket = unsafe { socket(AF_UNIX as i32, SOCK_STREAM, 0) };
     if listener_socket == INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // bind the listener on the temporary path
@@ -373,7 +391,10 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
         unsafe {
             closesocket(listener_socket);
         }
-        return Err(last_net_error("bind"));
+        return Err(core_platform::net_error_with_code(
+            "bind",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // listen for one incoming connection
@@ -383,7 +404,10 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
             closesocket(listener_socket);
         }
         delete_socket_path(&socket_path);
-        return Err(last_net_error("listen"));
+        return Err(core_platform::net_error_with_code(
+            "listen",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // connect one client socket
@@ -393,7 +417,10 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
             closesocket(listener_socket);
         }
         delete_socket_path(&socket_path);
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     let rc = unsafe {
         connect(
@@ -408,7 +435,10 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
             closesocket(listener_socket);
         }
         delete_socket_path(&socket_path);
-        return Err(last_net_error("connect"));
+        return Err(core_platform::net_error_with_code(
+            "connect",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // accept one server-side socket
@@ -420,7 +450,10 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
             closesocket(listener_socket);
         }
         delete_socket_path(&socket_path);
-        return Err(last_net_error("accept"));
+        return Err(core_platform::net_error_with_code(
+            "accept",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // close and cleanup listener resources

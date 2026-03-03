@@ -17,7 +17,9 @@ use crate::platform::crypto::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::ResourceEntry;
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::platform::{
+    NativeSlice, NativeStringRef, PlatformError, core as core_platform, resource,
+};
 use crate::runtime::BindingCallContext;
 
 pub(super) use super::constants::*;
@@ -333,11 +335,6 @@ impl Drop for CryptoCipherResource {
     }
 }
 
-/// Build one invalidArgument runtime error.
-pub(super) fn invalid_argument(field: &str, message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(field, message)).boxed()
-}
-
 /// Build one ioInvalidData runtime error.
 pub(super) fn invalid_data(
     operation: &'static str,
@@ -350,23 +347,6 @@ pub(super) fn invalid_data(
         Some(operation.to_string()),
         None,
         message.into(),
-    ))
-    .boxed()
-}
-
-/// Build one ioNotFound runtime error for one unknown handle.
-pub(super) fn handle_not_found(
-    operation: &'static str,
-    handle_name: &str,
-    handle_value: u64,
-) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoNotFound),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        format!("unknown {handle_name} handle {handle_value}"),
     ))
     .boxed()
 }
@@ -385,11 +365,6 @@ pub(super) fn permission_denied(
         message.into(),
     ))
     .boxed()
-}
-
-/// Build one notSupported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
 }
 
 /// Build one ioInvalidData runtime error from one OpenSSL error.
@@ -496,21 +471,18 @@ pub(super) fn resolve_key_resource(
     handle: resource::CryptoKeyHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoKeyResource>>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
-            return None;
-        }
-
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>())
-            .map(Arc::clone)
-    });
-
-    resolved
-        .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto key", handle.0.0))
+    resource::resolve_payload::<Arc<Mutex<CryptoKeyResource>>>(
+        context,
+        handle.0,
+        CRYPTO_KEY_RESOURCE_KIND,
+        None,
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
+            operation,
+            format!("unknown crypto key handle {}", handle.0.0),
+        )
+    })
 }
 
 /// Resolve one store from one handle.
@@ -519,21 +491,18 @@ pub(super) fn resolve_store_resource(
     handle: resource::CryptoStoreHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoStoreResource>>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != CRYPTO_STORE_RESOURCE_KIND {
-            return None;
-        }
-
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoStoreResource>>>())
-            .map(Arc::clone)
-    });
-
-    resolved
-        .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto store", handle.0.0))
+    resource::resolve_payload::<Arc<Mutex<CryptoStoreResource>>>(
+        context,
+        handle.0,
+        CRYPTO_STORE_RESOURCE_KIND,
+        None,
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
+            operation,
+            format!("unknown crypto store handle {}", handle.0.0),
+        )
+    })
 }
 
 /// Enforce key storage policy against one store kind.
@@ -549,17 +518,17 @@ pub(super) fn enforce_store_key_policy(
 
     // reject stores that do not support key-write operations
     if !support.supports_key_writes {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // reject unsupported persistent policy lanes
     if persistent && !support.supports_persistent {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // reject unsupported hardware-backed policy lanes
     if hardware_backed && !support.supports_hardware_backed {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     Ok(())
@@ -654,7 +623,7 @@ pub(super) fn enforce_store_certificate_write_policy(
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
     ) && !host_store_supports_certificate_write(context, store.kind)
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     Ok(())
@@ -672,7 +641,7 @@ pub(super) fn enforce_object_delete_policy(
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
     ) && !host_store_supports_certificate_write(context, store_provenance.kind)
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     Ok(())
@@ -741,21 +710,18 @@ pub(super) fn resolve_certificate_resource(
     handle: resource::CryptoCertificateHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoCertificateResource>>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
-            return None;
-        }
-
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoCertificateResource>>>())
-            .map(Arc::clone)
-    });
-
-    resolved
-        .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto certificate", handle.0.0))
+    resource::resolve_payload::<Arc<Mutex<CryptoCertificateResource>>>(
+        context,
+        handle.0,
+        CRYPTO_CERTIFICATE_RESOURCE_KIND,
+        None,
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
+            operation,
+            format!("unknown crypto certificate handle {}", handle.0.0),
+        )
+    })
 }
 
 /// Resolve one digest state from one handle.
@@ -764,21 +730,18 @@ pub(super) fn resolve_digest_resource(
     handle: resource::CryptoDigestHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoDigestResource>>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != CRYPTO_DIGEST_RESOURCE_KIND {
-            return None;
-        }
-
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoDigestResource>>>())
-            .map(Arc::clone)
-    });
-
-    resolved
-        .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto digest", handle.0.0))
+    resource::resolve_payload::<Arc<Mutex<CryptoDigestResource>>>(
+        context,
+        handle.0,
+        CRYPTO_DIGEST_RESOURCE_KIND,
+        None,
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
+            operation,
+            format!("unknown crypto digest handle {}", handle.0.0),
+        )
+    })
 }
 
 /// Resolve one mac state from one handle.
@@ -787,21 +750,18 @@ pub(super) fn resolve_mac_resource(
     handle: resource::CryptoMacHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoMacResource>>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != CRYPTO_MAC_RESOURCE_KIND {
-            return None;
-        }
-
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoMacResource>>>())
-            .map(Arc::clone)
-    });
-
-    resolved
-        .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto mac", handle.0.0))
+    resource::resolve_payload::<Arc<Mutex<CryptoMacResource>>>(
+        context,
+        handle.0,
+        CRYPTO_MAC_RESOURCE_KIND,
+        None,
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
+            operation,
+            format!("unknown crypto mac handle {}", handle.0.0),
+        )
+    })
 }
 
 /// Resolve one cipher state from one handle.
@@ -810,21 +770,18 @@ pub(super) fn resolve_cipher_resource(
     handle: resource::CryptoCipherHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<CryptoCipherResource>>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != CRYPTO_CIPHER_RESOURCE_KIND {
-            return None;
-        }
-
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoCipherResource>>>())
-            .map(Arc::clone)
-    });
-
-    resolved
-        .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto cipher", handle.0.0))
+    resource::resolve_payload::<Arc<Mutex<CryptoCipherResource>>>(
+        context,
+        handle.0,
+        CRYPTO_CIPHER_RESOURCE_KIND,
+        None,
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
+            operation,
+            format!("unknown crypto cipher handle {}", handle.0.0),
+        )
+    })
 }
 
 /// Insert one key resource and return its handle.

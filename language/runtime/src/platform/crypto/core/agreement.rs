@@ -6,12 +6,12 @@ use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm,
     CryptoKeyKind, CryptoNamedCurve, host as crypto_host,
 };
-use crate::platform::resource;
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
     CryptoKeyMaterial, KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, decode_native_bytes,
-    invalid_argument, openssl_error, resolve_key_resource,
+    openssl_error, resolve_key_resource,
 };
 use super::kdf::hkdf_expand;
 use super::key::require_key_usage;
@@ -33,7 +33,7 @@ pub(crate) fn agreement_derive_shared_secret(
 
     // reject unknown algorithm early
     if algorithm == CryptoKeyAgreementAlgorithm::Unknown {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "algorithm",
             "key agreement algorithm must not be Unknown",
         ));
@@ -48,7 +48,7 @@ pub(crate) fn agreement_derive_shared_secret(
     let private_resource = private_resource.lock();
 
     if private_resource.kind != CryptoKeyKind::Private {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "privateKey",
             "privateKey handle does not reference one private key",
         ));
@@ -63,7 +63,7 @@ pub(crate) fn agreement_derive_shared_secret(
     let peer_resource = peer_resource.lock();
 
     if peer_resource.kind != CryptoKeyKind::Public {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "peerPublicKey",
             "peerPublicKey handle does not reference one public key",
         ));
@@ -75,7 +75,7 @@ pub(crate) fn agreement_derive_shared_secret(
             if private_resource.algorithm != CryptoKeyAlgorithm::Ec
                 || peer_resource.algorithm != CryptoKeyAlgorithm::Ec
             {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "algorithm",
                     "ECDH requires EC private and public keys",
                 ));
@@ -84,7 +84,7 @@ pub(crate) fn agreement_derive_shared_secret(
                 || peer_resource.named_curve == CryptoNamedCurve::Unknown
                 || private_resource.named_curve != peer_resource.named_curve
             {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "peerPublicKey",
                     "EC key agreement requires matching named curves",
                 ));
@@ -94,7 +94,7 @@ pub(crate) fn agreement_derive_shared_secret(
             if private_resource.algorithm != CryptoKeyAlgorithm::X25519
                 || peer_resource.algorithm != CryptoKeyAlgorithm::X25519
             {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "algorithm",
                     "X25519 agreement requires X25519 private and public keys",
                 ));
@@ -104,14 +104,14 @@ pub(crate) fn agreement_derive_shared_secret(
             if private_resource.algorithm != CryptoKeyAlgorithm::X448
                 || peer_resource.algorithm != CryptoKeyAlgorithm::X448
             {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "algorithm",
                     "X448 agreement requires X448 private and public keys",
                 ));
             }
         }
         CryptoKeyAgreementAlgorithm::Unknown => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "algorithm",
                 "key agreement algorithm must not be Unknown",
             ));
@@ -123,7 +123,7 @@ pub(crate) fn agreement_derive_shared_secret(
         CryptoKeyMaterial::Host(private_key) => Some(private_key.clone()),
         CryptoKeyMaterial::Private(_) => None,
         _ => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "privateKey",
                 "privateKey handle does not reference one private key",
             ));
@@ -132,7 +132,7 @@ pub(crate) fn agreement_derive_shared_secret(
     let peer = match &peer_resource.material {
         CryptoKeyMaterial::Public(peer_key) => peer_key.clone(),
         _ => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "peerPublicKey",
                 "peerPublicKey handle does not reference one public key",
             ));
@@ -166,7 +166,7 @@ pub(crate) fn agreement_derive_shared_secret(
 
     // require one provider private key for openssl derive path
     let Some(private) = private else {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "privateKey",
             "privateKey handle does not reference one private key",
         ));

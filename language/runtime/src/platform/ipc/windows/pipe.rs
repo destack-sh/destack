@@ -4,13 +4,10 @@ use windows_sys::Win32::System::Pipes::CreatePipe;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::PipePair;
-use crate::platform::{NativeSlice, resource};
+use crate::platform::{NativeSlice, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    ensure_out, ensure_zero_flags, invalid_argument, io_error, pipe_handle, register_pipe_handle,
-    validate_handle,
-};
+use super::core::{pipe_handle, register_pipe_handle, validate_handle};
 
 /// Open one unnamed pipe pair.
 const PIPE_OPEN_OPERATION: &str = "destack.ipc.pipe.open";
@@ -45,7 +42,7 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "handle",
             "destack.ipc.pipe.close expected one valid pipe handle",
         ));
@@ -77,8 +74,8 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and flag payload
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
 
     // create one windows anonymous pipe pair
     let mut read_handle: HANDLE = 0;
@@ -86,7 +83,7 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
     let status =
         unsafe { CreatePipe(&mut read_handle, &mut write_handle, std::ptr::null_mut(), 0) };
     if status == 0 {
-        return Err(io_error("CreatePipe"));
+        return Err(core_platform::io_error("CreatePipe"));
     }
 
     // validate both endpoint handles before registration
@@ -142,13 +139,14 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate output argument and resolve pipe handle
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let handle = pipe_handle(context, handle, PIPE_READ_OPERATION)?;
 
     // decode caller buffer and validate host length range
     let bytes = unsafe { buffer.as_mut_slice()? };
-    let length = u32::try_from(bytes.len())
-        .map_err(|_| invalid_argument("buffer", "buffer length exceeds windows u32 range"))?;
+    let length = u32::try_from(bytes.len()).map_err(|_| {
+        core_platform::invalid_argument("buffer", "buffer length exceeds windows u32 range")
+    })?;
 
     // issue one windows read call
     let mut bytes_read = 0u32;
@@ -162,7 +160,7 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
         )
     };
     if status == 0 {
-        return Err(io_error("ReadFile"));
+        return Err(core_platform::io_error("ReadFile"));
     }
 
     // write read-byte count
@@ -197,13 +195,14 @@ pub(crate) unsafe fn destack_ipc_pipe_write(
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate output argument and resolve pipe handle
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let handle = pipe_handle(context, handle, PIPE_WRITE_OPERATION)?;
 
     // decode caller buffer and validate host length range
     let bytes = unsafe { buffer.as_slice()? };
-    let length = u32::try_from(bytes.len())
-        .map_err(|_| invalid_argument("buffer", "buffer length exceeds windows u32 range"))?;
+    let length = u32::try_from(bytes.len()).map_err(|_| {
+        core_platform::invalid_argument("buffer", "buffer length exceeds windows u32 range")
+    })?;
 
     // issue one windows write call
     let mut bytes_written = 0u32;
@@ -217,7 +216,7 @@ pub(crate) unsafe fn destack_ipc_pipe_write(
         )
     };
     if status == 0 {
-        return Err(io_error("WriteFile"));
+        return Err(core_platform::io_error("WriteFile"));
     }
 
     // write written-byte count

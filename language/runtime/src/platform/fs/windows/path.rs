@@ -11,12 +11,12 @@ use windows_sys::Win32::Storage::FileSystem::{
 use super::dir::{destack_fs_rmdir_bytes, destack_fs_rmdir_utf16};
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
     AtFlags, DirectoryHandle, FileMode, NodeDevice, OsPath, PathBytes, PathBytesAbi, PathUtf16,
     RenameFlags, SymlinkType, core as core_fs,
 };
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Rename flag to disallow replacing existing entries.
@@ -606,7 +606,7 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
 
     // resolve the final path
     let wide = final_path_from_handle(handle)?;
-    let resolved = string_from_wide(&wide, "path")?;
+    let resolved = core_platform::string_from_wide("path", &wide)?;
     let resolved = normalize_reparse_target(resolved);
     let bytes = resolved.as_bytes().to_vec();
 
@@ -662,7 +662,7 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 
     // resolve the final path
     let wide = final_path_from_handle(handle)?;
-    let resolved = string_from_wide(&wide, "path")?;
+    let resolved = core_platform::string_from_wide("path", &wide)?;
     let resolved = normalize_reparse_target(resolved);
     let wide: Vec<u16> = resolved.encode_utf16().collect();
 

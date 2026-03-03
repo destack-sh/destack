@@ -23,7 +23,6 @@ use windows_sys::Win32::Storage::FileSystem::{
     OPEN_EXISTING,
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyState;
 use windows_sys::Win32::UI::Input::Touch::{
@@ -664,34 +663,9 @@ struct RawGamepadDecoderEntry {
     mapping: InputGamepadMappingType,
 }
 
-/// Return the host performance-counter frequency.
-fn performance_counter_frequency() -> u64 {
-    static PERFORMANCE_COUNTER_FREQUENCY: OnceLock<u64> = OnceLock::new();
-    *PERFORMANCE_COUNTER_FREQUENCY.get_or_init(|| {
-        let mut frequency = 0i64;
-        let status = unsafe { QueryPerformanceFrequency(&mut frequency) };
-        if status == 0 || frequency <= 0 {
-            return 0;
-        }
-
-        frequency as u64
-    })
-}
-
 /// Read one monotonic timestamp from QueryPerformanceCounter.
 fn now_timestamp_ns() -> u64 {
-    let frequency = performance_counter_frequency();
-    if frequency == 0 {
-        return 0;
-    }
-
-    let mut counter = 0i64;
-    let status = unsafe { QueryPerformanceCounter(&mut counter) };
-    if status == 0 || counter < 0 {
-        return 0;
-    }
-
-    ((counter as u128).saturating_mul(1_000_000_000u128) / u128::from(frequency)) as u64
+    core_platform::qpc_now_ns().unwrap_or(0)
 }
 
 /// Query one current pointer position snapshot.
@@ -2580,7 +2554,7 @@ fn handle_touch_message(
         let contacts = queues
             .active_touch_contacts
             .entry(device_id.clone())
-            .or_insert_with(HashMap::new);
+            .or_default();
         if phase == InputTouchContactPhase::End {
             contacts.remove(&entry.contact_id);
         } else {
@@ -4504,9 +4478,11 @@ mod tests {
     /// Drop the oldest keyboard packet when the queue reaches its bounded capacity.
     #[test]
     fn test_push_input_packet_drops_oldest_when_full() {
+        let runtime_state = WindowsRawInputRuntimeState::default();
         let mut queue = VecDeque::new();
         for index in 0..=RAW_INPUT_QUEUE_LIMIT {
             push_input_packet(
+                &runtime_state,
                 &mut queue,
                 RawInputPacket {
                     timestamp_ns: index as u64,
@@ -4542,9 +4518,11 @@ mod tests {
     /// Drop the oldest monitor packet when the monitor queue reaches capacity.
     #[test]
     fn test_push_monitor_packet_drops_oldest_when_full() {
+        let runtime_state = WindowsRawInputRuntimeState::default();
         let mut queue = VecDeque::new();
         for index in 0..=RAW_MONITOR_QUEUE_LIMIT {
             push_monitor_packet(
+                &runtime_state,
                 &mut queue,
                 RawMonitorPacket {
                     timestamp_ns: index as u64,
@@ -4605,14 +4583,16 @@ mod tests {
     /// Keep pointer-button packets aligned with the sampled pointer position.
     #[test]
     fn test_push_mouse_button_events_preserves_pointer_coordinates() {
+        let runtime_state = WindowsRawInputRuntimeState::default();
         let mut queue = VecDeque::new();
         let mut buttons = 0u32;
         push_mouse_button_events(
+            &runtime_state,
             &mut queue,
             "raw:device:test",
             &mut buttons,
             RI_MOUSE_BUTTON_1_DOWN,
-            7,
+            7u64,
             123.0,
             456.0,
             0,

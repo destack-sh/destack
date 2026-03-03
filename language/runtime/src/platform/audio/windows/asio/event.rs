@@ -184,7 +184,7 @@ fn run_monitor_thread(
     append_registry_watcher(&mut watchers, KEY_READ | KEY_NOTIFY | KEY_WOW64_32KEY);
 
     if watchers.is_empty() {
-        let _ = ready_sender.send(Err(audio_core::audio_not_found(
+        let _ = ready_sender.send(Err(core_platform::io_not_found(
             "destack.audio.event.open",
             "ASIO registry key was not found",
         )));

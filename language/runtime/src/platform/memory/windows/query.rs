@@ -1,11 +1,10 @@
 use windows_sys::Win32::System::Memory::GetLargePageMinimum;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::memory::core as memory_core;
+use crate::platform::core as core_platform;
 use crate::runtime::BindingCallContext;
 
 use super::core::{allocation_granularity, page_size};
-use memory_core::{ensure_out, usize_to_u64};
 
 /// Read the host allocation granularity.
 pub(crate) unsafe fn destack_memory_allocation_granularity(
@@ -13,10 +12,10 @@ pub(crate) unsafe fn destack_memory_allocation_granularity(
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output pointer and query allocation granularity
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let granularity = allocation_granularity()?;
-    let granularity = usize_to_u64(granularity, "out")?;
+    let granularity = core_platform::usize_to_u64(granularity, "out")?;
 
     // write allocation granularity result
     unsafe {
@@ -32,7 +31,7 @@ pub(crate) unsafe fn destack_memory_huge_page_size(
     out: *mut Option<u64>,
 ) -> RuntimeResult<()> {
     // validate output pointer for optional huge-page size
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     // query windows large-page minimum
     let huge_page_size = unsafe { GetLargePageMinimum() };
@@ -46,7 +45,7 @@ pub(crate) unsafe fn destack_memory_huge_page_size(
     }
 
     // write huge-page size when available
-    let huge_page_size = usize_to_u64(huge_page_size, "out")?;
+    let huge_page_size = core_platform::usize_to_u64(huge_page_size, "out")?;
     unsafe {
         out.write(Some(huge_page_size));
     }
@@ -60,10 +59,10 @@ pub(crate) unsafe fn destack_memory_page_size(
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output pointer and query page size
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let page_size = page_size()?;
-    let page_size = usize_to_u64(page_size, "out")?;
+    let page_size = core_platform::usize_to_u64(page_size, "out")?;
 
     // write page size result
     unsafe {

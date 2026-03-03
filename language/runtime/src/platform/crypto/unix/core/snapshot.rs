@@ -8,9 +8,10 @@ use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, decrypt_aead, encrypt_aead};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 
-use super::{invalid_data, next_store_write_probe_identifier, not_supported, permission_denied};
+use super::{invalid_data, next_store_write_probe_identifier, permission_denied};
 
 /// Snapshot payload magic for encrypted host key-store blobs.
 const HOST_SNAPSHOT_MAGIC: &[u8; 8] = b"DSCKEY01";
@@ -87,7 +88,7 @@ pub(crate) fn store_host_key_snapshot_bytes(
 ) -> RuntimeResult<()> {
     // reject lanes that do not resolve to one snapshot path
     let Some(snapshot_path) = snapshot_path else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
 
     // ensure parent directories exist before writing

@@ -1,5 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::core as core_platform;
 
 use super::constants::{
     DEFAULT_MAX_PERIOD_FRAMES, DEFAULT_MAX_SAMPLE_RATE, DEFAULT_MIN_SAMPLE_RATE,
@@ -70,7 +71,7 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
     }
 
     if devices.is_empty() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.device.list",
             "WASAPI reported no active endpoints",
         ));

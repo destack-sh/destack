@@ -27,21 +27,15 @@ fn resolve_spawned_process_handle(
     context: &BindingCallContext,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessId> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SpawnedProcess>())
-            .map(|process| process.pid)
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown process handle",
-        ))
-        .boxed()
-    })
+    resource::require_payload::<core_process::SpawnedProcess>(
+        context,
+        handle.0,
+        resource::ResourceKind::Process,
+        None,
+        "handle",
+        "process",
+    )
+    .map(|process| process.pid)
 }
 
 /// Return true when a wait status is terminal for a spawned process.

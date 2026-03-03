@@ -37,33 +37,6 @@ impl ResourceFinalizer for WindowsHandleFinalizer {
     }
 }
 
-/// Validate one out-pointer argument.
-pub(super) fn ensure_out<T>(out: *mut T, field: &'static str) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer(field)).boxed());
-    }
-
-    Ok(())
-}
-
-/// Build one invalid-argument runtime error.
-pub(super) fn invalid_argument(
-    field: &'static str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(field, message.into())).boxed()
-}
-
-/// Build one not-supported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
-}
-
-/// Build one mapped windows I/O error.
-pub(super) fn io_error(syscall: &'static str) -> Box<RuntimeError> {
-    core_platform::io_error(syscall)
-}
-
 /// Build one timed-out runtime error.
 pub(super) fn timed_out(operation: &'static str, message: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
@@ -77,23 +50,14 @@ pub(super) fn timed_out(operation: &'static str, message: &str) -> Box<RuntimeEr
     .boxed()
 }
 
-/// Validate one flag word for the currently supported subset.
-pub(super) fn ensure_zero_flags(flags: u32, field: &'static str) -> RuntimeResult<()> {
-    if flags != 0 {
-        return Err(invalid_argument(
-            field,
-            "only flags=0 is currently supported",
-        ));
-    }
-
-    Ok(())
-}
-
 /// Decode one native name into one Windows wide string.
 pub(super) fn wide_name(name: NativeStringRef, field: &'static str) -> RuntimeResult<Vec<u16>> {
     let name = unsafe { name.as_str()? };
     if name.is_empty() {
-        return Err(invalid_argument(field, "name must not be empty"));
+        return Err(core_platform::invalid_argument(
+            field,
+            "name must not be empty",
+        ));
     }
 
     core_platform::wide_from_str(field, name)
@@ -106,7 +70,7 @@ pub(super) fn validate_handle(
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
     if handle == 0 || handle == INVALID_HANDLE_VALUE {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             field,
             format!("{operation} received one invalid windows handle"),
         ));
@@ -133,7 +97,7 @@ pub(super) fn pipe_handle(
         })
         .flatten()
         .ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "handle",
                 format!("{operation} expected one valid pipe handle"),
             )
@@ -160,7 +124,7 @@ pub(super) fn shared_memory_handle(
         })
         .flatten()
         .ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "handle",
                 format!("{operation} expected one valid shared-memory handle"),
             )
@@ -187,7 +151,7 @@ pub(super) fn semaphore_handle(
         })
         .flatten()
         .ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "handle",
                 format!("{operation} expected one valid semaphore handle"),
             )
@@ -206,10 +170,12 @@ pub(super) fn register_pipe_handle(
     context: &BindingCallContext,
     handle: HANDLE,
 ) -> resource::PipeHandle {
-    let entry = ResourceEntry::new(ResourceKind::Pipe)
-        .with_label(PIPE_RESOURCE_LABEL)
-        .with_handle(as_raw_handle(handle))
-        .with_finalizer(WindowsHandleFinalizer { handle });
+    let entry = ResourceEntry::labeled_handle_finalizer(
+        ResourceKind::Pipe,
+        PIPE_RESOURCE_LABEL,
+        as_raw_handle(handle),
+        WindowsHandleFinalizer { handle },
+    );
     let resource_id = context
         .runtime()
         .resources
@@ -223,10 +189,12 @@ pub(super) fn register_shared_memory_handle(
     context: &BindingCallContext,
     handle: HANDLE,
 ) -> resource::SharedMemoryHandle {
-    let entry = ResourceEntry::new(ResourceKind::SharedMemory)
-        .with_label(SHARED_MEMORY_RESOURCE_LABEL)
-        .with_handle(as_raw_handle(handle))
-        .with_finalizer(WindowsHandleFinalizer { handle });
+    let entry = ResourceEntry::labeled_handle_finalizer(
+        ResourceKind::SharedMemory,
+        SHARED_MEMORY_RESOURCE_LABEL,
+        as_raw_handle(handle),
+        WindowsHandleFinalizer { handle },
+    );
     let resource_id = context
         .runtime()
         .resources
@@ -240,10 +208,12 @@ pub(super) fn register_semaphore_handle(
     context: &BindingCallContext,
     handle: HANDLE,
 ) -> resource::SemaphoreHandle {
-    let entry = ResourceEntry::new(ResourceKind::Semaphore)
-        .with_label(SEMAPHORE_RESOURCE_LABEL)
-        .with_handle(as_raw_handle(handle))
-        .with_finalizer(WindowsHandleFinalizer { handle });
+    let entry = ResourceEntry::labeled_handle_finalizer(
+        ResourceKind::Semaphore,
+        SEMAPHORE_RESOURCE_LABEL,
+        as_raw_handle(handle),
+        WindowsHandleFinalizer { handle },
+    );
     let resource_id = context
         .runtime()
         .resources

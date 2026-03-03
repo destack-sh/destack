@@ -2,7 +2,7 @@ use super::core as input_core;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{InputDeviceKind, InputKeyboardState};
-use crate::platform::{PlatformError, resource};
+use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 /// Return whether one resolved binding supports keyboard state queries.
@@ -70,7 +70,7 @@ pub(super) fn keyboard_state(
 
     // emit one full keyboard-state payload
     Ok(InputKeyboardState {
-        timestamp_ns: input_core::now_timestamp_ns(),
+        timestamp_ns: core_platform::qpc_now_ns().unwrap_or(0),
         sequence,
         device_id: context.store_string(&device_id),
         modifiers,

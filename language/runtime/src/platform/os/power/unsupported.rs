@@ -1,10 +1,11 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::os::PowerState;
 use crate::runtime::BindingCallContext;
 
-use super::core::{OS_POWER_STATE_OPERATION, not_supported};
+use super::core::OS_POWER_STATE_OPERATION;
 
 /// Read one host power-state value from unsupported backends.
 pub(super) fn read_power_state(_context: &BindingCallContext) -> RuntimeResult<PowerState> {
-    Err(not_supported(OS_POWER_STATE_OPERATION))
+    Err(core_platform::not_supported(OS_POWER_STATE_OPERATION))
 }

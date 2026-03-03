@@ -19,20 +19,12 @@ const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// Return one invalid-handle error for timerfd operations.
 fn invalid_timerfd_handle_error() -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(
-        "handle",
-        "unknown timerfd handle",
-    ))
-    .boxed()
+    core_platform::unknown_handle("handle", "timerfd")
 }
 
 /// Return one unsupported-flags error.
 fn unsupported_flags_error(field: &str, flags: u32) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(
-        field,
-        format!("unsupported flag bits: 0x{flags:x}"),
-    ))
-    .boxed()
+    core_platform::unsupported_flags(field, flags)
 }
 
 /// Return one ioWouldBlock error from one unix errno value.

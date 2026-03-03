@@ -1,5 +1,5 @@
 #[cfg(windows)]
-use super::assert_platform_error_code;
+use super::assert_platform_error_codes;
 use super::{temp_dir, with_harness_context};
 #[cfg(windows)]
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -166,9 +166,9 @@ fn test_fs_statx_rejects_unsupported_flags_on_windows() {
         // open the directory and request one unsupported statx flag
         let dir = context.path_bytes(&temp_dir);
         let directory = context.destack_fs_opendir(dir)?;
-        assert_platform_error_code(
+        assert_platform_error_codes(
             context.destack_fs_statx(directory, file_name, StatxFlags(0x4000), StatxMask(0)),
-            PlatformErrorCode::NotSupported,
+            &[PlatformErrorCode::NotSupported],
         )?;
 
         // cleanup directory resources and paths

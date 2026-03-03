@@ -5,13 +5,13 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::CryptoDigestAlgorithm;
-use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    CRYPTO_DIGEST_LABEL, CRYPTO_DIGEST_RESOURCE_KIND, CryptoDigestResource, handle_not_found,
-    invalid_argument, openssl_error, resolve_digest_resource,
+    CRYPTO_DIGEST_LABEL, CRYPTO_DIGEST_RESOURCE_KIND, CryptoDigestResource, openssl_error,
+    resolve_digest_resource,
 };
 
 /// Compute one digest in one shot.
@@ -119,17 +119,15 @@ pub(crate) fn digest_close(
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.digest.close",
-            "crypto digest",
-            handle.0.0,
+            format!("unknown crypto digest handle {}", handle.0.0),
         ));
     };
     if entry.kind != CRYPTO_DIGEST_RESOURCE_KIND {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.digest.close",
-            "crypto digest",
-            handle.0.0,
+            format!("unknown crypto digest handle {}", handle.0.0),
         ));
     }
 
@@ -148,11 +146,17 @@ pub(super) fn message_digest(algorithm: CryptoDigestAlgorithm) -> RuntimeResult<
         CryptoDigestAlgorithm::Sha3_256 => Ok(MessageDigest::sha3_256()),
         CryptoDigestAlgorithm::Sha3_384 => Ok(MessageDigest::sha3_384()),
         CryptoDigestAlgorithm::Sha3_512 => Ok(MessageDigest::sha3_512()),
-        CryptoDigestAlgorithm::Blake2b512 => MessageDigest::from_name("blake2b512")
-            .ok_or_else(|| invalid_argument("algorithm", "blake2b512 digest is not available")),
-        CryptoDigestAlgorithm::Blake2s256 => MessageDigest::from_name("blake2s256")
-            .ok_or_else(|| invalid_argument("algorithm", "blake2s256 digest is not available")),
-        CryptoDigestAlgorithm::Unknown => Err(invalid_argument(
+        CryptoDigestAlgorithm::Blake2b512 => {
+            MessageDigest::from_name("blake2b512").ok_or_else(|| {
+                core_platform::invalid_argument("algorithm", "blake2b512 digest is not available")
+            })
+        }
+        CryptoDigestAlgorithm::Blake2s256 => {
+            MessageDigest::from_name("blake2s256").ok_or_else(|| {
+                core_platform::invalid_argument("algorithm", "blake2s256 digest is not available")
+            })
+        }
+        CryptoDigestAlgorithm::Unknown => Err(core_platform::invalid_argument(
             "algorithm",
             "algorithm must not be Unknown",
         )),

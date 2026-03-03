@@ -23,7 +23,7 @@ struct AaudioStreamHandle {
     /// Raw `AAudioStream*` pointer.
     raw: *mut AAudioStream,
     /// Shared AAudio symbol table.
-    library: &'static Arc<AAudioLibrary>,
+    library: Arc<AAudioLibrary>,
 }
 
 impl Drop for AaudioStreamHandle {
@@ -59,7 +59,7 @@ struct OpenedStreamLane {
 #[derive(Debug)]
 struct AaudioStreamRuntime {
     /// Shared AAudio symbol table.
-    library: &'static Arc<AAudioLibrary>,
+    library: Arc<AAudioLibrary>,
     /// Opened playback lane when present.
     playback: Option<audio_core::Mutex<AaudioStreamHandle>>,
     /// Opened capture lane when present.
@@ -216,7 +216,7 @@ pub(super) fn open_stream(
     // open one playback stream lane when one playback direction is requested
     let playback_lane = if needs_playback {
         Some(open_stream_lane(
-            library,
+            &library,
             AAUDIO_DIRECTION_OUTPUT,
             sample_format,
             sharing_mode,
@@ -230,7 +230,7 @@ pub(super) fn open_stream(
     // open one capture stream lane when one capture direction is requested
     let capture_lane = if needs_capture {
         Some(open_stream_lane(
-            library,
+            &library,
             AAUDIO_DIRECTION_INPUT,
             sample_format,
             sharing_mode,
@@ -348,7 +348,7 @@ pub(super) fn open_stream(
 
 /// Open one configured stream lane for one AAudio direction.
 fn open_stream_lane(
-    library: &'static Arc<AAudioLibrary>,
+    library: &Arc<AAudioLibrary>,
     direction: c_int,
     sample_format: c_int,
     sharing_mode: c_int,
@@ -367,7 +367,10 @@ fn open_stream_lane(
         ));
     }
 
-    let builder_guard = AaudioBuilderGuard { builder, library };
+    let builder_guard = AaudioBuilderGuard {
+        builder,
+        library: library.clone(),
+    };
 
     // configure one stream builder with requested lane properties
     unsafe {
@@ -437,7 +440,7 @@ fn open_stream_lane(
     Ok(OpenedStreamLane {
         stream: AaudioStreamHandle {
             raw: stream,
-            library,
+            library: library.clone(),
         },
         sample_rate,
         channels,
@@ -451,7 +454,7 @@ struct AaudioBuilderGuard {
     /// Opened builder pointer.
     builder: *mut AAudioStreamBuilder,
     /// Shared AAudio symbol table.
-    library: &'static Arc<AAudioLibrary>,
+    library: Arc<AAudioLibrary>,
 }
 
 impl Drop for AaudioBuilderGuard {

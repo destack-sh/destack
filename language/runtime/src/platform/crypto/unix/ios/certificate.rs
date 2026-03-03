@@ -15,13 +15,14 @@ use security_framework_sys::item::{
 use security_framework_sys::keychain_item::{SecItemAdd, SecItemDelete};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::BindingCallContext;
 
 use super::core::{
     configured_system_certificate_directories, configured_system_certificate_files, invalid_data,
-    not_supported, permission_denied,
+    permission_denied,
 };
 
 /// Return whether one host store lane supports certificate write operations.
@@ -45,7 +46,7 @@ pub(crate) fn host_store_import_certificate(
 
     // certificate writes are user-lane only
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // serialize one der payload for keychain insert
@@ -129,7 +130,7 @@ pub(crate) fn host_store_delete_certificate(
 
     // certificate writes are user-lane only
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // serialize one der payload for keychain lookup and delete

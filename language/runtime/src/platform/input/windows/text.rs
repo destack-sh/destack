@@ -4,7 +4,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
     InputCompositionEvent, InputTextInputArea, InputTextInputType, InputWindowTarget,
 };
-use crate::platform::{PlatformError, resource};
+use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 /// Return whether one resolved binding supports text input semantics.
@@ -130,7 +130,7 @@ pub(super) fn text_read_composition(
 
     // keep composition reads tied to explicit text-session activation
     if !resolved.text_active {
-        return Err(input_core::io_would_block(
+        return Err(core_platform::io_would_block(
             operation,
             "text session is not active",
         ));

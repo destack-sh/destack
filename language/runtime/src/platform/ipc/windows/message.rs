@@ -1,9 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::MessageQueueReceive;
-use crate::platform::{NativeSlice, NativeStringRef, resource};
+use crate::platform::{NativeSlice, NativeStringRef, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-
-use super::core::{ensure_out, not_supported};
 
 /// Message queue close operation.
 const MESSAGE_QUEUE_CLOSE_OPERATION: &str = "destack.ipc.message.queueClose";
@@ -39,7 +37,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
 ) -> RuntimeResult<()> {
     let _ = handle;
 
-    Err(not_supported(MESSAGE_QUEUE_CLOSE_OPERATION))
+    Err(core_platform::not_supported(MESSAGE_QUEUE_CLOSE_OPERATION))
 }
 
 /// Open or create a message queue.
@@ -68,10 +66,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
     maxmessages: u32,
     maxmessagebytes: u32,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let _ = (name, flags, mode, maxmessages, maxmessagebytes);
 
-    Err(not_supported(MESSAGE_QUEUE_OPEN_OPERATION))
+    Err(core_platform::not_supported(MESSAGE_QUEUE_OPEN_OPERATION))
 }
 
 /// Receive one message from a queue.
@@ -98,10 +96,12 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
     timeoutns: u64,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let _ = (handle, timeoutns, buffer);
 
-    Err(not_supported(MESSAGE_QUEUE_RECEIVE_OPERATION))
+    Err(core_platform::not_supported(
+        MESSAGE_QUEUE_RECEIVE_OPERATION,
+    ))
 }
 
 /// Send one message to a queue.
@@ -130,7 +130,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
 ) -> RuntimeResult<()> {
     let _ = (handle, priority, timeoutns, argument_payload);
 
-    Err(not_supported(MESSAGE_QUEUE_SEND_OPERATION))
+    Err(core_platform::not_supported(MESSAGE_QUEUE_SEND_OPERATION))
 }
 
 /// Remove a named message queue.
@@ -156,5 +156,5 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
 ) -> RuntimeResult<()> {
     let _ = name;
 
-    Err(not_supported(MESSAGE_QUEUE_UNLINK_OPERATION))
+    Err(core_platform::not_supported(MESSAGE_QUEUE_UNLINK_OPERATION))
 }

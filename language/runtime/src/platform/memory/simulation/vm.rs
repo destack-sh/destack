@@ -2,18 +2,13 @@
 #![allow(unused_imports)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::core::not_supported;
 use crate::platform::memory::{
     MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRangeVm, MemoryRemapFlags,
     MemoryReserveFlags, ProtectedMemoryRangeVm,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
-
-/// Build one simulation not-supported error.
-fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
-}
 
 /// Apply memory access advice.
 pub(crate) fn destack_memory_advise(

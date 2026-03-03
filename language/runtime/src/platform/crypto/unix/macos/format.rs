@@ -14,14 +14,14 @@ use security_framework_sys::key::{
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::crypto::core::digest_output_size_bytes;
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
     CryptoDigestAlgorithm, CryptoNamedCurve, CryptoSignatureAlgorithm, CryptoSignatureParameters,
 };
+use crate::platform::{PlatformError, core as core_platform};
 
-use super::core::{invalid_data, not_supported};
+use super::core::invalid_data;
 pub(super) use crate::platform::crypto::host::unix::apple::{
     create_ec_public_key_from_x963, ec_public_key_from_x963, ec_public_key_to_x963,
     ecdsa_signature_algorithm,
@@ -107,7 +107,7 @@ pub(super) fn rsa_signature_algorithm(
                 .boxed());
             };
             if parameters.salt_length_bytes != 0 && parameters.salt_length_bytes != digest_size {
-                return Err(not_supported(operation));
+                return Err(core_platform::not_supported(operation));
             }
 
             let algorithm = unsafe {
@@ -132,7 +132,7 @@ pub(super) fn rsa_signature_algorithm(
 
             Ok(algorithm)
         }
-        _ => Err(not_supported(operation)),
+        _ => Err(core_platform::not_supported(operation)),
     }
 }
 
@@ -147,7 +147,7 @@ pub(super) fn rsa_decrypt_algorithm(
         }
         CryptoAsymmetricEncryptionAlgorithm::RsaOaep => {
             if parameters.label.len > 0 {
-                return Err(not_supported(operation));
+                return Err(core_platform::not_supported(operation));
             }
 
             let algorithm = unsafe {

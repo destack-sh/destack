@@ -19,7 +19,7 @@ use crate::platform::input::{
     InputSensorKind, InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType,
     InputTouchEvent, InputTouchEventPayload,
 };
-use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
+use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
@@ -37,6 +37,17 @@ const UNIX_INPUT_STDIN_ALIAS: &str = "stdin";
 const UNIX_INPUT_TTY_NAME: &str = "unix terminal input";
 /// Empty text payload for non-text events.
 pub(super) const UNIX_INPUT_EMPTY_TEXT: &str = "";
+
+/// Build one ioNotFound runtime error for one missing input handle.
+pub(super) fn input_not_found(
+    operation: &'static str,
+    handle: resource::InputDeviceHandle,
+) -> Box<RuntimeError> {
+    core_platform::io_not_found(
+        operation,
+        format!("input device handle {} not found", handle.0.0),
+    )
+}
 
 /// Build one zeroed payload shell for event-kind projection.
 pub(super) fn empty_unix_event_payload(context: &BindingCallContext) -> InputEventPayload {
@@ -290,20 +301,34 @@ impl ResourceFinalizer for InputDeviceFinalizer {
     }
 }
 
-/// Build io-not-found for one missing Unix input handle.
-pub(super) fn input_not_found(
-    operation: &'static str,
+/// Resolve one read-only unix input resource entry.
+fn with_unix_input_entry<R>(
+    context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
-) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoNotFound),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        format!("input device handle {} not found", handle.0.0),
-    ))
-    .boxed()
+    read: impl FnOnce(&ResourceEntry) -> R,
+) -> Option<R> {
+    resource::with_entry(
+        context,
+        handle.0,
+        ResourceKind::Input,
+        Some(INPUT_RESOURCE_LABEL),
+        read,
+    )
+}
+
+/// Resolve one mutable unix input resource entry.
+fn with_unix_input_entry_mut<R>(
+    context: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    write: impl FnOnce(&mut ResourceEntry) -> R,
+) -> Option<R> {
+    resource::with_entry_mut(
+        context,
+        handle.0,
+        ResourceKind::Input,
+        Some(INPUT_RESOURCE_LABEL),
+        write,
+    )
 }
 
 /// Resolve one Unix input binding from the resource table.
@@ -313,19 +338,9 @@ pub(super) fn resolve_unix_input_binding(
     operation: &'static str,
 ) -> RuntimeResult<UnixInputBinding> {
     // resolve resource entry and validate payload shape
-    let binding = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != ResourceKind::Input {
-            return None;
-        }
-
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
+    let binding = with_unix_input_entry(context, handle, |entry| {
         let binding = entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())
+            .payload_ref::<UnixInputBinding>()
             .map(|binding| UnixInputBinding {
                 descriptor: binding.descriptor,
                 backend: binding.backend,
@@ -358,7 +373,10 @@ pub(super) fn resolve_unix_input_binding(
 
     match binding.flatten() {
         Some(binding) => Ok(binding),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -520,7 +538,10 @@ pub(super) fn read_unix_event(
         }
         UnixInputBackend::UnixTerminal => {
             let Some(descriptor) = binding.descriptor else {
-                return Err(input_not_found(operation, handle));
+                return Err(core_platform::io_not_found(
+                    operation,
+                    format!("input device handle {} not found", handle.0.0),
+                ));
             };
             read_terminal_event(
                 context,
@@ -561,62 +582,55 @@ pub(super) fn set_unix_read_mode(
     mode: InputReadMode,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let result = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
+    let result = with_unix_input_entry_mut(context, handle, |entry| {
+        // resolve mutable binding payload
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
 
-            // resolve mutable binding payload
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+        // apply backend-specific mode transitions
+        let update = match binding.backend {
+            UnixInputBackend::Platform => set_platform_read_mode(mode),
+            UnixInputBackend::UnixTerminal => {
+                let Some(descriptor) = binding.descriptor else {
+                    return Some(Err(core_platform::io_not_found(
+                        operation,
+                        format!("input device handle {} not found", handle.0.0),
+                    )));
+                };
 
-            // apply backend-specific mode transitions
-            let update = match binding.backend {
-                UnixInputBackend::Platform => set_platform_read_mode(mode),
-                UnixInputBackend::UnixTerminal => {
-                    let Some(descriptor) = binding.descriptor else {
-                        return Some(Err(input_not_found(operation, handle)));
-                    };
+                // capture one baseline terminal mode for later restoration
+                let original_mode = match binding.terminal_original_mode {
+                    Some(mode) => mode,
+                    None => match read_terminal_mode(descriptor) {
+                        Ok(mode) => {
+                            binding.terminal_original_mode = Some(mode);
+                            mode
+                        }
+                        Err(error) => return Some(Err(error)),
+                    },
+                };
 
-                    // capture one baseline terminal mode for later restoration
-                    let original_mode = match binding.terminal_original_mode {
-                        Some(mode) => mode,
-                        None => match read_terminal_mode(descriptor) {
-                            Ok(mode) => {
-                                binding.terminal_original_mode = Some(mode);
-                                mode
-                            }
-                            Err(error) => return Some(Err(error)),
-                        },
-                    };
-
-                    // select raw or cooked terminal mode
-                    if mode == InputReadMode::Raw {
-                        let raw_mode = raw_terminal_mode(original_mode);
-                        apply_terminal_mode(descriptor, &raw_mode)
-                    } else {
-                        apply_terminal_mode(descriptor, &original_mode)
-                    }
+                // select raw or cooked terminal mode
+                if mode == InputReadMode::Raw {
+                    let raw_mode = raw_terminal_mode(original_mode);
+                    apply_terminal_mode(descriptor, &raw_mode)
+                } else {
+                    apply_terminal_mode(descriptor, &original_mode)
                 }
-            };
-
-            if update.is_ok() {
-                binding.read_mode = mode;
             }
-            Some(update)
-        });
+        };
+
+        if update.is_ok() {
+            binding.read_mode = mode;
+        }
+        Some(update)
+    });
 
     match result.flatten() {
         Some(result) => result,
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -628,29 +642,19 @@ pub(super) fn set_text_state(
     input_type: InputTextInputType,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            binding.text_active = active;
-            binding.text_input_type = input_type;
-            Some(())
-        });
+    let updated = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        binding.text_active = active;
+        binding.text_input_type = input_type;
+        Some(())
+    });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -661,28 +665,18 @@ pub(super) fn set_text_area(
     area: InputTextInputArea,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            binding.text_area = area;
-            Some(())
-        });
+    let updated = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        binding.text_area = area;
+        Some(())
+    });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -692,24 +686,17 @@ pub(super) fn is_text_active(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let active = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != ResourceKind::Input {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let binding = entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+    let active = with_unix_input_entry(context, handle, |entry| {
+        let binding = entry.payload_ref::<UnixInputBinding>()?;
         Some(binding.text_active)
     });
 
     match active.flatten() {
         Some(active) => Ok(active),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -719,24 +706,17 @@ pub(super) fn text_area(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputTextInputArea> {
-    let area = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != ResourceKind::Input {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let binding = entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+    let area = with_unix_input_entry(context, handle, |entry| {
+        let binding = entry.payload_ref::<UnixInputBinding>()?;
         Some(binding.text_area)
     });
 
     match area.flatten() {
         Some(area) => Ok(area),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -755,28 +735,18 @@ pub(super) fn set_gamepad_player_index(
         .boxed());
     }
 
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            binding.gamepad_player_index_override = Some(player_index);
-            Some(())
-        });
+    let updated = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        binding.gamepad_player_index_override = Some(player_index);
+        Some(())
+    });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -786,24 +756,17 @@ pub(super) fn gamepad_player_index(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u8> {
-    let player_index = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != ResourceKind::Input {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let binding = entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+    let player_index = with_unix_input_entry(context, handle, |entry| {
+        let binding = entry.payload_ref::<UnixInputBinding>()?;
         Some(binding.gamepad_player_index_override.unwrap_or(1))
     });
 
     match player_index.flatten() {
         Some(player_index) => Ok(player_index),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -815,28 +778,18 @@ pub(super) fn set_relative_mode_flag(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            binding.relative_mode_enabled = enabled;
-            Some(())
-        });
+    let updated = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        binding.relative_mode_enabled = enabled;
+        Some(())
+    });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -849,29 +802,19 @@ pub(super) fn set_pointer_snapshot(
     y: f64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            binding.last_pointer_x = x;
-            binding.last_pointer_y = y;
-            Some(())
-        });
+    let updated = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        binding.last_pointer_x = x;
+        binding.last_pointer_y = y;
+        Some(())
+    });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -883,35 +826,25 @@ pub(super) fn set_sensor_stream_config(
     config: InputSensorEffectiveConfig,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
+    let updated = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        if config.enabled {
+            binding.sensor_enabled_kinds.insert(sensor_kind);
+            binding.sensor_effective_configs.insert(sensor_kind, config);
+        } else {
+            binding.sensor_enabled_kinds.remove(&sensor_kind);
+            binding.sensor_effective_configs.remove(&sensor_kind);
+        }
 
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            if config.enabled {
-                binding.sensor_enabled_kinds.insert(sensor_kind);
-                binding.sensor_effective_configs.insert(sensor_kind, config);
-            } else {
-                binding.sensor_enabled_kinds.remove(&sensor_kind);
-                binding.sensor_effective_configs.remove(&sensor_kind);
-            }
-
-            Some(())
-        });
+        Some(())
+    });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -922,24 +855,17 @@ pub(super) fn is_sensor_stream_enabled(
     sensor_kind: InputSensorKind,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let enabled = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != ResourceKind::Input {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let binding = entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+    let enabled = with_unix_input_entry(context, handle, |entry| {
+        let binding = entry.payload_ref::<UnixInputBinding>()?;
         Some(binding.sensor_enabled_kinds.contains(&sensor_kind))
     });
 
     match enabled.flatten() {
         Some(enabled) => Ok(enabled),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -951,28 +877,18 @@ pub(super) fn set_linux_active_rumble_effect_id(
     effect_id: Option<i16>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            binding.linux_active_rumble_effect_id = effect_id;
-            Some(())
-        });
+    let updated = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        binding.linux_active_rumble_effect_id = effect_id;
+        Some(())
+    });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -983,24 +899,17 @@ pub(super) fn linux_active_rumble_effect_id(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<i16>> {
-    let effect_id = context.runtime().resources.with_entry(handle.0, |entry| {
-        if entry.kind != ResourceKind::Input {
-            return None;
-        }
-        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let binding = entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
+    let effect_id = with_unix_input_entry(context, handle, |entry| {
+        let binding = entry.payload_ref::<UnixInputBinding>()?;
         Some(binding.linux_active_rumble_effect_id)
     });
 
     match effect_id.flatten() {
         Some(effect_id) => Ok(effect_id),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -1140,53 +1049,45 @@ fn read_platform_event(
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputEvent> {
-    let result = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
+    let result = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        if binding.backend != UnixInputBackend::Platform {
+            return None;
+        }
 
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
+        let Some(descriptor) = binding.descriptor else {
+            return Some(Err(core_platform::io_not_found(
+                operation,
+                format!("input device handle {} not found", handle.0.0),
+            )));
+        };
 
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            if binding.backend != UnixInputBackend::Platform {
-                return None;
+        let event = input_linux::read_linux_event(
+            context,
+            descriptor,
+            nonblocking,
+            &binding.device_id,
+            binding.device_kind,
+            binding.linux_modifiers,
+            binding.linux_pointer_buttons,
+        );
+        match event {
+            Ok((event, modifiers, pointer_buttons)) => {
+                binding.linux_modifiers = modifiers;
+                binding.linux_pointer_buttons = pointer_buttons;
+                Some(Ok(event))
             }
-
-            let Some(descriptor) = binding.descriptor else {
-                return Some(Err(input_not_found(operation, handle)));
-            };
-
-            let event = input_linux::read_linux_event(
-                context,
-                descriptor,
-                nonblocking,
-                &binding.device_id,
-                binding.device_kind,
-                binding.linux_modifiers,
-                binding.linux_pointer_buttons,
-            );
-            match event {
-                Ok((event, modifiers, pointer_buttons)) => {
-                    binding.linux_modifiers = modifiers;
-                    binding.linux_pointer_buttons = pointer_buttons;
-                    Some(Ok(event))
-                }
-                Err(error) => Some(Err(error)),
-            }
-        });
+            Err(error) => Some(Err(error)),
+        }
+    });
 
     match result {
         Some(Some(Ok(event))) => Ok(event),
         Some(Some(Err(error))) => Err(error),
-        Some(None) | None => Err(input_not_found(operation, handle)),
+        Some(None) | None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }
 
@@ -1474,28 +1375,18 @@ pub(super) fn next_unix_event_sequence(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            if entry.kind != ResourceKind::Input {
-                return None;
-            }
-            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            let binding = entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-            let next = binding.next_sequence;
-            binding.next_sequence = binding.next_sequence.saturating_add(1);
-            Some(next)
-        });
+    let sequence = with_unix_input_entry_mut(context, handle, |entry| {
+        let binding = entry.payload_mut::<UnixInputBinding>()?;
+        let next = binding.next_sequence;
+        binding.next_sequence = binding.next_sequence.saturating_add(1);
+        Some(next)
+    });
 
     match sequence.flatten() {
         Some(sequence) => Ok(sequence),
-        None => Err(input_not_found(operation, handle)),
+        None => Err(core_platform::io_not_found(
+            operation,
+            format!("input device handle {} not found", handle.0.0),
+        )),
     }
 }

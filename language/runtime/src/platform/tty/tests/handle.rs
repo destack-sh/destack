@@ -1,13 +1,18 @@
+#[cfg(unix)]
+use super::close_tty_worker_resource;
 use super::{
-    assert_ok_or_expected_error, assert_platform_error_codes, close_tty_worker_resource,
-    decode_harness_value, with_harness_context,
+    assert_ok_or_expected_error, assert_platform_error_codes, decode_harness_value,
+    with_harness_context,
 };
+#[cfg(unix)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::resource::{
-    FileHandle, ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, TtyHandle,
-};
+use crate::platform::resource::{FileHandle, ResourceId, TtyHandle};
+#[cfg(unix)]
+use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
+#[cfg(unix)]
 use crate::platform::{PlatformError, resource};
+#[cfg(unix)]
 use crate::runtime::BindingCallContext;
 
 /// Finalizer for unix file descriptors used by tests.

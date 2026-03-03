@@ -13,9 +13,9 @@ use security_framework_sys::base::{
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 use super::constants::{DEFAULT_MACOS_USER_KEYCHAIN_ACCOUNT, DEFAULT_MACOS_USER_KEYCHAIN_SERVICE};
@@ -52,24 +52,6 @@ pub(super) fn permission_denied(
     .boxed()
 }
 
-/// Return one ioNotFound runtime error.
-pub(super) fn not_found(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoNotFound),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
-}
-
-/// Return one notSupported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
-}
-
 /// Map one Security.framework CFError into one runtime error and release it.
 pub(super) fn security_operation_error(
     operation: &'static str,
@@ -93,7 +75,7 @@ pub(super) fn security_operation_error(
         Some(code)
             if code == errSecUnimplemented || code == errSecParam || code == errSecBadReq =>
         {
-            not_supported(operation)
+            core_platform::not_supported(operation)
         }
         Some(code)
             if code == errSecAuthFailed || code == errSecIO || code == errSecInternalComponent =>
@@ -103,7 +85,7 @@ pub(super) fn security_operation_error(
                 format!("{action} failed with security status code {code}"),
             )
         }
-        Some(code) if code == errSecItemNotFound => not_found(
+        Some(code) if code == errSecItemNotFound => core_platform::io_not_found(
             operation,
             format!("{action} failed because one keychain item was not found"),
         ),

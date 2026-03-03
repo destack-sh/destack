@@ -62,9 +62,10 @@ cargo test -p destack_runtime
 Target coverage:
 ```sh
 just runtime-toolchain-doctor
-just check-runtime-macos # or linux/windows-host on matching hosts
-just check-runtime-ios
-just check-runtime-android
-just check-runtime-windows-gnu
-just check-runtime-wasip1
+just runtime-toolchain-lint
+just runtime-macos-check # or linux/windows-msvc on matching hosts
+just runtime-ios-check
+just runtime-android-check
+just runtime-windows-gnu-check
+just runtime-wasip1-check
 ```

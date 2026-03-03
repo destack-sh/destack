@@ -5,13 +5,13 @@ use windows_sys::Win32::System::Memory::{
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::memory::{
     MemoryProtection, MemoryRemapFlags, ProtectedMemoryRange, core as memory_core,
 };
 use crate::runtime::BindingCallContext;
 
-use super::core::{REMAP_OPERATION, decode_remap_flags, io_error, page_size, windows_protection};
-use memory_core::{ensure_out, invalid_argument, not_supported, usize_to_u64};
+use super::core::{REMAP_OPERATION, decode_remap_flags, page_size, windows_protection};
 
 unsafe extern "system" {
     fn FlushInstructionCache(
@@ -70,7 +70,7 @@ pub(crate) unsafe fn destack_memory_protect(
         )
     };
     if status == 0 {
-        return Err(io_error("VirtualProtect"));
+        return Err(core_platform::io_error("VirtualProtect"));
     }
 
     Ok(())
@@ -86,7 +86,7 @@ pub(crate) unsafe fn destack_memory_remap(
     flags: MemoryRemapFlags,
 ) -> RuntimeResult<()> {
     // validate output pointer and remap parameters
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let page_size = page_size()?;
     let old_address = memory_core::nonzero_address(address, "address")?;
     let old_length = memory_core::nonzero_length(oldlength, "oldLength")?;
@@ -111,7 +111,7 @@ pub(crate) unsafe fn destack_memory_remap(
     // require move permission for windows remap strategy
     let may_move = decode_remap_flags(flags.0)?;
     if !may_move {
-        return Err(not_supported(REMAP_OPERATION));
+        return Err(core_platform::not_supported(REMAP_OPERATION));
     }
 
     // query source mapping metadata
@@ -124,23 +124,23 @@ pub(crate) unsafe fn destack_memory_remap(
         )
     };
     if queried == 0 {
-        return Err(io_error("VirtualQuery"));
+        return Err(core_platform::io_error("VirtualQuery"));
     }
 
     // validate that the source range is committed and fully covered
     if memory_info.State != MEM_COMMIT {
-        return Err(not_supported(REMAP_OPERATION));
+        return Err(core_platform::not_supported(REMAP_OPERATION));
     }
 
     let region_start = memory_info.BaseAddress as usize;
     let region_end = region_start
         .checked_add(memory_info.RegionSize)
-        .ok_or_else(|| invalid_argument("oldLength", "source region overflowed"))?;
+        .ok_or_else(|| core_platform::invalid_argument("oldLength", "source region overflowed"))?;
     let old_end = old_address
         .checked_add(old_length)
-        .ok_or_else(|| invalid_argument("oldLength", "source range overflowed"))?;
+        .ok_or_else(|| core_platform::invalid_argument("oldLength", "source range overflowed"))?;
     if old_address < region_start || old_end > region_end {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "oldLength",
             "source range extends beyond one committed region",
         ));
@@ -148,7 +148,7 @@ pub(crate) unsafe fn destack_memory_remap(
 
     // fail loud when existing protection cannot be copied safely
     if !protection_allows_read(memory_info.Protect) {
-        return Err(not_supported(REMAP_OPERATION));
+        return Err(core_platform::not_supported(REMAP_OPERATION));
     }
 
     // allocate destination range with the same protection policy
@@ -166,7 +166,7 @@ pub(crate) unsafe fn destack_memory_remap(
         )
     };
     if new_pointer.is_null() {
-        return Err(io_error("VirtualAlloc"));
+        return Err(core_platform::io_error("VirtualAlloc"));
     }
 
     // copy source bytes into the new range
@@ -187,12 +187,12 @@ pub(crate) unsafe fn destack_memory_remap(
         unsafe {
             VirtualFree(new_pointer, 0, MEM_RELEASE);
         }
-        return Err(io_error("VirtualFree"));
+        return Err(core_platform::io_error("VirtualFree"));
     }
 
     // return remapped range metadata
-    let remapped_address = usize_to_u64(new_pointer as usize, "out.address")?;
-    let remapped_length = usize_to_u64(new_length, "out.length")?;
+    let remapped_address = core_platform::usize_to_u64(new_pointer as usize, "out.address")?;
+    let remapped_length = core_platform::usize_to_u64(new_length, "out.length")?;
     unsafe {
         out.write(ProtectedMemoryRange {
             address: remapped_address,
@@ -225,7 +225,7 @@ pub(crate) unsafe fn destack_memory_flush_instruction_cache(
         )
     };
     if status == 0 {
-        return Err(io_error("FlushInstructionCache"));
+        return Err(core_platform::io_error("FlushInstructionCache"));
     }
 
     Ok(())

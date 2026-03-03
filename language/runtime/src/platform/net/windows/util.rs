@@ -5,7 +5,7 @@ use windows_sys::Win32::Networking::WinSock::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{SocketAddress, SocketFamily, core as core_net};
 use crate::platform::resource::{ListenerHandle, ResourceFinalizer, ResourceKind, SocketHandle};
-use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::BindingCallContext;
 
 /// Finalizer that closes a socket handle.
@@ -29,21 +29,6 @@ impl ResourceFinalizer for SocketFinalizer {
             closesocket(self.socket);
         }
     }
-}
-
-/// Ensure Winsock is initialized for networking operations.
-pub(super) fn ensure_winsock() -> RuntimeResult<()> {
-    core_platform::ensure_winsock()
-}
-
-/// Build a runtime error from the last socket error.
-pub(super) fn last_net_error(syscall: &str) -> Box<RuntimeError> {
-    core_platform::net_error_with_code(syscall, core_platform::last_wsa_error_code())
-}
-
-/// Build a runtime error from an explicit Winsock status code.
-pub(super) fn net_error_with_code(syscall: &str, code: i32) -> Box<RuntimeError> {
-    core_platform::net_error_with_code(syscall, code)
 }
 
 /// Resolve a socket descriptor from a handle.

@@ -1,11 +1,10 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::SharedMemoryMapping;
-use crate::platform::{NativeStringRef, resource};
+use crate::platform::{NativeStringRef, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    ensure_out, ensure_zero_flags, invalid_argument, io_error, posix_name,
-    register_shared_memory_descriptor, shared_memory_descriptor,
+    io_error, posix_name, register_shared_memory_descriptor, shared_memory_descriptor,
 };
 
 /// Create one named shared-memory object.
@@ -43,7 +42,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "handle",
             "destack.ipc.sharedMemory.close expected one valid shared-memory handle",
         ));
@@ -77,10 +76,13 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and input flags
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
     if size == 0 {
-        return Err(invalid_argument("size", "size must be greater than zero"));
+        return Err(core_platform::invalid_argument(
+            "size",
+            "size must be greater than zero",
+        ));
     }
 
     // decode and normalize the shared-memory name
@@ -104,7 +106,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 
     // size the backing object before exposing the handle
     let size = i64::try_from(size)
-        .map_err(|_| invalid_argument("size", "size exceeds host off_t range"))?;
+        .map_err(|_| core_platform::invalid_argument("size", "size exceeds host off_t range"))?;
     let truncate_status = unsafe { libc::ftruncate(descriptor, size) };
     if truncate_status != 0 {
         unsafe {
@@ -152,10 +154,10 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and map options
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
     if length == 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "length",
             "length must be greater than zero",
         ));
@@ -165,10 +167,10 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
     let descriptor = shared_memory_descriptor(context, handle, SHARED_MEMORY_MAP_OPERATION)?;
 
     // decode length and offset into host ranges
-    let length = usize::try_from(length)
-        .map_err(|_| invalid_argument("length", "length exceeds host usize range"))?;
-    let offset = i64::try_from(offset)
-        .map_err(|_| invalid_argument("offset", "offset exceeds host off_t range"))?;
+    let length = core_platform::u64_to_usize(length, "length")?;
+    let offset = i64::try_from(offset).map_err(|_| {
+        core_platform::invalid_argument("offset", "offset exceeds host off_t range")
+    })?;
 
     // map one shared view into process virtual memory
     let mapped = unsafe {
@@ -190,10 +192,8 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
     }
 
     // write mapping descriptor output
-    let mapped_address = u64::try_from(mapped as usize)
-        .map_err(|_| invalid_argument("out.address", "mapped address exceeds u64 range"))?;
-    let mapping_length = u64::try_from(length)
-        .map_err(|_| invalid_argument("out.length", "length exceeds u64 range"))?;
+    let mapped_address = core_platform::usize_to_u64(mapped as usize, "out.address")?;
+    let mapping_length = core_platform::usize_to_u64(length, "out.length")?;
     let mapping = SharedMemoryMapping {
         address: mapped_address,
         length: mapping_length,
@@ -229,8 +229,8 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and input flags
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
 
     // decode and normalize the shared-memory name
     let name = posix_name(name, "name")?;
@@ -278,21 +278,22 @@ pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
 ) -> RuntimeResult<()> {
     // validate unmap address and length inputs
     if address == 0 {
-        return Err(invalid_argument("address", "address must be non-zero"));
+        return Err(core_platform::invalid_argument(
+            "address",
+            "address must be non-zero",
+        ));
     }
     if length == 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "length",
             "length must be greater than zero",
         ));
     }
 
     // issue one host unmap call
-    let address = usize::try_from(address)
-        .map_err(|_| invalid_argument("address", "address exceeds host usize range"))?;
+    let address = core_platform::u64_to_usize(address, "address")?;
     let pointer = address as *mut libc::c_void;
-    let length = usize::try_from(length)
-        .map_err(|_| invalid_argument("length", "length exceeds host usize range"))?;
+    let length = core_platform::u64_to_usize(length, "length")?;
     let rc = unsafe { libc::munmap(pointer, length) };
     if rc != 0 {
         return Err(io_error(

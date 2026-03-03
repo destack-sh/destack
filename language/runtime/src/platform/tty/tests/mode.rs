@@ -128,10 +128,7 @@ fn test_tty_mode_set_raw_mode_roundtrip_or_not_supported() {
         let raw_mode = decode_harness_value(raw_mode);
         #[cfg(unix)]
         {
-            let raw_mask = (libc::ICANON as u64)
-                | (libc::ECHO as u64)
-                | (libc::ISIG as u64)
-                | (libc::IEXTEN as u64);
+            let raw_mask = libc::ICANON | libc::ECHO | libc::ISIG | libc::IEXTEN;
             assert_eq!(raw_mode.local_flags & raw_mask, 0);
         }
         #[cfg(windows)]
@@ -149,7 +146,7 @@ fn test_tty_mode_set_raw_mode_roundtrip_or_not_supported() {
         let cooked_mode = decode_harness_value(cooked_mode);
         #[cfg(unix)]
         {
-            let cooked_mask = (libc::ICANON as u64) | (libc::ECHO as u64);
+            let cooked_mask = libc::ICANON | libc::ECHO;
             assert_eq!(cooked_mode.local_flags & cooked_mask, cooked_mask);
         }
         #[cfg(windows)]

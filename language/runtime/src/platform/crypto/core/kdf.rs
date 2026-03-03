@@ -3,12 +3,13 @@ use openssl::pkcs5;
 use zeroize::Zeroizing;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::{
     CryptoArgon2idRequest, CryptoDigestAlgorithm, CryptoHkdfRequest, CryptoPbkdf2Request,
     CryptoScryptRequest,
 };
 
-use super::core::{decode_native_bytes, invalid_argument, invalid_data, openssl_error};
+use super::core::{decode_native_bytes, invalid_data, openssl_error};
 use super::digest::message_digest;
 use super::mac::hmac_compute;
 
@@ -37,7 +38,7 @@ pub(crate) fn kdf_hkdf(request: CryptoHkdfRequest) -> RuntimeResult<Vec<u8>> {
 pub(crate) fn kdf_pbkdf2(request: CryptoPbkdf2Request) -> RuntimeResult<Vec<u8>> {
     // validate cost settings before decoding secret inputs
     if request.iterations == 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.iterations",
             "iterations must be greater than zero",
         ));
@@ -65,13 +66,13 @@ pub(crate) fn kdf_pbkdf2(request: CryptoPbkdf2Request) -> RuntimeResult<Vec<u8>>
 pub(crate) fn kdf_scrypt(request: CryptoScryptRequest) -> RuntimeResult<Vec<u8>> {
     // validate cost settings before decoding secret inputs
     if request.cost < 2 || !request.cost.is_power_of_two() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.cost",
             "cost must be one power of two greater than 1",
         ));
     }
     if request.block_size == 0 || request.parallelization == 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.blockSize",
             "blockSize and parallelization must be greater than zero",
         ));
@@ -104,7 +105,7 @@ pub(crate) fn kdf_argon2id(request: CryptoArgon2idRequest) -> RuntimeResult<Vec<
     let associated_data = decode_native_bytes(request.associated_data, "request.associatedData")?;
 
     if salt.len() < 8 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.salt",
             "salt must be at least 8 bytes",
         ));
@@ -123,7 +124,7 @@ pub(crate) fn kdf_argon2id(request: CryptoArgon2idRequest) -> RuntimeResult<Vec<
         .output_len(request.length as usize);
     if !associated_data.is_empty() {
         let associated_data = AssociatedData::new(&associated_data).map_err(|error| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "request.associatedData",
                 format!("invalid associatedData: {error}"),
             )
@@ -131,7 +132,7 @@ pub(crate) fn kdf_argon2id(request: CryptoArgon2idRequest) -> RuntimeResult<Vec<
         params_builder.data(associated_data);
     }
     let params = params_builder.build().map_err(|error| {
-        invalid_argument("request", format!("invalid argon2 parameters: {error}"))
+        core_platform::invalid_argument("request", format!("invalid argon2 parameters: {error}"))
     })?;
 
     // build argon2 context with optional secret
@@ -139,7 +140,12 @@ pub(crate) fn kdf_argon2id(request: CryptoArgon2idRequest) -> RuntimeResult<Vec<
         Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
     } else {
         Argon2::new_with_secret(&secret, Algorithm::Argon2id, Version::V0x13, params).map_err(
-            |error| invalid_argument("request.secret", format!("invalid argon2 secret: {error}")),
+            |error| {
+                core_platform::invalid_argument(
+                    "request.secret",
+                    format!("invalid argon2 secret: {error}"),
+                )
+            },
         )?
     };
 
@@ -169,11 +175,11 @@ pub(super) fn hkdf_expand(
     // validate hkdf output length against digest limits
     let message_digest = message_digest(digest)?;
     let digest_size = message_digest.size();
-    let max_length = 255usize
-        .checked_mul(digest_size)
-        .ok_or_else(|| invalid_argument("request.length", "requested length overflowed"))?;
+    let max_length = 255usize.checked_mul(digest_size).ok_or_else(|| {
+        core_platform::invalid_argument("request.length", "requested length overflowed")
+    })?;
     if length > max_length {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.length",
             format!("requested output exceeds hkdf maximum of {max_length} bytes"),
         ));
@@ -206,7 +212,7 @@ pub(super) fn hkdf_expand(
         )?);
         output.extend_from_slice(&block);
         counter = counter.checked_add(1).ok_or_else(|| {
-            invalid_argument(
+            core_platform::invalid_argument(
                 "request.length",
                 "requested output exceeded hkdf counter range",
             )

@@ -12,7 +12,7 @@ use crate::platform::fs::{
 };
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{PipeHandle, ResourceId, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, core as core_platform};
+use crate::platform::{NativeSlice, PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 /// Build a socket error from the last WSA error.
@@ -66,13 +66,13 @@ enum SpliceEndpoint {
 /// Resolve one splice endpoint from one generic resource id.
 fn splice_endpoint(
     context: &BindingCallContext,
-    resource: ResourceId,
+    resource_id: ResourceId,
     label: &str,
 ) -> RuntimeResult<SpliceEndpoint> {
     // resolve one resource entry and map it into a supported endpoint
-    let endpoint = context.runtime().resources.with_entry(resource, |entry| {
+    let endpoint = resource::with_any_entry(context, resource_id, |entry| {
         if entry.kind == ResourceKind::File {
-            return Some(SpliceEndpoint::File(FileHandle(resource)));
+            return Some(SpliceEndpoint::File(FileHandle(resource_id)));
         }
         if entry.kind == ResourceKind::Pipe {
             return entry

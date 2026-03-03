@@ -13,12 +13,12 @@ use windows_sys::Win32::Networking::WinSock::{
     WSAGetLastError, WSAIoctl, bind, closesocket, recv, send, setsockopt, socket,
 };
 
-use super::util::{ensure_winsock, net_error_with_code, socket_descriptor};
+use super::util::socket_descriptor;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::*;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind, SocketHandle};
-use crate::platform::{NativeSlice, PlatformError, ResourceId};
+use crate::platform::{NativeSlice, PlatformError, ResourceId, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Maximum packet buffer length used by the Windows packet backend.
@@ -269,7 +269,10 @@ fn interface_ipv4_bind_address(interface_index: u32) -> RuntimeResult<SOCKADDR_I
         break status;
     };
     if status != ERROR_SUCCESS {
-        return Err(net_error_with_code("GetAdaptersAddresses", status as i32));
+        return Err(core_platform::net_error_with_code(
+            "GetAdaptersAddresses",
+            status as i32,
+        ));
     }
 
     // locate one adapter row that matches the requested index
@@ -339,9 +342,10 @@ fn configure_packet_receive_timeout(socket: SOCKET, timeout_ms: i32) -> RuntimeR
         )
     };
     if rc != 0 {
-        return Err(net_error_with_code("setsockopt(SO_RCVTIMEO)", unsafe {
-            WSAGetLastError()
-        }));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(SO_RCVTIMEO)",
+            unsafe { WSAGetLastError() },
+        ));
     }
 
     Ok(())
@@ -366,9 +370,10 @@ fn configure_packet_promiscuous_mode(socket: SOCKET, promiscuous: bool) -> Runti
         )
     };
     if rc != 0 {
-        return Err(net_error_with_code("WSAIoctl(SIO_RCVALL)", unsafe {
-            WSAGetLastError()
-        }));
+        return Err(core_platform::net_error_with_code(
+            "WSAIoctl(SIO_RCVALL)",
+            unsafe { WSAGetLastError() },
+        ));
     }
 
     Ok(())
@@ -825,12 +830,13 @@ pub(crate) unsafe fn destack_net_packet_open(
     }
 
     // initialize winsock and create one raw IPv4 packet socket
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
     let socket = unsafe { socket(AF_INET as i32, SOCK_RAW, IPPROTO_IP) };
     if socket == INVALID_SOCKET {
-        return Err(net_error_with_code("socket(SOCK_RAW)", unsafe {
-            WSAGetLastError()
-        }));
+        return Err(core_platform::net_error_with_code(
+            "socket(SOCK_RAW)",
+            unsafe { WSAGetLastError() },
+        ));
     }
 
     // bind the socket to one requested interface or to INADDR_ANY
@@ -848,7 +854,9 @@ pub(crate) unsafe fn destack_net_packet_open(
     };
     if bind_rc != 0 {
         let _ = unsafe { closesocket(socket) };
-        return Err(net_error_with_code("bind", unsafe { WSAGetLastError() }));
+        return Err(core_platform::net_error_with_code("bind", unsafe {
+            WSAGetLastError()
+        }));
     }
 
     // configure one receive timeout window when requested
@@ -957,7 +965,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
                 return Err(packet_receive_timeout_error("destack.net.packetReceive"));
             }
 
-            return Err(net_error_with_code("recv", code));
+            return Err(core_platform::net_error_with_code("recv", code));
         }
 
         let bytes = usize::try_from(bytes).map_err(|_| {
@@ -1066,7 +1074,9 @@ pub(crate) unsafe fn destack_net_packet_send(
     // send one packet payload through the raw socket endpoint
     let sent = unsafe { send(socket, payload.as_ptr(), payload.len() as i32, 0) };
     if sent == SOCKET_ERROR {
-        return Err(net_error_with_code("send", unsafe { WSAGetLastError() }));
+        return Err(core_platform::net_error_with_code("send", unsafe {
+            WSAGetLastError()
+        }));
     }
 
     // write the number of payload bytes sent

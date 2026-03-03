@@ -6,8 +6,8 @@ use super::asio;
 #[cfg(feature = "audio-wasapi")]
 use super::wasapi;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Return whether one windows backend is enabled by compile-time feature selection.
@@ -146,7 +146,7 @@ pub(crate) fn resolve_host_device_by_id(
         .into_iter()
         .find(|device| device.id == id)
         .ok_or_else(|| {
-            audio_core::audio_not_found(
+            core_platform::io_not_found(
                 "destack.audio.device.open",
                 format!("audio device id not found: {id}"),
             )

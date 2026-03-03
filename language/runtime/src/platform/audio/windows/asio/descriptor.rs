@@ -1,5 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::core as core_platform;
 
 use super::constants::ASIO_MAX_PROBED_CHANNELS;
 use super::host::{
@@ -11,7 +12,7 @@ use super::ids::{capture_stable_id, duplex_stable_id, playback_stable_id};
 pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
     let rows = enumerate_registered_drivers();
     if rows.is_empty() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.device.list",
             "no ASIO drivers are registered",
         ));
@@ -157,7 +158,7 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
     }
 
     if descriptors.is_empty() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.device.list",
             "ASIO driver set contains no usable endpoints",
         ));

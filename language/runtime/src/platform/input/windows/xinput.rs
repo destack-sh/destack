@@ -1,8 +1,6 @@
 use std::mem::MaybeUninit;
-use std::sync::OnceLock;
 
 use windows_sys::Win32::Foundation::{ERROR_DEVICE_NOT_CONNECTED, ERROR_SUCCESS};
-use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 use windows_sys::Win32::UI::Input::XboxController::{
     BATTERY_DEVTYPE_GAMEPAD, BATTERY_LEVEL_EMPTY, BATTERY_LEVEL_FULL, BATTERY_LEVEL_LOW,
     BATTERY_LEVEL_MEDIUM, BATTERY_TYPE_ALKALINE, BATTERY_TYPE_DISCONNECTED, BATTERY_TYPE_NIMH,
@@ -17,7 +15,6 @@ use windows_sys::Win32::UI::Input::XboxController::{
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
@@ -26,6 +23,7 @@ use crate::platform::input::{
     InputGamepadButtonState, InputGamepadConnectionType, InputGamepadMappingType,
     InputGamepadState, InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
 };
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Prefix for stable xinput device identifiers.
@@ -37,34 +35,9 @@ const XINPUT_STANDARD_AXIS_COUNT: u16 = 4;
 /// Standardized gamepad button count in this runtime contract.
 const XINPUT_STANDARD_BUTTON_COUNT: u16 = 17;
 
-/// Return the host performance-counter frequency.
-fn performance_counter_frequency() -> u64 {
-    static PERFORMANCE_COUNTER_FREQUENCY: OnceLock<u64> = OnceLock::new();
-    *PERFORMANCE_COUNTER_FREQUENCY.get_or_init(|| {
-        let mut frequency = 0i64;
-        let status = unsafe { QueryPerformanceFrequency(&mut frequency) };
-        if status == 0 || frequency <= 0 {
-            return 0;
-        }
-
-        frequency as u64
-    })
-}
-
 /// Read one monotonic timestamp from QueryPerformanceCounter.
 fn now_timestamp_ns() -> u64 {
-    let frequency = performance_counter_frequency();
-    if frequency == 0 {
-        return 0;
-    }
-
-    let mut counter = 0i64;
-    let status = unsafe { QueryPerformanceCounter(&mut counter) };
-    if status == 0 || counter < 0 {
-        return 0;
-    }
-
-    ((counter as u128).saturating_mul(1_000_000_000u128) / u128::from(frequency)) as u64
+    core_platform::qpc_now_ns().unwrap_or(0)
 }
 
 /// Return one stable runtime xinput device identifier for one user index.

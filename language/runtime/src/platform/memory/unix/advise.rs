@@ -1,9 +1,9 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::memory::MemoryAdvice;
 use crate::runtime::BindingCallContext;
 
-use super::core::{HUGE_PAGE_OPERATION, io_error, page_size, validated_range};
-use crate::platform::memory::core::not_supported;
+use super::core::{HUGE_PAGE_OPERATION, page_size, validated_range};
 
 /// Apply memory access advice.
 pub(crate) unsafe fn destack_memory_advise(
@@ -28,7 +28,7 @@ pub(crate) unsafe fn destack_memory_advise(
     // apply the host advisory hint
     let status = unsafe { libc::madvise(pointer, length, advice) };
     if status != 0 {
-        return Err(io_error("madvise"));
+        return Err(core_platform::io_error("madvise", None));
     }
 
     Ok(())
@@ -47,7 +47,7 @@ pub(crate) unsafe fn destack_memory_discard(
     // request discard semantics from the host
     let status = unsafe { libc::madvise(pointer, length, libc::MADV_DONTNEED) };
     if status != 0 {
-        return Err(io_error("madvise"));
+        return Err(core_platform::io_error("madvise", None));
     }
 
     Ok(())
@@ -76,7 +76,7 @@ pub(crate) unsafe fn destack_memory_huge_page(
         // apply huge-page preference hint
         let status = unsafe { libc::madvise(pointer, length, advice) };
         if status != 0 {
-            return Err(io_error("madvise"));
+            return Err(core_platform::io_error("madvise", None));
         }
 
         return Ok(());
@@ -86,6 +86,6 @@ pub(crate) unsafe fn destack_memory_huge_page(
     {
         // mark huge-page hinting as unsupported on this backend
         let _ = (pointer, length, enabled);
-        Err(not_supported(HUGE_PAGE_OPERATION))
+        Err(core_platform::not_supported(HUGE_PAGE_OPERATION))
     }
 }

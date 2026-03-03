@@ -10,6 +10,8 @@ use crate::platform::PlatformError;
 #[cfg(target_os = "linux")]
 use crate::platform::audio::core as audio_core;
 #[cfg(target_os = "linux")]
+use crate::platform::core as core_platform;
+#[cfg(target_os = "linux")]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::runtime::BindingCallContext;
 
@@ -234,7 +236,7 @@ fn run_monitor_thread(
         unsafe {
             libc::close(inotify_fd);
         }
-        let _ = ready_sender.send(Err(audio_core::audio_not_found(
+        let _ = ready_sender.send(Err(core_platform::io_not_found(
             "destack.audio.event.open",
             "no ALSA monitor paths were available for inotify",
         )));

@@ -353,7 +353,10 @@ fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
         context.destack_fs_mkdir(dir, FileMode(0o755))?;
 
         // create fifo-style node through mknod
-        let node_mode = FileMode((libc::S_IFIFO | 0o644) as u32);
+        #[cfg(unix)]
+        let node_mode = FileMode((libc::S_IFIFO as u32) | 0o644);
+        #[cfg(windows)]
+        let node_mode = FileMode(0o644);
         let node = context.path_bytes(&node_path);
         let mknod_result = context.destack_fs_mknod(node, node_mode, NodeDevice(0));
 

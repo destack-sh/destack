@@ -1,12 +1,9 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::PipePair;
-use crate::platform::{NativeSlice, resource};
+use crate::platform::{NativeSlice, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    ensure_out, ensure_zero_flags, invalid_argument, io_error, pipe_descriptor,
-    register_pipe_descriptor,
-};
+use super::core::{io_error, pipe_descriptor, register_pipe_descriptor};
 
 /// Open one unnamed pipe pair.
 const PIPE_OPEN_OPERATION: &str = "destack.ipc.pipe.open";
@@ -41,7 +38,7 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "handle",
             "destack.ipc.pipe.close expected one valid pipe handle",
         ));
@@ -73,8 +70,8 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and flag payload
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
 
     // create one unix pipe pair
     let mut descriptors = [0; 2];
@@ -127,7 +124,7 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate output argument and resolve pipe descriptor
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let descriptor = pipe_descriptor(context, handle, PIPE_READ_OPERATION)?;
 
     // decode caller buffer and issue one read call
@@ -179,7 +176,7 @@ pub(crate) unsafe fn destack_ipc_pipe_write(
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate output argument and resolve pipe descriptor
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let descriptor = pipe_descriptor(context, handle, PIPE_WRITE_OPERATION)?;
 
     // decode caller buffer and issue one write call

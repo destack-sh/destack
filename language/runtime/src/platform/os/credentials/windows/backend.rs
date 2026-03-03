@@ -30,6 +30,7 @@ use windows_sys::core::HRESULT;
 use zeroize::Zeroize;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::core::wide_from_str;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationMechanism, CredentialAuthenticationPolicy,
@@ -41,9 +42,8 @@ use super::super::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
-    OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists,
-    invalid_argument, invalid_data, no_replace_write_guard, not_found, not_supported,
-    permission_denied, would_block,
+    OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists, invalid_data,
+    permission_denied, with_no_replace_write_guard, would_block,
 };
 
 /// Windows FILETIME to unix epoch offset in 100ns ticks.
@@ -94,7 +94,7 @@ pub(crate) fn read_credentials(
 
     // reject access-group routes because windows credential manager has no access-group model
     if query.access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_READ_OPERATION));
+        return Err(core_platform::not_supported(OS_CREDENTIALS_READ_OPERATION));
     }
 
     // build target lookup name
@@ -178,17 +178,17 @@ pub(crate) fn write_credentials(
 ) -> RuntimeResult<()> {
     // reject access-group routes because windows credential manager has no access-group model
     if options.access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_WRITE_OPERATION));
+        return Err(core_platform::not_supported(OS_CREDENTIALS_WRITE_OPERATION));
     }
 
     // reject authentication policies that the generic credential lane cannot represent
     if options.authentication != CredentialAuthenticationPolicy::None {
-        return Err(not_supported(OS_CREDENTIALS_WRITE_OPERATION));
+        return Err(core_platform::not_supported(OS_CREDENTIALS_WRITE_OPERATION));
     }
 
     // enforce credential manager blob limits
     if options.bytes.len() > CRED_MAX_CREDENTIAL_BLOB_SIZE as usize {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "options.bytes",
             format!(
                 "credential payload exceeds windows max blob size {CRED_MAX_CREDENTIAL_BLOB_SIZE}"
@@ -198,19 +198,20 @@ pub(crate) fn write_credentials(
 
     // reject duplicate writes when replacement is disabled
     if !options.replace_existing {
-        // serialize check-then-write in-process: this is strict per process, not cross-process atomic
-        let _guard = no_replace_write_guard();
-        let already_present =
-            contains_credentials(context, &options.service, &options.account, None)?;
-        if already_present {
-            return Err(already_exists(
-                OS_CREDENTIALS_WRITE_OPERATION,
-                "credential already exists and replaceExisting is false",
-            ));
-        }
+        // serialize check-then-write in-runtime: this is strict per runtime, not cross-process atomic
+        return with_no_replace_write_guard(context, || {
+            let already_present =
+                contains_credentials(context, &options.service, &options.account, None)?;
+            if already_present {
+                return Err(already_exists(
+                    OS_CREDENTIALS_WRITE_OPERATION,
+                    "credential already exists and replaceExisting is false",
+                ));
+            }
 
-        // write one new credential while the no-replace guard is held
-        return write_credential_record(options);
+            // write one new credential while the no-replace guard is held
+            write_credential_record(options)
+        });
     }
 
     // write one replacement credential payload
@@ -226,7 +227,9 @@ pub(crate) fn delete_credentials(
 ) -> RuntimeResult<()> {
     // reject access-group routes because windows credential manager has no access-group model
     if access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_DELETE_OPERATION));
+        return Err(core_platform::not_supported(
+            OS_CREDENTIALS_DELETE_OPERATION,
+        ));
     }
 
     // build target lookup name
@@ -254,7 +257,9 @@ pub(crate) fn contains_credentials(
 ) -> RuntimeResult<bool> {
     // reject access-group routes because windows credential manager has no access-group model
     if access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_CONTAINS_OPERATION));
+        return Err(core_platform::not_supported(
+            OS_CREDENTIALS_CONTAINS_OPERATION,
+        ));
     }
 
     // build target lookup name
@@ -686,12 +691,14 @@ fn verify_windows_device_credential(
 
     // map unsupported host lanes explicitly
     if last_error_code == ERROR_NOT_SUPPORTED || last_error_code == ERROR_LOGON_TYPE_NOT_GRANTED {
-        return Err(not_supported(OS_CREDENTIALS_AUTHENTICATE_OPERATION));
+        return Err(core_platform::not_supported(
+            OS_CREDENTIALS_AUTHENTICATE_OPERATION,
+        ));
     }
 
     // map malformed-argument lanes
     if last_error_code == ERROR_INVALID_PARAMETER || last_error_code == ERROR_BAD_LENGTH {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "options",
             format!(
                 "windows logon verification rejected one authentication argument with code {last_error_code}"
@@ -778,7 +785,7 @@ fn authenticate_with_windows_biometric() -> RuntimeResult<CredentialAuthenticati
 fn target_name_for_service_account(service: &str, account: &str) -> RuntimeResult<String> {
     // encode the service length to keep the composite key unambiguous
     if service.len() > u32::MAX as usize {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "service",
             "service name exceeds supported credential key length",
         ));
@@ -855,7 +862,7 @@ fn filetime_to_unix_ns(filetime: FILETIME) -> u64 {
 fn map_windows_credentials_error(operation: &'static str, error_code: u32) -> Box<RuntimeError> {
     // map record-not-found errors
     if error_code == ERROR_NOT_FOUND {
-        return not_found(operation, "credential record not found");
+        return core_platform::io_not_found(operation, "credential record not found");
     }
 
     // map access-denied and unavailable-session errors
@@ -876,12 +883,12 @@ fn map_windows_credentials_error(operation: &'static str, error_code: u32) -> Bo
 
     // map backend unavailability to not-supported
     if error_code == ERROR_NOT_SUPPORTED {
-        return not_supported(operation);
+        return core_platform::not_supported(operation);
     }
 
     // map malformed argument and blob-length errors
     if error_code == ERROR_INVALID_PARAMETER || error_code == ERROR_BAD_LENGTH {
-        return invalid_argument(
+        return core_platform::invalid_argument(
             "credential",
             format!(
                 "windows credential manager rejected one credential argument with code {error_code}"
@@ -905,7 +912,7 @@ fn map_windows_biometric_error(error_code: HRESULT) -> Box<RuntimeError> {
         || error_code == WINBIO_E_UNSUPPORTED_POOL_TYPE
         || error_code == WINBIO_E_NOT_ACTIVE_CONSOLE
     {
-        return not_supported(OS_CREDENTIALS_AUTHENTICATE_OPERATION);
+        return core_platform::not_supported(OS_CREDENTIALS_AUTHENTICATE_OPERATION);
     }
 
     // map temporary busy states

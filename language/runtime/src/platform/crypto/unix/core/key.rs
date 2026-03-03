@@ -9,6 +9,7 @@ use openssl::rsa::{Padding, Rsa};
 use openssl::sign::{RsaPssSaltlen, Signer};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
@@ -18,7 +19,7 @@ use crate::platform::crypto::{
     CryptoSignatureParameters, CryptoStoreKind,
 };
 
-use super::{invalid_data, not_supported};
+use super::invalid_data;
 
 /// Return one digest lane for one signature request.
 pub(crate) fn signature_digest(
@@ -36,17 +37,17 @@ pub(crate) fn signature_digest(
         CryptoDigestAlgorithm::Sha3_512 => MessageDigest::sha3_512(),
         CryptoDigestAlgorithm::Blake2b512 => {
             let Some(digest) = MessageDigest::from_name("blake2b512") else {
-                return Err(not_supported(operation));
+                return Err(core_platform::not_supported(operation));
             };
             digest
         }
         CryptoDigestAlgorithm::Blake2s256 => {
             let Some(digest) = MessageDigest::from_name("blake2s256") else {
-                return Err(not_supported(operation));
+                return Err(core_platform::not_supported(operation));
             };
             digest
         }
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(digest)
@@ -71,7 +72,7 @@ pub(crate) fn curve_from_private_key(
         Nid::X9_62_PRIME256V1 => CryptoNamedCurve::P256,
         Nid::SECP384R1 => CryptoNamedCurve::P384,
         Nid::SECP521R1 => CryptoNamedCurve::P521,
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(named_curve)
@@ -117,7 +118,7 @@ pub(crate) fn parse_host_private_key(
         }
     }
     if !is_allowed_backend {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // decode stored pkcs#8 payload
@@ -150,7 +151,7 @@ pub(crate) fn generate_rsa_key_pair(
         public_exponent
     };
     if resolved_public_exponent != 65537 {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // generate one RSA private key
@@ -176,7 +177,7 @@ pub(crate) fn generate_ec_key_pair(
         }
         CryptoNamedCurve::P384 => (CryptoNamedCurve::P384, 384, Nid::SECP384R1),
         CryptoNamedCurve::P521 => (CryptoNamedCurve::P521, 521, Nid::SECP521R1),
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     // generate one EC private key
@@ -380,7 +381,7 @@ pub(crate) fn sign_with_software_host_key(
     // sign one payload with one software RSA key lane
     if algorithm == CryptoKeyAlgorithm::Rsa {
         if private_key.id() != Id::RSA {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         let digest = signature_digest(parameters.digest, operation)?;
@@ -408,7 +409,7 @@ pub(crate) fn sign_with_software_host_key(
                     .set_rsa_pss_saltlen(salt_length)
                     .map_err(|error| invalid_data(operation, format!("{error}")))?;
             }
-            _ => return Err(not_supported(operation)),
+            _ => return Err(core_platform::not_supported(operation)),
         }
 
         signer
@@ -424,7 +425,7 @@ pub(crate) fn sign_with_software_host_key(
     // sign one payload with one software EC key lane
     if algorithm == CryptoKeyAlgorithm::Ec {
         if private_key.id() != Id::EC || parameters.algorithm != CryptoSignatureAlgorithm::Ecdsa {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         let digest = signature_digest(parameters.digest, operation)?;
@@ -440,7 +441,7 @@ pub(crate) fn sign_with_software_host_key(
         return Ok(signature);
     }
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Decrypt one payload with one software host RSA key.
@@ -454,12 +455,12 @@ pub(crate) fn decrypt_with_software_host_key(
 ) -> RuntimeResult<Vec<u8>> {
     // decrypt one payload only through software RSA key lanes
     if algorithm != CryptoKeyAlgorithm::Rsa {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     let private_key = parse_host_private_key(key, allowed_backends, operation)?;
     if private_key.id() != Id::RSA {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // configure one RSA decrypter from runtime parameters
@@ -489,7 +490,7 @@ pub(crate) fn decrypt_with_software_host_key(
                     .map_err(|error| invalid_data(operation, format!("{error}")))?;
             }
         }
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     }
 
     // run one RSA decryption operation in two passes
@@ -519,12 +520,12 @@ pub(crate) fn derive_shared_secret_with_software_host_key(
 ) -> RuntimeResult<Vec<u8>> {
     // derive one shared secret only through software EC key lanes
     if algorithm != CryptoKeyAlgorithm::Ec {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     let private_key = parse_host_private_key(key, allowed_backends, operation)?;
     if private_key.id() != Id::EC {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // enforce one matching named curve when requested by the caller
@@ -537,7 +538,7 @@ pub(crate) fn derive_shared_secret_with_software_host_key(
             ));
         }
 
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // decode one peer key and derive one shared secret payload
@@ -568,5 +569,5 @@ pub(crate) fn delete_software_host_key(
         }
     }
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }

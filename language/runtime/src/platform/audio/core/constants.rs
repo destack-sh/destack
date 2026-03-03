@@ -1,4 +1,5 @@
 use super::*;
+use crate::platform::core as core_platform;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 /// Resource label for audio device handles.
@@ -374,7 +375,7 @@ pub(crate) fn resolved_event_monitor_poll_interval_ns(default_ns: u64) -> u64 {
 /// Return the configured default queue capacity for audio event subscriptions.
 pub(crate) fn resolved_default_event_queue_capacity(context: &BindingCallContext) -> u32 {
     let configured = context.runtime().module_options.audio.event_queue_capacity;
-    let configured = configured.and_then(|value| u32::try_from(value).ok());
+    let configured = core_platform::option_u64_to_u32(configured);
     configured.unwrap_or(DEFAULT_EVENT_QUEUE_CAPACITY).max(1)
 }
 
@@ -401,7 +402,7 @@ pub(crate) fn resolved_stream_wait_slice_ns(context: &BindingCallContext) -> u64
 /// Return the configured maximum bytes accepted per audio stream read call.
 pub(crate) fn resolved_max_stream_read_bytes(context: &BindingCallContext) -> u32 {
     let configured = context.runtime().module_options.audio.max_stream_read_bytes;
-    let configured = configured.and_then(|value| u32::try_from(value).ok());
+    let configured = core_platform::option_u64_to_u32(configured);
     configured
         .unwrap_or(MAX_STREAM_READ_BYTES)
         .clamp(1, MAX_STREAM_READ_BYTES)
@@ -414,7 +415,7 @@ pub(crate) fn resolved_max_queued_frames() -> usize {
     })
     .ok()
     .flatten();
-    let configured = configured.and_then(|value| usize::try_from(value).ok());
+    let configured = core_platform::option_u64_to_usize(configured);
 
     configured
         .unwrap_or(MAX_QUEUED_FRAMES)

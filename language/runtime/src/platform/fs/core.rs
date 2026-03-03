@@ -416,10 +416,7 @@ fn watch_resource(
 ) -> RuntimeResult<Arc<Mutex<WatchResource>>> {
     require_resource(context, handle.0, ResourceKind::Watch, "watch", |entry| {
         entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<Mutex<WatchResource>>>())
-            .cloned()
+            .payload_cloned::<Arc<Mutex<WatchResource>>>()
             .ok_or_else(invalid_watch_handle_error)
     })
 }

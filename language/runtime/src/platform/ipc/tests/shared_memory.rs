@@ -57,19 +57,21 @@ fn test_shared_memory_rejects_unsupported_flags() {
         // create with non-zero flags should fail
         let name = unique_ipc_name("ipc_shared_memory_flags");
         let create_name = context.string_value(&name)?;
-        let create_error = context
-            .destack_ipc_shared_memory_create(create_name, 4096, 1)
-            .err()
-            .expect("expected sharedMemoryCreate to fail for unsupported flags");
+        let create_error = context.destack_ipc_shared_memory_create(create_name, 4096, 1);
+        let create_error = match create_error {
+            Ok(_) => panic!("expected sharedMemoryCreate to fail for unsupported flags"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&create_error, PlatformErrorCode::InvalidArgumentValue);
 
         // create one valid handle and verify map rejects non-zero flags
         let create_name = context.string_value(&name)?;
         let handle = context.destack_ipc_shared_memory_create(create_name, 4096, 0)?;
-        let map_error = context
-            .destack_ipc_shared_memory_map(handle, 0, 4096, 1)
-            .err()
-            .expect("expected sharedMemoryMap to fail for unsupported flags");
+        let map_error = context.destack_ipc_shared_memory_map(handle, 0, 4096, 1);
+        let map_error = match map_error {
+            Ok(_) => panic!("expected sharedMemoryMap to fail for unsupported flags"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&map_error, PlatformErrorCode::InvalidArgumentValue);
         context.destack_ipc_shared_memory_close(handle)?;
 
@@ -86,17 +88,19 @@ fn test_shared_memory_rejects_unknown_handle() {
         let unknown = resource::SharedMemoryHandle(resource::ResourceId(0));
 
         // map should fail with invalid-argument for unknown handle
-        let map_error = context
-            .destack_ipc_shared_memory_map(unknown, 0, 4096, 0)
-            .err()
-            .expect("expected sharedMemoryMap to fail for unknown handle");
+        let map_error = context.destack_ipc_shared_memory_map(unknown, 0, 4096, 0);
+        let map_error = match map_error {
+            Ok(_) => panic!("expected sharedMemoryMap to fail for unknown handle"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&map_error, PlatformErrorCode::InvalidArgumentValue);
 
         // close should fail with invalid-argument for unknown handle
-        let close_error = context
-            .destack_ipc_shared_memory_close(unknown)
-            .err()
-            .expect("expected sharedMemoryClose to fail for unknown handle");
+        let close_error = context.destack_ipc_shared_memory_close(unknown);
+        let close_error = match close_error {
+            Ok(_) => panic!("expected sharedMemoryClose to fail for unknown handle"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&close_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())

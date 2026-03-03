@@ -9,13 +9,13 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
     CryptoDigestAlgorithm, CryptoMacAlgorithm, CryptoMacParameters, host as crypto_host,
 };
-use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
     CRYPTO_MAC_LABEL, CRYPTO_MAC_RESOURCE_KIND, CryptoMacResource, CryptoMacState, KEY_USAGE_SIGN,
-    KEY_USAGE_VERIFY, handle_not_found, invalid_argument, openssl_error, resolve_mac_resource,
+    KEY_USAGE_VERIFY, openssl_error, resolve_mac_resource,
 };
 use super::digest::message_digest;
 use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_secret_key_bytes};
@@ -29,7 +29,7 @@ fn mac_compute_internal(
 ) -> RuntimeResult<Vec<u8>> {
     // validate mac algorithm lane
     if parameters.algorithm != CryptoMacAlgorithm::Hmac {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.algorithm",
             "only HMAC is currently supported",
         ));
@@ -66,7 +66,7 @@ fn mac_compute_internal(
     if parameters.tag_length_bytes != 0 {
         let length = parameters.tag_length_bytes as usize;
         if length > output.len() {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.tagLengthBytes",
                 "tag length must be at most digest size",
             ));
@@ -120,7 +120,7 @@ pub(crate) fn mac_open(
 
     // validate mac algorithm lane
     if parameters.algorithm != CryptoMacAlgorithm::Hmac {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.algorithm",
             "only HMAC is currently supported",
         ));
@@ -238,7 +238,7 @@ pub(crate) fn mac_finish(
             if parameters.tag_length_bytes != 0 {
                 let length = parameters.tag_length_bytes as usize;
                 if length > output.len() {
-                    return Err(invalid_argument(
+                    return Err(core_platform::invalid_argument(
                         "parameters.tagLengthBytes",
                         "tag length must be at most digest size",
                     ));
@@ -311,28 +311,22 @@ pub(crate) fn mac_close(
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.mac.close",
-            "crypto mac",
-            handle.0.0,
+            format!("unknown crypto mac handle {}", handle.0.0),
         ));
     };
 
     // validate handle kind
     if entry.kind != CRYPTO_MAC_RESOURCE_KIND {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.mac.close",
-            "crypto mac",
-            handle.0.0,
+            format!("unknown crypto mac handle {}", handle.0.0),
         ));
     }
 
     // wipe sensitive stream state before releasing the final resource entry
-    let payload = entry
-        .payload
-        .as_ref()
-        .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoMacResource>>>())
-        .map(Arc::clone);
+    let payload = entry.payload_cloned::<Arc<Mutex<CryptoMacResource>>>();
     if let Some(resource) = payload {
         let mut resource = resource.lock();
         match &mut resource.state {

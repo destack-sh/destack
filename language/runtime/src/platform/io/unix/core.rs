@@ -13,7 +13,9 @@ use crate::platform::io::{
 };
 use crate::platform::proactor::Proactor;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-use crate::platform::{PlatformError, PlatformErrorCode, ResourceId};
+use crate::platform::{
+    PlatformError, PlatformErrorCode, ResourceId, core as core_platform, resource,
+};
 use crate::runtime::BindingCallContext;
 use crate::runtime::poller::{HostPollerBackend, PlatformHandle};
 
@@ -85,11 +87,7 @@ impl ResourceFinalizer for UnixEventPipeDescriptors {
 /// Return non-linux event-pipe descriptors from one resource entry when present.
 #[cfg(all(unix, not(target_os = "linux")))]
 fn event_pipe_descriptors(entry: &ResourceEntry) -> Option<UnixEventPipeDescriptors> {
-    entry
-        .payload
-        .as_ref()
-        .and_then(|payload| payload.downcast_ref::<UnixEventPipeDescriptors>())
-        .copied()
+    entry.payload_ref::<UnixEventPipeDescriptors>().copied()
 }
 
 /// Create one nonblocking close-on-exec pipe pair for events.
@@ -262,7 +260,12 @@ pub(crate) fn host_control_fcntl(
         .resources
         .with_entry(handle, |entry| entry.fd())
         .flatten()
-        .ok_or_else(|| io_core::io_target_not_found("destack.io.control.fcntl", handle))?;
+        .ok_or_else(|| {
+            core_platform::io_not_found(
+                "destack.io.control.fcntl",
+                format!("target resource {} not found", handle.0),
+            )
+        })?;
 
     // validate command and argument lanes before syscall conversion
     let command = c_int::try_from(command.0).map_err(|_| {
@@ -343,7 +346,12 @@ pub(crate) fn host_control_ioctl(
         .resources
         .with_entry(handle, |entry| entry.fd())
         .flatten()
-        .ok_or_else(|| io_core::io_target_not_found("destack.io.control.ioctl", handle))?;
+        .ok_or_else(|| {
+            core_platform::io_not_found(
+                "destack.io.control.ioctl",
+                format!("target resource {} not found", handle.0),
+            )
+        })?;
 
     // forward the generic ioctl command to the host kernel
     let pointer = if lane.is_empty() {
@@ -383,12 +391,11 @@ pub(crate) fn host_poll_resolve_target_handle(
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
     #[cfg(target_os = "linux")]
-    let resolved = context
-        .runtime()
-        .resources
-        .with_entry(target, |entry| entry.fd().map(PlatformHandle::from_raw_fd));
+    let resolved = resource::with_any_entry(context, target, |entry| {
+        entry.fd().map(PlatformHandle::from_raw_fd)
+    });
     #[cfg(all(unix, not(target_os = "linux")))]
-    let resolved = context.runtime().resources.with_entry(target, |entry| {
+    let resolved = resource::with_any_entry(context, target, |entry| {
         let descriptor = entry
             .fd()
             .or_else(|| event_pipe_descriptors(entry).map(|pipe| pipe.read_descriptor));
@@ -398,9 +405,9 @@ pub(crate) fn host_poll_resolve_target_handle(
 
     // reject unknown resources first
     let Some(handle) = resolved else {
-        return Err(io_core::io_target_not_found(
+        return Err(core_platform::io_not_found(
             "destack.io.poll.target",
-            target,
+            format!("target resource {} not found", target.0),
         ));
     };
 
@@ -423,14 +430,16 @@ pub(crate) fn host_completion_resolve_target_handle(
     operation: &'static str,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = context
-        .runtime()
-        .resources
-        .with_entry(target, |entry| entry.fd().map(PlatformHandle::from_raw_fd));
+    let resolved = resource::with_any_entry(context, target, |entry| {
+        entry.fd().map(PlatformHandle::from_raw_fd)
+    });
 
     // reject unknown targets first
     let Some(handle) = resolved else {
-        return Err(io_core::io_target_not_found(operation, target));
+        return Err(core_platform::io_not_found(
+            operation,
+            format!("target resource {} not found", target.0),
+        ));
     };
 
     // reject targets without host handles
@@ -550,7 +559,10 @@ pub(crate) fn host_event_close(
         .resources
         .remove_and_finalize(ResourceId(token.0), Some(context.engine()));
     if !removed {
-        return Err(io_core::event_not_found("destack.io.event.close", token));
+        return Err(core_platform::io_not_found(
+            "destack.io.event.close",
+            format!("event token {} not found", token.0),
+        ));
     }
 
     Ok(())
@@ -570,7 +582,12 @@ pub(crate) fn host_event_signal(
             .resources
             .with_entry(ResourceId(token.0), |entry| entry.fd())
             .flatten()
-            .ok_or_else(|| io_core::event_not_found("destack.io.event.signal", token))?
+            .ok_or_else(|| {
+                core_platform::io_not_found(
+                    "destack.io.event.signal",
+                    format!("event token {} not found", token.0),
+                )
+            })?
     };
     #[cfg(all(unix, not(target_os = "linux")))]
     let descriptor = context
@@ -580,7 +597,12 @@ pub(crate) fn host_event_signal(
             event_pipe_descriptors(entry).map(|pipe| pipe.write_descriptor)
         })
         .flatten()
-        .ok_or_else(|| io_core::event_not_found("destack.io.event.signal", token))?;
+        .ok_or_else(|| {
+            core_platform::io_not_found(
+                "destack.io.event.signal",
+                format!("event token {} not found", token.0),
+            )
+        })?;
 
     // write one signal payload
     let payload = value.to_ne_bytes();

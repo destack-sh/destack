@@ -5,7 +5,7 @@ use std::time::Duration;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{AudioEvent, AudioEventSubscriptionOptions, core as audio_core};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, resource};
+use crate::platform::{NativeSlice, PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 /// Close one audio event subscription.
@@ -41,7 +41,7 @@ pub(crate) unsafe fn destack_audio_event_close(
         .resources
         .remove(handle.0, Some(context.engine()));
     if removed.is_none() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.event.close",
             format!("unknown audio event handle {}", handle.0.0),
         ));

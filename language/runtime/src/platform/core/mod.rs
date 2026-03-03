@@ -1,4 +1,8 @@
+mod convert;
+#[cfg(any(target_os = "linux", target_os = "android"))]
+mod dll;
 mod errno;
+mod error;
 #[cfg(unix)]
 mod unix;
 #[cfg(windows)]
@@ -6,8 +10,29 @@ mod win32;
 #[cfg(windows)]
 mod winsock;
 
+#[cfg(windows)]
+use std::sync::OnceLock;
+#[cfg(windows)]
+use std::time::Instant;
+
+pub(crate) use convert::{
+    duration_from_option_ns, option_u64_to_u32, option_u64_to_usize, u64_to_usize,
+    u64_to_usize_with_message, usize_to_u64,
+};
+#[cfg(windows)]
+pub(crate) use convert::{option_u64_or_min, option_u64_to_usize_or_min};
+#[cfg(any(target_os = "linux", target_os = "android"))]
+pub(crate) use dll::{
+    DynamicLibrary, load_dll_api_bytes, load_dll_api_named, load_library_with_api,
+};
 #[cfg(unix)]
 pub(crate) use errno::{get_errno, set_errno};
+pub(crate) use error::{
+    ensure_out, ensure_zero_flags, invalid_argument, io_not_found, io_operation_error,
+    not_supported, unknown_handle, unknown_handle_with_id, unsupported_flags,
+};
+#[cfg(windows)]
+pub(crate) use error::{io_busy, io_would_block};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::io_error_with_errno;
 #[cfg(target_os = "linux")]
@@ -19,10 +44,20 @@ pub(crate) use unix::{io_error, net_error};
 #[cfg(windows)]
 #[allow(unused_imports)]
 pub(crate) use win32::{
-    error_message, io_error, io_error_with_code, io_error_with_platform_code, last_error_code,
-    last_wsa_error_code, net_error, net_error_with_code, pathbuf_from_utf8, pathbuf_from_utf16,
-    string_from_utf8, string_from_wide, wide_from_str, wide_from_utf8, wide_from_utf16,
-    wide_with_nul,
+    WaitStatus, decode_wait_for_single_object_status, error_message, io_error, io_error_with_code,
+    io_error_with_platform_code, last_error_code, last_wsa_error_code, net_error,
+    net_error_with_code, pathbuf_from_utf8, pathbuf_from_utf16, qpc_frequency_hz, qpc_now_ns,
+    qpc_now_ticks, qpc_ticks_to_ns, string_from_utf8, string_from_wide, wide_from_str,
+    wide_from_utf8, wide_from_utf16, wide_with_nul,
 };
 #[cfg(windows)]
 pub(crate) use winsock::ensure_winsock;
+
+/// Return one process-monotonic timestamp in nanoseconds.
+#[cfg(windows)]
+pub(crate) fn monotonic_now_ns() -> u64 {
+    static MONO_EPOCH: OnceLock<Instant> = OnceLock::new();
+
+    let elapsed = MONO_EPOCH.get_or_init(Instant::now).elapsed();
+    elapsed.as_nanos().min(u64::MAX as u128) as u64
+}

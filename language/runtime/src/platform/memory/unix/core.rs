@@ -1,8 +1,6 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::platform::memory::{MemoryProtection, MemoryReserveFlags, core as memory_core};
-
-use memory_core::{invalid_argument, not_supported, unsupported_flags};
 
 /// Operation tag for reserve bindings.
 pub(crate) const RESERVE_OPERATION: &str = "destack.memory.map.reserve";
@@ -31,7 +29,7 @@ pub(crate) const REMAP_MAY_MOVE_FLAG: u32 = 0x1;
 pub(crate) fn unix_protection(protection: MemoryProtection) -> RuntimeResult<i32> {
     // reject unknown protection bits
     if protection.0 & !0x7 != 0 {
-        return Err(unsupported_flags("protection", protection.0));
+        return Err(core_platform::unsupported_flags("protection", protection.0));
     }
 
     // map portable bits to native flags
@@ -53,12 +51,12 @@ pub(crate) fn unix_protection(protection: MemoryProtection) -> RuntimeResult<i32
 pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i32> {
     // reject unknown reserve bits
     if flags.0 & !RESERVE_FLAG_MASK != 0 {
-        return Err(unsupported_flags("flags", flags.0));
+        return Err(core_platform::unsupported_flags("flags", flags.0));
     }
 
     // reject top-down request where unix backends do not expose stable semantics
     if flags.0 & RESERVE_TOP_DOWN_FLAG != 0 {
-        return Err(not_supported(RESERVE_OPERATION));
+        return Err(core_platform::not_supported(RESERVE_OPERATION));
     }
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -74,7 +72,7 @@ pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i
 
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         {
-            return Err(not_supported(RESERVE_OPERATION));
+            return Err(core_platform::not_supported(RESERVE_OPERATION));
         }
     }
 
@@ -87,7 +85,7 @@ pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i
 
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         {
-            return Err(not_supported(RESERVE_OPERATION));
+            return Err(core_platform::not_supported(RESERVE_OPERATION));
         }
     }
 
@@ -98,7 +96,7 @@ pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i
 pub(crate) fn decode_remap_flags(flags: u32) -> RuntimeResult<bool> {
     // reject unknown remap bits
     if flags & !REMAP_FLAG_MASK != 0 {
-        return Err(unsupported_flags("flags", flags));
+        return Err(core_platform::unsupported_flags("flags", flags));
     }
 
     Ok(flags & REMAP_MAY_MOVE_FLAG != 0)
@@ -113,21 +111,9 @@ pub(crate) fn page_size() -> RuntimeResult<usize> {
     }
 
     // validate representable page size
-    usize::try_from(page_size)
-        .map_err(|_| invalid_argument("pageSize", "page size exceeds host usize range"))
-}
-
-/// Convert one host mapping pointer into one `u64` address payload.
-pub(crate) fn mapped_address(
-    pointer: *mut libc::c_void,
-    field: &'static str,
-) -> RuntimeResult<u64> {
-    memory_core::usize_to_u64(pointer as usize, field)
-}
-
-/// Build one unix-io runtime error.
-pub(crate) fn io_error(syscall: &str) -> Box<RuntimeError> {
-    core_platform::io_error(syscall, None)
+    usize::try_from(page_size).map_err(|_| {
+        core_platform::invalid_argument("pageSize", "page size exceeds host usize range")
+    })
 }
 
 /// Convert one validated address and length into one host pointer range.

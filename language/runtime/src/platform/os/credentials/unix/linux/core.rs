@@ -1,5 +1,6 @@
 use crate::diagnostic::RuntimeError;
-use crate::platform::os::credentials::core::{invalid_data, not_found, permission_denied};
+use crate::platform::core as core_platform;
+use crate::platform::os::credentials::core::{invalid_data, permission_denied};
 
 /// Resolve one keyring entry from service and account.
 pub(crate) fn open_keyring_entry(
@@ -38,7 +39,7 @@ pub(crate) fn map_keyring_error(
 ) -> Box<RuntimeError> {
     // map record-not-found errors
     if matches!(error, keyring::Error::NoEntry) {
-        return not_found(
+        return core_platform::io_not_found(
             operation,
             format!("linux keyring {action} could not find one credential"),
         );

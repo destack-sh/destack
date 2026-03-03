@@ -4,6 +4,7 @@ use std::fs;
 use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
 use crate::runtime::BindingCallContext;
@@ -14,8 +15,8 @@ use super::constants::{
     WINDOWS_CERT_STORE_SCAN_ORDER,
 };
 use super::core::{
-    not_supported, permission_denied, windows_dpapi_protect, windows_dpapi_unprotect,
-    windows_keystore_path, windows_try_open_store,
+    permission_denied, windows_dpapi_protect, windows_dpapi_unprotect, windows_keystore_path,
+    windows_try_open_store,
 };
 
 /// Windows host store locations for the system lane.
@@ -134,7 +135,9 @@ pub(crate) fn open_host_store_certificates(
             &mut certificates,
             &mut seen_der_certificates,
         )?,
-        CryptoStoreKind::Provider => return Err(not_supported(CRYPTO_STORE_OPEN_OPERATION)),
+        CryptoStoreKind::Provider => {
+            return Err(core_platform::not_supported(CRYPTO_STORE_OPEN_OPERATION));
+        }
         CryptoStoreKind::Ephemeral => return Ok(Vec::new()),
     }
 
@@ -182,7 +185,7 @@ pub(crate) fn store_host_key_snapshot_bytes(
 ) -> RuntimeResult<()> {
     // resolve one store path for the selected lane
     let Some(path) = windows_keystore_path(context, kind) else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
 
     // create parent directories before writing the snapshot

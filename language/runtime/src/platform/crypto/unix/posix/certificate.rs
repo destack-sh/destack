@@ -1,13 +1,12 @@
 use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    configured_system_certificate_directories, configured_system_certificate_files, not_supported,
-};
+use super::core::{configured_system_certificate_directories, configured_system_certificate_files};
 
 /// Return whether one host store lane supports certificate write operations.
 pub(crate) fn host_store_supports_certificate_write(
@@ -28,7 +27,7 @@ pub(crate) fn host_store_import_certificate(
 ) -> RuntimeResult<()> {
     let _ = (context, kind, certificate);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Delete one certificate from one host store lane.
@@ -40,7 +39,7 @@ pub(crate) fn host_store_delete_certificate(
 ) -> RuntimeResult<()> {
     let _ = (context, kind, certificate);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Collect certificates from configured Unix system trust-bundle locations.

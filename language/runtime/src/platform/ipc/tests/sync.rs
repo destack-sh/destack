@@ -15,10 +15,11 @@ fn test_semaphore_create_post_wait() {
         let handle = context.destack_ipc_semaphore_create(name, 0, 0)?;
 
         // immediate wait should time out with zero permits
-        let timeout_error = context
-            .destack_ipc_semaphore_wait(handle, 0)
-            .err()
-            .expect("expected immediate semaphore wait to time out");
+        let timeout_error = context.destack_ipc_semaphore_wait(handle, 0);
+        let timeout_error = match timeout_error {
+            Ok(_) => panic!("expected immediate semaphore wait to time out"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&timeout_error, PlatformErrorCode::IoTimedOut);
 
         // post one permit and verify wait now succeeds
@@ -36,10 +37,11 @@ fn test_semaphore_create_rejects_unsupported_flags() {
     with_harness_context(|mut context| {
         let name = unique_ipc_name("ipc_semaphore_flags");
         let name = context.string_value(&name)?;
-        let error = context
-            .destack_ipc_semaphore_create(name, 0, 1)
-            .err()
-            .expect("expected semaphoreCreate to fail for unsupported flags");
+        let error = context.destack_ipc_semaphore_create(name, 0, 1);
+        let error = match error {
+            Ok(_) => panic!("expected semaphoreCreate to fail for unsupported flags"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
@@ -55,17 +57,19 @@ fn test_semaphore_rejects_unknown_handle() {
         let unknown = resource::SemaphoreHandle(resource::ResourceId(0));
 
         // post should fail with invalid-argument for unknown handle
-        let post_error = context
-            .destack_ipc_semaphore_post(unknown, 1)
-            .err()
-            .expect("expected semaphorePost to fail for unknown handle");
+        let post_error = context.destack_ipc_semaphore_post(unknown, 1);
+        let post_error = match post_error {
+            Ok(_) => panic!("expected semaphorePost to fail for unknown handle"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&post_error, PlatformErrorCode::InvalidArgumentValue);
 
         // wait should fail with invalid-argument for unknown handle
-        let wait_error = context
-            .destack_ipc_semaphore_wait(unknown, 0)
-            .err()
-            .expect("expected semaphoreWait to fail for unknown handle");
+        let wait_error = context.destack_ipc_semaphore_wait(unknown, 0);
+        let wait_error = match wait_error {
+            Ok(_) => panic!("expected semaphoreWait to fail for unknown handle"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&wait_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
@@ -90,10 +94,11 @@ fn test_futex_wait_and_wake_paths() {
             let word = mapping.address as usize as *mut u32;
             *word = 1;
         }
-        let mismatch_error = context
-            .destack_ipc_futex_wait(handle, 0, 0, 0)
-            .err()
-            .expect("expected futexWait to report wouldBlock on mismatch");
+        let mismatch_error = context.destack_ipc_futex_wait(handle, 0, 0, 0);
+        let mismatch_error = match mismatch_error {
+            Ok(_) => panic!("expected futexWait to report wouldBlock on mismatch"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&mismatch_error, PlatformErrorCode::IoWouldBlock);
 
         // verify wake reports zero when no waiter is currently blocked
@@ -101,10 +106,11 @@ fn test_futex_wait_and_wake_paths() {
         assert_eq!(woken, 0);
 
         // verify timed wait reports ioTimedOut when no wake occurs
-        let timeout_error = context
-            .destack_ipc_futex_wait(handle, 0, 1, 2_000_000)
-            .err()
-            .expect("expected futexWait to time out without a wake");
+        let timeout_error = context.destack_ipc_futex_wait(handle, 0, 1, 2_000_000);
+        let timeout_error = match timeout_error {
+            Ok(_) => panic!("expected futexWait to time out without a wake"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&timeout_error, PlatformErrorCode::IoTimedOut);
 
         // unmap and close one futex shared-memory object

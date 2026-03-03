@@ -27,7 +27,9 @@ use crate::platform::crypto::{
     CryptoNamedCurve, CryptoPrivateKeyExportRequest, CryptoSignatureAlgorithm,
     CryptoSignatureParameters, CryptoStoreKind, host as crypto_host,
 };
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::platform::{
+    NativeSlice, NativeStringRef, PlatformError, core as core_platform, resource,
+};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
@@ -35,10 +37,10 @@ use super::core::{
     HostKeyMaterial, KEY_USAGE_DECRYPT, KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS,
     KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY,
     KEY_USAGE_WRAP, attach_key_to_store, create_persistent_identifier, decode_native_bytes,
-    decode_native_string, enforce_store_key_policy, handle_not_found,
-    host_store_supports_hardware_backed_pair_algorithm, insert_key_resource, invalid_argument,
-    invalid_data, message_digest, openssl_error, permission_denied, resolve_key_resource,
-    resolve_store_resource, store_provenance_from_store, store_provenance_to_descriptor,
+    decode_native_string, enforce_store_key_policy,
+    host_store_supports_hardware_backed_pair_algorithm, insert_key_resource, invalid_data,
+    message_digest, openssl_error, permission_denied, resolve_key_resource, resolve_store_resource,
+    store_provenance_from_store, store_provenance_to_descriptor,
 };
 use super::store::{delete_persistent_key_if_present, persist_key_if_required};
 
@@ -556,7 +558,7 @@ fn import_jwk_key_resource(
         )
     })?;
     if jwk.ext == Some(false) && request.extractable {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.extractable",
             "jwk field ext=false conflicts with extractable=true",
         ));
@@ -568,7 +570,7 @@ fn import_jwk_key_resource(
     // parse one symmetric oct key
     if key_type == "oct" {
         if !is_secret_key_algorithm(request.algorithm) {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "request.algorithm",
                 "jwk oct keys require one secret-key algorithm",
             ));
@@ -919,10 +921,7 @@ fn rollback_key_publish(
         return;
     }
 
-    let Some(payload) = entry.payload.as_ref() else {
-        return;
-    };
-    let Some(key_resource) = payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>() else {
+    let Some(key_resource) = entry.payload_ref::<Arc<Mutex<CryptoKeyResource>>>() else {
         return;
     };
     let mut key_resource = key_resource.lock();
@@ -966,7 +965,7 @@ pub(crate) fn key_generate_secret(
                 (digest.size() * 8) as u32
             }
             _ => {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "request.algorithm",
                     "algorithm does not describe one secret key family",
                 ));
@@ -976,7 +975,7 @@ pub(crate) fn key_generate_secret(
 
     // validate key-size granularity
     if !key_size_bits.is_multiple_of(8) {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.sizeBits",
             "sizeBits must be divisible by 8",
         ));
@@ -1469,7 +1468,7 @@ fn generate_software_key_pair(
             })
         }
         // unsupported
-        _ => Err(invalid_argument(
+        _ => Err(core_platform::invalid_argument(
             "request.algorithm",
             "algorithm does not describe one asymmetric key family",
         )),
@@ -1589,21 +1588,21 @@ fn key_import_with_bytes(
     // handle raw secret-key import directly
     if request.format == CryptoKeyFormat::Raw {
         if bytes.is_empty() {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "request.bytes",
                 "raw key bytes must be non-empty",
             ));
         }
 
         if !is_secret_key_algorithm(request.algorithm) {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "request.algorithm",
                 "raw key bytes require one secret-key algorithm",
             ));
         }
 
         if request.named_curve != CryptoNamedCurve::Unknown {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "request.namedCurve",
                 "namedCurve must be Unknown for raw secret keys",
             ));
@@ -1701,7 +1700,7 @@ fn key_import_with_bytes(
         }
         CryptoKeyFormat::Pkcs8EncryptedPem => {
             if passphrase.is_empty() {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "request.passphrase",
                     "encrypted pkcs8 import requires one non-empty passphrase",
                 ));
@@ -1740,7 +1739,7 @@ fn key_import_with_bytes(
         }
         CryptoKeyFormat::Pkcs8EncryptedDer => {
             if passphrase.is_empty() {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "request.passphrase",
                     "encrypted pkcs8 import requires one non-empty passphrase",
                 ));
@@ -1952,7 +1951,7 @@ pub(crate) fn key_export_public(
             None,
             "destack.crypto.key.exportPublic",
         ),
-        CryptoKeyKind::Secret => Err(invalid_argument(
+        CryptoKeyKind::Secret => Err(core_platform::invalid_argument(
             "handle",
             "key handle does not reference one asymmetric key",
         )),
@@ -1988,7 +1987,7 @@ pub(crate) fn key_export_private(
         CryptoKeyMaterial::Private(_) | CryptoKeyMaterial::Host(_)
     );
     if !is_private_key_material {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "handle",
             "key handle does not reference one private key",
         ));
@@ -2004,13 +2003,13 @@ pub(crate) fn key_export_private(
 
     let passphrase = decode_native_bytes(request.passphrase, "request.passphrase")?;
     if is_encrypted_pkcs8_format(request.format) && passphrase.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.passphrase",
             "encrypted pkcs8 export requires one non-empty passphrase",
         ));
     }
     if !is_encrypted_pkcs8_format(request.format) && !passphrase.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.passphrase",
             "passphrase is only valid for encrypted pkcs8 export",
         ));
@@ -2041,7 +2040,7 @@ pub(crate) fn key_export_secret(
 
     // enforce raw output format for secret keys
     if format != CryptoKeyFormat::Raw {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "format",
             "secret-key export format must be Raw",
         ));
@@ -2073,7 +2072,7 @@ pub(crate) fn key_export_secret(
             None,
             "destack.crypto.key.exportSecret",
         ),
-        _ => Err(invalid_argument(
+        _ => Err(core_platform::invalid_argument(
             "handle",
             "key handle does not reference one secret key",
         )),
@@ -2137,7 +2136,7 @@ pub(crate) fn key_sign(
         );
     }
 
-    Err(invalid_argument(
+    Err(core_platform::invalid_argument(
         "handle",
         "key handle does not reference one private key",
     ))
@@ -2255,7 +2254,7 @@ fn key_decrypt_internal(
 
     // reject non-private key material for software-backed path
     let CryptoKeyMaterial::Private(key) = &key_resource.material else {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "handle",
             "key handle does not reference one private key",
         ));
@@ -2319,7 +2318,7 @@ fn key_wrap_parameters_to_asymmetric(
     }
 
     // reject non-rsa key-wrap algorithm lanes
-    Err(invalid_argument(
+    Err(core_platform::invalid_argument(
         "parameters.algorithm",
         "rsa oaep parameters require one rsa-oaep key-wrap algorithm",
     ))
@@ -2339,13 +2338,13 @@ fn aes_key_wrap_cipher(
         (CryptoKeyWrapAlgorithm::AesKwp, 24) => Nid::ID_AES192_WRAP_PAD,
         (CryptoKeyWrapAlgorithm::AesKwp, 32) => Nid::ID_AES256_WRAP_PAD,
         (CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp, _) => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "wrappingKey",
                 "aes key-wrap requires one 128-bit, 192-bit, or 256-bit wrapping key",
             ));
         }
         _ => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.algorithm",
                 "aes key-wrap requires one aes key-wrap algorithm",
             ));
@@ -2360,7 +2359,7 @@ fn aes_key_wrap_cipher(
 fn validate_aes_key_wrap_parameters(parameters: CryptoKeyWrapParameters) -> RuntimeResult<()> {
     // aes wrap algorithms do not consume digest selectors
     if parameters.digest != CryptoDigestAlgorithm::Unknown {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.digest",
             "digest must be Unknown for aes key-wrap algorithms",
         ));
@@ -2368,7 +2367,7 @@ fn validate_aes_key_wrap_parameters(parameters: CryptoKeyWrapParameters) -> Runt
 
     // aes wrap algorithms do not consume label payloads
     if parameters.label.len != 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.label",
             "label must be empty for aes key-wrap algorithms",
         ));
@@ -2379,7 +2378,7 @@ fn validate_aes_key_wrap_parameters(parameters: CryptoKeyWrapParameters) -> Runt
         parameters.algorithm,
         CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp
     ) {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.algorithm",
             "aes key-wrap requires one aes key-wrap algorithm",
         ));
@@ -2407,13 +2406,13 @@ fn resolve_aes_wrapping_key_bytes(
     let key_resource = resolve_key_resource(context, wrapping_key, operation)?;
     let key_resource = key_resource.lock();
     if key_resource.kind != CryptoKeyKind::Secret {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "wrappingKey",
             "wrapping key must reference one secret key",
         ));
     }
     if key_resource.algorithm != CryptoKeyAlgorithm::Aes {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "wrappingKey",
             "wrapping key algorithm must be Aes for aes key-wrap",
         ));
@@ -2421,7 +2420,7 @@ fn resolve_aes_wrapping_key_bytes(
 
     match &key_resource.material {
         CryptoKeyMaterial::Secret(bytes) => Ok(bytes.clone()),
-        _ => Err(invalid_argument(
+        _ => Err(core_platform::invalid_argument(
             "wrappingKey",
             "wrapping key must reference one software secret key",
         )),
@@ -2442,7 +2441,7 @@ fn aes_key_wrap_payload(
     if parameters.algorithm == CryptoKeyWrapAlgorithm::AesKw
         && (payload.len() < 16 || !payload.len().is_multiple_of(8))
     {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "keyToWrap",
             "aes-kw requires one payload length that is at least 16 bytes and divisible by 8",
         ));
@@ -2478,7 +2477,7 @@ fn aes_key_unwrap_payload(
     if parameters.algorithm == CryptoKeyWrapAlgorithm::AesKw
         && (payload.len() < 24 || !payload.len().is_multiple_of(8))
     {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "wrappedKey",
             "aes-kw wrapped payload must be at least 24 bytes and divisible by 8",
         ));
@@ -2560,7 +2559,7 @@ pub(crate) fn key_wrap(
                 "destack.crypto.key.wrap",
             )
         }
-        CryptoKeyWrapAlgorithm::Unknown => Err(invalid_argument(
+        CryptoKeyWrapAlgorithm::Unknown => Err(core_platform::invalid_argument(
             "parameters.algorithm",
             "key-wrap algorithm must not be Unknown",
         )),
@@ -2605,7 +2604,7 @@ pub(crate) fn key_unwrap(
             )?
         }
         CryptoKeyWrapAlgorithm::Unknown => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.algorithm",
                 "key-wrap algorithm must not be Unknown",
             ));
@@ -2656,17 +2655,15 @@ pub(crate) fn key_delete(
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.key.delete",
-            "crypto key",
-            handle.0.0,
+            format!("unknown crypto key handle {}", handle.0.0),
         ));
     };
     if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.key.delete",
-            "crypto key",
-            handle.0.0,
+            format!("unknown crypto key handle {}", handle.0.0),
         ));
     }
 
@@ -2729,14 +2726,14 @@ pub(super) fn enforce_import_algorithm_match(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     if requested_algorithm == CryptoKeyAlgorithm::Unknown {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.algorithm",
             "algorithm must not be Unknown",
         ));
     }
 
     if parsed_algorithm != requested_algorithm {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.algorithm",
             format!(
                 "imported key algorithm {} does not match requested algorithm {}",
@@ -2758,7 +2755,7 @@ pub(super) fn enforce_import_named_curve_match(
     requested_curve: CryptoNamedCurve,
 ) -> RuntimeResult<()> {
     if requested_curve != CryptoNamedCurve::Unknown && parsed_curve != requested_curve {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.namedCurve",
             format!(
                 "imported key named curve {} does not match requested named curve {}",
@@ -2793,7 +2790,7 @@ pub(super) fn resolve_secret_key_bytes(
     let bytes = match &key.material {
         CryptoKeyMaterial::Secret(bytes) => bytes.clone(),
         _ => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "key",
                 "key handle does not reference one secret key",
             ));
@@ -2812,7 +2809,7 @@ pub(super) fn resolve_host_secret_key_material(
     let key = resolve_key_resource(context, handle, operation)?;
     let key = key.lock();
     if key.kind != CryptoKeyKind::Secret {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "key",
             "key handle does not reference one secret key",
         ));
@@ -2822,7 +2819,7 @@ pub(super) fn resolve_host_secret_key_material(
         CryptoKeyMaterial::Host(material) => material.clone(),
         CryptoKeyMaterial::Secret(_) => return Ok(None),
         _ => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "key",
                 "key handle does not reference one secret key",
             ));
@@ -2850,7 +2847,7 @@ pub(super) fn resolve_public_pkey(
         }
         CryptoKeyMaterial::Host(value) => PKey::public_key_from_der(&value.public_key_spki_der)
             .map_err(|error| openssl_error(operation, error)),
-        CryptoKeyMaterial::Secret(_) => Err(invalid_argument(
+        CryptoKeyMaterial::Secret(_) => Err(core_platform::invalid_argument(
             "handle",
             "key handle does not reference one asymmetric key",
         )),
@@ -2932,13 +2929,13 @@ pub(super) fn nid_from_named_curve(curve: CryptoNamedCurve) -> RuntimeResult<Nid
         CryptoNamedCurve::P521 => Nid::SECP521R1,
         CryptoNamedCurve::Secp256k1 => Nid::SECP256K1,
         CryptoNamedCurve::Unknown => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "namedCurve",
                 "namedCurve must be set for EC key generation",
             ));
         }
         _ => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "namedCurve",
                 "namedCurve is incompatible with EC key generation",
             ));
@@ -3130,7 +3127,7 @@ pub(super) fn import_sec1_private_key(
         CryptoKeyFormat::Sec1Pem => EcKey::private_key_from_pem(bytes),
         CryptoKeyFormat::Sec1Der => EcKey::private_key_from_der(bytes),
         _ => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "format",
                 "sec1 import format must be Sec1Pem or Sec1Der",
             ));
@@ -3148,7 +3145,7 @@ pub(super) fn export_sec1_private_key(
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
     let ec_key = key.ec_key().map_err(|_| {
-        invalid_argument(
+        core_platform::invalid_argument(
             "format",
             "sec1 export format is only valid for EC private keys",
         )
@@ -3161,7 +3158,7 @@ pub(super) fn export_sec1_private_key(
         CryptoKeyFormat::Sec1Der => ec_key
             .private_key_to_der()
             .map_err(|error| openssl_error(operation, error)),
-        _ => Err(invalid_argument(
+        _ => Err(core_platform::invalid_argument(
             "format",
             "sec1 export format must be Sec1Pem or Sec1Der",
         )),
@@ -3184,7 +3181,7 @@ pub(super) fn export_key_resource(
             CryptoKeyFormat::SpkiDer => key
                 .public_key_to_der()
                 .map_err(|error| openssl_error(operation, error)),
-            _ => Err(invalid_argument(
+            _ => Err(core_platform::invalid_argument(
                 "format",
                 "public-key export format must be one spki format",
             )),
@@ -3204,7 +3201,7 @@ pub(super) fn export_key_resource(
                 .map_err(|error| openssl_error(operation, error)),
             CryptoKeyFormat::Pkcs8EncryptedPem => {
                 let Some(passphrase) = passphrase else {
-                    return Err(invalid_argument(
+                    return Err(core_platform::invalid_argument(
                         "request.passphrase",
                         "encrypted pkcs8 export requires one passphrase",
                     ));
@@ -3214,7 +3211,7 @@ pub(super) fn export_key_resource(
             }
             CryptoKeyFormat::Pkcs8EncryptedDer => {
                 let Some(passphrase) = passphrase else {
-                    return Err(invalid_argument(
+                    return Err(core_platform::invalid_argument(
                         "request.passphrase",
                         "encrypted pkcs8 export requires one passphrase",
                     ));
@@ -3225,14 +3222,14 @@ pub(super) fn export_key_resource(
             CryptoKeyFormat::Sec1Pem | CryptoKeyFormat::Sec1Der => {
                 export_sec1_private_key(key, format, operation)
             }
-            _ => Err(invalid_argument(
+            _ => Err(core_platform::invalid_argument(
                 "format",
                 "private-key export format must be one private-key format",
             )),
         },
         CryptoKeyMaterial::Secret(bytes) => {
             if format != CryptoKeyFormat::Raw {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "format",
                     "secret-key export format must be Raw",
                 ));
@@ -3249,7 +3246,7 @@ pub(super) fn export_key_resource(
                     .public_key_to_pem()
                     .map_err(|error| openssl_error(operation, error))
             }
-            _ => Err(invalid_argument(
+            _ => Err(core_platform::invalid_argument(
                 "format",
                 "host-managed key export format must be one spki format",
             )),
@@ -3301,7 +3298,7 @@ pub(super) fn build_signer<'a>(
             Signer::new_without_digest(key).map_err(|error| openssl_error(operation, error))?
         }
         CryptoSignatureAlgorithm::Unknown => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.algorithm",
                 "signature algorithm must not be Unknown",
             ));
@@ -3355,7 +3352,7 @@ pub(super) fn build_verifier<'a>(
             Verifier::new_without_digest(key).map_err(|error| openssl_error(operation, error))?
         }
         CryptoSignatureAlgorithm::Unknown => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.algorithm",
                 "signature algorithm must not be Unknown",
             ));
@@ -3394,7 +3391,7 @@ pub(super) fn configure_encrypter(
             }
         }
         CryptoAsymmetricEncryptionAlgorithm::Unknown => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.algorithm",
                 "encryption algorithm must not be Unknown",
             ));
@@ -3433,7 +3430,7 @@ pub(super) fn configure_decrypter(
             }
         }
         CryptoAsymmetricEncryptionAlgorithm::Unknown => {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.algorithm",
                 "encryption algorithm must not be Unknown",
             ));

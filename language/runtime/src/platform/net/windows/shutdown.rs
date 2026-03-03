@@ -2,6 +2,7 @@ use windows_sys::Win32::Networking::WinSock::{SD_BOTH, SD_RECEIVE, SD_SEND, shut
 
 use super::util::*;
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::net::{SocketHandle, SocketShutdown};
 use crate::runtime::BindingCallContext;
 
@@ -40,7 +41,10 @@ pub(crate) unsafe fn destack_net_shutdown(
     // issue the shutdown
     let rc = unsafe { shutdown(socket, how) };
     if rc != 0 {
-        return Err(last_net_error("shutdown"));
+        return Err(core_platform::net_error_with_code(
+            "shutdown",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())

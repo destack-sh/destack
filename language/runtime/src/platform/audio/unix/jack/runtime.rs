@@ -4,6 +4,7 @@ use std::sync::{Arc, Weak};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::core as core_platform;
 
 use super::abi::{JackClient, JackPort};
 use super::core::{
@@ -18,7 +19,7 @@ use super::ids::{parse_jack_stable_id, validate_jack_stable_id_direction};
 #[derive(Debug)]
 struct JackCallbackContext {
     /// Loaded JACK dynamic library table.
-    library: &'static Arc<JackLibrary>,
+    library: Arc<JackLibrary>,
     /// Weak link to one stream binding.
     binding: audio_core::Mutex<Weak<audio_core::AudioStreamBinding>>,
     /// Registered client output ports.
@@ -36,7 +37,7 @@ unsafe impl Sync for JackCallbackContext {}
 #[derive(Debug)]
 struct JackStreamRuntime {
     /// Loaded JACK dynamic library table.
-    library: &'static Arc<JackLibrary>,
+    library: Arc<JackLibrary>,
     /// Opened JACK client handle.
     client: *mut JackClient,
     /// Raw callback context pointer owned by this runtime.
@@ -198,7 +199,7 @@ pub(super) fn open_stream(
 
     if needs_playback && playback_channels == 0 {
         close_jack_client(library, client);
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.stream.open",
             "JACK reported no playback sink ports",
         ));
@@ -206,7 +207,7 @@ pub(super) fn open_stream(
 
     if needs_capture && capture_channels == 0 {
         close_jack_client(library, client);
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.stream.open",
             "JACK reported no capture source ports",
         ));
@@ -216,7 +217,7 @@ pub(super) fn open_stream(
         let duplex_channels = playback_channels.min(capture_channels);
         if duplex_channels == 0 {
             close_jack_client(library, client);
-            return Err(audio_core::audio_not_found(
+            return Err(core_platform::io_not_found(
                 "destack.audio.stream.open",
                 "JACK reported no shared duplex channel lanes",
             ));

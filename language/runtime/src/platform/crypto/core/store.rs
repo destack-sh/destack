@@ -20,8 +20,8 @@ use crate::platform::crypto::{
     CryptoStoreMacCapability, CryptoStoreOptions, CryptoStoreProvider,
     CryptoStoreSignatureCapability, host as crypto_host,
 };
-use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::certificate::{certificate_has_subject_alternative_name, x509_name_to_string};
@@ -32,11 +32,10 @@ use super::core::{
     DEFAULT_KEY_LIST_LIMIT, HostKeyBackend, HostKeyMaterial, KEY_USAGE_DECRYPT,
     KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT,
     KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY, KEY_USAGE_WRAP, decode_native_string,
-    handle_not_found, host_store_supports_certificate_write,
-    host_store_supports_hardware_backed_key, host_store_supports_hardware_backed_pair_algorithm,
-    host_store_supports_key_persistence, insert_certificate_resource, insert_key_resource,
-    invalid_argument, invalid_data, not_supported, openssl_error, resolve_key_resource,
-    resolve_store_resource,
+    host_store_supports_certificate_write, host_store_supports_hardware_backed_key,
+    host_store_supports_hardware_backed_pair_algorithm, host_store_supports_key_persistence,
+    insert_certificate_resource, insert_key_resource, invalid_data, openssl_error,
+    resolve_key_resource, resolve_store_resource,
 };
 use super::digest::digest_output_size_bytes;
 use super::probe::{
@@ -55,7 +54,7 @@ fn resolved_default_key_list_limit(context: &BindingCallContext) -> usize {
         .module_options
         .crypto
         .default_key_list_limit;
-    let configured = configured.and_then(|value| usize::try_from(value).ok());
+    let configured = core_platform::option_u64_to_usize(configured);
 
     configured.unwrap_or(DEFAULT_KEY_LIST_LIMIT).max(1)
 }
@@ -67,7 +66,7 @@ fn resolved_default_certificate_list_limit(context: &BindingCallContext) -> usiz
         .module_options
         .crypto
         .default_certificate_list_limit;
-    let configured = configured.and_then(|value| usize::try_from(value).ok());
+    let configured = core_platform::option_u64_to_usize(configured);
 
     configured.unwrap_or(DEFAULT_CERTIFICATE_LIST_LIMIT).max(1)
 }
@@ -211,12 +210,7 @@ fn resolve_cached_host_key_handle(
                 return false;
             }
 
-            let Some(resource) = entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>())
-                .map(Arc::clone)
-            else {
+            let Some(resource) = entry.payload_cloned::<Arc<Mutex<CryptoKeyResource>>>() else {
                 return false;
             };
             let resource = resource.lock();
@@ -268,11 +262,7 @@ fn resolve_cached_host_certificate_handle(
                 return false;
             }
 
-            let Some(resource) = entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoCertificateResource>>>())
-                .map(Arc::clone)
+            let Some(resource) = entry.payload_cloned::<Arc<Mutex<CryptoCertificateResource>>>()
             else {
                 return false;
             };
@@ -935,7 +925,7 @@ pub(crate) fn store_open(
     // open one ephemeral in-memory store lane
     if options.kind == CryptoStoreKind::Ephemeral {
         if !namespace.is_empty() {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "options.namespace",
                 "namespace is not supported for ephemeral stores",
             ));
@@ -969,11 +959,11 @@ pub(crate) fn store_open(
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
     ) {
         if !crypto_host::host_store_lane_is_available(context, options.kind) {
-            return Err(not_supported("destack.crypto.store.open"));
+            return Err(core_platform::not_supported("destack.crypto.store.open"));
         }
 
         if !namespace.is_empty() {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "options.namespace",
                 "namespace is not supported for this store kind",
             ));
@@ -1041,7 +1031,7 @@ pub(crate) fn store_open(
     }
 
     // reject unsupported store kinds
-    Err(not_supported("destack.crypto.store.open"))
+    Err(core_platform::not_supported("destack.crypto.store.open"))
 }
 
 /// Close one crypto store.
@@ -1055,19 +1045,17 @@ pub(crate) fn store_close(
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.store.close",
-            "crypto store",
-            handle.0.0,
+            format!("unknown crypto store handle {}", handle.0.0),
         ));
     };
 
     // validate handle kind
     if entry.kind != CRYPTO_STORE_RESOURCE_KIND {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.store.close",
-            "crypto store",
-            handle.0.0,
+            format!("unknown crypto store handle {}", handle.0.0),
         ));
     }
 
@@ -1093,9 +1081,9 @@ pub(crate) fn store_list_keys(
     let offset = if cursor_raw.is_empty() {
         0usize
     } else {
-        cursor_raw
-            .parse::<usize>()
-            .map_err(|_| invalid_argument("query.cursor", "cursor must be one integer index"))?
+        cursor_raw.parse::<usize>().map_err(|_| {
+            core_platform::invalid_argument("query.cursor", "cursor must be one integer index")
+        })?
     };
     let limit = if query.limit == 0 {
         resolved_default_key_list_limit(context)
@@ -1113,11 +1101,7 @@ pub(crate) fn store_list_keys(
                 if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
                     return None;
                 }
-                entry
-                    .payload
-                    .as_ref()
-                    .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>())
-                    .map(Arc::clone)
+                entry.payload_cloned::<Arc<Mutex<CryptoKeyResource>>>()
             })
         else {
             continue;
@@ -1190,9 +1174,9 @@ pub(crate) fn store_list_certificates(
     let offset = if cursor_raw.is_empty() {
         0usize
     } else {
-        cursor_raw
-            .parse::<usize>()
-            .map_err(|_| invalid_argument("query.cursor", "cursor must be one integer index"))?
+        cursor_raw.parse::<usize>().map_err(|_| {
+            core_platform::invalid_argument("query.cursor", "cursor must be one integer index")
+        })?
     };
     let limit = if query.limit == 0 {
         resolved_default_certificate_list_limit(context)
@@ -1211,13 +1195,7 @@ pub(crate) fn store_list_certificates(
                     if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
                         return None;
                     }
-                    entry
-                        .payload
-                        .as_ref()
-                        .and_then(|payload| {
-                            payload.downcast_ref::<Arc<Mutex<CryptoCertificateResource>>>()
-                        })
-                        .map(Arc::clone)
+                    entry.payload_cloned::<Arc<Mutex<CryptoCertificateResource>>>()
                 })
         else {
             continue;
@@ -1312,7 +1290,7 @@ pub(super) fn persist_key_if_required(
 
     // reject host lanes without key persistence support
     if !host_store_supports_key_persistence(store_resource.kind) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // upsert this key into host persistence storage
@@ -1353,7 +1331,7 @@ pub(super) fn delete_persistent_key_if_present(
 
     // reject key deletion from host lanes that do not support key persistence
     if !host_store_supports_key_persistence(key_resource.store_provenance.kind) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // validate one persistent identifier before deleting

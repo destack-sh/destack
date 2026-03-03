@@ -24,6 +24,7 @@ use security_framework_sys::trust_settings::{
 };
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
 use crate::runtime::BindingCallContext;
@@ -37,7 +38,7 @@ use super::core::{
     configured_keychain_snapshot_account, configured_keychain_snapshot_service,
     configured_store_path, create_cf_string, filesystem_mode_enabled,
     filesystem_store_lane_is_available, invalid_data, load_host_key_snapshot_bytes_from_filesystem,
-    not_supported, permission_denied, store_host_key_snapshot_bytes_to_filesystem,
+    permission_denied, store_host_key_snapshot_bytes_to_filesystem,
 };
 
 /// Return whether one host lane has a writable persistent-key backend.
@@ -277,7 +278,7 @@ pub(crate) fn open_host_store_certificates(
                 Ok(Vec::new())
             }
             CryptoStoreKind::System | CryptoStoreKind::Provider => {
-                Err(not_supported(CRYPTO_STORE_OPEN_OPERATION))
+                Err(core_platform::not_supported(CRYPTO_STORE_OPEN_OPERATION))
             }
         };
     }
@@ -289,7 +290,7 @@ pub(crate) fn open_host_store_certificates(
         CryptoStoreKind::Machine => {
             collect_trust_settings_certificates(kSecTrustSettingsDomainAdmin)
         }
-        CryptoStoreKind::Provider => Err(not_supported(CRYPTO_STORE_OPEN_OPERATION)),
+        CryptoStoreKind::Provider => Err(core_platform::not_supported(CRYPTO_STORE_OPEN_OPERATION)),
         CryptoStoreKind::Ephemeral => Ok(Vec::new()),
     }
 }
@@ -405,7 +406,7 @@ pub(crate) fn store_host_key_snapshot_bytes(
 
     // keychain snapshot storage currently only supports the user lane
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     // build keychain data payload
     let service_name = configured_keychain_snapshot_service(context);

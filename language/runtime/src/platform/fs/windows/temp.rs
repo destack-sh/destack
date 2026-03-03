@@ -1,8 +1,8 @@
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{OsPath, PathBytes, PathBytesAbi, PathUtf16, core as core_fs};
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Create a temporary directory.
@@ -85,7 +85,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
     }
 
     // decode the template path
-    let template = string_from_wide(&units, "template")?;
+    let template = core_platform::string_from_wide("template", &units)?;
 
     // create the temporary directory
     let path = mkdtemp_from_template(&template)?;

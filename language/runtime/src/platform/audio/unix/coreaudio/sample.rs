@@ -1,7 +1,6 @@
 #[cfg(target_os = "macos")]
 use crate::diagnostic::RuntimeResult;
-#[cfg(target_os = "macos")]
-use crate::platform::audio::core as audio_core;
+use crate::platform::core as core_platform;
 
 #[cfg(target_os = "macos")]
 use super::abi::AudioDeviceID;
@@ -28,7 +27,7 @@ pub(super) fn device_id_from_stable_id(stable_id: &str) -> RuntimeResult<AudioDe
         }
     }
 
-    Err(audio_core::audio_not_found(
+    Err(core_platform::io_not_found(
         "destack.audio.stream.open",
         format!("coreaudio device id not found: {stable_id}"),
     ))
