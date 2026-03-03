@@ -3,11 +3,11 @@
 Elaborate turns DIR into a "canonical" form by transforming and reifying ("elaborating") implicit or higher level concepts from the base DIR into "canonical DIR".
 
 The exact responsibilities of Elaborate are unfortunately a bit fuzzy because we need to support both high-level targets like JS/TS *and* low-level AOT targets.
-We try to keep most transforms the same across targets to reduce the combinatorial explosion, but in some cases it's inevitable, like to retain some nullish coalescing behavior without complicating the JS/TS codegen backend.
+We try to keep most reifications / transforms the same across targets to reduce the combinatorial explosion, but in some cases it's inevitable, for example to retain some nullish coalescing behavior without complicating the JS/TS codegen backend.
 
 ## Pipeline
 
-Elaborate is part of the front-end that runs per profile on analyzed DIR (after Execute has patched comptime results in).
+Elaborate is part of the front-end that runs per profile on analyzed DIR (before Execute patches comptime results in).
 For the most part, we can think of Elaborate as "transformation", which "simplify" the DIR, and "reification", which makes some implicit logic explicit.
 
 ## Transform
@@ -180,7 +180,11 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 ```ds
 // after transform
 function choose(flag: boolean, a: int32, b: int32): int32 {
-    if (flag) { return a } else { return b }
+    if (flag) { 
+        return a;
+    } else { 
+        return b;
+    }
 }
 ```
 
@@ -296,18 +300,9 @@ Ownership insertion happens before implicit cast insertion.
 
 ### Insert explicit and implicit casts
 
-All `as T` expressions are real casts and must be preserved.
-When a cast can fail at runtime, it must be checked.
-(Unchecked casts use the transmute intrinsic and bypass the `CastOperator`.)
-Reify replaces type-cast expressions with `Expression::Cast`.
-Explicit casts use `CastSource::Explicit` and inserted casts use `CastSource::Implicit`.
-Interface upcasts that change representation are always materialized as cast nodes.
-Union and nullable upcasts that allocate tags or payloads are always materialized as cast nodes.
-Contextual typing never suppresses representation changing casts.
+Reify imputes type-cast expressions with `Expression::Cast`, with explicit casts becoming `CastSource::Explicit` and inserted casts introducing `CastSource::Implicit`.
 
-#### Insert casts at type boundaries
-
-Implicit casts are inserted at boundaries where a target type is known.
+Implicit casts are inserted at "type boundaries", i.e. in places where values move.
 Null and undefined literals are reified the same way when a nullable or union target type is expected.
 
 | Site | Example | After reify |
@@ -319,10 +314,7 @@ Null and undefined literals are reified the same way when a nullable or union ta
 | ternary | `cond ? a : b` | `cond ? (a as T) : (b as T)` |
 | match arm | `case => expr` | `case => (expr as T)` |
 
-#### Cast implicitly when conversions are lossless
-
-Certain conversions are guaranteed to be lossless and can be performed implicitly.
-Reify makes this explicit.
+Certain conversions are guaranteed to be lossless and can be performed implicitly, and we reify them into real casts.
 
 | Conversion | Implicit | Notes |
 | --- | --- | --- |
@@ -370,8 +362,6 @@ function take(node: Node | null): Node | null {
     return value;
 }
 ```
-
-#### Cast explicitly for narrowing or checked conversions
 
 These conversions require an explicit `as T` in source.
 Analyze enforces the requirement and Reify only classifies explicit casts.
@@ -429,11 +419,14 @@ Operators with resolutions are transformed to method calls.
 
 ```ds
 // source
-struct Vec2 { x: int32, y: int32 }
+struct Vec2 { 
+    x: int32; 
+    y: int32;
+}
 
 extension for Vec2 implements Add<Vec2> {
     add(other: Vec2): Vec2 {
-        Vec2 { x: this.x + other.x, y: this.y + other.y }
+        return Vec2 { x: this.x + other.x, y: this.y + other.y };
     }
 }
 
@@ -485,7 +478,10 @@ Method calls on union types with different target symbols are split into type ch
 
 ```ds
 // source
-struct Cat { name: string }
+struct Cat { 
+    name: string;
+}
+
 extension for Cat {
     speak(): string { 
         return "meow";
@@ -508,8 +504,13 @@ function greet(c: Cat): string {
 
 ```ds
 // source
-struct Cat { name: string }
-struct Dog { name: string }
+struct Cat { 
+    name: string;
+}
+
+struct Dog { 
+    name: string;
+}
 
 extension for Cat {
     speak(): string { 
@@ -618,10 +619,14 @@ function first(arr: int32[]): int32 {
 ```ds
 // source
 struct Vec2 { x: int32, y: int32 }
+
 extension for Vec2 implements Index<int32, int32> {
     index(i: int32): int32 { 
         if (i == 0) { 
-            this.x else this.y }
+            return this.x; 
+        } else {
+            return this.y;
+        } 
 }
 
 function getFirst(v: int32[] | Vec2): int32 {
