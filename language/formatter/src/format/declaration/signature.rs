@@ -867,14 +867,6 @@ pub(crate) fn signature_return_type_has_line_postfix_boundary_annotation(
     })
 }
 
-/// Return whether a signature return type is multiline in source.
-pub(crate) fn signature_return_type_is_multiline(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-) -> bool {
-    return_type.is_some_and(|return_type| context.node_has_newline(return_type))
-}
-
 /// Return whether spacing before a function body should be emitted by annotations.
 pub(crate) fn signature_should_elide_space_before_body(
     _context: &DestackFormatContext<'_>,

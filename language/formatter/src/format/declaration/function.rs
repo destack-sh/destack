@@ -59,6 +59,17 @@ fn lambda_parameter_is_simple_tail(
     )
 }
 
+/// Return whether one parameter uses a destructuring pattern.
+fn parameter_is_destructuring_pattern(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    matches!(
+        context.tree.get(parameter_id),
+        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. }
+    )
+}
+
 /// Return whether one lambda declaration appears in statement position.
 fn lambda_declaration_is_statement_position(
     context: &DestackFormatContext<'_>,
@@ -311,8 +322,9 @@ pub(crate) fn format_function_declaration<'ast>(
     } else if can_omit_parens {
         write!(f, [&dynamic_parameters[0]])?;
     } else if dynamic_parameters.len() == 1
-        && !force_expand_parameters
         && single_parameter_should_hug(f.context(), dynamic_parameters[0])
+        && (!force_expand_parameters
+            || parameter_is_destructuring_pattern(f.context(), dynamic_parameters[0]))
     {
         write!(f, [token("("), dynamic_parameters[0], token(")")])?;
     } else if signature.kind == FunctionKind::Lambda

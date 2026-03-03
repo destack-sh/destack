@@ -1,13 +1,5 @@
 js/arrays/preserve_empty_lines.js
-js/arrows/currying-4.js
-js/comments/function-declaration.js
-js/decorators/redux.js
-js/function-single-destructuring/array.js
-js/function/iife.js
 js/last-argument-expansion/edge_case.js
 js/logical-expressions/in-unary-expression.js
 js/preserve-line/argument-list.js
 js/ternaries/nested.js
-js/unary-expression/comments.js
-typescript/arrow/16067.ts
-typescript/interface2/comments-ts-only/18278.ts

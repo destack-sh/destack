@@ -1364,6 +1364,20 @@ fn should_drop_parenthesized_non_expression_parent(
     node_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    let inner_expression = context.tree.get(inner_expression_id);
+
+    let should_drop_argument_lambda_wrapper = parent_type == NodeType::Argument
+        && !context.has_non_blank_annotation(node_id)
+        && !context.has_non_blank_annotation(inner_expression_id)
+        && !parenthesized_has_leading_inner_trivia(context, node_id, inner_expression_id)
+        && matches!(
+            inner_expression,
+            Expression::Declaration(declaration_id)
+                if matches!(
+                    context.tree.get(*declaration_id),
+                    Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+                )
+        );
     let should_drop_argument_decorated_class_wrapper = parent_type == NodeType::Argument
         && !context.has_annotation(node_id)
         && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
@@ -1389,7 +1403,8 @@ fn should_drop_parenthesized_non_expression_parent(
             inner_expression_id,
         );
 
-    should_drop_argument_decorated_class_wrapper
+    should_drop_argument_lambda_wrapper
+        || should_drop_argument_decorated_class_wrapper
         || should_drop_declarator_tree_wrapper
         || should_drop_declarator_prefix_wrapper
 }
