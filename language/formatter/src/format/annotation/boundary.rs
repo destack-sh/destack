@@ -121,6 +121,8 @@ pub(crate) enum CommentSeamKeyword {
     Default,
     /// One `const` keyword.
     Const,
+    /// One `with` keyword.
+    With,
 }
 
 /// Classify one identifier token into one seam keyword family.
@@ -152,6 +154,7 @@ pub(crate) fn comment_seam_keyword(
         Keyword::Case => CommentSeamKeyword::Case,
         Keyword::Default => CommentSeamKeyword::Default,
         Keyword::Const => CommentSeamKeyword::Const,
+        Keyword::With => CommentSeamKeyword::With,
         _ => CommentSeamKeyword::None,
     }
 }

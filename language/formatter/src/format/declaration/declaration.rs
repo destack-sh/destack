@@ -4,10 +4,11 @@ use crate::format::declaration::signature::format_where_clause_with_break;
 use crate::format::declaration::statement::format_block_of_statements;
 use crate::format::expression::{
     BinaryOperator, ParenthesizedDropMode, expression_has_static_type_arguments,
-    should_drop_parenthesized,
+    should_drop_parenthesized, type_index_left_requires_parentheses,
 };
 use crate::format::operator::{
-    flatten_type_binary_expression, format_leading_pipe_union_with_external_prefix, is_type_context,
+    flatten_type_binary_expression, format_leading_pipe_union_with_external_prefix,
+    is_type_context, needs_parens_in_postfix_position,
 };
 use crate::{
     Annotation, DestackFormatContext, DestackFormatter, FormatNode,
@@ -548,6 +549,7 @@ pub(crate) fn format_import_alias_declaration<'ast>(
     }
 
     write!(f, [token(";")])?;
+    write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
     Ok(())
 }
 
@@ -822,8 +824,13 @@ pub(crate) fn format_type_alias_declaration<'ast>(
             *expression,
             ParenthesizedDropMode::ExpressionWrapper,
         ),
-        Expression::Index { left, .. } | Expression::TypeIndex { left, .. } => {
+        Expression::Index { left, .. } => {
             matches!(tree.get(*left), Expression::Parenthesized { .. })
+                || needs_parens_in_postfix_position(tree, *left)
+        }
+        Expression::TypeIndex { left, .. } => {
+            matches!(tree.get(*left), Expression::Parenthesized { .. })
+                || type_index_left_requires_parentheses(tree.get(*left))
         }
         _ => true,
     };
@@ -841,6 +848,7 @@ pub(crate) fn format_type_alias_declaration<'ast>(
 
     // type alias declarations need trailing semicolon (like const/let)
     write!(f, [token(";")])?;
+    write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
 
     Ok(())
 }
@@ -894,6 +902,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 None
             };
         write!(f, [f.context().declaration_prefix_annotations(node_id)])?;
+        let mut declaration_emits_boundary_before_terminator = false;
 
         match self {
             // global augmentation
@@ -922,6 +931,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 static_parameters,
                 value: value_id,
             } => {
+                declaration_emits_boundary_before_terminator = true;
                 format_type_alias_declaration(
                     f,
                     node_id,
@@ -939,6 +949,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 kind,
                 target,
             } => {
+                declaration_emits_boundary_before_terminator = true;
                 format_import_alias_declaration(f, node_id, descriptor, *kind, target)?;
             }
 
@@ -1032,8 +1043,13 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 signature,
                 body,
             } => {
+                declaration_emits_boundary_before_terminator = true;
                 format_function_declaration(f, node_id, descriptor, signature, body)?;
             }
+        }
+
+        if !declaration_emits_boundary_before_terminator {
+            write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
         }
 
         let should_skip_blank_postfix_annotations =
@@ -1047,9 +1063,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     }
                     if !matches!(
                         annotation.position(),
-                        AnnotationPosition::BlockPostfix
-                            | AnnotationPosition::LinePostfix
-                            | AnnotationPosition::LinePostfixBoundary
+                        AnnotationPosition::BlockPostfix | AnnotationPosition::LinePostfix
                     ) {
                         continue;
                     }
@@ -1057,7 +1071,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 }
             }
         } else {
-            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+            write!(
+                f,
+                [f.context()
+                    .any_postfix_except_line_postfix_boundary_annotations(node_id)]
+            )?;
         }
 
         Ok(())

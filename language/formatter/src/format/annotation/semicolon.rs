@@ -138,6 +138,22 @@ pub(crate) fn seam_has_line_leading_semicolon_before_comment(
     semicolon_token_is_line_leading(context.semantic_tokens, semicolon_index)
 }
 
+/// Return whether one seam has one line-leading semicolon after its comment.
+pub(crate) fn seam_has_line_leading_semicolon_after_comment(
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> bool {
+    if !seam.token_after_is(TokenType::Semicolon) {
+        return false;
+    }
+
+    let Some(semicolon_index) = context.token_after else {
+        return false;
+    };
+
+    semicolon_token_is_line_leading(context.semantic_tokens, semicolon_index)
+}
+
 /// Return whether one semicolon guard target owner starts with one ASI hazard.
 fn semicolon_guard_target_owner_starts_with_asi_hazard(
     tree: &NodeTree,
@@ -381,6 +397,7 @@ pub(crate) fn attach_inline_comment_before_semicolon(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     seam: &CommentSeamData,
+    semicolon_after_is_line_leading: bool,
     preceding_owner: Option<u32>,
     token_before_span: Option<Span>,
     is_same_line_comment: bool,
@@ -394,6 +411,12 @@ pub(crate) fn attach_inline_comment_before_semicolon(
 
     let token_before_owner =
         token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span));
+    if semicolon_after_is_line_leading {
+        let target_owner = preceding_owner.or(token_before_owner)?;
+        let target_owner = promote_owner_to_nearest_statement_boundary(tree, parents, target_owner);
+        return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
+    }
+
     let target_owner = if seam.token_before_type.is_some_and(is_close_delimiter_token) {
         token_before_owner.or(preceding_owner)
     } else {
@@ -404,9 +427,12 @@ pub(crate) fn attach_inline_comment_before_semicolon(
         .unwrap_or(target_owner);
     let target_owner = if tree.get_node_type(target_owner) == NodeType::Expression {
         target_owner
-    } else {
+    } else if let Some(expression_owner) =
         promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Expression)
-            .unwrap_or(target_owner)
+    {
+        expression_owner
+    } else {
+        promote_owner_to_nearest_statement_boundary(tree, parents, target_owner)
     };
 
     Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))

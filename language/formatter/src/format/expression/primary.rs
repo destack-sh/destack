@@ -15,9 +15,10 @@ use crate::format::expression::{
     format_with, group, hard_line_break, indent, is_assignment_left_target, is_call_like_argument,
     is_complex_argument, is_expression_breakable, is_simple_static_argument, is_trivial_argument,
     line_postfix_boundary, list_like, parenthesized_boundary_comments,
-    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_trivia,
-    sequence_expression_needs_parens, should_drop_parenthesized,
-    should_force_multiline_mapped_type, should_hoist_parenthesized_inner_cast_prefix_comments,
+    parenthesized_has_explicit_delimiters, parenthesized_has_leading_inner_comments,
+    parenthesized_has_leading_inner_trivia, sequence_expression_needs_parens,
+    should_drop_parenthesized, should_force_multiline_mapped_type,
+    should_hoist_parenthesized_inner_cast_prefix_comments,
     single_argument_separator_line_comment_source, soft_block_indent, soft_line_break,
     soft_line_break_or_space, space, token, transparent_inner_expression,
     tree_literal_should_break, write_argument_without_separator_line_comment,
@@ -1051,19 +1052,6 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                     token(")")
                 ]
             )?;
-        } else if has_parenthesized_leading_inner_trivia
-            && f.context().has_postfix_annotation(expression_id)
-            && !expression_is_ternary_branch(f.context(), node_id)
-        {
-            write!(
-                f,
-                [
-                    token("("),
-                    block_indent(&group(expression).should_expand(true)),
-                    hard_line_break(),
-                    token(")")
-                ]
-            )?;
         } else if (parenthesized_starts_with_type_operator && inner_expression_has_comments)
             || (expression_is_union_or_intersection_binary(inner_expression)
                 && (expression_has_effective_prefix_annotation(f.context(), expression_id)
@@ -1149,6 +1137,10 @@ fn parenthesized_inner_starts_with_type_operator(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
+        return false;
+    }
+
     let parenthesized_span = context.span(parenthesized_id);
     let inner_span = context.span(inner_expression_id);
     let mut search_start = parenthesized_span.start.saturating_add(1);
@@ -1226,33 +1218,6 @@ fn expression_parent_is_postfix_continuation(
                     | Expression::Maybe { .. }
             )
         })
-}
-
-/// Return whether one expression is a ternary consequent or alternate branch.
-fn expression_is_ternary_branch(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::If {
-        kind: ast::IfKind::Ternary,
-        then_expression,
-        else_expression,
-        ..
-    } = context.tree.get(parent_id)
-    else {
-        return false;
-    };
-
-    *then_expression == node_id
-        || else_expression.is_some_and(|expression_id| expression_id == node_id)
 }
 
 /// Return whether a parenthesized expression is one assignment or declarator value.

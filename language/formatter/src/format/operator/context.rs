@@ -1018,7 +1018,10 @@ pub(crate) fn needs_parens_in_postfix_position(
     tree: &NodeTree,
     expr_id: LocalNodeId<Expression>,
 ) -> bool {
-    if matches!(tree.get(expr_id), Expression::ObjectExpression { .. }) {
+    if matches!(
+        tree.get(expr_id),
+        Expression::ObjectExpression { .. } | Expression::TreeExpression { .. }
+    ) {
         return true;
     }
 
@@ -1052,22 +1055,7 @@ pub(crate) fn write_postfix_base_expression<'ast>(
     let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, expression_id)
         || needs_integer_member_parentheses;
     if needs_parentheses {
-        let parenthesized_chain_overflows =
-            parent_expression_id.is_some_and(|parent_id| f.context().node_has_newline(parent_id));
-
-        if parenthesized_chain_overflows {
-            write!(
-                f,
-                [
-                    token("("),
-                    block_indent(&expression_id),
-                    hard_line_break(),
-                    token(")")
-                ]
-            )?;
-        } else {
-            write!(f, [token("("), expression_id, token(")")])?;
-        }
+        write!(f, [token("("), expression_id, token(")")])?;
     } else {
         write!(f, [expression_id])?;
     }

@@ -156,6 +156,48 @@ fn boundary_comment_is_owned_by_annotation(
         .any(|entry| matches!(entry.annotation, Annotation::Comment { node, .. } if node.id == comment_id.id))
 }
 
+/// Return whether one parenthesized wrapper has explicit `(` and `)` delimiter tokens.
+pub(crate) fn parenthesized_has_explicit_delimiters(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let parenthesized_span = context.span(parenthesized_id);
+    let inner_span = context.span(inner_expression_id);
+
+    if parenthesized_span.file != inner_span.file
+        || parenthesized_span.start >= inner_span.start
+        || inner_span.end >= parenthesized_span.end
+    {
+        return false;
+    }
+
+    let Some(open_parenthesis) = context.previous_non_whitespace_token_before_span(inner_span)
+    else {
+        return false;
+    };
+    if open_parenthesis.token.ty != TokenType::OpenParenthesis
+        || open_parenthesis.span.file != parenthesized_span.file
+        || open_parenthesis.span.start < parenthesized_span.start
+        || open_parenthesis.span.end > parenthesized_span.end
+    {
+        return false;
+    }
+
+    let Some(close_parenthesis) = context.next_non_whitespace_token_after_span(inner_span) else {
+        return false;
+    };
+    if close_parenthesis.token.ty != TokenType::CloseParenthesis
+        || close_parenthesis.span.file != parenthesized_span.file
+        || close_parenthesis.span.start < parenthesized_span.start
+        || close_parenthesis.span.end > parenthesized_span.end
+    {
+        return false;
+    }
+
+    true
+}
+
 /// Return whether source contains leading trivia between `(` and the inner expression.
 pub(crate) fn parenthesized_has_leading_inner_trivia(
     context: &DestackFormatContext<'_>,
@@ -180,6 +222,10 @@ pub(crate) fn parenthesized_has_leading_inner_newline(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
+        return false;
+    }
+
     let parenthesized_span = context.span(parenthesized_id);
     let inner_span = context.span(inner_expression_id);
 
@@ -201,6 +247,10 @@ fn parenthesized_has_leading_inner_pattern(
 ) -> bool {
     let _timing =
         context.timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_LEADING_TRIVIA);
+    if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
+        return false;
+    }
+
     let parenthesized_span = context.span(parenthesized_id);
     let inner_span = context.span(inner_expression_id);
 
@@ -223,6 +273,10 @@ fn parenthesized_has_leading_inner_line_comment(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    if !parenthesized_has_explicit_delimiters(context, parenthesized_id, inner_expression_id) {
+        return false;
+    }
+
     let parenthesized_span = context.span(parenthesized_id);
     let inner_span = context.span(inner_expression_id);
 
@@ -1154,6 +1208,13 @@ pub(crate) fn parenthesized_has_leading_type_cast_comment(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
+    let Expression::Parenthesized { expression } = context.tree.get(node_id) else {
+        return false;
+    };
+    if !parenthesized_has_explicit_delimiters(context, node_id, *expression) {
+        return false;
+    }
+
     let node_span = context.span(node_id);
     let mut cursor_start = node_span.start;
 

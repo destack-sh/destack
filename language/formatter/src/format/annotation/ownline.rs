@@ -216,6 +216,32 @@ fn attach_dependency_item_separator_comment(
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
+/// Handle own-line dependency-item comments after trailing commas before `}`.
+fn attach_dependency_item_trailing_comma_close_brace_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if !seam.token_before_is(TokenType::Comma) || !seam.token_after_is(TokenType::CloseBrace) {
+        return None;
+    }
+
+    let token_before_owner = context
+        .token_before_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+    let target_owner = [preceding_owner, token_before_owner]
+        .into_iter()
+        .flatten()
+        .find_map(|owner| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::DependencyItem)
+        })?;
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+}
+
 /// Handle own-line seams before separators and closers that prefer preceding owners.
 fn attach_separator_or_closer_comment(
     tree: &NodeTree,
@@ -240,6 +266,13 @@ fn attach_separator_or_closer_comment(
         let target_node = preceding_owner?;
         let target_node =
             normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
+        let preceding_is_dependency_item = promote_owner_to_node_type_ancestor(
+            tree,
+            parents,
+            target_node,
+            NodeType::DependencyItem,
+        )
+        .is_some();
 
         let preceding_is_property_or_member =
             promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Member)
@@ -262,10 +295,16 @@ fn attach_separator_or_closer_comment(
 
         let position = if seam.comment_is_line {
             if seam.token_after_is(TokenType::CloseBrace) {
-                AnnotationPosition::BlockPostfix
+                if preceding_is_dependency_item {
+                    AnnotationPosition::LinePostfixBoundary
+                } else {
+                    AnnotationPosition::BlockPostfix
+                }
             } else {
                 AnnotationPosition::LinePostfixBoundary
             }
+        } else if seam.token_after_is(TokenType::CloseBrace) && preceding_is_dependency_item {
+            AnnotationPosition::LinePostfixBoundary
         } else {
             AnnotationPosition::BlockPostfix
         };
@@ -492,6 +531,19 @@ fn attach_own_line_dependency_item_separator_comment(
     )
 }
 
+/// Attach dependency-item trailing-comma ownership for own-line comments.
+fn attach_own_line_dependency_item_trailing_comma_comment(
+    comment_context: &OwnLineCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    attach_dependency_item_trailing_comma_close_brace_comment(
+        comment_context.tree,
+        comment_context.parents,
+        comment_context.context,
+        comment_context.seam,
+        comment_context.preceding_owner,
+    )
+}
+
 /// Attach separator and closer ownership for own-line comments.
 fn attach_own_line_separator_or_closer_comment(
     comment_context: &OwnLineCommentContext<'_, '_>,
@@ -530,6 +582,7 @@ pub(crate) fn attach_own_line_comment(
             attach_own_line_jsx_statement_head_comment,
             attach_own_line_member_dot_comment,
             attach_own_line_dependency_item_separator_comment,
+            attach_own_line_dependency_item_trailing_comma_comment,
             attach_own_line_separator_or_closer_comment,
         ],
     )

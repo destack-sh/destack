@@ -3232,6 +3232,51 @@ fn test_format_typescript_as_own_line_comment_preserves_operator_spacing() {
     );
 }
 
+/// Cast chains with trailing seam comments should stay parse-safe and idempotent.
+#[test]
+fn test_format_typescript_as_comment_chain_fixture_17407_is_idempotent() {
+    let source = r#"
+function getClassNameFromPrototypeMethod(container) {
+  return ((container // a
+    .left as PropertyAccessExpression) // b
+    .expression as PropertyAccessExpression) // c
+    .expression; // d
+}
+"#
+    .trim_start();
+    let options = DestackFormatOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80);
+    assert_format_program_idempotent_with_file_type(source, FileType::TypeScript, options);
+}
+
+/// Long parenthesized `as` unions should keep one stable rhs layout across passes.
+#[test]
+fn test_format_typescript_as_parenthesized_union_rhs_is_idempotent() {
+    let source = r#"
+const value1 = thisIsAReallyReallyReallyReallyReallyLongIdentifier as SomeInterface;
+const value2 = thisIsAnIdentifier as thisIsAReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyLongInterface;
+const value3 = thisIsAReallyLongIdentifier as (SomeInterface | SomeOtherInterface);
+"#
+    .trim_start();
+    let options = DestackFormatOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80);
+    assert_format_program_idempotent_with_file_type(source, FileType::TypeScript, options);
+}
+
+/// Prettier `typescript/as/as.ts` should stay idempotent for cast rhs layout.
+#[test]
+fn test_format_typescript_as_fixture_is_idempotent() {
+    let source = include_str!(
+        "../../../../test/fixtures/formatter/conformance/staging/prettier/tests/format/typescript/as/as.ts"
+    );
+    let options = DestackFormatOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80);
+    assert_format_program_idempotent_with_file_type(source, FileType::TypeScript, options);
+}
+
 /// Union property comments should not move semicolon ownership across passes.
 #[test]
 fn test_format_typescript_union_property_comments_keep_semicolon_position() {
@@ -3263,6 +3308,16 @@ fn test_format_typescript_union_parenthesized_constructor_member_is_idempotent()
         FileType::TypeScript,
         DestackFormatOptions::default(),
     );
+}
+
+/// Type-indexed mapped types should keep stable inline layout after `=`.
+#[test]
+fn test_format_typescript_type_indexed_mapped_type_is_idempotent() {
+    let source = "type NonFunctionPropertyNames<T> = { [K in keyof T]: T[K] extends Function ? never : K }[keyof T];\n";
+    let options = DestackFormatOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80);
+    assert_format_program_idempotent_with_file_type(source, FileType::TypeScript, options);
 }
 
 /// Function-type union members should keep one outer grouping wrapper.
@@ -3784,6 +3839,28 @@ fn test_format_jsx_empty_expression_line_comments_are_idempotent() {
         source,
         FileType::JavaScriptXml,
         |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// JSX member and index receivers should keep stable parenthesized postfix formatting.
+#[test]
+fn test_format_jsx_member_expression_receivers_are_idempotent() {
+    let source = r#"
+(<div>
+  <a>foo</a>
+</div>).method();
+(<div>
+  <a>foo</a>
+</div>).property;
+(<div>
+  <a>foo</a>
+</div>)["computed"]();
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
         DestackFormatOptions::default(),
     );
 }

@@ -11,6 +11,7 @@ use super::ownership::{
 };
 use super::semicolon::{
     attach_before_comment_semicolon_guard_head, attach_inline_comment_before_semicolon,
+    seam_has_line_leading_semicolon_after_comment,
     try_attach_comment_before_empty_statement_semicolon,
 };
 
@@ -36,6 +37,8 @@ struct RemainingCommentContext<'a, 'ctx> {
     following_owner_with_token_fallback: Option<u32>,
     /// Inline block comment classification.
     is_inline_star_comment: bool,
+    /// Line-leading semicolon classification for token after comment.
+    semicolon_after_is_line_leading: bool,
 }
 
 /// Build one remaining-placement seam comment context.
@@ -54,6 +57,8 @@ fn build_remaining_comment_context<'a, 'ctx>(
         following_owner_with_token_after_fallback(tree, context, following_owner);
     let is_inline_star_comment =
         seam.comment_is_star && !seam.has_leading_newline && !seam.has_trailing_newline;
+    let semicolon_after_is_line_leading =
+        seam_has_line_leading_semicolon_after_comment(context, seam);
 
     RemainingCommentContext {
         context,
@@ -66,6 +71,7 @@ fn build_remaining_comment_context<'a, 'ctx>(
         following_owner,
         following_owner_with_token_fallback,
         is_inline_star_comment,
+        semicolon_after_is_line_leading,
     }
 }
 
@@ -138,6 +144,7 @@ fn attach_remaining_inline_before_semicolon_comment(
         comment_context.tree,
         comment_context.parents,
         comment_context.seam,
+        comment_context.semicolon_after_is_line_leading,
         comment_context.preceding_owner,
         comment_context.token_before_span,
         comment_context.is_inline_star_comment,
