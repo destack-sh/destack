@@ -43,7 +43,7 @@ struct PactlDeviceMonitor {
 /// One shared pactl monitor slot keyed by audio backend.
 #[cfg(target_os = "linux")]
 #[derive(Debug, Default)]
-struct PactlMonitorRuntimeState {
+pub(crate) struct PactlMonitorRuntimeState {
     /// Runtime-owned pactl monitor workers keyed by backend.
     monitors: Mutex<HashMap<audio_core::AudioBackend, PactlDeviceMonitor>>,
     /// Whether teardown finalizer was registered.
@@ -55,8 +55,9 @@ struct PactlMonitorRuntimeState {
 fn pactl_monitor_runtime_state(context: &BindingCallContext) -> Arc<PactlMonitorRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(PactlMonitorRuntimeState::default);
+        .platform_state
+        .audio
+        .pactl_monitor_runtime_state(PactlMonitorRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

@@ -49,6 +49,24 @@ pub enum GcLogging {
     Verbose,
 }
 
+/// Runtime diagnostic verbosity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum RuntimeDiagnosticLevel {
+    /// Disable runtime diagnostics collection.
+    Off,
+    /// Record only error diagnostics.
+    Error,
+    /// Record warning and error diagnostics.
+    #[default]
+    Warn,
+    /// Record informational diagnostics and above.
+    Info,
+    /// Record debug diagnostics and above.
+    Debug,
+    /// Record trace diagnostics and above.
+    Trace,
+}
+
 /// Replay configuration for runtime record/replay.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReplayOptions {
@@ -195,6 +213,24 @@ impl Default for GcOptions {
             heap_soft_limit_bytes: None,
             heap_initial_bytes: None,
             logging: GcLogging::Off,
+        }
+    }
+}
+
+/// Runtime diagnostics configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RuntimeDiagnosticOptions {
+    /// Minimum diagnostic level recorded by the runtime.
+    pub level: RuntimeDiagnosticLevel,
+    /// Maximum number of diagnostic entries retained in the runtime ring buffer.
+    pub capacity: Option<u64>,
+}
+
+impl Default for RuntimeDiagnosticOptions {
+    fn default() -> Self {
+        Self {
+            level: RuntimeDiagnosticLevel::Warn,
+            capacity: Some(1024),
         }
     }
 }
@@ -412,6 +448,8 @@ pub struct RuntimeOptions {
     pub scheduler: SchedulerOptions,
     /// Runtime garbage collector configuration.
     pub gc: GcOptions,
+    /// Runtime diagnostics configuration.
+    pub diagnostic: RuntimeDiagnosticOptions,
     /// Global filesystem runtime defaults.
     pub fs: PlatformFsOptions,
     /// Global network runtime defaults.
@@ -877,6 +915,8 @@ pub struct DsConfigRuntimeOptionsJson {
     pub scheduler: Option<SchedulerOptionsJson>,
     /// Runtime garbage collector configuration.
     pub gc: Option<GcOptionsJson>,
+    /// Runtime diagnostics configuration.
+    pub diagnostic: Option<RuntimeDiagnosticOptionsJson>,
     /// Global filesystem runtime defaults.
     pub fs: Option<PlatformFsOptionsJson>,
     /// Global network runtime defaults.
@@ -1008,6 +1048,11 @@ impl DsConfigRuntimeOptionsJson {
         // apply gc overrides
         if let Some(gc) = &self.gc {
             gc.apply_to(&mut options.gc);
+        }
+
+        // apply runtime diagnostics overrides
+        if let Some(diagnostic) = &self.diagnostic {
+            diagnostic.apply_to(&mut options.diagnostic);
         }
 
         // apply filesystem defaults
@@ -2652,6 +2697,32 @@ impl GcOptionsJson {
     }
 }
 
+/// Runtime diagnostics options for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeDiagnosticOptionsJson {
+    /// Minimum diagnostic level recorded by the runtime.
+    pub level: Option<RuntimeDiagnosticLevelJson>,
+    /// Maximum number of diagnostic entries retained in the runtime ring buffer.
+    pub capacity: Option<u64>,
+}
+
+impl RuntimeDiagnosticOptionsJson {
+    /// Apply diagnostics overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut RuntimeDiagnosticOptions) {
+        // apply level overrides
+        if let Some(level) = self.level {
+            options.level = RuntimeDiagnosticLevel::from(level);
+        }
+
+        // apply capacity overrides
+        if let Some(capacity) = self.capacity {
+            options.capacity = Some(capacity);
+        }
+    }
+}
+
 /// Time mode for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -2739,6 +2810,38 @@ impl From<GcLoggingJson> for GcLogging {
             GcLoggingJson::Off => GcLogging::Off,
             GcLoggingJson::Summary => GcLogging::Summary,
             GcLoggingJson::Verbose => GcLogging::Verbose,
+        }
+    }
+}
+
+/// Runtime diagnostic level for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeDiagnosticLevelJson {
+    /// Disable runtime diagnostics collection.
+    Off,
+    /// Record only error diagnostics.
+    Error,
+    /// Record warning and error diagnostics.
+    Warn,
+    /// Record informational diagnostics and above.
+    Info,
+    /// Record debug diagnostics and above.
+    Debug,
+    /// Record trace diagnostics and above.
+    Trace,
+}
+
+impl From<RuntimeDiagnosticLevelJson> for RuntimeDiagnosticLevel {
+    fn from(value: RuntimeDiagnosticLevelJson) -> Self {
+        match value {
+            RuntimeDiagnosticLevelJson::Off => RuntimeDiagnosticLevel::Off,
+            RuntimeDiagnosticLevelJson::Error => RuntimeDiagnosticLevel::Error,
+            RuntimeDiagnosticLevelJson::Warn => RuntimeDiagnosticLevel::Warn,
+            RuntimeDiagnosticLevelJson::Info => RuntimeDiagnosticLevel::Info,
+            RuntimeDiagnosticLevelJson::Debug => RuntimeDiagnosticLevel::Debug,
+            RuntimeDiagnosticLevelJson::Trace => RuntimeDiagnosticLevel::Trace,
         }
     }
 }

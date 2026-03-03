@@ -163,7 +163,7 @@ struct HostStoreHandleCache {
 
 /// Runtime-owned mutable state for crypto store lanes.
 #[derive(Default)]
-struct CryptoStoreRuntimeState {
+pub(crate) struct CryptoStoreRuntimeState {
     /// Lock for host key snapshot backend operations.
     host_key_snapshot_lock: StdMutex<()>,
     /// Deduplicated host-lane key and certificate handles.
@@ -174,8 +174,9 @@ struct CryptoStoreRuntimeState {
 fn crypto_store_runtime_state(context: &BindingCallContext) -> Arc<CryptoStoreRuntimeState> {
     context
         .runtime()
-        .module_state
-        .get_or_init(CryptoStoreRuntimeState::default)
+        .platform_state
+        .crypto
+        .crypto_store_runtime_state(CryptoStoreRuntimeState::default)
 }
 
 /// Acquire one host-store cache guard and recover from poisoning.

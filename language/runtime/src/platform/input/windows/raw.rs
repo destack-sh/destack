@@ -533,7 +533,7 @@ struct RawInputWorker {
 
 /// Runtime-owned mutable state for windows raw-input services.
 #[derive(Debug)]
-pub(super) struct WindowsRawInputRuntimeState {
+pub(crate) struct WindowsRawInputRuntimeState {
     /// Runtime-configured queue capacity for keyboard and mouse packets.
     raw_input_queue_limit: AtomicUsize,
     /// Runtime-configured queue capacity for monitor packets.
@@ -577,8 +577,9 @@ pub(super) fn windows_raw_input_runtime_state(
 ) -> Arc<WindowsRawInputRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(WindowsRawInputRuntimeState::default);
+        .platform_state
+        .input
+        .windows_raw_input_runtime_state(WindowsRawInputRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

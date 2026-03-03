@@ -33,7 +33,7 @@ struct MappingEntry {
 
 /// Runtime-owned mutable state for windows mmap lanes.
 #[derive(Debug, Default)]
-struct WindowsMmapRuntimeState {
+pub(crate) struct WindowsMmapRuntimeState {
     /// Mapping metadata table keyed by base address.
     mapping_table: Mutex<HashMap<usize, MappingEntry>>,
 }
@@ -42,8 +42,9 @@ struct WindowsMmapRuntimeState {
 fn windows_mmap_runtime_state(context: &BindingCallContext) -> Arc<WindowsMmapRuntimeState> {
     context
         .runtime()
-        .module_state
-        .get_or_init(WindowsMmapRuntimeState::default)
+        .platform_state
+        .fs
+        .windows_mmap_runtime_state(WindowsMmapRuntimeState::default)
 }
 
 /// Insert a mapping entry for a pointer.

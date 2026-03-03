@@ -10,6 +10,7 @@ use crate::runtime::BindingCallContext;
 
 pub(crate) use event::*;
 pub(crate) use monitor::*;
+pub(crate) use win32::{DisplayEventRuntimeState, WindowRuntimeState};
 pub(crate) use window::*;
 
 /// List windows display backend descriptors for the active host.

@@ -41,7 +41,7 @@ struct AlsaDeviceMonitor {
 /// Runtime-owned ALSA monitor slot.
 #[cfg(target_os = "linux")]
 #[derive(Debug, Default)]
-struct AlsaMonitorRuntimeState {
+pub(crate) struct AlsaMonitorRuntimeState {
     /// Runtime-owned monitor slot.
     monitor: Mutex<Option<AlsaDeviceMonitor>>,
     /// Whether teardown finalizer was registered.
@@ -53,8 +53,9 @@ struct AlsaMonitorRuntimeState {
 fn alsa_monitor_runtime_state(context: &BindingCallContext) -> Arc<AlsaMonitorRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(AlsaMonitorRuntimeState::default);
+        .platform_state
+        .audio
+        .alsa_monitor_runtime_state(AlsaMonitorRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

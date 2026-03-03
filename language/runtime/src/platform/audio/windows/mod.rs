@@ -9,8 +9,12 @@ mod stream;
 #[cfg(feature = "audio-wasapi")]
 mod wasapi;
 
+#[cfg(feature = "audio-asio")]
+pub(crate) use asio::AsioMonitorRuntimeState;
 pub(crate) use clock::*;
 pub(crate) use core::*;
 pub(crate) use device::*;
 pub(crate) use event::*;
 pub(crate) use stream::*;
+#[cfg(feature = "audio-wasapi")]
+pub(crate) use wasapi::WasapiMonitorRuntimeState;

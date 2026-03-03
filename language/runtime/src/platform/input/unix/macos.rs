@@ -332,7 +332,7 @@ impl MacosInputState {
 
 /// Runtime-owned mutable state for macOS event-tap services.
 #[derive(Debug)]
-struct MacosTapRuntimeState {
+pub(crate) struct MacosTapRuntimeState {
     /// Shared event-tap state for this runtime instance.
     state: Arc<MacosTapState>,
     /// Runtime-configured maximum queued packets per subscription queue.
@@ -368,8 +368,9 @@ impl Default for MacosTapRuntimeState {
 fn macos_tap_runtime_state(context: &BindingCallContext) -> Arc<MacosTapRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(MacosTapRuntimeState::default);
+        .platform_state
+        .input
+        .macos_tap_runtime_state(MacosTapRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

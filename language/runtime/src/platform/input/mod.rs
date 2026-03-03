@@ -73,7 +73,10 @@ pub(crate) enum InputMonitorEventKind {
 mod host;
 pub mod native;
 pub(crate) mod simulation;
+mod state;
 #[cfg(test)]
 mod tests;
 pub(crate) mod validation;
 pub mod vm;
+
+pub(crate) use state::*;

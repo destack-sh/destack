@@ -24,8 +24,19 @@ mod pipewire;
 mod pulseaudio;
 mod stream;
 
+#[cfg(all(target_os = "linux", feature = "audio-alsa"))]
+pub(crate) use alsa::AlsaMonitorRuntimeState;
 pub(crate) use clock::*;
 pub(crate) use core::*;
+#[cfg(all(target_os = "macos", feature = "audio-coreaudio"))]
+pub(crate) use coreaudio::CoreAudioMonitorRuntimeState;
 pub(crate) use device::*;
 pub(crate) use event::*;
+#[cfg(all(target_os = "linux", feature = "audio-jack"))]
+pub(crate) use jack::JackMonitorRuntimeState;
+#[cfg(all(
+    target_os = "linux",
+    any(feature = "audio-pipewire", feature = "audio-pulseaudio")
+))]
+pub(crate) use pactl::PactlMonitorRuntimeState;
 pub(crate) use stream::*;

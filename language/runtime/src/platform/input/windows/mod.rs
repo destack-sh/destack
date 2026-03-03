@@ -12,12 +12,14 @@ mod text;
 mod touch;
 mod xinput;
 
+pub(crate) use core::WindowsInputCoreRuntimeState;
 pub(crate) use device::*;
-pub(crate) use event::*;
+pub(crate) use event::{WindowsInputEventRuntimeState, *};
 pub(crate) use gamepad::*;
 pub(crate) use haptics::*;
 pub(crate) use keyboard::*;
 pub(crate) use pointer::*;
+pub(crate) use raw::WindowsRawInputRuntimeState;
 pub(crate) use rawhid::*;
 pub(crate) use sensor::*;
 pub(crate) use text::*;

@@ -91,7 +91,7 @@ const WINDOW_ICON_BIG_DEFAULT: u32 = 32;
 
 /// Runtime-owned mutable state for win32 window bindings.
 #[derive(Debug)]
-struct WindowRuntimeState {
+pub(crate) struct WindowRuntimeState {
     /// Shared global cursor visibility state.
     cursor_visible_state: Mutex<Option<bool>>,
     /// Per-window cursor policy lanes used to derive process-global cursor state.
@@ -154,8 +154,9 @@ fn window_runtime_state(context: &BindingCallContext) -> Arc<WindowRuntimeState>
     let diagnostics = Arc::clone(&context.runtime().diagnostic);
     context
         .runtime()
-        .module_state
-        .get_or_init(|| WindowRuntimeState::new(diagnostics))
+        .platform_state
+        .display
+        .window_runtime_state(|| WindowRuntimeState::new(diagnostics))
 }
 
 /// Allocate one stable runtime window identifier.

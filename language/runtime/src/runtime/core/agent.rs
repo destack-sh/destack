@@ -1,14 +1,13 @@
-use std::any::{Any, TypeId};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_heap as heap;
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostic::{AgentErrorStore, RuntimeResult};
+use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
 use crate::host::{Host, HostEventKind};
+use crate::platform::state::PlatformState;
 use crate::platform::{PlatformContext, ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry, BindingReplayPayload};
 use crate::runtime::engine::EngineContinuation;
@@ -84,54 +83,6 @@ pub struct ResolvedModuleOptions {
     pub tty: PlatformTtyOptions,
 }
 
-/// Agent-owned typed storage for module-local mutable state.
-#[derive(Debug, Default)]
-pub struct ModuleStateStore {
-    /// Per-type singleton state entries for this agent instance.
-    entries: RwLock<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
-}
-
-impl ModuleStateStore {
-    /// Return one existing typed state entry when present.
-    pub fn get<T>(&self) -> Option<Arc<T>>
-    where
-        T: Send + Sync + 'static,
-    {
-        let entries = self.entries.read();
-        let value = entries.get(&TypeId::of::<T>())?.clone();
-
-        value.downcast::<T>().ok()
-    }
-
-    /// Return one typed state entry, initializing it once when missing.
-    pub fn get_or_init<T>(&self, initialize: impl FnOnce() -> T) -> Arc<T>
-    where
-        T: Send + Sync + 'static,
-    {
-        if let Some(value) = self.get::<T>() {
-            return value;
-        }
-
-        let mut entries = self.entries.write();
-        let type_id = TypeId::of::<T>();
-        if let Some(existing) = entries.get(&type_id) {
-            let value = existing.clone();
-            let value = value.downcast::<T>().unwrap_or_else(|_| {
-                panic!(
-                    "agent module state type collision for {}",
-                    std::any::type_name::<T>()
-                )
-            });
-
-            return value;
-        }
-
-        let value = Arc::new(initialize());
-        entries.insert(type_id, value.clone());
-        value
-    }
-}
-
 /// Stable identifier for one runtime-managed agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct AgentId(pub u64);
@@ -165,10 +116,10 @@ pub struct Agent {
     pub hooks: Arc<Hooks>,
     /// Agent-level finalizer registry for module services.
     pub finalizers: RuntimeFinalizers,
-    /// Agent-owned module mutable state store.
-    pub module_state: ModuleStateStore,
-    /// Agent error storage for native bindings.
-    pub errors: AgentErrorStore,
+    /// Agent-owned platform module state store.
+    pub platform_state: PlatformState,
+    /// Agent diagnostics storage for runtime errors and warning events.
+    pub diagnostic: Arc<AgentDiagnosticStore>,
     /// External binding registry and policy enforcement.
     pub bindings: BindingRegistry,
     /// Managed heap and GC coordination.
@@ -190,9 +141,10 @@ impl std::fmt::Debug for Agent {
             .field("resources", &self.resources)
             .field("hooks", &self.hooks)
             .field("finalizers", &self.finalizers)
+            .field("platform_state", &self.platform_state)
             .field("host", &self.host)
             .field("world", &self.world)
-            .field("errors", &self.errors)
+            .field("diagnostic", &self.diagnostic)
             .field("bindings", &self.bindings)
             .field("heap", &self.heap)
             .field("event_loop", &self.event_loop)
@@ -333,10 +285,10 @@ impl Agent {
             resources,
             hooks,
             finalizers: RuntimeFinalizers::default(),
-            module_state: ModuleStateStore::default(),
+            platform_state: PlatformState::default(),
             host: Host::from_runtime_options(options),
             world,
-            errors: AgentErrorStore::default(),
+            diagnostic: Arc::new(AgentDiagnosticStore::from_options(&options.diagnostic)),
             bindings,
             heap,
             event_loop,

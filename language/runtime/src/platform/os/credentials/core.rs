@@ -304,7 +304,7 @@ pub(crate) fn interrupted(
 /// Runtime-local guard state for no-replace credential writes.
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 #[derive(Debug, Default)]
-struct NoReplaceWriteRuntimeState {
+pub(crate) struct NoReplaceWriteRuntimeState {
     /// In-process mutex for check-then-write serialization.
     lock: Mutex<()>,
 }
@@ -318,8 +318,9 @@ pub(crate) fn with_no_replace_write_guard<R>(
     // resolve one runtime-local lock holder for credential writes
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(NoReplaceWriteRuntimeState::default);
+        .platform_state
+        .os
+        .no_replace_write_runtime_state(NoReplaceWriteRuntimeState::default);
 
     // serialize one check-then-write sequence for this runtime
     let _guard = runtime_state.lock.lock();
