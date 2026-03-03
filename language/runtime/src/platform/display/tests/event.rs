@@ -7,6 +7,8 @@ use super::{
     monitor_event_open_options, window_event_open_options, with_harness_context,
 };
 #[cfg(windows)]
+use super::{monitor_event_open_options_with_kind_mask, window_event_open_options_with_filter};
+#[cfg(windows)]
 use crate::diagnostic::RuntimeError;
 #[cfg(windows)]
 use crate::platform::PlatformError;
@@ -47,6 +49,34 @@ fn test_monitor_event_stream_is_seeded() {
                 crate::platform::display::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
             ) | super::HarnessValue::Vm(
                 crate::platform::display::DisplayMonitorEventVm::DisplayPrimaryChangedEvent(_)
+            )
+        ));
+
+        context.destack_display_monitor_event_close(stream)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn test_monitor_event_kind_filter_restricts_seeded_events() {
+    with_harness_context(|mut context| {
+        let stream = context.destack_display_monitor_event_open(
+            monitor_event_open_options_with_kind_mask(
+                &context,
+                64,
+                DisplayEventOverflowPolicy::DropOldest,
+                0x10,
+            ),
+        )?;
+
+        let event = context.destack_display_monitor_event_read(stream, 100_000_000)?;
+        assert!(matches!(
+            event,
+            super::HarnessValue::Native(
+                crate::platform::display::DisplayMonitorEvent::DisplayModeChangedEvent(_)
+            ) | super::HarnessValue::Vm(
+                crate::platform::display::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
             )
         ));
 
@@ -138,6 +168,62 @@ fn test_window_event_stream_reports_would_block_after_drain() {
 
         context.destack_display_window_event_close(stream)?;
         context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn test_window_event_filter_restricts_window_and_kind() {
+    with_harness_context(|mut context| {
+        let first_options = default_window_options(&mut context, "window-filter-target")?;
+        let first_window = context.destack_display_window_open(first_options)?;
+        let second_options = default_window_options(&mut context, "window-filter-other")?;
+        let second_window = context.destack_display_window_open(second_options)?;
+
+        let stream =
+            context.destack_display_window_event_open(window_event_open_options_with_filter(
+                &context,
+                64,
+                DisplayEventOverflowPolicy::DropOldest,
+                Some(first_window),
+                Some(0x200),
+            ))?;
+
+        context.destack_display_window_request_refresh(second_window)?;
+        context.destack_display_window_request_refresh(first_window)?;
+
+        let event = context.destack_display_window_event_read(stream, 100_000_000)?;
+        let is_matching_refresh = matches!(
+            event,
+            super::HarnessValue::Native(
+                crate::platform::display::WindowEvent::WindowRefreshRequestedEvent(
+                    crate::platform::display::WindowRefreshRequestedEvent { metadata, .. }
+                )
+            ) if metadata.window == first_window
+        ) || matches!(
+            event,
+            super::HarnessValue::Vm(
+                crate::platform::display::WindowEventVm::WindowRefreshRequestedEvent(
+                    crate::platform::display::WindowRefreshRequestedEventVm { metadata, .. }
+                )
+            ) if metadata.window == first_window
+        );
+        assert!(is_matching_refresh);
+
+        let empty = context.destack_display_window_event_try_read(stream);
+        let empty_error = match empty {
+            Ok(_) => panic!("filtered stream should not include unrelated refresh events"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error_code(&empty_error),
+            Some(PlatformErrorCode::IoWouldBlock)
+        );
+
+        context.destack_display_window_event_close(stream)?;
+        context.destack_display_window_close(second_window)?;
+        context.destack_display_window_close(first_window)?;
         Ok(())
     });
 }

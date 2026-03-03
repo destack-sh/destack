@@ -19,8 +19,8 @@ use crate::platform::display::{
     WindowPosition, WindowResizeEdge, WindowSizeConstraints, WindowState, WindowVisibility,
     unsupported as display_unsupported,
 };
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 macro_rules! dispatch_backend {
     ($backend:expr, $operation:literal, $function:ident($context:expr $(, $arg:expr)* $(,)?)) => {{

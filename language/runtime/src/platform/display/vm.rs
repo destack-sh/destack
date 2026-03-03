@@ -18,8 +18,8 @@ use crate::platform::fs::{
     OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
     PathUtf16, PathUtf16Abi, PathUtf16Vm,
 };
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, VmArray, VmSlice, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, VmArray, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Invoke one host call that writes through an output pointer.
 fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {

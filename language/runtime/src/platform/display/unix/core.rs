@@ -1,9 +1,9 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
     DisplayBackendSelectionPolicy,
 };
+use crate::platform::{PlatformError, display as display_platform};
 use crate::runtime::BindingCallContext;
 
 #[cfg(target_os = "linux")]
@@ -24,16 +24,6 @@ const UNIX_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::UIKit];
     ))
 ))]
 const UNIX_BACKEND_PRIORITY: &[DisplayBackend] = &[];
-
-const DISPLAY_CAP_WINDOW: u64 = 0x1;
-const DISPLAY_CAP_MONITOR: u64 = 0x2;
-const DISPLAY_CAP_WINDOW_EVENTS: u64 = 0x4;
-const DISPLAY_CAP_MONITOR_EVENTS: u64 = 0x8;
-const DISPLAY_CAP_EXCLUSIVE_FULLSCREEN: u64 = 0x10;
-const DISPLAY_CAP_BORDERLESS_FULLSCREEN: u64 = 0x20;
-const DISPLAY_CAP_CURSOR_LOCK: u64 = 0x40;
-const DISPLAY_CAP_CURSOR_CONFINE: u64 = 0x80;
-const DISPLAY_CAP_TRANSPARENCY: u64 = 0x200;
 
 /// Return unix display backend priority order for auto-selection.
 pub(crate) fn preferred_host_backends() -> &'static [DisplayBackend] {
@@ -106,15 +96,15 @@ pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCap
     }
 
     DisplayBackendCapabilityFlags(
-        DISPLAY_CAP_WINDOW
-            | DISPLAY_CAP_MONITOR
-            | DISPLAY_CAP_WINDOW_EVENTS
-            | DISPLAY_CAP_MONITOR_EVENTS
-            | DISPLAY_CAP_EXCLUSIVE_FULLSCREEN
-            | DISPLAY_CAP_BORDERLESS_FULLSCREEN
-            | DISPLAY_CAP_CURSOR_LOCK
-            | DISPLAY_CAP_CURSOR_CONFINE
-            | DISPLAY_CAP_TRANSPARENCY,
+        display_platform::DISPLAY_BACKEND_CAP_WINDOW.0
+            | display_platform::DISPLAY_BACKEND_CAP_MONITOR.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
+            | display_platform::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
+            | display_platform::DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN.0
+            | display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
+            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_LOCK.0
+            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_CONFINE.0
+            | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0,
     )
 }
 

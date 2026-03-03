@@ -3,8 +3,8 @@ use crate::platform::display::{
     DisplayDescriptor, DisplayMode, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
     unsupported,
 };
-use crate::platform::{NativeSlice, NativeStringRef, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::resource;
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Close one display endpoint.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_close(

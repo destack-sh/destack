@@ -4,8 +4,8 @@ use crate::platform::display::{
     WindowModeOptions, WindowOptions, WindowPhysicalSize, WindowPosition, WindowSizeConstraints,
     WindowState, WindowVisibility, unsupported,
 };
-use crate::platform::{NativeStringRef, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::resource;
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 /// Close one window.
 pub(in crate::platform::display::host::unix) unsafe fn window_close(

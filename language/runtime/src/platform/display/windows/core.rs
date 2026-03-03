@@ -1,22 +1,12 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
     DisplayBackendSelectionPolicy,
 };
+use crate::platform::{PlatformError, display as display_platform};
 use crate::runtime::BindingCallContext;
 
 const WINDOWS_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::Win32];
-const DISPLAY_CAP_WINDOW: u64 = 0x1;
-const DISPLAY_CAP_MONITOR: u64 = 0x2;
-const DISPLAY_CAP_WINDOW_EVENTS: u64 = 0x4;
-const DISPLAY_CAP_MONITOR_EVENTS: u64 = 0x8;
-const DISPLAY_CAP_EXCLUSIVE_FULLSCREEN: u64 = 0x10;
-const DISPLAY_CAP_BORDERLESS_FULLSCREEN: u64 = 0x20;
-const DISPLAY_CAP_CURSOR_LOCK: u64 = 0x40;
-const DISPLAY_CAP_CURSOR_CONFINE: u64 = 0x80;
-const DISPLAY_CAP_VSYNC_WAIT: u64 = 0x100;
-const DISPLAY_CAP_TRANSPARENCY: u64 = 0x200;
 
 /// Return windows display backend priority order for auto-selection.
 pub(crate) fn preferred_host_backends() -> &'static [DisplayBackend] {
@@ -25,6 +15,7 @@ pub(crate) fn preferred_host_backends() -> &'static [DisplayBackend] {
 
 /// Return one backend name for diagnostics and descriptors.
 pub(crate) fn backend_name(backend: DisplayBackend) -> &'static str {
+    // map backend enum to stable diagnostics name
     match backend {
         DisplayBackend::Win32 => "win32",
         DisplayBackend::Wayland => "wayland",
@@ -49,21 +40,45 @@ pub(crate) fn backend_available(backend: DisplayBackend) -> bool {
 
 /// Return one backend capability mask for one windows backend.
 pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCapabilityFlags {
+    // return empty mask for unsupported backends
     if !backend_supported(backend) {
         return DisplayBackendCapabilityFlags(0);
     }
 
+    // report win32 capability lanes supported by this backend
     DisplayBackendCapabilityFlags(
-        DISPLAY_CAP_WINDOW
-            | DISPLAY_CAP_MONITOR
-            | DISPLAY_CAP_WINDOW_EVENTS
-            | DISPLAY_CAP_MONITOR_EVENTS
-            | DISPLAY_CAP_EXCLUSIVE_FULLSCREEN
-            | DISPLAY_CAP_BORDERLESS_FULLSCREEN
-            | DISPLAY_CAP_CURSOR_LOCK
-            | DISPLAY_CAP_CURSOR_CONFINE
-            | DISPLAY_CAP_VSYNC_WAIT
-            | DISPLAY_CAP_TRANSPARENCY,
+        display_platform::DISPLAY_BACKEND_CAP_WINDOW.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_STATE.0
+            | display_platform::DISPLAY_BACKEND_CAP_MONITOR.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
+            | display_platform::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
+            | display_platform::DISPLAY_BACKEND_CAP_MONITOR_MODE_SET.0
+            | display_platform::DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE.0
+            | display_platform::DISPLAY_BACKEND_CAP_MONITOR_HDR_CONTROL.0
+            | display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0
+            | display_platform::DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN.0
+            | display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
+            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_LOCK.0
+            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_CONFINE.0
+            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_WARP.0
+            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_ICON.0
+            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY.0
+            | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
+            | display_platform::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0
+            | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
+            | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
+            | display_platform::DISPLAY_BACKEND_CAP_THEME.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_FOCUS.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_RAISE.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_DRAG_INTERACTION.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY.0,
     )
 }
 
@@ -81,8 +96,10 @@ pub(crate) fn backend_not_supported(
 
 /// List windows display backend descriptors.
 pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
+    // allocate descriptor list for preferred backend order
     let mut descriptors = Vec::with_capacity(preferred_host_backends().len());
 
+    // build one descriptor per preferred backend
     for (index, backend) in preferred_host_backends().iter().copied().enumerate() {
         let priority = u16::MAX.saturating_sub(index as u16);
         descriptors.push(DisplayBackendDescriptor {

@@ -1,8 +1,6 @@
-use std::time::Instant;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{PlatformError, core as core_platform};
+use crate::platform::{PlatformError, core as core_platform, display as display_platform};
 use crate::runtime::BindingCallContext;
 use windows_sys::Win32::Foundation::{
     ERROR_ACCESS_DENIED, ERROR_INVALID_HANDLE, ERROR_INVALID_PARAMETER,
@@ -12,75 +10,152 @@ use windows_sys::Win32::Foundation::{
 pub(super) const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
 /// Default wait slice for window event blocking reads.
 pub(super) const DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS: u64 = 10_000_000;
-/// Nominal vsync interval used by the fallback vsync wait lane.
-pub(super) const FALLBACK_VSYNC_INTERVAL_NS: u64 = 16_666_667;
+/// Window message `wparam` lane used for force-close paths.
+pub(super) const WINDOW_CLOSE_FORCE_WPARAM: usize = 1;
 /// Display metric mask bit for bounds updates.
-pub(super) const DISPLAY_CHANGED_MASK_BOUNDS: u32 = 0x4;
+pub(super) const DISPLAY_CHANGED_MASK_BOUNDS: u32 =
+    display_platform::DISPLAY_METRIC_CHANGED_BOUNDS.0;
 /// Display metric mask bit for work-area updates.
-pub(super) const DISPLAY_CHANGED_MASK_WORKAREA: u32 = 0x8;
+pub(super) const DISPLAY_CHANGED_MASK_WORKAREA: u32 =
+    display_platform::DISPLAY_METRIC_CHANGED_WORK_AREA.0;
 /// Display metric mask bit for scale updates.
-pub(super) const DISPLAY_CHANGED_MASK_SCALE: u32 = 0x10;
+pub(super) const DISPLAY_CHANGED_MASK_SCALE: u32 =
+    display_platform::DISPLAY_METRIC_CHANGED_SCALE_FACTOR.0;
 /// Display metric mask bit for orientation updates.
-pub(super) const DISPLAY_CHANGED_MASK_ORIENTATION: u32 = 0x20;
-
-/// Shared monotonic epoch for display timestamps.
-static TIMESTAMP_EPOCH: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
-
-/// Return one monotonic timestamp suitable for event metadata payloads.
-pub(super) fn now_timestamp_ns() -> u64 {
-    let epoch = TIMESTAMP_EPOCH.get_or_init(Instant::now);
-    epoch.elapsed().as_nanos().min(u64::MAX as u128) as u64
-}
-
-/// Build one invalid-argument error payload.
-pub(super) fn invalid_argument(
-    field: &'static str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(field, message)).boxed()
-}
-
-/// Build one not-found runtime error.
-pub(super) fn not_found(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoNotFound),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
-}
-
-/// Build one ioWouldBlock runtime error.
-pub(super) fn io_would_block(
-    operation: &'static str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoWouldBlock),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
-}
-
-/// Build one ioBusy runtime error.
-pub(super) fn io_busy(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoBusy),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
-}
+pub(super) const DISPLAY_CHANGED_MASK_ORIENTATION: u32 =
+    display_platform::DISPLAY_METRIC_CHANGED_ORIENTATION.0;
+/// Monitor-event kind bit for `added`.
+pub(super) const DISPLAY_MONITOR_EVENT_KIND_ADDED: u32 =
+    display_platform::DISPLAY_MONITOR_EVENT_KIND_ADDED.0;
+/// Monitor-event kind bit for `removed`.
+pub(super) const DISPLAY_MONITOR_EVENT_KIND_REMOVED: u32 =
+    display_platform::DISPLAY_MONITOR_EVENT_KIND_REMOVED.0;
+/// Monitor-event kind bit for `primaryChanged`.
+pub(super) const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: u32 =
+    display_platform::DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED.0;
+/// Monitor-event kind bit for `descriptorChanged`.
+pub(super) const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: u32 =
+    display_platform::DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED.0;
+/// Monitor-event kind bit for `modeChanged`.
+pub(super) const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: u32 =
+    display_platform::DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED.0;
+/// All supported monitor-event kind bits.
+pub(super) const DISPLAY_MONITOR_EVENT_KIND_MASK_ALL: u32 = DISPLAY_MONITOR_EVENT_KIND_ADDED
+    | DISPLAY_MONITOR_EVENT_KIND_REMOVED
+    | DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED
+    | DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED
+    | DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED;
+/// Window-event kind bit for `created`.
+pub(super) const WINDOW_EVENT_KIND_CREATED: u64 = display_platform::WINDOW_EVENT_KIND_CREATED.0;
+/// Window-event kind bit for `closeRequested`.
+pub(super) const WINDOW_EVENT_KIND_CLOSE_REQUESTED: u64 =
+    display_platform::WINDOW_EVENT_KIND_CLOSE_REQUESTED.0;
+/// Window-event kind bit for `destroyed`.
+pub(super) const WINDOW_EVENT_KIND_DESTROYED: u64 = display_platform::WINDOW_EVENT_KIND_DESTROYED.0;
+/// Window-event kind bit for `focusChanged`.
+pub(super) const WINDOW_EVENT_KIND_FOCUS_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_FOCUS_CHANGED.0;
+/// Window-event kind bit for `visibilityChanged`.
+pub(super) const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_VISIBILITY_CHANGED.0;
+/// Window-event kind bit for `occlusionChanged`.
+pub(super) const WINDOW_EVENT_KIND_OCCLUSION_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_OCCLUSION_CHANGED.0;
+/// Window-event kind bit for `positionChanged`.
+pub(super) const WINDOW_EVENT_KIND_POSITION_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_POSITION_CHANGED.0;
+/// Window-event kind bit for `sizeChanged`.
+pub(super) const WINDOW_EVENT_KIND_SIZE_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_SIZE_CHANGED.0;
+/// Window-event kind bit for `scaleFactorChanged`.
+pub(super) const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED.0;
+/// Window-event kind bit for `refreshRequested`.
+pub(super) const WINDOW_EVENT_KIND_REFRESH_REQUESTED: u64 =
+    display_platform::WINDOW_EVENT_KIND_REFRESH_REQUESTED.0;
+/// Window-event kind bit for `modeChanged`.
+pub(super) const WINDOW_EVENT_KIND_MODE_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_MODE_CHANGED.0;
+/// Window-event kind bit for `displayChanged`.
+pub(super) const WINDOW_EVENT_KIND_DISPLAY_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_DISPLAY_CHANGED.0;
+/// Window-event kind bit for `themeChanged`.
+pub(super) const WINDOW_EVENT_KIND_THEME_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_THEME_CHANGED.0;
+/// Window-event kind bit for `chromeChanged`.
+pub(super) const WINDOW_EVENT_KIND_CHROME_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_CHROME_CHANGED.0;
+/// Window-event kind bit for `taskbarVisibilityChanged`.
+pub(super) const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED.0;
+/// Window-event kind bit for `opacityChanged`.
+pub(super) const WINDOW_EVENT_KIND_OPACITY_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_OPACITY_CHANGED.0;
+/// Window-event kind bit for `parentChanged`.
+pub(super) const WINDOW_EVENT_KIND_PARENT_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_PARENT_CHANGED.0;
+/// Window-event kind bit for `transientChanged`.
+pub(super) const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_TRANSIENT_CHANGED.0;
+/// Window-event kind bit for `modalChanged`.
+pub(super) const WINDOW_EVENT_KIND_MODAL_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_MODAL_CHANGED.0;
+/// Window-event kind bit for `mousePassthroughChanged`.
+pub(super) const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED.0;
+/// Window-event kind bit for `aspectRatioChanged`.
+pub(super) const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: u64 =
+    display_platform::WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED.0;
+/// Window-event kind bit for `dropStarted`.
+pub(super) const WINDOW_EVENT_KIND_DROP_STARTED: u64 =
+    display_platform::WINDOW_EVENT_KIND_DROP_STARTED.0;
+/// Window-event kind bit for `fileHovered`.
+pub(super) const WINDOW_EVENT_KIND_FILE_HOVERED: u64 =
+    display_platform::WINDOW_EVENT_KIND_FILE_HOVERED.0;
+/// Window-event kind bit for `dropCancelled`.
+pub(super) const WINDOW_EVENT_KIND_DROP_CANCELLED: u64 =
+    display_platform::WINDOW_EVENT_KIND_DROP_CANCELLED.0;
+/// Window-event kind bit for `dropCompleted`.
+pub(super) const WINDOW_EVENT_KIND_DROP_COMPLETED: u64 =
+    display_platform::WINDOW_EVENT_KIND_DROP_COMPLETED.0;
+/// Window-event kind bit for `fileHoverLeft`.
+pub(super) const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: u64 =
+    display_platform::WINDOW_EVENT_KIND_FILE_HOVER_LEFT.0;
+/// Window-event kind bit for `fileDropped`.
+pub(super) const WINDOW_EVENT_KIND_FILE_DROPPED: u64 =
+    display_platform::WINDOW_EVENT_KIND_FILE_DROPPED.0;
+/// Window-event kind bit for `textDropped`.
+pub(super) const WINDOW_EVENT_KIND_TEXT_DROPPED: u64 =
+    display_platform::WINDOW_EVENT_KIND_TEXT_DROPPED.0;
+/// All supported window-event kind bits.
+pub(super) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
+    | WINDOW_EVENT_KIND_CLOSE_REQUESTED
+    | WINDOW_EVENT_KIND_DESTROYED
+    | WINDOW_EVENT_KIND_FOCUS_CHANGED
+    | WINDOW_EVENT_KIND_VISIBILITY_CHANGED
+    | WINDOW_EVENT_KIND_OCCLUSION_CHANGED
+    | WINDOW_EVENT_KIND_POSITION_CHANGED
+    | WINDOW_EVENT_KIND_SIZE_CHANGED
+    | WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED
+    | WINDOW_EVENT_KIND_REFRESH_REQUESTED
+    | WINDOW_EVENT_KIND_MODE_CHANGED
+    | WINDOW_EVENT_KIND_DISPLAY_CHANGED
+    | WINDOW_EVENT_KIND_THEME_CHANGED
+    | WINDOW_EVENT_KIND_CHROME_CHANGED
+    | WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED
+    | WINDOW_EVENT_KIND_OPACITY_CHANGED
+    | WINDOW_EVENT_KIND_PARENT_CHANGED
+    | WINDOW_EVENT_KIND_TRANSIENT_CHANGED
+    | WINDOW_EVENT_KIND_MODAL_CHANGED
+    | WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED
+    | WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED
+    | WINDOW_EVENT_KIND_DROP_STARTED
+    | WINDOW_EVENT_KIND_FILE_HOVERED
+    | WINDOW_EVENT_KIND_DROP_CANCELLED
+    | WINDOW_EVENT_KIND_DROP_COMPLETED
+    | WINDOW_EVENT_KIND_FILE_HOVER_LEFT
+    | WINDOW_EVENT_KIND_FILE_DROPPED
+    | WINDOW_EVENT_KIND_TEXT_DROPPED;
 
 /// Build one mapped windows I/O error payload.
 pub(super) fn io_error_with_code(
@@ -118,15 +193,6 @@ pub(super) fn io_error(
     io_error_with_code(operation, syscall, code, message)
 }
 
-/// Validate one output pointer argument.
-pub(super) fn ensure_out<T>(out: *mut T, field: &'static str) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer(field)).boxed());
-    }
-
-    Ok(())
-}
-
 /// Return the configured default display event queue capacity.
 pub(super) fn default_event_queue_capacity(context: &BindingCallContext) -> usize {
     let configured = context
@@ -134,10 +200,7 @@ pub(super) fn default_event_queue_capacity(context: &BindingCallContext) -> usiz
         .module_options
         .display
         .default_event_queue_capacity;
-    let configured = configured.and_then(|value| usize::try_from(value).ok());
-    let configured = configured.unwrap_or(DEFAULT_EVENT_QUEUE_CAPACITY);
-
-    configured.max(1)
+    core_platform::option_u64_to_usize_or_min(configured, DEFAULT_EVENT_QUEUE_CAPACITY, 1)
 }
 
 /// Resolve queue capacity for one event stream open request.
@@ -156,28 +219,51 @@ pub(super) fn window_event_wait_slice_ns(context: &BindingCallContext) -> u64 {
         .module_options
         .display
         .window_event_wait_slice_ns;
-    configured
-        .unwrap_or(DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS)
-        .max(1)
-}
-
-/// Return the configured fallback vsync interval in nanoseconds.
-pub(super) fn fallback_vsync_interval_ns(context: &BindingCallContext) -> u64 {
-    let configured = context
-        .runtime()
-        .module_options
-        .display
-        .fallback_vsync_interval_ns;
-    configured.unwrap_or(FALLBACK_VSYNC_INTERVAL_NS).max(1)
+    core_platform::option_u64_or_min(configured, DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS, 1)
 }
 
 /// Validate one batch-size payload.
 pub(super) fn validate_max_events(maxevents: u32, field: &'static str) -> RuntimeResult<usize> {
     if maxevents == 0 {
-        return Err(invalid_argument(field, "value must be greater than zero"));
+        return Err(core_platform::invalid_argument(
+            field,
+            "value must be greater than zero",
+        ));
     }
 
     Ok(maxevents as usize)
+}
+
+/// Validate one monitor-event filter bit-mask payload.
+pub(super) fn validate_monitor_event_kind_mask(
+    kind_mask: u32,
+    field: &'static str,
+) -> RuntimeResult<()> {
+    let unsupported_bits = kind_mask & !DISPLAY_MONITOR_EVENT_KIND_MASK_ALL;
+    if unsupported_bits == 0 {
+        return Ok(());
+    }
+
+    Err(core_platform::invalid_argument(
+        field,
+        format!("unsupported monitor event kind bits: 0x{unsupported_bits:x}"),
+    ))
+}
+
+/// Validate one window-event filter bit-mask payload.
+pub(super) fn validate_window_event_kind_mask(
+    kind_mask: u64,
+    field: &'static str,
+) -> RuntimeResult<()> {
+    let unsupported_bits = kind_mask & !WINDOW_EVENT_KIND_MASK_ALL;
+    if unsupported_bits == 0 {
+        return Ok(());
+    }
+
+    Err(core_platform::invalid_argument(
+        field,
+        format!("unsupported window event kind bits: 0x{unsupported_bits:x}"),
+    ))
 }
 
 /// Convert one fixed wide buffer into one owned utf-8 string.
@@ -187,9 +273,4 @@ pub(super) fn utf16_buffer_to_string(units: &[u16]) -> String {
         .position(|value| *value == 0)
         .unwrap_or(units.len());
     String::from_utf16_lossy(&units[..end])
-}
-
-/// Convert one utf-8 string into one nul-terminated utf-16 buffer.
-pub(super) fn wide_with_nul(field: &'static str, value: &str) -> RuntimeResult<Vec<u16>> {
-    core_platform::wide_from_str(field, value)
 }
