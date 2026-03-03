@@ -32,14 +32,15 @@ Run these commands from repository root when setting up or validating runtime ta
 |-----------|--------|
 | Bootstrap runtime toolchains and sdk prerequisites | `just runtime-toolchain-bootstrap` |
 | Inspect host readiness for runtime target lanes | `just runtime-toolchain-doctor` |
-| Run host runtime lane on macOS | `just check-runtime-macos` |
-| Run host runtime lane on Linux | `just check-runtime-linux` |
-| Run host runtime lane on Windows | `just check-runtime-windows-host` |
-| Run windows gnu runtime cross lane | `just check-runtime-windows-gnu` |
-| Run iOS runtime target lane | `just check-runtime-ios` |
-| Run Android runtime target lane | `just check-runtime-android` |
-| Run wasm32-wasip1 runtime target lane | `just check-runtime-wasip1` |
-| Run runtime cross-target compile lane | `just check-runtime-cross-targets` |
+| Lint runtime toolchain scripts | `just runtime-toolchain-lint` |
+| Run host runtime lane on macOS | `just runtime-macos-check` |
+| Run host runtime lane on Linux | `just runtime-linux-check` |
+| Run host runtime lane on Windows | `just runtime-windows-msvc-check` |
+| Run windows gnu runtime cross lane | `just runtime-windows-gnu-check` |
+| Run iOS runtime target lane | `just runtime-ios-check` |
+| Run Android runtime target lane | `just runtime-android-check` |
+| Run wasm32-wasip1 runtime target lane | `just runtime-wasip1-check` |
+| Run runtime cross-target compile lane | `just runtime-cross-targets-check` |
 
 ### Tier 1 required checks
 

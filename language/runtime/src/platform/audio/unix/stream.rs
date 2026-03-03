@@ -9,7 +9,9 @@ use crate::platform::audio::{
     AudioStreamStatusFlags, AudioStreamSupport, AudioStreamTiming, core as audio_core,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::platform::{
+    NativeSlice, NativeStringRef, PlatformError, core as core_platform, resource,
+};
 use crate::runtime::BindingCallContext;
 
 /// Flatten one vectorized byte-buffer payload into one contiguous payload.
@@ -124,7 +126,7 @@ pub(crate) unsafe fn destack_audio_stream_close(
         .resources
         .remove(handle.0, Some(context.engine()));
     if removed.is_none() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.stream.close",
             format!("unknown audio stream handle {}", handle.0.0),
         ));

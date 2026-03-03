@@ -53,10 +53,11 @@ fn test_pipe_roundtrip_read_write_close() {
 #[test]
 fn test_pipe_open_rejects_unsupported_flags() {
     with_harness_context(|mut context| {
-        let error = context
-            .destack_ipc_pipe_open(1)
-            .err()
-            .expect("expected invalid flags to fail");
+        let error = context.destack_ipc_pipe_open(1);
+        let error = match error {
+            Ok(_) => panic!("expected invalid flags to fail"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
@@ -74,18 +75,20 @@ fn test_pipe_rejects_unknown_handle() {
 
         // read should fail with invalid-argument for unknown handle
         let read_value = context.mutable_bytes_value(&mut buffer)?;
-        let read_error = context
-            .destack_ipc_pipe_read(unknown, read_value)
-            .err()
-            .expect("expected pipeRead to fail for unknown handle");
+        let read_error = context.destack_ipc_pipe_read(unknown, read_value);
+        let read_error = match read_error {
+            Ok(_) => panic!("expected pipeRead to fail for unknown handle"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&read_error, PlatformErrorCode::InvalidArgumentValue);
 
         // write should fail with invalid-argument for unknown handle
         let write_value = context.bytes_value(&buffer)?;
-        let write_error = context
-            .destack_ipc_pipe_write(unknown, write_value)
-            .err()
-            .expect("expected pipeWrite to fail for unknown handle");
+        let write_error = context.destack_ipc_pipe_write(unknown, write_value);
+        let write_error = match write_error {
+            Ok(_) => panic!("expected pipeWrite to fail for unknown handle"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&write_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())

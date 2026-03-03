@@ -22,7 +22,7 @@ struct PipewireSimpleHandle {
     /// Raw `pa_simple*` pointer.
     raw: *mut PipewireSimple,
     /// Shared PipeWire symbol table.
-    library: &'static Arc<PipeWireLibrary>,
+    library: Arc<PipeWireLibrary>,
 }
 
 impl Drop for PipewireSimpleHandle {
@@ -44,7 +44,7 @@ unsafe impl Send for PipewireSimpleHandle {}
 #[derive(Debug)]
 struct PipewireStreamRuntime {
     /// Shared PipeWire symbol table.
-    library: &'static Arc<PipeWireLibrary>,
+    library: Arc<PipeWireLibrary>,
     /// Opened playback lane when present.
     playback: Option<audio_core::Mutex<PipewireSimpleHandle>>,
     /// Opened capture lane when present.
@@ -157,7 +157,7 @@ pub(super) fn open_stream(
             parsed.playback_name.as_str()
         };
         Some(open_simple_stream(
-            library,
+            &library,
             device_name,
             PIPEWIRE_STREAM_DIRECTION_PLAYBACK,
             &sample_spec,
@@ -180,7 +180,7 @@ pub(super) fn open_stream(
         };
 
         Some(open_simple_stream(
-            library,
+            &library,
             capture_name,
             PIPEWIRE_STREAM_DIRECTION_CAPTURE,
             &sample_spec,
@@ -257,7 +257,7 @@ pub(super) fn open_stream(
 
 /// Open one PipeWire simple stream handle.
 fn open_simple_stream(
-    library: &'static Arc<PipeWireLibrary>,
+    library: &Arc<PipeWireLibrary>,
     device_name: &str,
     direction: c_int,
     sample_spec: &PipewireSampleSpec,
@@ -292,7 +292,7 @@ fn open_simple_stream(
 
     Ok(PipewireSimpleHandle {
         raw: stream,
-        library,
+        library: library.clone(),
     })
 }
 

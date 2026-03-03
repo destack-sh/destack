@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use crate::diagnostic::RuntimeError;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::BindingCallContext;
@@ -39,22 +38,7 @@ pub(super) fn keystore_path(
 }
 
 /// Return one ioInvalidData runtime error.
-pub(super) fn invalid_data(
-    operation: &'static str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    unix_core::invalid_data(operation, message)
-}
+pub(super) use unix_core::invalid_data;
 
 /// Return one ioPermissionDenied runtime error.
-pub(super) fn permission_denied(
-    operation: &'static str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    unix_core::permission_denied(operation, message)
-}
-
-/// Return one notSupported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    unix_core::not_supported(operation)
-}
+pub(super) use unix_core::permission_denied;

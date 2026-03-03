@@ -1,15 +1,12 @@
 use std::time::{Duration, Instant};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::{NativeStringRef, resource};
+use crate::platform::{NativeStringRef, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    ensure_out, ensure_zero_flags, io_error, not_supported, posix_name, register_semaphore,
-    semaphore_pointer, timed_out,
-};
+use super::core::{io_error, posix_name, register_semaphore, semaphore_pointer, timed_out};
 #[cfg(any(target_os = "linux", target_os = "android"))]
-use super::core::{invalid_argument, io_error_with_errno, shared_memory_descriptor, would_block};
+use super::core::{io_error_with_errno, shared_memory_descriptor, would_block};
 
 /// Create one named semaphore.
 const SEMAPHORE_CREATE_OPERATION: &str = "destack.ipc.sync.semaphoreCreate";
@@ -46,7 +43,7 @@ struct FutexWordMapping {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn relative_timespec(timeout: Duration) -> RuntimeResult<libc::timespec> {
     let seconds = i64::try_from(timeout.as_secs()).map_err(|_| {
-        invalid_argument("timeoutNs", "timeout is too large for host timespec range")
+        core_platform::invalid_argument("timeoutNs", "timeout is too large for host timespec range")
     })?;
 
     Ok(libc::timespec {
@@ -62,11 +59,7 @@ fn semaphore_poll_interval(context: &BindingCallContext) -> Duration {
         .module_options
         .ipc
         .unix_semaphore_poll_interval_ns;
-    Duration::from_nanos(
-        configured
-            .unwrap_or(DEFAULT_SEMAPHORE_POLL_INTERVAL_NS)
-            .max(1),
-    )
+    core_platform::duration_from_option_ns(configured, DEFAULT_SEMAPHORE_POLL_INTERVAL_NS, 1)
 }
 
 /// Map one futex word from one shared-memory object and offset.
@@ -79,7 +72,7 @@ fn map_futex_word(
 ) -> RuntimeResult<FutexWordMapping> {
     // validate futex alignment requirements
     if !offset.is_multiple_of(std::mem::size_of::<u32>() as u64) {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "offset",
             "offset must be aligned to 4 bytes",
         ));
@@ -101,19 +94,22 @@ fn map_futex_word(
 
     let metadata = unsafe { metadata.assume_init() };
     if metadata.st_size < 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "sharedMemory",
             "shared-memory size is negative on host metadata",
         ));
     }
-    let metadata_size = u64::try_from(metadata.st_size)
-        .map_err(|_| invalid_argument("sharedMemory", "shared-memory size exceeds u64 range"))?;
+    let metadata_size = u64::try_from(metadata.st_size).map_err(|_| {
+        core_platform::invalid_argument("sharedMemory", "shared-memory size exceeds u64 range")
+    })?;
 
     let required = offset
         .checked_add(std::mem::size_of::<u32>() as u64)
-        .ok_or_else(|| invalid_argument("offset", "offset overflowed futex word bounds"))?;
+        .ok_or_else(|| {
+            core_platform::invalid_argument("offset", "offset overflowed futex word bounds")
+        })?;
     if required > metadata_size {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "offset",
             "offset falls outside the shared-memory object",
         ));
@@ -132,13 +128,17 @@ fn map_futex_word(
     let page_size = page_size_raw as u64;
     let page_mask = !(page_size - 1);
     let map_offset = offset & page_mask;
-    let offset_delta = usize::try_from(offset - map_offset)
-        .map_err(|_| invalid_argument("offset", "offset exceeds host usize range"))?;
+    let offset_delta = usize::try_from(offset - map_offset).map_err(|_| {
+        core_platform::invalid_argument("offset", "offset exceeds host usize range")
+    })?;
     let map_length = offset_delta
         .checked_add(std::mem::size_of::<u32>())
-        .ok_or_else(|| invalid_argument("offset", "offset mapping length overflowed"))?;
-    let map_offset_host = i64::try_from(map_offset)
-        .map_err(|_| invalid_argument("offset", "offset exceeds host off_t range"))?;
+        .ok_or_else(|| {
+            core_platform::invalid_argument("offset", "offset mapping length overflowed")
+        })?;
+    let map_offset_host = i64::try_from(map_offset).map_err(|_| {
+        core_platform::invalid_argument("offset", "offset exceeds host off_t range")
+    })?;
 
     // map one writable view for futex wait or wake operations
     let base = unsafe {
@@ -242,9 +242,9 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
             }
         } else {
             let timeout = Duration::from_nanos(timeoutns);
-            let deadline = Instant::now()
-                .checked_add(timeout)
-                .ok_or_else(|| invalid_argument("timeoutNs", "timeout overflowed host deadline"))?;
+            let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
+                core_platform::invalid_argument("timeoutNs", "timeout overflowed host deadline")
+            })?;
 
             loop {
                 let remaining = deadline.saturating_duration_since(Instant::now());
@@ -320,7 +320,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
     let _ = (context, sharedmemory, offset, expected, timeoutns);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    Err(not_supported(FUTEX_WAIT_OPERATION))
+    Err(core_platform::not_supported(FUTEX_WAIT_OPERATION))
 }
 
 /// Wake futex waiters for one shared-memory word.
@@ -347,13 +347,14 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
     offset: u64,
     count: u32,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // reject impossible futex wake-count values for host c_int ranges
-        let count = i32::try_from(count)
-            .map_err(|_| invalid_argument("count", "count exceeds host futex range"))?;
+        let count = i32::try_from(count).map_err(|_| {
+            core_platform::invalid_argument("count", "count exceeds host futex range")
+        })?;
 
         // map one futex word view from shared-memory state
         let mapping = map_futex_word(context, sharedmemory, offset, FUTEX_WAKE_OPERATION)?;
@@ -395,7 +396,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
     let _ = (context, sharedmemory, offset, count);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    Err(not_supported(FUTEX_WAKE_OPERATION))
+    Err(core_platform::not_supported(FUTEX_WAKE_OPERATION))
 }
 
 /// Create one named semaphore.
@@ -423,8 +424,8 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and input flags
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
 
     // decode and normalize the semaphore name
     let name = posix_name(name, "name")?;

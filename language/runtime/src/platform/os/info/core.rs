@@ -1,10 +1,11 @@
+use crate::platform::core as core_platform;
+#[cfg(unix)]
+use crate::platform::core::io_error;
+use crate::platform::core::io_operation_error;
 #[cfg(not(target_vendor = "apple"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-#[cfg(unix)]
-use crate::platform::core as core_platform;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{LoadAverage, SystemSnapshot};
 use crate::runtime::BindingCallContext;
@@ -20,35 +21,12 @@ pub(crate) const OS_INFO_BOOT_TIME_UNIX_NS_OPERATION: &str = "destack.os.info.bo
 /// Binding operation name for load-average reads.
 pub(crate) const OS_INFO_LOAD_AVERAGE_OPERATION: &str = "destack.os.info.loadAverage";
 
-/// Validate one output pointer argument.
-pub(super) fn ensure_out<T>(out: *mut T, field: &'static str) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer(field)).boxed());
-    }
-
-    Ok(())
-}
-
 /// Build one ioInvalidData runtime error.
 pub(super) fn invalid_data(
     operation: &'static str,
     message: impl Into<String>,
 ) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoInvalidData),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
-}
-
-#[cfg(not(any(unix, windows)))]
-/// Build one notSupported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
+    io_operation_error(operation, Some(PlatformErrorCode::IoInvalidData), message)
 }
 
 #[cfg(unix)]
@@ -98,7 +76,7 @@ pub(super) fn clock_gettime_ns(
     };
     let status = unsafe { libc::clock_gettime(clock_id, &mut value) };
     if status != 0 {
-        return Err(core_platform::io_error("clock_gettime", None));
+        return Err(io_error("clock_gettime", None));
     }
 
     // convert seconds and nanoseconds fields into one u64 nanosecond value
@@ -154,7 +132,7 @@ pub(crate) unsafe fn destack_os_system_snapshot(
     out: *mut SystemSnapshot,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     // query one backend snapshot and write output
     let snapshot = backend::read_system_snapshot(context)?;
@@ -187,7 +165,7 @@ pub(crate) unsafe fn destack_os_uptime_ns(
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     // query one backend uptime value and write output
     let uptime_ns = backend::read_uptime_ns(context)?;
@@ -220,7 +198,7 @@ pub(crate) unsafe fn destack_os_boot_time_unix_ns(
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     // query one backend boot-time value and write output
     let boot_time_unix_ns = backend::read_boot_time_unix_ns(context)?;
@@ -253,7 +231,7 @@ pub(crate) unsafe fn destack_os_load_average(
     out: *mut LoadAverage,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     // query one backend load-average payload and write output
     let load_average = backend::read_load_average(context)?;

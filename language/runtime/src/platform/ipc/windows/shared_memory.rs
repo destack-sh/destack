@@ -9,13 +9,10 @@ use windows_sys::Win32::System::Memory::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::ipc::SharedMemoryMapping;
-use crate::platform::{NativeStringRef, PlatformError, resource};
+use crate::platform::{NativeStringRef, PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    ensure_out, ensure_zero_flags, invalid_argument, io_error, register_shared_memory_handle,
-    shared_memory_handle, wide_name,
-};
+use super::core::{register_shared_memory_handle, shared_memory_handle, wide_name};
 
 /// Create one named shared-memory object.
 const SHARED_MEMORY_CREATE_OPERATION: &str = "destack.ipc.sharedMemory.create";
@@ -61,7 +58,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "handle",
             "destack.ipc.sharedMemory.close expected one valid shared-memory handle",
         ));
@@ -95,10 +92,13 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and input flags
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
     if size == 0 {
-        return Err(invalid_argument("size", "size must be greater than zero"));
+        return Err(core_platform::invalid_argument(
+            "size",
+            "size must be greater than zero",
+        ));
     }
 
     // decode one UTF-16 mapping name
@@ -118,7 +118,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
         )
     };
     if mapping == 0 || mapping == INVALID_HANDLE_VALUE {
-        return Err(io_error("CreateFileMappingW"));
+        return Err(core_platform::io_error("CreateFileMappingW"));
     }
 
     // reject create requests that collided with an existing mapping
@@ -165,10 +165,10 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and map options
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
     if length == 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "length",
             "length must be greater than zero",
         ));
@@ -180,8 +180,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
     // decode map offset and length into host ranges
     let offset_high = (offset >> 32) as u32;
     let offset_low = offset as u32;
-    let length = usize::try_from(length)
-        .map_err(|_| invalid_argument("length", "length exceeds host usize range"))?;
+    let length = core_platform::u64_to_usize(length, "length")?;
 
     // map one shared view into process virtual memory
     let address = unsafe {
@@ -194,14 +193,12 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
         )
     };
     if address.Value.is_null() {
-        return Err(io_error("MapViewOfFile"));
+        return Err(core_platform::io_error("MapViewOfFile"));
     }
 
     // write mapping descriptor output
-    let mapped_address = u64::try_from(address.Value as usize)
-        .map_err(|_| invalid_argument("out.address", "mapped address exceeds u64 range"))?;
-    let mapping_length = u64::try_from(length)
-        .map_err(|_| invalid_argument("out.length", "length exceeds u64 range"))?;
+    let mapped_address = core_platform::usize_to_u64(address.Value as usize, "out.address")?;
+    let mapping_length = core_platform::usize_to_u64(length, "out.length")?;
     let mapping = SharedMemoryMapping {
         address: mapped_address,
         length: mapping_length,
@@ -237,8 +234,8 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
     flags: u32,
 ) -> RuntimeResult<()> {
     // validate output and input flags
-    ensure_out(out, "out")?;
-    ensure_zero_flags(flags, "flags")?;
+    core_platform::ensure_out(out, "out")?;
+    core_platform::ensure_zero_flags(flags, "flags")?;
 
     // decode one UTF-16 mapping name
     let name = wide_name(name, "name")?;
@@ -246,7 +243,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
     // open one existing named mapping object
     let mapping = unsafe { OpenFileMappingW(FILE_MAP_ALL_ACCESS, 0, name.as_ptr()) };
     if mapping == 0 || mapping == INVALID_HANDLE_VALUE {
-        return Err(io_error("OpenFileMappingW"));
+        return Err(core_platform::io_error("OpenFileMappingW"));
     }
 
     // register mapping handle and write output
@@ -282,24 +279,26 @@ pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
 ) -> RuntimeResult<()> {
     // validate unmap address and length inputs
     if address == 0 {
-        return Err(invalid_argument("address", "address must be non-zero"));
+        return Err(core_platform::invalid_argument(
+            "address",
+            "address must be non-zero",
+        ));
     }
     if length == 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "length",
             "length must be greater than zero",
         ));
     }
 
     // unmap one mapped view address
-    let address = usize::try_from(address)
-        .map_err(|_| invalid_argument("address", "address exceeds host usize range"))?;
+    let address = core_platform::u64_to_usize(address, "address")?;
     let view = MEMORY_MAPPED_VIEW_ADDRESS {
         Value: address as *mut core::ffi::c_void,
     };
     let status = unsafe { UnmapViewOfFile(view) };
     if status == 0 {
-        return Err(io_error("UnmapViewOfFile"));
+        return Err(core_platform::io_error("UnmapViewOfFile"));
     }
 
     Ok(())

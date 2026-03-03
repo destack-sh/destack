@@ -24,11 +24,10 @@ use security_framework_sys::key::{SecKeyCopyExternalRepresentation, SecKeyCreate
 use security_framework_sys::keychain_item::{SecItemCopyMatching, SecItemDelete};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 
-use super::core::{
-    copy_cf_data_bytes, create_cf_string, invalid_data, not_found, permission_denied,
-    security_operation_error,
-};
+use super::super::core::{invalid_data, permission_denied};
+use super::core::{copy_cf_data_bytes, create_cf_string, security_operation_error};
 
 /// Cached secure-enclave support probe result.
 static SECURE_ENCLAVE_SUPPORT: OnceLock<bool> = OnceLock::new();
@@ -278,7 +277,7 @@ pub(crate) fn copy_private_key_by_label(
         CFRelease(query as CFTypeRef);
     }
     if status == errSecItemNotFound {
-        return Err(not_found(
+        return Err(core_platform::io_not_found(
             operation,
             format!("host key {key_label} was not found"),
         ));

@@ -9,7 +9,7 @@ use crate::platform::net::{
     SocketAddress, SocketFamily, SocketHandle, UdpMessageFlags, UdpReceive,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError};
+use crate::platform::{NativeSlice, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Create a UDP socket.
@@ -40,7 +40,7 @@ pub(crate) unsafe fn destack_net_udp_socket(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // select the socket family
     let family = match family {
@@ -52,7 +52,10 @@ pub(crate) unsafe fn destack_net_udp_socket(
     // create the socket
     let socket = unsafe { socket(family, SOCK_DGRAM, IPPROTO_UDP) };
     if socket == INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // register the socket
@@ -78,7 +81,7 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve the socket descriptor
     let socket = socket_descriptor(context, handle)?;
@@ -87,7 +90,10 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
     with_socket_address_raw(address, |sockaddr, length| {
         let rc = unsafe { bind(socket, sockaddr, length) };
         if rc != 0 {
-            return Err(last_net_error("bind"));
+            return Err(core_platform::net_error_with_code(
+                "bind",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         Ok(())
@@ -102,7 +108,7 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve the socket descriptor
     let socket = socket_descriptor(context, handle)?;
@@ -111,7 +117,10 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
     with_socket_address_raw(address, |sockaddr, length| {
         let rc = unsafe { connect(socket, sockaddr, length) };
         if rc != 0 {
-            return Err(last_net_error("connect"));
+            return Err(core_platform::net_error_with_code(
+                "connect",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         Ok(())
@@ -133,7 +142,7 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve runtime values
     let socket = socket_descriptor(context, handle)?;
@@ -160,7 +169,10 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
         )
     };
     if bytes == SOCKET_ERROR {
-        return Err(last_net_error("recvfrom"));
+        return Err(core_platform::net_error_with_code(
+            "recvfrom",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // encode sender metadata and payload length
@@ -192,7 +204,7 @@ pub(crate) unsafe fn destack_net_udp_send_to_raw(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve runtime values
     let socket = socket_descriptor(context, handle)?;
@@ -218,7 +230,10 @@ pub(crate) unsafe fn destack_net_udp_send_to_raw(
             )
         };
         if bytes == SOCKET_ERROR {
-            return Err(last_net_error("sendto"));
+            return Err(core_platform::net_error_with_code(
+                "sendto",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         unsafe {

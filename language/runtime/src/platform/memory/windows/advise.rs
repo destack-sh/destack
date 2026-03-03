@@ -4,11 +4,11 @@ use windows_sys::Win32::System::Memory::{
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::memory::{MemoryAdvice, core as memory_core};
 use crate::runtime::BindingCallContext;
 
-use super::core::{HUGE_PAGE_OPERATION, io_error, page_size};
-use memory_core::not_supported;
+use super::core::{HUGE_PAGE_OPERATION, page_size};
 
 /// Apply memory access advice.
 pub(crate) unsafe fn destack_memory_advise(
@@ -33,13 +33,13 @@ pub(crate) unsafe fn destack_memory_advise(
             };
             let status = unsafe { PrefetchVirtualMemory(GetCurrentProcess(), 1, &range, 0) };
             if status == 0 {
-                return Err(io_error("PrefetchVirtualMemory"));
+                return Err(core_platform::io_error("PrefetchVirtualMemory"));
             }
         }
         MemoryAdvice::DontNeed => {
             let status = unsafe { DiscardVirtualMemory(address as *mut core::ffi::c_void, length) };
             if status == 0 {
-                return Err(io_error("DiscardVirtualMemory"));
+                return Err(core_platform::io_error("DiscardVirtualMemory"));
             }
         }
         // no-op for advisory hints without direct windows mapping
@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_memory_discard(
     // discard pages from the range
     let status = unsafe { DiscardVirtualMemory(address as *mut core::ffi::c_void, length) };
     if status == 0 {
-        return Err(io_error("DiscardVirtualMemory"));
+        return Err(core_platform::io_error("DiscardVirtualMemory"));
     }
 
     Ok(())
@@ -80,5 +80,5 @@ pub(crate) unsafe fn destack_memory_huge_page(
 ) -> RuntimeResult<()> {
     // mark huge-page advice as unsupported on windows
     let _ = (address, length, enabled);
-    Err(not_supported(HUGE_PAGE_OPERATION))
+    Err(core_platform::not_supported(HUGE_PAGE_OPERATION))
 }

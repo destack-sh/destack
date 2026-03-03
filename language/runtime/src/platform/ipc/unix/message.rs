@@ -1,12 +1,11 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::MessageQueueReceive;
-use crate::platform::{NativeSlice, NativeStringRef, resource};
+use crate::platform::{NativeSlice, NativeStringRef, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::core::{ensure_out, not_supported};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use super::core::{
-    invalid_argument, io_error_with_errno, message_queue_descriptor, posix_name, realtime_deadline,
+    io_error_with_errno, message_queue_descriptor, posix_name, realtime_deadline,
     register_message_queue, timed_out, would_block,
 };
 
@@ -50,7 +49,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
             .resources
             .remove_and_finalize(handle.0, Some(context.engine()));
         if !removed {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "handle",
                 "destack.ipc.message.queueClose expected one valid message-queue handle",
             ));
@@ -63,7 +62,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
     let _ = (context, handle);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    Err(not_supported(MESSAGE_QUEUE_CLOSE_OPERATION))
+    Err(core_platform::not_supported(MESSAGE_QUEUE_CLOSE_OPERATION))
 }
 
 /// Open or create a message queue.
@@ -92,7 +91,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
     maxmessages: u32,
     maxmessagebytes: u32,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
@@ -109,11 +108,14 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
 
         // validate and normalize caller open flags
         let mut open_flags = libc::c_int::try_from(flags).map_err(|_| {
-            invalid_argument("flags", "flags value exceeds host c_int range for mq_open")
+            core_platform::invalid_argument(
+                "flags",
+                "flags value exceeds host c_int range for mq_open",
+            )
         })?;
         let supported_flags = SUPPORTED_OPEN_FLAGS | SUPPORTED_NONBLOCK_FLAG;
         if (open_flags & !supported_flags) != 0 {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "flags",
                 "flags include unsupported POSIX mq_open bits",
             ));
@@ -127,13 +129,13 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
         let mut attributes = unsafe { std::mem::zeroed::<libc::mq_attr>() };
         let attributes_pointer = if create_requested {
             if maxmessages == 0 {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "maxMessages",
                     "maxMessages must be greater than zero when O_CREAT is set",
                 ));
             }
             if maxmessagebytes == 0 {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "maxMessageBytes",
                     "maxMessageBytes must be greater than zero when O_CREAT is set",
                 ));
@@ -177,7 +179,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
     let _ = (context, name, flags, mode, maxmessages, maxmessagebytes);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    Err(not_supported(MESSAGE_QUEUE_OPEN_OPERATION))
+    Err(core_platform::not_supported(MESSAGE_QUEUE_OPEN_OPERATION))
 }
 
 /// Receive one message from a queue.
@@ -204,7 +206,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
     timeoutns: u64,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
@@ -280,7 +282,9 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
     let _ = (context, handle, timeoutns, buffer);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    Err(not_supported(MESSAGE_QUEUE_RECEIVE_OPERATION))
+    Err(core_platform::not_supported(
+        MESSAGE_QUEUE_RECEIVE_OPERATION,
+    ))
 }
 
 /// Send one message to a queue.
@@ -372,7 +376,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
     let _ = (context, handle, priority, timeoutns, argument_payload);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    Err(not_supported(MESSAGE_QUEUE_SEND_OPERATION))
+    Err(core_platform::not_supported(MESSAGE_QUEUE_SEND_OPERATION))
 }
 
 /// Remove a named message queue.
@@ -419,5 +423,5 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
     let _ = (context, name);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    Err(not_supported(MESSAGE_QUEUE_UNLINK_OPERATION))
+    Err(core_platform::not_supported(MESSAGE_QUEUE_UNLINK_OPERATION))
 }

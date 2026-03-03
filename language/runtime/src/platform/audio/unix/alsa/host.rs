@@ -13,7 +13,7 @@ use super::core::{
     AlsaDeviceProfile, AlsaHintDirection, AlsaHintRow, AlsaLibrary, AlsaPcmHandle, alsa_error,
     alsa_succeeded, c_string,
 };
-use super::ffi::alsa_library;
+use super::ffi::{alsa_library, alsa_library_error};
 
 /// One configured ALSA PCM handle with negotiated runtime parameters.
 #[derive(Debug)]
@@ -33,22 +33,24 @@ pub(super) struct ConfiguredAlsaPcm {
 }
 
 /// Return one loaded ALSA library or one not-supported error.
-pub(super) fn require_alsa_library(
-    operation: &'static str,
-) -> RuntimeResult<&'static Arc<AlsaLibrary>> {
-    alsa_library().ok_or_else(|| {
-        RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation}: ALSA dynamic library is unavailable on this host",
+pub(super) fn require_alsa_library(operation: &'static str) -> RuntimeResult<Arc<AlsaLibrary>> {
+    let Some(library) = alsa_library() else {
+        let message = alsa_library_error()
+            .unwrap_or_else(|| "ALSA dynamic library is unavailable on this host".to_string());
+        return Err(RuntimeError::from(PlatformError::not_supported(format!(
+            "{operation}: {message}",
         )))
-        .boxed()
-    })
+        .boxed());
+    };
+
+    Ok(library)
 }
 
 /// One owned `snd_pcm_hw_params_t` payload.
 #[derive(Debug)]
 struct AlsaHardwareParamsOwner {
     /// Borrowed ALSA symbol table for deallocation.
-    library: &'static Arc<AlsaLibrary>,
+    library: Arc<AlsaLibrary>,
     /// Raw `snd_pcm_hw_params_t*` pointer.
     raw: *mut AlsaHardwareParams,
 }
@@ -68,7 +70,7 @@ impl Drop for AlsaHardwareParamsOwner {
 
 /// Allocate one `snd_pcm_hw_params_t` payload.
 fn allocate_hardware_params(
-    library: &'static Arc<AlsaLibrary>,
+    library: &Arc<AlsaLibrary>,
     operation: &'static str,
 ) -> RuntimeResult<AlsaHardwareParamsOwner> {
     let mut raw = ptr::null_mut();
@@ -83,7 +85,10 @@ fn allocate_hardware_params(
         ));
     }
 
-    Ok(AlsaHardwareParamsOwner { library, raw })
+    Ok(AlsaHardwareParamsOwner {
+        library: library.clone(),
+        raw,
+    })
 }
 
 /// Return one utf8 string extracted from one ALSA hint payload.
@@ -273,7 +278,7 @@ fn format_tokens(format: audio_core::AudioSampleFormat) -> &'static [&'static st
 
 /// Apply one stream format, channel, rate, and period contract.
 fn configure_pcm(
-    library: &'static Arc<AlsaLibrary>,
+    library: &Arc<AlsaLibrary>,
     raw_pcm: *mut AlsaPcm,
     config: audio_core::AudioStreamConfig,
     backend_flags: audio_core::AudioBackendOpenFlags,
@@ -538,7 +543,10 @@ pub(super) fn open_configured_pcm(
     let (sample_rate, channels, period_frames, supports_pause, supports_exclusive) = configured;
 
     Ok(ConfiguredAlsaPcm {
-        pcm: Arc::new(AlsaPcmHandle { raw: raw_pcm }),
+        pcm: Arc::new(AlsaPcmHandle {
+            raw: raw_pcm,
+            library: library.clone(),
+        }),
         sample_rate,
         channels,
         period_frames,

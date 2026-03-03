@@ -2,6 +2,7 @@ use std::os::raw::c_void;
 use std::ptr;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
 };
@@ -22,8 +23,8 @@ use security_framework_sys::base::{
 };
 
 use super::super::super::core::{
-    CredentialWriteOptionsOwned, already_exists, interrupted, invalid_argument, invalid_data,
-    not_found, not_supported, permission_denied, would_block,
+    CredentialWriteOptionsOwned, already_exists, interrupted, invalid_data, permission_denied,
+    would_block,
 };
 
 /// Security status code for user-cancelled operation.
@@ -221,7 +222,7 @@ pub(crate) fn map_keychain_status(
 ) -> Box<crate::diagnostic::RuntimeError> {
     // map missing keychain records
     if status == errSecItemNotFound {
-        return not_found(operation, "credential record not found");
+        return core_platform::io_not_found(operation, "credential record not found");
     }
 
     // map duplicate records for create-only writes
@@ -231,7 +232,7 @@ pub(crate) fn map_keychain_status(
 
     // map malformed request payloads
     if status == errSecParam {
-        return invalid_argument(
+        return core_platform::invalid_argument(
             "credential",
             format!("keychain rejected credential request with status {status}"),
         );
@@ -239,7 +240,7 @@ pub(crate) fn map_keychain_status(
 
     // map backend argument and request-shape errors
     if status == errSecBadReq {
-        return invalid_argument(
+        return core_platform::invalid_argument(
             "credential",
             format!("keychain rejected one malformed credential request with status {status}"),
         );
@@ -284,7 +285,7 @@ pub(crate) fn map_keychain_status(
 
     // map backend unavailability to notSupported
     if status == errSecUnimplemented {
-        return not_supported(operation);
+        return core_platform::not_supported(operation);
     }
 
     // map internal security-framework component failures into ioInvalidData

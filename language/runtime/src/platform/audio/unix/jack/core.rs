@@ -1,5 +1,5 @@
-use std::ffi::{CStr, CString, c_char, c_int, c_ulong, c_void};
-use std::sync::{Arc, OnceLock};
+use std::ffi::{CStr, CString, c_char, c_int, c_ulong};
+use std::sync::Arc;
 
 use super::abi::JackApi;
 use super::constants::*;
@@ -25,31 +25,14 @@ pub(crate) fn is_backend_supported() -> bool {
     }
 }
 
-/// One process-global JACK dynamic library slot.
-static JACK_LIBRARY_SLOT: OnceLock<Option<Arc<JackLibrary>>> = OnceLock::new();
-
 /// One loaded JACK dynamic library payload.
 #[derive(Debug)]
 pub(super) struct JackLibrary {
-    /// Raw dynamic-library handle from `dlopen`.
-    handle: *mut c_void,
+    /// Loaded dynamic-library lifetime owner.
+    _library: core_platform::DynamicLibrary,
     /// Loaded JACK function table.
     pub(super) api: JackApi,
 }
-
-impl Drop for JackLibrary {
-    fn drop(&mut self) {
-        if self.handle.is_null() {
-            return;
-        }
-
-        // close one open dynamic-library handle
-        core_platform::close_dynamic_library(self.handle);
-    }
-}
-
-unsafe impl Send for JackLibrary {}
-unsafe impl Sync for JackLibrary {}
 
 /// Return one contiguous channel layout enum from one channel count.
 pub(super) fn channel_layout(channel_count: u16) -> audio_core::AudioChannelLayout {
@@ -120,15 +103,8 @@ pub(super) fn c_string(value: &str, field: &'static str) -> RuntimeResult<CStrin
 }
 
 /// Return one loaded JACK library or one not-supported error.
-pub(super) fn require_jack_library(
-    operation: &'static str,
-) -> RuntimeResult<&'static Arc<JackLibrary>> {
-    jack_library().ok_or_else(|| {
-        jack_not_supported(
-            operation,
-            "JACK dynamic library is unavailable on this host",
-        )
-    })
+pub(super) fn require_jack_library(operation: &'static str) -> RuntimeResult<Arc<JackLibrary>> {
+    load_jack_library().map_err(|error| jack_not_supported(operation, error))
 }
 
 /// Return one pointer to the nul-terminated JACK audio type string.
@@ -136,72 +112,40 @@ pub(super) fn jack_audio_type_pointer() -> *const c_char {
     JACK_AUDIO_TYPE.as_ptr().cast::<c_char>()
 }
 
-/// Return one pointer to one loaded JACK library when available.
-fn jack_library() -> Option<&'static Arc<JackLibrary>> {
-    JACK_LIBRARY_SLOT.get_or_init(load_jack_library).as_ref()
-}
-
 /// Load one JACK dynamic library and required symbol table.
-fn load_jack_library() -> Option<Arc<JackLibrary>> {
+fn load_jack_library() -> Result<Arc<JackLibrary>, String> {
     // try common JACK soname candidates in deterministic order
-    for candidate in ["libjack.so.0", "libjack.so"] {
-        let Some(handle) = core_platform::open_dynamic_library(candidate) else {
-            continue;
-        };
+    let (library, api) =
+        core_platform::load_library_with_api(&["libjack.so.0", "libjack.so"], load_jack_api)?;
 
-        // resolve all required JACK symbols
-        let api = match load_jack_api(handle) {
-            Some(api) => api,
-            None => {
-                core_platform::close_dynamic_library(handle);
-
-                continue;
-            }
-        };
-
-        return Some(Arc::new(JackLibrary { handle, api }));
-    }
-
-    None
+    Ok(Arc::new(JackLibrary {
+        _library: library,
+        api,
+    }))
 }
 
 /// Load one JACK symbol table from one open dynamic-library handle.
-fn load_jack_api(handle: *mut c_void) -> Option<JackApi> {
-    Some(JackApi {
-        jack_client_open: core_platform::load_dynamic_symbol(handle, b"jack_client_open\0")?,
-        jack_client_close: core_platform::load_dynamic_symbol(handle, b"jack_client_close\0")?,
-        jack_activate: core_platform::load_dynamic_symbol(handle, b"jack_activate\0")?,
-        jack_deactivate: core_platform::load_dynamic_symbol(handle, b"jack_deactivate\0")?,
-        jack_set_process_callback: core_platform::load_dynamic_symbol(
-            handle,
-            b"jack_set_process_callback\0",
-        )?,
-        jack_set_port_registration_callback: core_platform::load_dynamic_symbol(
-            handle,
-            b"jack_set_port_registration_callback\0",
-        )?,
-        jack_set_port_connect_callback: core_platform::load_dynamic_symbol(
-            handle,
-            b"jack_set_port_connect_callback\0",
-        )?,
-        jack_on_shutdown: core_platform::load_dynamic_symbol(handle, b"jack_on_shutdown\0")?,
-        jack_port_register: core_platform::load_dynamic_symbol(handle, b"jack_port_register\0")?,
-        jack_port_name: core_platform::load_dynamic_symbol(handle, b"jack_port_name\0")?,
-        jack_port_get_buffer: core_platform::load_dynamic_symbol(
-            handle,
-            b"jack_port_get_buffer\0",
-        )?,
-        jack_get_ports: core_platform::load_dynamic_symbol(handle, b"jack_get_ports\0")?,
-        jack_connect: core_platform::load_dynamic_symbol(handle, b"jack_connect\0")?,
-        jack_get_sample_rate: core_platform::load_dynamic_symbol(
-            handle,
-            b"jack_get_sample_rate\0",
-        )?,
-        jack_get_buffer_size: core_platform::load_dynamic_symbol(
-            handle,
-            b"jack_get_buffer_size\0",
-        )?,
-        jack_free: core_platform::load_dynamic_symbol(handle, b"jack_free\0")?,
+fn load_jack_api(
+    library: &core_platform::DynamicLibrary,
+    candidate: &str,
+) -> Result<JackApi, String> {
+    core_platform::load_dll_api_bytes!(library, candidate, JackApi {
+        jack_client_open => b"jack_client_open\0",
+        jack_client_close => b"jack_client_close\0",
+        jack_activate => b"jack_activate\0",
+        jack_deactivate => b"jack_deactivate\0",
+        jack_set_process_callback => b"jack_set_process_callback\0",
+        jack_set_port_registration_callback => b"jack_set_port_registration_callback\0",
+        jack_set_port_connect_callback => b"jack_set_port_connect_callback\0",
+        jack_on_shutdown => b"jack_on_shutdown\0",
+        jack_port_register => b"jack_port_register\0",
+        jack_port_name => b"jack_port_name\0",
+        jack_port_get_buffer => b"jack_port_get_buffer\0",
+        jack_get_ports => b"jack_get_ports\0",
+        jack_connect => b"jack_connect\0",
+        jack_get_sample_rate => b"jack_get_sample_rate\0",
+        jack_get_buffer_size => b"jack_get_buffer_size\0",
+        jack_free => b"jack_free\0",
     })
 }
 

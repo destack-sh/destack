@@ -1,6 +1,6 @@
-use std::ffi::{CStr, CString, c_int, c_void};
+use std::ffi::{CStr, CString, c_int};
 use std::ptr;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use super::abi::{PulseAudioApi, PulseSampleSpec};
 use super::constants::*;
@@ -11,34 +11,26 @@ use crate::platform::{PlatformError, core as core_platform};
 
 /// Return whether PulseAudio backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
-    cfg!(target_os = "linux") && pulseaudio_library().is_some() && pulseaudio_server_available()
-}
+    if !cfg!(target_os = "linux") {
+        return false;
+    }
 
-/// One process-global PulseAudio dynamic library slot.
-static PULSEAUDIO_LIBRARY_SLOT: OnceLock<Option<Arc<PulseAudioLibrary>>> = OnceLock::new();
+    // probe one library load before probing server reachability
+    let Ok(library) = load_pulseaudio_library() else {
+        return false;
+    };
+
+    pulseaudio_server_available(library.as_ref())
+}
 
 /// One loaded PulseAudio dynamic library payload.
 #[derive(Debug)]
 pub(super) struct PulseAudioLibrary {
-    /// Raw dynamic-library handle from `dlopen`.
-    handle: *mut c_void,
+    /// Loaded dynamic-library lifetime owner.
+    _library: core_platform::DynamicLibrary,
     /// Loaded PulseAudio function table.
     pub(super) api: PulseAudioApi,
 }
-
-impl Drop for PulseAudioLibrary {
-    fn drop(&mut self) {
-        if self.handle.is_null() {
-            return;
-        }
-
-        // close one open dynamic-library handle
-        core_platform::close_dynamic_library(self.handle);
-    }
-}
-
-unsafe impl Send for PulseAudioLibrary {}
-unsafe impl Sync for PulseAudioLibrary {}
 
 /// Return one normalized channel layout from one channel count.
 pub(super) fn channel_layout(channel_count: u16) -> audio_core::AudioChannelLayout {
@@ -125,13 +117,8 @@ pub(super) fn c_string(value: &str, field: &'static str) -> RuntimeResult<CStrin
 /// Return one loaded PulseAudio library or one not-supported error.
 pub(super) fn require_pulseaudio_library(
     operation: &'static str,
-) -> RuntimeResult<&'static Arc<PulseAudioLibrary>> {
-    pulseaudio_library().ok_or_else(|| {
-        pulseaudio_not_supported(
-            operation,
-            "PulseAudio dynamic library is unavailable on this host",
-        )
-    })
+) -> RuntimeResult<Arc<PulseAudioLibrary>> {
+    load_pulseaudio_library().map_err(|error| pulseaudio_not_supported(operation, error))
 }
 
 /// Return one PulseAudio sample format selector for one runtime sample format.
@@ -171,53 +158,39 @@ pub(super) fn pulseaudio_format_mask() -> u32 {
         | audio_core::sample_format_bit(audio_core::AudioSampleFormat::F32)
 }
 
-/// Return one pointer to one loaded PulseAudio library when available.
-fn pulseaudio_library() -> Option<&'static Arc<PulseAudioLibrary>> {
-    PULSEAUDIO_LIBRARY_SLOT
-        .get_or_init(load_pulseaudio_library)
-        .as_ref()
-}
-
 /// Load one PulseAudio dynamic library and required symbol table.
-fn load_pulseaudio_library() -> Option<Arc<PulseAudioLibrary>> {
+fn load_pulseaudio_library() -> Result<Arc<PulseAudioLibrary>, String> {
     // try common PulseAudio simple-api soname candidates in deterministic order
-    for candidate in ["libpulse-simple.so.0", "libpulse-simple.so"] {
-        let Some(handle) = core_platform::open_dynamic_library(candidate) else {
-            continue;
-        };
+    let (library, api) = core_platform::load_library_with_api(
+        &["libpulse-simple.so.0", "libpulse-simple.so"],
+        load_pulseaudio_api,
+    )?;
 
-        // resolve all required PulseAudio simple symbols
-        let api = match load_pulseaudio_api(handle) {
-            Some(api) => api,
-            None => {
-                core_platform::close_dynamic_library(handle);
-
-                continue;
-            }
-        };
-
-        return Some(Arc::new(PulseAudioLibrary { handle, api }));
-    }
-
-    None
+    Ok(Arc::new(PulseAudioLibrary {
+        _library: library,
+        api,
+    }))
 }
 
 /// Load one PulseAudio symbol table from one open dynamic-library handle.
-fn load_pulseaudio_api(handle: *mut c_void) -> Option<PulseAudioApi> {
-    Some(PulseAudioApi {
-        pa_simple_new: core_platform::load_dynamic_symbol(handle, b"pa_simple_new\0")?,
-        pa_simple_free: core_platform::load_dynamic_symbol(handle, b"pa_simple_free\0")?,
-        pa_simple_read: core_platform::load_dynamic_symbol(handle, b"pa_simple_read\0")?,
-        pa_simple_write: core_platform::load_dynamic_symbol(handle, b"pa_simple_write\0")?,
-        pa_simple_flush: core_platform::load_dynamic_symbol(handle, b"pa_simple_flush\0")?,
-        pa_simple_drain: core_platform::load_dynamic_symbol(handle, b"pa_simple_drain\0")?,
-        pa_strerror: core_platform::load_dynamic_symbol(handle, b"pa_strerror\0")?,
+fn load_pulseaudio_api(
+    library: &core_platform::DynamicLibrary,
+    candidate: &str,
+) -> Result<PulseAudioApi, String> {
+    core_platform::load_dll_api_bytes!(library, candidate, PulseAudioApi {
+        pa_simple_new => b"pa_simple_new\0",
+        pa_simple_free => b"pa_simple_free\0",
+        pa_simple_read => b"pa_simple_read\0",
+        pa_simple_write => b"pa_simple_write\0",
+        pa_simple_flush => b"pa_simple_flush\0",
+        pa_simple_drain => b"pa_simple_drain\0",
+        pa_strerror => b"pa_strerror\0",
     })
 }
 
 /// Return one human-readable PulseAudio error string.
 fn pulseaudio_error_text(code: c_int) -> String {
-    let Some(library) = pulseaudio_library() else {
+    let Ok(library) = load_pulseaudio_library() else {
         return String::from("unknown error");
     };
 
@@ -232,11 +205,7 @@ fn pulseaudio_error_text(code: c_int) -> String {
 }
 
 /// Return whether one PulseAudio server is reachable from this process.
-fn pulseaudio_server_available() -> bool {
-    let Ok(library) = require_pulseaudio_library("destack.audio.device.list") else {
-        return false;
-    };
-
+fn pulseaudio_server_available(library: &PulseAudioLibrary) -> bool {
     let Ok(application_name) = c_string(PULSEAUDIO_APPLICATION_NAME, "applicationName") else {
         return false;
     };

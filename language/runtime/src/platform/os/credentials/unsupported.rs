@@ -1,4 +1,5 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::os::CredentialAuthenticationResult;
 use crate::runtime::BindingCallContext;
 
@@ -6,7 +7,7 @@ use super::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
-    OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, not_supported,
+    OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION,
 };
 
 /// Read one credential record from unsupported host backends.
@@ -14,7 +15,7 @@ pub(super) fn read_credentials(
     _context: &BindingCallContext,
     _query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
-    Err(not_supported(OS_CREDENTIALS_READ_OPERATION))
+    Err(core_platform::not_supported(OS_CREDENTIALS_READ_OPERATION))
 }
 
 /// Write one credential record to unsupported host backends.
@@ -22,7 +23,7 @@ pub(super) fn write_credentials(
     _context: &BindingCallContext,
     _options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
-    Err(not_supported(OS_CREDENTIALS_WRITE_OPERATION))
+    Err(core_platform::not_supported(OS_CREDENTIALS_WRITE_OPERATION))
 }
 
 /// Delete one credential record from unsupported host backends.
@@ -32,7 +33,9 @@ pub(super) fn delete_credentials(
     _account: &str,
     _access_group: Option<&str>,
 ) -> RuntimeResult<()> {
-    Err(not_supported(OS_CREDENTIALS_DELETE_OPERATION))
+    Err(core_platform::not_supported(
+        OS_CREDENTIALS_DELETE_OPERATION,
+    ))
 }
 
 /// Return whether one credential record exists in unsupported host backends.
@@ -42,7 +45,9 @@ pub(super) fn contains_credentials(
     _account: &str,
     _access_group: Option<&str>,
 ) -> RuntimeResult<bool> {
-    Err(not_supported(OS_CREDENTIALS_CONTAINS_OPERATION))
+    Err(core_platform::not_supported(
+        OS_CREDENTIALS_CONTAINS_OPERATION,
+    ))
 }
 
 /// Run one host authentication challenge on unsupported host backends.
@@ -50,5 +55,7 @@ pub(super) fn authenticate_credentials(
     _context: &BindingCallContext,
     _options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
-    Err(not_supported(OS_CREDENTIALS_AUTHENTICATE_OPERATION))
+    Err(core_platform::not_supported(
+        OS_CREDENTIALS_AUTHENTICATE_OPERATION,
+    ))
 }

@@ -1,9 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::UnixReceiveAncillary;
-use crate::platform::{NativeSlice, resource};
+use crate::platform::{NativeSlice, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-
-use super::core::{ensure_out, not_supported};
 
 /// Unix ancillary receive operation.
 const UNIX_RECEIVE_OPERATION: &str = "destack.ipc.unix.receive";
@@ -33,10 +31,10 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
     socket: resource::SocketHandle,
     maxhandles: u32,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let _ = (socket, maxhandles);
 
-    Err(not_supported(UNIX_RECEIVE_OPERATION))
+    Err(core_platform::not_supported(UNIX_RECEIVE_OPERATION))
 }
 
 /// Send payload and transferred handles.
@@ -63,8 +61,8 @@ pub(crate) unsafe fn destack_ipc_unix_send(
     argument_payload: NativeSlice<u8>,
     handles: NativeSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let _ = (socket, argument_payload, handles);
 
-    Err(not_supported(UNIX_SEND_OPERATION))
+    Err(core_platform::not_supported(UNIX_SEND_OPERATION))
 }

@@ -139,9 +139,7 @@ pub(super) fn directory_resource(
         "directory",
         |entry| {
             entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<DirectoryResource>())
+                .payload_ref::<DirectoryResource>()
                 .cloned()
                 .ok_or_else(|| {
                     RuntimeError::from(PlatformError::generic(

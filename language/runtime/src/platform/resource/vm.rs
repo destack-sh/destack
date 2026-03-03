@@ -2,89 +2,9 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::{ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership};
-use crate::platform::{PlatformError, PlatformErrorCode};
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
-
-/// Return a stable label for one resource kind.
-fn resource_kind_label(kind: ResourceKind) -> &'static str {
-    match kind {
-        ResourceKind::File => "file",
-        ResourceKind::Directory => "directory",
-        ResourceKind::Pipe => "pipe",
-        ResourceKind::Socket => "socket",
-        ResourceKind::Listener => "listener",
-        ResourceKind::Timer => "timer",
-        ResourceKind::TimerFd => "timer_fd",
-        ResourceKind::Watch => "watch",
-        ResourceKind::Process => "process",
-        ResourceKind::Poll => "poll",
-        ResourceKind::Completion => "completion",
-        ResourceKind::Event => "event",
-        ResourceKind::Uring => "uring",
-        ResourceKind::ProcessFd => "process_fd",
-        ResourceKind::SharedMemory => "shared_memory",
-        ResourceKind::Semaphore => "semaphore",
-        ResourceKind::Signal => "signal",
-        ResourceKind::SignalFd => "signal_fd",
-        ResourceKind::Thread => "thread",
-        ResourceKind::Mutex => "mutex",
-        ResourceKind::RwLock => "rw_lock",
-        ResourceKind::CondVar => "cond_var",
-        ResourceKind::ThreadSemaphore => "thread_semaphore",
-        ResourceKind::Barrier => "barrier",
-        ResourceKind::ThreadLocal => "thread_local",
-        ResourceKind::Library => "library",
-        ResourceKind::Symbol => "symbol",
-        ResourceKind::CryptoStore => "crypto_store",
-        ResourceKind::CryptoKey => "crypto_key",
-        ResourceKind::CryptoCertificate => "crypto_certificate",
-        ResourceKind::CryptoDigest => "crypto_digest",
-        ResourceKind::CryptoMac => "crypto_mac",
-        ResourceKind::CryptoCipher => "crypto_cipher",
-        ResourceKind::TlsContext => "tls_context",
-        ResourceKind::TlsSession => "tls_session",
-        ResourceKind::Device => "device",
-        ResourceKind::Pty => "pty",
-        ResourceKind::Tty => "tty",
-        ResourceKind::Sandbox => "sandbox",
-        ResourceKind::Inspector => "inspector",
-        ResourceKind::Profile => "profile",
-        ResourceKind::Trace => "trace",
-        ResourceKind::Transferred => "transferred",
-        ResourceKind::MessageQueue => "message_queue",
-        ResourceKind::AudioDevice => "audio_device",
-        ResourceKind::AudioStream => "audio_stream",
-        ResourceKind::AudioEvent => "audio_event",
-        ResourceKind::Display => "display",
-        ResourceKind::Window => "window",
-        ResourceKind::Input => "input",
-        ResourceKind::GpuAdapter => "gpu_adapter",
-        ResourceKind::GpuDevice => "gpu_device",
-        ResourceKind::GpuQueue => "gpu_queue",
-        ResourceKind::GpuCommandList => "gpu_command_list",
-        ResourceKind::GpuMemory => "gpu_memory",
-        ResourceKind::GpuBuffer => "gpu_buffer",
-        ResourceKind::GpuTexture => "gpu_texture",
-        ResourceKind::GpuSampler => "gpu_sampler",
-        ResourceKind::GpuShader => "gpu_shader",
-        ResourceKind::GpuPipeline => "gpu_pipeline",
-        ResourceKind::Unknown => "unknown",
-    }
-}
-
-/// Build one io not found error for missing resources.
-fn resource_not_found(op: &'static str, id: ResourceId) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoNotFound),
-        None,
-        None,
-        Some(op.to_string()),
-        None,
-        format!("resource {} not found", id.0),
-    ))
-    .boxed()
-}
 
 /// Close a resource by identifier.
 ///
@@ -114,7 +34,10 @@ pub(crate) fn destack_resource_close(
         .resources
         .remove_and_finalize(id, Some(runtime.engine()));
     if !removed {
-        return Err(resource_not_found("destack.resource.id.close", id));
+        return Err(core_platform::io_not_found(
+            "destack.resource.id.close",
+            format!("resource {} not found", id.0),
+        ));
     }
 
     Ok(())
@@ -143,14 +66,15 @@ pub(crate) fn destack_resource_kind(
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
     // resolve the kind for the requested resource
-    let kind = runtime
-        .runtime()
-        .resources
-        .with_entry(id, |entry| entry.kind)
-        .ok_or_else(|| resource_not_found("destack.resource.id.kind", id))?;
+    let kind = super::with_any_entry(runtime, id, |entry| entry.kind).ok_or_else(|| {
+        core_platform::io_not_found(
+            "destack.resource.id.kind",
+            format!("resource {} not found", id.0),
+        )
+    })?;
 
     // encode the kind label as the vm-facing payload
-    let label = resource_kind_label(kind);
+    let label = kind.label();
     let handle = vm::StringHandle::new(context.intern_string(label));
 
     Ok(ResourceKindVm(handle))
@@ -184,7 +108,10 @@ pub(crate) fn destack_resource_remove(
         .resources
         .remove_and_finalize(id, Some(runtime.engine()));
     if !removed {
-        return Err(resource_not_found("destack.resource.id.remove", id));
+        return Err(core_platform::io_not_found(
+            "destack.resource.id.remove",
+            format!("resource {} not found", id.0),
+        ));
     }
 
     Ok(())
@@ -216,7 +143,10 @@ pub(crate) fn destack_resource_transfer(
     // validate that the source resource exists
     let exists = runtime.runtime().resources.contains(id);
     if !exists {
-        return Err(resource_not_found("destack.resource.id.transfer", id));
+        return Err(core_platform::io_not_found(
+            "destack.resource.id.transfer",
+            format!("resource {} not found", id.0),
+        ));
     }
 
     // keep ownership consumed for future runtime ownership policy

@@ -11,6 +11,16 @@ use crate::platform::net::{RouteEntry, RouteEntryVm, RouteKind};
 use crate::platform::resource::{ResourceId, SocketHandle};
 #[cfg(windows)]
 use destack_workspace::{PlatformWindowsPacketBackend, RuntimeOptions};
+#[cfg(windows)]
+use windows_sys::Win32::Networking::WinSock::IPPROTO_RAW;
+
+/// Raw protocol identifier used for raw-socket tests.
+#[cfg(unix)]
+const RAW_PROTOCOL: i32 = libc::IPPROTO_RAW;
+
+/// Raw protocol identifier used for raw-socket tests.
+#[cfg(windows)]
+const RAW_PROTOCOL: i32 = IPPROTO_RAW as i32;
 
 /// Return route-list snapshots where supported and surface notSupported elsewhere.
 #[test]
@@ -225,7 +235,7 @@ fn test_net_route_add_delete_ipv6_rejects_invalid_prefix_length() {
 fn test_net_raw_socket_and_header_included_lanes() {
     with_harness_context(|mut context| {
         // open one raw socket and handle host capability outcomes explicitly
-        let socket = context.destack_net_raw_socket(SocketFamily::IPv4, libc::IPPROTO_RAW);
+        let socket = context.destack_net_raw_socket(SocketFamily::IPv4, RAW_PROTOCOL);
         let socket = match socket {
             Ok(socket) => socket,
             Err(error) => {

@@ -46,7 +46,8 @@ use crate::platform::crypto::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::core::{invalid_argument, invalid_data, not_found, not_supported, permission_denied};
+use super::core::{invalid_data, permission_denied};
+use crate::platform::core as core_platform;
 
 /// Usage-bit mask for sign operations.
 const KEY_USAGE_SIGN: u32 = 0x0000_0001;
@@ -89,7 +90,7 @@ fn status_is_key_not_found(status: i32) -> bool {
 fn status_error(operation: &'static str, action: &'static str, status: i32) -> Box<RuntimeError> {
     // map missing-key statuses into ioNotFound
     if status_is_key_not_found(status) {
-        return not_found(
+        return core_platform::io_not_found(
             operation,
             format!("{action} failed because one host key was not found"),
         );
@@ -97,7 +98,7 @@ fn status_error(operation: &'static str, action: &'static str, status: i32) -> B
 
     // map explicit unsupported statuses into notSupported
     if status == NTE_NOT_SUPPORTED {
-        return not_supported(operation);
+        return core_platform::not_supported(operation);
     }
 
     // map argument failures into ioInvalidData
@@ -201,10 +202,10 @@ fn secret_algorithm_name(
             return Ok(NCRYPT_HMAC_SHA256_ALGORITHM);
         }
 
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Return one UTF-16 property value length in bytes.
@@ -382,12 +383,12 @@ fn open_persisted_key_for_backend(
     operation: &'static str,
 ) -> RuntimeResult<(NCRYPT_PROV_HANDLE, NCRYPT_KEY_HANDLE)> {
     let Some(provider_kind) = provider_kind_from_backend(backend) else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
 
     // enforce explicit user or machine lane provenance for persisted windows host keys
     if kind != CryptoStoreKind::User && kind != CryptoStoreKind::Machine {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     open_persisted_key_with_kind(provider_kind, kind, key_label, operation)
@@ -404,7 +405,7 @@ fn signature_digest_metadata(
         CryptoDigestAlgorithm::Sha256 => (MessageDigest::sha256(), NCRYPT_SHA256_ALGORITHM),
         CryptoDigestAlgorithm::Sha384 => (MessageDigest::sha384(), NCRYPT_SHA384_ALGORITHM),
         CryptoDigestAlgorithm::Sha512 => (MessageDigest::sha512(), NCRYPT_SHA512_ALGORITHM),
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     Ok(metadata)
@@ -829,7 +830,7 @@ fn generate_persistent_key_pair_with_provider(
                 .map_err(|error| invalid_data(operation, format!("{error}")))?;
             let backend =
                 backend_for_provider_and_algorithm(provider_kind, CryptoKeyAlgorithm::Rsa)
-                    .ok_or_else(|| not_supported(operation))?;
+                    .ok_or_else(|| core_platform::not_supported(operation))?;
             let private_material = HostKeyMaterial {
                 backend,
                 key_label: persistent_key_label.to_string(),
@@ -966,7 +967,7 @@ fn generate_persistent_key_pair_with_provider(
                 .public_key_to_der()
                 .map_err(|error| invalid_data(operation, format!("{error}")))?;
             let backend = backend_for_provider_and_algorithm(provider_kind, CryptoKeyAlgorithm::Ec)
-                .ok_or_else(|| not_supported(operation))?;
+                .ok_or_else(|| core_platform::not_supported(operation))?;
             let private_material = HostKeyMaterial {
                 backend,
                 key_label: persistent_key_label.to_string(),
@@ -1020,7 +1021,7 @@ fn encode_ecdh_public_blob_from_spki(
     // resolve one supported named curve and encode SEC1 point bytes
     let Some((resolved_curve, _, curve_nid)) = crypto_core::resolve_nist_p_curve(named_curve)
     else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
     let group = EcGroup::from_curve_name(curve_nid)
         .map_err(|error| invalid_data(operation, format!("{error}")))?;
@@ -1047,7 +1048,7 @@ fn encode_ecdh_public_blob_from_spki(
     }
     let coordinate_size = coordinates.len() / 2;
     let Some(public_magic) = ecdh_public_magic_for_curve(resolved_curve) else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
     let header = BCRYPT_ECCKEY_BLOB {
         dwMagic: public_magic,
@@ -1286,7 +1287,7 @@ fn encrypt_with_persisted_aes_key(
 ) -> RuntimeResult<Vec<u8>> {
     // enforce one AES-CBC IV length
     if nonce.len() != AES_BLOCK_SIZE_BYTES {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.nonce",
             "aes-cbc host key nonce must be 16 bytes",
         ));
@@ -1360,7 +1361,7 @@ fn decrypt_with_persisted_aes_key(
 ) -> RuntimeResult<Vec<u8>> {
     // enforce one AES-CBC IV length
     if nonce.len() != AES_BLOCK_SIZE_BYTES {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.nonce",
             "aes-cbc host key nonce must be 16 bytes",
         ));
@@ -1572,7 +1573,7 @@ fn probe_platform_secret_key_support(kind: CryptoStoreKind, algorithm: CryptoKey
         } else if algorithm == CryptoKeyAlgorithm::Hmac {
             probe_generated_platform_hmac_key(key, operation)?;
         } else {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         Ok(())
@@ -1646,12 +1647,12 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 ) -> RuntimeResult<HostGeneratedKeyPair> {
     // hardware-backed lanes are exposed on persistent user and machine stores
     if !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // hardware-backed pair generation currently supports RSA and EC families
     if !matches!(algorithm, CryptoKeyAlgorithm::Rsa | CryptoKeyAlgorithm::Ec) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     let generated = generate_persistent_key_pair_with_provider(
@@ -1666,7 +1667,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
         operation,
     )?;
     let Some(generated) = generated else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
 
     Ok(generated)
@@ -1685,12 +1686,12 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
 ) -> RuntimeResult<HostKeyMaterial> {
     // hardware-backed secret lanes are exposed on persistent user and machine stores
     if !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // resolve backend and CNG algorithm selectors for the requested lane
     let Some(backend) = secret_backend_for_algorithm(algorithm) else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
     let algorithm_name = secret_algorithm_name(algorithm, digest, operation)?;
 
@@ -1740,7 +1741,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
         } else if algorithm == CryptoKeyAlgorithm::Hmac {
             probe_generated_platform_hmac_key(key, operation)?;
         } else {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         should_delete_key = false;
@@ -1907,7 +1908,7 @@ pub(crate) fn host_key_sign(
 ) -> RuntimeResult<Vec<u8>> {
     // enforce one supported windows host-key backend lane
     if provider_kind_from_backend(key.backend).is_none() {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // resolve digest metadata and hash the payload before signing
@@ -1942,7 +1943,7 @@ pub(crate) fn host_key_sign(
                     (&mut pss_padding as *mut BCRYPT_PSS_PADDING_INFO).cast(),
                     NCRYPT_PAD_PSS_FLAG,
                 ),
-                _ => return Err(not_supported(operation)),
+                _ => return Err(core_platform::not_supported(operation)),
             };
 
             let mut signature_size = 0u32;
@@ -1994,7 +1995,7 @@ pub(crate) fn host_key_sign(
         // ec signing
         if algorithm == CryptoKeyAlgorithm::Ec {
             if parameters.algorithm != CryptoSignatureAlgorithm::Ecdsa {
-                return Err(not_supported(operation));
+                return Err(core_platform::not_supported(operation));
             }
 
             let mut signature_size = 0u32;
@@ -2044,7 +2045,7 @@ pub(crate) fn host_key_sign(
             return Ok(signature);
         }
 
-        Err(not_supported(operation))
+        Err(core_platform::not_supported(operation))
     })();
 
     // release both key and provider handles before returning
@@ -2070,7 +2071,7 @@ pub(crate) fn host_key_decrypt(
         HostKeyBackend::WindowsSoftwareKeyStorageRsa | HostKeyBackend::WindowsPlatformKeyStorageRsa
     ) || algorithm != CryptoKeyAlgorithm::Rsa
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // decode the optional OAEP label now so pointers stay valid for CNG calls
@@ -2097,7 +2098,7 @@ pub(crate) fn host_key_decrypt(
                 NCRYPT_PAD_OAEP_FLAG,
             )
         }
-        _ => return Err(not_supported(operation)),
+        _ => return Err(core_platform::not_supported(operation)),
     };
 
     // open one persisted key and call NCryptDecrypt in two passes
@@ -2166,10 +2167,10 @@ pub(crate) fn host_key_delete(
 ) -> RuntimeResult<()> {
     // enforce one supported windows host-key backend lane
     let Some(provider_kind) = provider_kind_from_backend(key.backend) else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
     if kind != CryptoStoreKind::User && kind != CryptoStoreKind::Machine {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // open one persisted key with explicit store provenance
@@ -2213,10 +2214,10 @@ pub(crate) fn host_key_derive_shared_secret(
         HostKeyBackend::WindowsSoftwareKeyStorageEc | HostKeyBackend::WindowsPlatformKeyStorageEc
     ) || algorithm != CryptoKeyAlgorithm::Ec
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if crypto_core::resolve_nist_p_curve(named_curve).is_none() {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // open one persisted host private key and import peer public key
@@ -2328,27 +2329,27 @@ pub(crate) fn host_key_cipher_encrypt(
         || algorithm != CryptoKeyAlgorithm::Aes
         || !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine)
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // enforce AES-CBC lane semantics for this backend
     if parameters.algorithm != CryptoCipherAlgorithm::AesCbc {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if parameters.tag_length_bytes != 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.tagLengthBytes",
             "host aes-cbc does not produce authentication tags",
         ));
     }
     if parameters.tag.len != 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.tag",
             "host aes-cbc requires one empty decryption tag",
         ));
     }
     if parameters.additional_data.len != 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.additionalData",
             "host aes-cbc does not support additional authenticated data",
         ));
@@ -2383,27 +2384,27 @@ pub(crate) fn host_key_cipher_decrypt(
         || algorithm != CryptoKeyAlgorithm::Aes
         || !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine)
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // enforce AES-CBC lane semantics for this backend
     if parameters.algorithm != CryptoCipherAlgorithm::AesCbc {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if parameters.tag_length_bytes != 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.tagLengthBytes",
             "host aes-cbc does not consume authentication tag-length selectors",
         ));
     }
     if parameters.tag.len != 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.tag",
             "host aes-cbc requires one empty decryption tag",
         ));
     }
     if parameters.additional_data.len != 0 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.additionalData",
             "host aes-cbc does not support additional authenticated data",
         ));
@@ -2436,17 +2437,17 @@ pub(crate) fn host_key_mac_compute(
         || algorithm != CryptoKeyAlgorithm::Hmac
         || !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine)
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // enforce HMAC-SHA256 lane semantics for this backend
     if parameters.algorithm != CryptoMacAlgorithm::Hmac {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if parameters.digest != CryptoDigestAlgorithm::Unknown
         && parameters.digest != CryptoDigestAlgorithm::Sha256
     {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // compute tag bytes from one persisted host key
@@ -2461,7 +2462,7 @@ pub(crate) fn host_key_mac_compute(
     if parameters.tag_length_bytes != 0 {
         let length = parameters.tag_length_bytes as usize;
         if length > tag.len() {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.tagLengthBytes",
                 "tag length must be at most host hmac output size",
             ));

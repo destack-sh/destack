@@ -9,7 +9,9 @@ use crate::platform::audio::{
     AudioShareMode, core as audio_core,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::platform::{
+    NativeSlice, NativeStringRef, PlatformError, core as core_platform, resource,
+};
 use crate::runtime::BindingCallContext;
 
 /// List host audio backends.
@@ -104,7 +106,7 @@ pub(crate) unsafe fn destack_audio_device_close(
         .resources
         .remove(handle.0, Some(context.engine()));
     if removed.is_none() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.device.close",
             format!("unknown audio device handle {}", handle.0.0),
         ));
@@ -182,7 +184,7 @@ pub(crate) unsafe fn destack_audio_device_default(
             .or_else(|| devices.first()),
     }
     .ok_or_else(|| {
-        audio_core::audio_not_found(
+        core_platform::io_not_found(
             "destack.audio.device.default",
             "no default audio device available",
         )
@@ -319,7 +321,7 @@ pub(crate) unsafe fn destack_audio_device_open(
             "audio:null:duplex" => audio_core::null_device(AudioDeviceDirection::Duplex),
             "audio:null:loopback" => audio_core::null_device(AudioDeviceDirection::Loopback),
             _ => {
-                return Err(audio_core::audio_not_found(
+                return Err(core_platform::io_not_found(
                     "destack.audio.device.open",
                     format!("unknown null backend device id: {id}"),
                 ));

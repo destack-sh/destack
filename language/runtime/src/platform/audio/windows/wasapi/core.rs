@@ -13,11 +13,11 @@ use super::host::{channel_layout, channel_mask, failed, hresult_error, initializ
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::core as core_platform;
 
 use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
 use windows_sys::Win32::Media::Audio::{EDataFlow, IAudioClient, eCapture, eRender};
 use windows_sys::Win32::System::Com::CoUninitialize;
-use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 
 /// Return whether WASAPI backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
@@ -29,27 +29,12 @@ pub(crate) fn is_stream_supported() -> bool {
     true
 }
 
-/// One cached QueryPerformanceCounter frequency.
-static WASAPI_QPC_FREQUENCY: OnceLock<u64> = OnceLock::new();
 /// One stable offset that maps QPC time into runtime monotonic nanoseconds.
 static WASAPI_QPC_TO_MONO_OFFSET_NS: OnceLock<i128> = OnceLock::new();
 
-/// Return one cached QueryPerformanceCounter frequency.
-pub(super) fn qpc_frequency_hz() -> u64 {
-    *WASAPI_QPC_FREQUENCY.get_or_init(|| {
-        let mut frequency = 0i64;
-        let status = unsafe { QueryPerformanceFrequency(&mut frequency) };
-        if status == 0 || frequency <= 0 {
-            return 0;
-        }
-
-        frequency as u64
-    })
-}
-
 /// Convert one raw QPC tick value into 100ns units.
 pub(super) fn qpc_ticks_to_hundred_nanos(qpc_ticks: u64) -> Option<u64> {
-    let frequency = qpc_frequency_hz();
+    let frequency = core_platform::qpc_frequency_hz();
     if frequency == 0 {
         return None;
     }
@@ -62,13 +47,8 @@ pub(super) fn qpc_ticks_to_hundred_nanos(qpc_ticks: u64) -> Option<u64> {
 
 /// Sample current QPC time in 100ns units.
 pub(super) fn qpc_now_hundred_nanos() -> Option<u64> {
-    let mut counter = 0i64;
-    let status = unsafe { QueryPerformanceCounter(&mut counter) };
-    if status == 0 || counter < 0 {
-        return None;
-    }
-
-    qpc_ticks_to_hundred_nanos(counter as u64)
+    let counter = core_platform::qpc_now_ticks()?;
+    qpc_ticks_to_hundred_nanos(counter)
 }
 
 /// Convert one WASAPI QPC timestamp in 100ns units into runtime monotonic nanoseconds.

@@ -1,17 +1,13 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::memory::{
     MemoryProtection, MemoryRemapFlags, ProtectedMemoryRange, core as memory_core,
 };
 use crate::runtime::BindingCallContext;
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
-use super::core::mapped_address;
 use super::core::{
-    REMAP_OPERATION, decode_remap_flags, io_error, page_size, unix_protection, validated_range,
+    REMAP_OPERATION, decode_remap_flags, page_size, unix_protection, validated_range,
 };
-#[cfg(any(target_os = "linux", target_os = "android"))]
-use memory_core::usize_to_u64;
-use memory_core::{ensure_out, not_supported};
 
 /// Change memory protection for one range.
 pub(crate) unsafe fn destack_memory_protect(
@@ -28,7 +24,7 @@ pub(crate) unsafe fn destack_memory_protect(
     // apply memory protection change
     let status = unsafe { libc::mprotect(pointer, length, protection) };
     if status != 0 {
-        return Err(io_error("mprotect"));
+        return Err(core_platform::io_error("mprotect", None));
     }
 
     Ok(())
@@ -44,7 +40,7 @@ pub(crate) unsafe fn destack_memory_remap(
     flags: MemoryRemapFlags,
 ) -> RuntimeResult<()> {
     // validate output pointer and remap parameters
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let page_size = page_size()?;
     let (pointer, old_length) = validated_range(address, oldlength, page_size)?;
     let new_length = memory_core::nonzero_length(newlength, "newLength")?;
@@ -64,11 +60,11 @@ pub(crate) unsafe fn destack_memory_remap(
         // resize the mapping and return the new range
         let remapped = unsafe { libc::mremap(pointer, old_length, new_length, native_flags) };
         if remapped == libc::MAP_FAILED {
-            return Err(io_error("mremap"));
+            return Err(core_platform::io_error("mremap", None));
         }
 
-        let remapped_address = mapped_address(remapped, "out.address")?;
-        let remapped_length = usize_to_u64(new_length, "out.length")?;
+        let remapped_address = core_platform::usize_to_u64(remapped as usize, "out.address")?;
+        let remapped_length = core_platform::usize_to_u64(new_length, "out.length")?;
         unsafe {
             out.write(ProtectedMemoryRange {
                 address: remapped_address,
@@ -83,7 +79,7 @@ pub(crate) unsafe fn destack_memory_remap(
     {
         // mark remap as unsupported on this backend
         let _ = (pointer, old_length, new_length, may_move);
-        Err(not_supported(REMAP_OPERATION))
+        Err(core_platform::not_supported(REMAP_OPERATION))
     }
 }
 

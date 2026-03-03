@@ -2,9 +2,9 @@
 use std::ffi::CStr;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::HostIdentity;
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 use super::backend;
@@ -25,15 +25,6 @@ pub(super) struct HostIdentityOwned {
     pub architecture: String,
 }
 
-/// Validate one output pointer argument.
-pub(super) fn ensure_out<T>(out: *mut T, field: &'static str) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer(field)).boxed());
-    }
-
-    Ok(())
-}
-
 /// Build one ioInvalidData runtime error.
 pub(super) fn invalid_data(
     operation: &'static str,
@@ -48,12 +39,6 @@ pub(super) fn invalid_data(
         message.into(),
     ))
     .boxed()
-}
-
-#[cfg(not(any(unix, windows)))]
-/// Build one notSupported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
 }
 
 #[cfg(unix)]
@@ -116,7 +101,7 @@ pub(crate) unsafe fn destack_os_host_identity(
     out: *mut HostIdentity,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     // read one normalized host identity payload
     let identity = backend::read_host_identity(context)?;

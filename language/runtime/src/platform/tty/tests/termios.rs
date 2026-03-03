@@ -157,10 +157,10 @@ fn test_tty_termios_roundtrip_or_not_supported() {
                 HarnessValue::Native(value) => context.harness_value(value.control_characters),
                 HarnessValue::Vm(value) => context.harness_value_vm(value.control_characters),
             };
-            let control_characters = context.bytes_from_value(control_characters)?;
+            let _control_characters = context.bytes_from_value(control_characters)?;
             #[cfg(unix)]
             {
-                assert_eq!(control_characters.len(), libc::NCCS);
+                assert_eq!(_control_characters.len(), libc::NCCS);
             }
 
             context.destack_tty_termios_set_attributes(

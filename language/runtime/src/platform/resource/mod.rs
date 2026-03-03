@@ -14,6 +14,11 @@ pub mod vm;
 
 pub use bindings_generated::*;
 pub use handle::*;
+#[cfg(windows)]
+pub(crate) use resolve::require_payload_with;
+pub(crate) use resolve::{
+    require_payload, resolve_payload, with_any_entry, with_entry, with_entry_mut, with_payload,
+};
 pub use snapshot::{
     ResourceDescriptor, ResourceSnapshot, ResourceSnapshotAdapter, ResourceSnapshotPolicy,
 };

@@ -34,11 +34,6 @@ pub(super) fn permission_denied(
     .boxed()
 }
 
-/// Return one invalidArgument runtime error.
-pub(super) fn invalid_argument(field: &str, message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(field, message)).boxed()
-}
-
 /// Return one ioInvalidData runtime error.
 pub(super) fn invalid_data(
     operation: &'static str,
@@ -53,24 +48,6 @@ pub(super) fn invalid_data(
         message.into(),
     ))
     .boxed()
-}
-
-/// Return one ioNotFound runtime error.
-pub(super) fn not_found(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoNotFound),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
-}
-
-/// Return one notSupported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
 }
 
 pub(super) fn windows_keystore_path(

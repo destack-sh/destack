@@ -93,7 +93,10 @@ pub(crate) fn run() {
         &platform_modules,
         options.domains.as_ref(),
     );
-    let analysis_modules = selected_modules.clone();
+
+    // keep analysis global so cross-domain imported binding types remain typed
+    // domain filtering is applied at collection and emission time only
+    let analysis_modules = platform_modules.clone();
 
     // run analysis passes before extraction
     analyze_platform_modules(

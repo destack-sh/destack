@@ -1,15 +1,12 @@
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use std::sync::OnceLock;
-
-#[cfg(any(target_os = "linux", target_os = "windows"))]
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
 };
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 use super::backend;
@@ -156,7 +153,7 @@ pub(crate) fn write_credentials(
 
     // reject empty payload writes because this lane stores binary secrets
     if options.bytes.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "options.bytes",
             "credential payload cannot be empty",
         ));
@@ -216,11 +213,6 @@ pub(crate) fn authenticate_credentials(
     backend::authenticate_credentials(context, options)
 }
 
-/// Build one invalidArgument runtime error.
-pub(crate) fn invalid_argument(field: &str, message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(field, message)).boxed()
-}
-
 /// Build one ioInvalidData runtime error.
 pub(crate) fn invalid_data(
     operation: &'static str,
@@ -228,19 +220,6 @@ pub(crate) fn invalid_data(
 ) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::IoInvalidData),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
-}
-
-/// Build one ioNotFound runtime error.
-pub(crate) fn not_found(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoNotFound),
         None,
         None,
         Some(operation.to_string()),
@@ -322,17 +301,30 @@ pub(crate) fn interrupted(
     .boxed()
 }
 
-/// Build one notSupported runtime error.
-pub(crate) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
+/// Runtime-local guard state for no-replace credential writes.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+#[derive(Debug, Default)]
+struct NoReplaceWriteRuntimeState {
+    /// In-process mutex for check-then-write serialization.
+    lock: Mutex<()>,
 }
 
-/// Acquire one process-local guard for strict no-replace credential writes.
+/// Execute one closure under one runtime-local no-replace write guard.
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-pub(crate) fn no_replace_write_guard() -> MutexGuard<'static, ()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+pub(crate) fn with_no_replace_write_guard<R>(
+    context: &BindingCallContext,
+    execute: impl FnOnce() -> RuntimeResult<R>,
+) -> RuntimeResult<R> {
+    // resolve one runtime-local lock holder for credential writes
+    let runtime_state = context
+        .runtime()
+        .module_state
+        .get_or_init(NoReplaceWriteRuntimeState::default);
 
-    LOCK.get_or_init(|| Mutex::new(())).lock()
+    // serialize one check-then-write sequence for this runtime
+    let _guard = runtime_state.lock.lock();
+
+    execute()
 }
 
 /// Validate one service and account pair.
@@ -344,7 +336,7 @@ fn validate_service_account(
 ) -> RuntimeResult<()> {
     // reject empty services because host credential managers index by service namespace
     if service.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             &format!("{field_scope}.service"),
             format!("{operation}: service cannot be empty"),
         ));
@@ -352,7 +344,7 @@ fn validate_service_account(
 
     // reject empty accounts because host credential managers index by account key
     if account.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             &format!("{field_scope}.account"),
             format!("{operation}: account cannot be empty"),
         ));
@@ -375,7 +367,7 @@ fn validate_authentication_prompt(
 
     // reject fully empty prompts to keep host ui intent explicit
     if title.is_empty() && subtitle.is_empty() && message.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "options",
             "at least one authentication prompt field must be non-empty",
         ));

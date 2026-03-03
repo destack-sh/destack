@@ -1,10 +1,11 @@
 use windows_sys::Win32::System::Memory::{VirtualLock, VirtualUnlock};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::memory::core as memory_core;
 use crate::runtime::BindingCallContext;
 
-use super::core::{io_error, page_size};
+use super::core::page_size;
 
 /// Lock one memory range into physical memory.
 pub(crate) unsafe fn destack_memory_lock(
@@ -22,7 +23,7 @@ pub(crate) unsafe fn destack_memory_lock(
     // lock pages into physical memory
     let status = unsafe { VirtualLock(address as *mut core::ffi::c_void, length) };
     if status == 0 {
-        return Err(io_error("VirtualLock"));
+        return Err(core_platform::io_error("VirtualLock"));
     }
 
     Ok(())
@@ -44,7 +45,7 @@ pub(crate) unsafe fn destack_memory_unlock(
     // release page lock
     let status = unsafe { VirtualUnlock(address as *mut core::ffi::c_void, length) };
     if status == 0 {
-        return Err(io_error("VirtualUnlock"));
+        return Err(core_platform::io_error("VirtualUnlock"));
     }
 
     Ok(())

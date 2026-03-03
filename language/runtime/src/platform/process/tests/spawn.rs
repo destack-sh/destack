@@ -1,12 +1,14 @@
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 
+#[cfg(unix)]
+use super::ProcessFdActionKind;
 #[cfg(windows)]
 use super::with_native_harness_context;
 use super::{
-    ProcessFdActionKind, ProcessFdActionSpec, ProcessSpawnOptionsSpec, ProcessStdioKind,
-    ProcessStdioSpec, ProcessWaitKind, shell_exit_command, shell_sleep_then_exit_command,
-    spawn_shell, with_harness_context,
+    ProcessFdActionSpec, ProcessSpawnOptionsSpec, ProcessStdioKind, ProcessStdioSpec,
+    ProcessWaitKind, shell_exit_command, shell_sleep_then_exit_command, spawn_shell,
+    with_harness_context,
 };
 #[cfg(unix)]
 use super::{assert_platform_error_code, assert_platform_error_codes, is_would_block};

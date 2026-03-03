@@ -24,9 +24,10 @@ use security_framework_sys::key::{
 };
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::{CryptoDigestAlgorithm, CryptoNamedCurve};
 
-use super::core::{invalid_data, not_supported};
+use super::super::core::invalid_data;
 
 /// Return one supported keychain ec curve id.
 pub(crate) fn keychain_ec_curve_nid(named_curve: CryptoNamedCurve) -> Option<Nid> {
@@ -201,7 +202,7 @@ pub(crate) fn ecdsa_signature_algorithm(
             CryptoDigestAlgorithm::Sha256 => kSecKeyAlgorithmECDSASignatureMessageX962SHA256,
             CryptoDigestAlgorithm::Sha384 => kSecKeyAlgorithmECDSASignatureMessageX962SHA384,
             CryptoDigestAlgorithm::Sha512 => kSecKeyAlgorithmECDSASignatureMessageX962SHA512,
-            _ => return Err(not_supported(operation)),
+            _ => return Err(core_platform::not_supported(operation)),
         }
     };
 

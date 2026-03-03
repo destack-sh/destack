@@ -1,4 +1,5 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationResult,
 };
@@ -9,7 +10,7 @@ use super::super::core::{
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
     OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists, invalid_data,
-    no_replace_write_guard, not_found, not_supported, permission_denied,
+    permission_denied, with_no_replace_write_guard,
 };
 use super::core::{map_keyring_error, open_keyring_entry, write_entry_secret};
 
@@ -20,12 +21,12 @@ pub(super) fn read_credentials(
 ) -> RuntimeResult<CredentialRecordOwned> {
     // reject access-group routes because linux keyring has no access-group model
     if query.access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_READ_OPERATION));
+        return Err(core_platform::not_supported(OS_CREDENTIALS_READ_OPERATION));
     }
 
     // reject auth-required reads because this backend has no interactive auth lane
     if query.require_authentication {
-        return Err(not_supported(OS_CREDENTIALS_READ_OPERATION));
+        return Err(core_platform::not_supported(OS_CREDENTIALS_READ_OPERATION));
     }
 
     // resolve one keyring entry from service and account
@@ -57,38 +58,39 @@ pub(super) fn write_credentials(
 ) -> RuntimeResult<()> {
     // reject access-group routes because linux keyring has no access-group model
     if options.access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_WRITE_OPERATION));
+        return Err(core_platform::not_supported(OS_CREDENTIALS_WRITE_OPERATION));
     }
 
     // reject accessibility classes that this backend cannot enforce
     if options.accessibility != CredentialAccessibility::HostDefault {
-        return Err(not_supported(OS_CREDENTIALS_WRITE_OPERATION));
+        return Err(core_platform::not_supported(OS_CREDENTIALS_WRITE_OPERATION));
     }
 
     // reject authentication policies that this backend cannot enforce
     if options.authentication != CredentialAuthenticationPolicy::None {
-        return Err(not_supported(OS_CREDENTIALS_WRITE_OPERATION));
+        return Err(core_platform::not_supported(OS_CREDENTIALS_WRITE_OPERATION));
     }
 
     // reject duplicate writes when replacement is disabled
     if !options.replace_existing {
-        // serialize check-then-write in-process: this is strict per process, not cross-process atomic
-        let _guard = no_replace_write_guard();
-        let exists = contains_credentials(context, &options.service, &options.account, None)?;
-        if exists {
-            return Err(already_exists(
-                OS_CREDENTIALS_WRITE_OPERATION,
-                "credential already exists and replaceExisting is false",
-            ));
-        }
+        // serialize check-then-write in-runtime: this is strict per runtime, not cross-process atomic
+        return with_no_replace_write_guard(context, || {
+            let exists = contains_credentials(context, &options.service, &options.account, None)?;
+            if exists {
+                return Err(already_exists(
+                    OS_CREDENTIALS_WRITE_OPERATION,
+                    "credential already exists and replaceExisting is false",
+                ));
+            }
 
-        // write the new secret while the no-replace guard is held
-        return write_entry_secret(
-            &options.service,
-            &options.account,
-            &options.bytes,
-            OS_CREDENTIALS_WRITE_OPERATION,
-        );
+            // write the new secret while the no-replace guard is held
+            write_entry_secret(
+                &options.service,
+                &options.account,
+                &options.bytes,
+                OS_CREDENTIALS_WRITE_OPERATION,
+            )
+        });
     }
 
     // write one replacement secret payload
@@ -109,7 +111,9 @@ pub(super) fn delete_credentials(
 ) -> RuntimeResult<()> {
     // reject access-group routes because linux keyring has no access-group model
     if access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_DELETE_OPERATION));
+        return Err(core_platform::not_supported(
+            OS_CREDENTIALS_DELETE_OPERATION,
+        ));
     }
 
     // resolve one keyring entry from service and account
@@ -137,7 +141,9 @@ pub(super) fn contains_credentials(
 ) -> RuntimeResult<bool> {
     // reject access-group routes because linux keyring has no access-group model
     if access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_CONTAINS_OPERATION));
+        return Err(core_platform::not_supported(
+            OS_CREDENTIALS_CONTAINS_OPERATION,
+        ));
     }
 
     // resolve one keyring entry from service and account
@@ -171,5 +177,7 @@ pub(super) fn authenticate_credentials(
     _context: &BindingCallContext,
     _options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
-    Err(not_supported(OS_CREDENTIALS_AUTHENTICATE_OPERATION))
+    Err(core_platform::not_supported(
+        OS_CREDENTIALS_AUTHENTICATE_OPERATION,
+    ))
 }

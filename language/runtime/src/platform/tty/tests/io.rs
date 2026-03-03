@@ -1,8 +1,12 @@
+#[cfg(unix)]
 use super::{
-    HarnessValue, assert_ok_or_expected_error, assert_platform_error_codes,
-    close_tty_worker_resource, decode_harness_value, pty_descriptor, with_harness_context,
+    HarnessValue, assert_ok_or_expected_error, close_tty_worker_resource, decode_harness_value,
+    pty_descriptor,
 };
+use super::{assert_platform_error_codes, with_harness_context};
+#[cfg(unix)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(unix)]
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceId, TtyHandle};
@@ -92,8 +96,8 @@ fn test_tty_io_roundtrip_through_pty_pair() {
         // set one raw-like mode to avoid canonical buffering and echo behavior
         let mode = context.destack_tty_get_mode(pair.worker)?;
         let mut mode = decode_harness_value(mode);
-        mode.local_flags &= !(libc::ICANON as u64);
-        mode.local_flags &= !(libc::ECHO as u64);
+        mode.local_flags &= !libc::ICANON;
+        mode.local_flags &= !libc::ECHO;
         let mode_value = context.tty_mode_value(mode);
         context.destack_tty_set_mode(pair.worker, mode_value)?;
 

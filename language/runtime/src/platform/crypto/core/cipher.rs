@@ -9,15 +9,15 @@ use crate::platform::crypto::{
     CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters, CryptoKeyAlgorithm,
     CryptoStoreKind, host as crypto_host,
 };
-use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::constants::DEFAULT_AEAD_TAG_LENGTH_BYTES;
 use super::core::{
     CRYPTO_CIPHER_LABEL, CRYPTO_CIPHER_RESOURCE_KIND, CryptoCipherResource, CryptoCipherState,
-    HostKeyMaterial, KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, decode_native_bytes, handle_not_found,
-    invalid_argument, openssl_error, resolve_cipher_resource,
+    HostKeyMaterial, KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, decode_native_bytes, openssl_error,
+    resolve_cipher_resource,
 };
 use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_secret_key_bytes};
 
@@ -432,28 +432,22 @@ pub(crate) fn cipher_close(
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.cipher.close",
-            "crypto cipher",
-            handle.0.0,
+            format!("unknown crypto cipher handle {}", handle.0.0),
         ));
     };
 
     // validate handle kind
     if entry.kind != CRYPTO_CIPHER_RESOURCE_KIND {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.cipher.close",
-            "crypto cipher",
-            handle.0.0,
+            format!("unknown crypto cipher handle {}", handle.0.0),
         ));
     }
 
     // wipe sensitive stream state before releasing the final resource entry
-    let payload = entry
-        .payload
-        .as_ref()
-        .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoCipherResource>>>())
-        .map(Arc::clone);
+    let payload = entry.payload_cloned::<Arc<Mutex<CryptoCipherResource>>>();
     if let Some(resource) = payload {
         let mut resource = resource.lock();
         match &mut resource.state {
@@ -485,7 +479,7 @@ fn expected_nonce_length(algorithm: CryptoCipherAlgorithm) -> RuntimeResult<usiz
         CryptoCipherAlgorithm::AesCtr => Ok(16),
         CryptoCipherAlgorithm::AesCbc => Ok(16),
         CryptoCipherAlgorithm::ChaCha20Poly1305 => Ok(12),
-        CryptoCipherAlgorithm::Unknown => Err(invalid_argument(
+        CryptoCipherAlgorithm::Unknown => Err(core_platform::invalid_argument(
             "parameters.algorithm",
             "algorithm must not be Unknown",
         )),
@@ -506,7 +500,7 @@ fn prepare_host_cipher_stream_parameters(
     // enforce nonce length shape for this algorithm lane
     let expected_nonce_length = expected_nonce_length(parameters.algorithm)?;
     if nonce.len() != expected_nonce_length {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.nonce",
             format!("nonce length must be {expected_nonce_length} bytes"),
         ));
@@ -520,19 +514,19 @@ fn prepare_host_cipher_stream_parameters(
             "parameters.tagLengthBytes",
         )?;
         if direction == CryptoCipherDirection::Decrypt && decrypt_tag.len() != expected_tag_length {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.tag",
                 format!("tag length must be {expected_tag_length} bytes"),
             ));
         }
         if direction == CryptoCipherDirection::Encrypt && !decrypt_tag.is_empty() {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "parameters.tag",
                 "tag must be empty when encrypting",
             ));
         }
     } else if !decrypt_tag.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.tag",
             "tag is only valid for AEAD algorithms",
         ));
@@ -576,7 +570,9 @@ pub(super) fn openssl_cipher(
         CryptoCipherAlgorithm::Unknown => None,
     };
 
-    cipher.ok_or_else(|| invalid_argument("algorithm", "unsupported algorithm for key length"))
+    cipher.ok_or_else(|| {
+        core_platform::invalid_argument("algorithm", "unsupported algorithm for key length")
+    })
 }
 
 /// Return whether one cipher algorithm is AEAD.
@@ -602,7 +598,7 @@ pub(super) fn resolve_aead_tag_length(
 
     // enforce chacha20 poly1305 fixed tag size
     if algorithm == CryptoCipherAlgorithm::ChaCha20Poly1305 && tag_length != 16 {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             field,
             "tag length must be 16 bytes for chacha20poly1305",
         ));
@@ -610,7 +606,7 @@ pub(super) fn resolve_aead_tag_length(
 
     // enforce aes gcm allowed tag range
     if algorithm == CryptoCipherAlgorithm::AesGcm && !(12..=16).contains(&tag_length) {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             field,
             "tag length must be between 12 and 16 bytes for aes-gcm",
         ));
@@ -632,13 +628,13 @@ pub(super) fn build_cipher_state(
 
     // enforce nonce length expected by selected cipher
     let expected_nonce_length = cipher.iv_len().ok_or_else(|| {
-        invalid_argument(
+        core_platform::invalid_argument(
             "parameters.nonce",
             "cipher does not expose one nonce/iv length",
         )
     })?;
     if nonce.len() != expected_nonce_length {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "parameters.nonce",
             format!("nonce length must be {expected_nonce_length} bytes"),
         ));
@@ -663,14 +659,14 @@ pub(super) fn build_cipher_state(
         } else {
             let tag = decode_native_bytes(parameters.tag, "parameters.tag")?;
             if tag.is_empty() {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "parameters.tag",
                     "authentication tag is required for decrypt",
                 ));
             }
             if parameters.tag_length_bytes != 0 && parameters.tag_length_bytes as usize != tag.len()
             {
-                return Err(invalid_argument(
+                return Err(core_platform::invalid_argument(
                     "parameters.tagLengthBytes",
                     "tagLengthBytes must match decrypt tag length",
                 ));

@@ -30,13 +30,12 @@ use security_framework_sys::trust_settings::{
 };
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::core::{CRYPTO_STORE_OPEN_OPERATION, push_der_certificate_if_unique};
 use crate::runtime::BindingCallContext;
 
-use super::core::{
-    create_cf_string, filesystem_mode_enabled, invalid_data, not_supported, permission_denied,
-};
+use super::core::{create_cf_string, filesystem_mode_enabled, invalid_data, permission_denied};
 
 /// Trust-settings decision for one certificate lane.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -240,12 +239,12 @@ pub(crate) fn host_store_import_certificate(
 ) -> RuntimeResult<()> {
     // filesystem mode does not currently expose certificate persistence
     if filesystem_mode_enabled(context) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // writable keychain certificate lane is currently user-only
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // serialize certificate as der payload for keychain import
@@ -326,12 +325,12 @@ pub(crate) fn host_store_delete_certificate(
 ) -> RuntimeResult<()> {
     // filesystem mode does not currently expose certificate persistence
     if filesystem_mode_enabled(context) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // writable keychain certificate lane is currently user-only
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // serialize certificate as der payload for keychain deletion

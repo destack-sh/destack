@@ -67,7 +67,10 @@ fn resolve_interface_index(value: &str) -> RuntimeResult<u32> {
 
     let index = unsafe { if_nametoindex(cstr.as_ptr() as *const u8) };
     if index == 0 {
-        return Err(last_net_error("if_nametoindex"));
+        return Err(core_platform::net_error_with_code(
+            "if_nametoindex",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(index)
@@ -108,7 +111,10 @@ fn socket_family(socket: SOCKET) -> RuntimeResult<SocketFamily> {
     // query the socket address
     let rc = unsafe { getsockname(socket, &mut storage as *mut _ as *mut SOCKADDR, &mut length) };
     if rc != 0 {
-        return Err(last_net_error("getsockname"));
+        return Err(core_platform::net_error_with_code(
+            "getsockname",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // map the socket family
@@ -151,7 +157,10 @@ fn get_socket_bool(socket: SOCKET, level: i32, option: i32, syscall: &str) -> Ru
         )
     };
     if rc != 0 {
-        return Err(last_net_error(syscall));
+        return Err(core_platform::net_error_with_code(
+            syscall,
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(value != 0)
@@ -170,7 +179,10 @@ fn get_socket_u32(socket: SOCKET, level: i32, option: i32, syscall: &str) -> Run
         )
     };
     if rc != 0 {
-        return Err(last_net_error(syscall));
+        return Err(core_platform::net_error_with_code(
+            syscall,
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(value)
@@ -213,7 +225,10 @@ pub(crate) unsafe fn destack_net_set_nonblocking(
     let mut value: u32 = if enabled { 1 } else { 0 };
     let rc = unsafe { ioctlsocket(socket, FIONBIO, &mut value) };
     if rc != 0 {
-        return Err(last_net_error("ioctlsocket"));
+        return Err(core_platform::net_error_with_code(
+            "ioctlsocket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -256,7 +271,10 @@ pub(crate) unsafe fn destack_net_set_no_delay(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -299,7 +317,10 @@ pub(crate) unsafe fn destack_net_set_linger(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(SO_LINGER)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(SO_LINGER",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -344,7 +365,10 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // update keepalive timing
@@ -376,7 +400,10 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
             )
         };
         if rc != 0 {
-            return Err(last_net_error("WSAIoctl"));
+            return Err(core_platform::net_error_with_code(
+                "WSAIoctl",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         // apply per-probe interval when supported
@@ -391,7 +418,10 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
                 )
             };
             if rc != 0 {
-                return Err(last_net_error("setsockopt(TCP_KEEPINTVL)"));
+                return Err(core_platform::net_error_with_code(
+                    "setsockopt(TCP_KEEPINTVL",
+                    core_platform::last_wsa_error_code(),
+                ));
             }
         }
 
@@ -407,7 +437,10 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
                 )
             };
             if rc != 0 {
-                return Err(last_net_error("setsockopt(TCP_KEEPCNT)"));
+                return Err(core_platform::net_error_with_code(
+                    "setsockopt(TCP_KEEPCNT",
+                    core_platform::last_wsa_error_code(),
+                ));
             }
         }
     }
@@ -458,7 +491,10 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("getsockopt(SO_KEEPALIVE)"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt(SO_KEEPALIVE",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // read keepalive idle time
@@ -474,7 +510,10 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("getsockopt(TCP_KEEPIDLE)"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt(TCP_KEEPIDLE",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // read keepalive interval
@@ -490,7 +529,10 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("getsockopt(TCP_KEEPINTVL)"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt(TCP_KEEPINTVL",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // read keepalive probe count
@@ -506,7 +548,10 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("getsockopt(TCP_KEEPCNT)"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt(TCP_KEEPCNT",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     unsafe {
@@ -558,7 +603,10 @@ pub(crate) unsafe fn destack_net_set_reuse_addr(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -608,7 +656,10 @@ pub(crate) unsafe fn destack_net_set_reuse_port(
             ));
         }
 
-        return Err(last_net_error("setsockopt(SO_REUSE_UNICASTPORT)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(SO_REUSE_UNICASTPORT",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -650,7 +701,10 @@ pub(crate) unsafe fn destack_net_set_recv_buffer(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -691,7 +745,10 @@ pub(crate) unsafe fn destack_net_set_send_buffer(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -733,7 +790,10 @@ pub(crate) unsafe fn destack_net_set_broadcast(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -774,7 +834,10 @@ pub(crate) unsafe fn destack_net_set_ttl(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -815,7 +878,10 @@ pub(crate) unsafe fn destack_net_set_tos(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -856,7 +922,10 @@ pub(crate) unsafe fn destack_net_set_read_timeout(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -897,7 +966,10 @@ pub(crate) unsafe fn destack_net_set_write_timeout(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -956,7 +1028,10 @@ pub(crate) unsafe fn destack_net_join_multicast(
                 )
             };
             if rc != 0 {
-                return Err(last_net_error("setsockopt(IP_ADD_MEMBERSHIP)"));
+                return Err(core_platform::net_error_with_code(
+                    "setsockopt(IP_ADD_MEMBERSHIP",
+                    core_platform::last_wsa_error_code(),
+                ));
             }
             Ok(())
         }
@@ -994,7 +1069,10 @@ pub(crate) unsafe fn destack_net_join_multicast(
                 )
             };
             if rc != 0 {
-                return Err(last_net_error("setsockopt(IPV6_JOIN_GROUP)"));
+                return Err(core_platform::net_error_with_code(
+                    "setsockopt(IPV6_JOIN_GROUP",
+                    core_platform::last_wsa_error_code(),
+                ));
             }
             Ok(())
         }
@@ -1059,7 +1137,10 @@ pub(crate) unsafe fn destack_net_leave_multicast(
                 )
             };
             if rc != 0 {
-                return Err(last_net_error("setsockopt(IP_DROP_MEMBERSHIP)"));
+                return Err(core_platform::net_error_with_code(
+                    "setsockopt(IP_DROP_MEMBERSHIP",
+                    core_platform::last_wsa_error_code(),
+                ));
             }
             Ok(())
         }
@@ -1097,7 +1178,10 @@ pub(crate) unsafe fn destack_net_leave_multicast(
                 )
             };
             if rc != 0 {
-                return Err(last_net_error("setsockopt(IPV6_LEAVE_GROUP)"));
+                return Err(core_platform::net_error_with_code(
+                    "setsockopt(IPV6_LEAVE_GROUP",
+                    core_platform::last_wsa_error_code(),
+                ));
             }
             Ok(())
         }
@@ -1265,7 +1349,10 @@ pub(crate) unsafe fn destack_net_set_multicast_loop(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -1320,7 +1407,10 @@ pub(crate) unsafe fn destack_net_set_multicast_ttl(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     Ok(())
 }
@@ -1363,7 +1453,10 @@ pub(crate) unsafe fn destack_net_set_only_v6(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(IPV6_V6ONLY)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(IPV6_V6ONLY",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -1494,7 +1587,10 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
             ));
         }
 
-        return Err(last_net_error("getsockopt(SO_REUSE_UNICASTPORT)"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt(SO_REUSE_UNICASTPORT",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     unsafe {
@@ -1549,7 +1645,10 @@ pub(crate) unsafe fn destack_net_get_linger(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("getsockopt(SO_LINGER)"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt(SO_LINGER",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     unsafe {
@@ -1905,7 +2004,10 @@ pub(crate) unsafe fn destack_net_set_sock_opt_raw(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -1962,7 +2064,10 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("getsockopt"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     value.truncate(length.max(0) as usize);
 
@@ -2023,7 +2128,10 @@ pub(crate) unsafe fn destack_net_set_timestamping(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(SO_TIMESTAMP)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(SO_TIMESTAMP",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -2171,7 +2279,10 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(IP_MULTICAST_IF)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(IP_MULTICAST_IF",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -2220,7 +2331,10 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("getsockopt(IP_MULTICAST_IF)"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt(IP_MULTICAST_IF",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // encode and write string output
@@ -2268,7 +2382,10 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(IPV6_MULTICAST_IF)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(IPV6_MULTICAST_IF",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -2315,7 +2432,10 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("getsockopt(IPV6_MULTICAST_IF)"));
+        return Err(core_platform::net_error_with_code(
+            "getsockopt(IPV6_MULTICAST_IF",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // write output value
@@ -2500,7 +2620,10 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v4(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(IP_ADD_SOURCE_MEMBERSHIP)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(IP_ADD_SOURCE_MEMBERSHIP",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -2565,7 +2688,10 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v6(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(MCAST_JOIN_SOURCE_GROUP)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(MCAST_JOIN_SOURCE_GROUP",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -2643,7 +2769,10 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(IP_DROP_SOURCE_MEMBERSHIP)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(IP_DROP_SOURCE_MEMBERSHIP",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -2708,7 +2837,10 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(MCAST_LEAVE_SOURCE_GROUP)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(MCAST_LEAVE_SOURCE_GROUP",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())
@@ -2750,10 +2882,13 @@ pub(crate) unsafe fn destack_net_raw_socket(
     }
 
     // ensure winsock and create raw socket
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
     let socket = unsafe { socket(socket_family_to_raw(family), SOCK_RAW, protocol) };
     if socket == windows_sys::Win32::Networking::WinSock::INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // register socket resource
@@ -2808,7 +2943,10 @@ pub(crate) unsafe fn destack_net_raw_set_header_included(
         )
     };
     if rc != 0 {
-        return Err(last_net_error("setsockopt(IP_HDRINCL)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(IP_HDRINCL",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok(())

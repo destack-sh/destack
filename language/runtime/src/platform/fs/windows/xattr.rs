@@ -18,7 +18,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{OsPath, PathBytes, PathUtf16, XattrFlags};
 use crate::platform::resource::FileHandle;
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::{
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, core as core_platform,
+};
 use crate::runtime::BindingCallContext;
 
 const STATUS_SUCCESS: NTSTATUS = 0;
@@ -39,18 +41,6 @@ fn nt_status_error(status: NTSTATUS, syscall: &str) -> Box<RuntimeError> {
         Some(syscall.to_string()),
         None,
         format!("{syscall} failed: {code}"),
-    ))
-    .boxed()
-}
-
-fn xattr_not_found(syscall: &str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoNotFound),
-        None,
-        None,
-        Some(syscall.to_string()),
-        None,
-        "extended attribute not found",
     ))
     .boxed()
 }
@@ -241,7 +231,10 @@ fn query_ea_entry(handle: HANDLE, name: &[u8]) -> RuntimeResult<Vec<u8>> {
             return Ok(buffer);
         }
         if status == STATUS_EA_NOT_FOUND || status == STATUS_NO_EAS_ON_FILE {
-            return Err(xattr_not_found("ZwQueryEaFile"));
+            return Err(core_platform::io_not_found(
+                "ZwQueryEaFile",
+                "extended attribute not found",
+            ));
         }
         if status == STATUS_BUFFER_OVERFLOW || status == STATUS_BUFFER_TOO_SMALL {
             let suggested = iosb.Information;
@@ -479,7 +472,10 @@ fn remove_ea_entry(handle: HANDLE, name: &[u8]) -> RuntimeResult<()> {
         )
     };
     if status == STATUS_EA_NOT_FOUND || status == STATUS_NO_EAS_ON_FILE {
-        return Err(xattr_not_found("ZwSetEaFile"));
+        return Err(core_platform::io_not_found(
+            "ZwSetEaFile",
+            "extended attribute not found",
+        ));
     }
     if status != STATUS_SUCCESS {
         return Err(nt_status_error(status, "ZwSetEaFile"));
@@ -786,7 +782,10 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
                 return Err(xattr_already_exists("ZwQueryEaFile"));
             }
             if flags.0 & 0x2 != 0 && !exists {
-                return Err(xattr_not_found("ZwQueryEaFile"));
+                return Err(core_platform::io_not_found(
+                    "ZwQueryEaFile",
+                    "extended attribute not found",
+                ));
             }
         }
 
@@ -838,7 +837,10 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
                 return Err(xattr_already_exists("ZwQueryEaFile"));
             }
             if flags.0 & 0x2 != 0 && !exists {
-                return Err(xattr_not_found("ZwQueryEaFile"));
+                return Err(core_platform::io_not_found(
+                    "ZwQueryEaFile",
+                    "extended attribute not found",
+                ));
             }
         }
 
@@ -890,7 +892,10 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
                 return Err(xattr_already_exists("ZwQueryEaFile"));
             }
             if flags.0 & 0x2 != 0 && !exists {
-                return Err(xattr_not_found("ZwQueryEaFile"));
+                return Err(core_platform::io_not_found(
+                    "ZwQueryEaFile",
+                    "extended attribute not found",
+                ));
             }
         }
 
@@ -942,7 +947,10 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
                 return Err(xattr_already_exists("ZwQueryEaFile"));
             }
             if flags.0 & 0x2 != 0 && !exists {
-                return Err(xattr_not_found("ZwQueryEaFile"));
+                return Err(core_platform::io_not_found(
+                    "ZwQueryEaFile",
+                    "extended attribute not found",
+                ));
             }
         }
 
@@ -989,7 +997,10 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
             return Err(xattr_already_exists("ZwQueryEaFile"));
         }
         if flags.0 & 0x2 != 0 && !exists {
-            return Err(xattr_not_found("ZwQueryEaFile"));
+            return Err(core_platform::io_not_found(
+                "ZwQueryEaFile",
+                "extended attribute not found",
+            ));
         }
     }
 

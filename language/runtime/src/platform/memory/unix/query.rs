@@ -8,13 +8,10 @@ use crate::diagnostic::RuntimeError;
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "linux")]
 use crate::platform::PlatformError;
-use crate::platform::memory::core as memory_core;
+use crate::platform::core as core_platform;
 use crate::runtime::BindingCallContext;
 
 use super::core::page_size;
-#[cfg(target_os = "linux")]
-use memory_core::invalid_argument;
-use memory_core::{ensure_out, usize_to_u64};
 
 /// Read the host allocation granularity.
 pub(crate) unsafe fn destack_memory_allocation_granularity(
@@ -22,9 +19,9 @@ pub(crate) unsafe fn destack_memory_allocation_granularity(
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output pointer and query page size
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let page_size = page_size()?;
-    let page_size = usize_to_u64(page_size, "out")?;
+    let page_size = core_platform::usize_to_u64(page_size, "out")?;
 
     // write page size result
     unsafe {
@@ -40,7 +37,7 @@ pub(crate) unsafe fn destack_memory_huge_page_size(
     out: *mut Option<u64>,
 ) -> RuntimeResult<()> {
     // validate output pointer for optional huge-page size
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     #[cfg(target_os = "linux")]
     {
@@ -70,9 +67,9 @@ pub(crate) unsafe fn destack_memory_page_size(
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output pointer and query page size
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let page_size = page_size()?;
-    let page_size = usize_to_u64(page_size, "out")?;
+    let page_size = core_platform::usize_to_u64(page_size, "out")?;
 
     // write page size result
     unsafe {
@@ -107,21 +104,21 @@ fn linux_huge_page_size() -> RuntimeResult<Option<u64>> {
         let _label = parts.next();
         let value = parts
             .next()
-            .ok_or_else(|| invalid_argument("out", "invalid Hugepagesize format"))?;
+            .ok_or_else(|| core_platform::invalid_argument("out", "invalid Hugepagesize format"))?;
         let unit = parts
             .next()
-            .ok_or_else(|| invalid_argument("out", "missing Hugepagesize unit"))?;
+            .ok_or_else(|| core_platform::invalid_argument("out", "missing Hugepagesize unit"))?;
 
         let value = value
             .parse::<u64>()
-            .map_err(|_| invalid_argument("out", "invalid Hugepagesize value"))?;
+            .map_err(|_| core_platform::invalid_argument("out", "invalid Hugepagesize value"))?;
         let bytes = match unit {
             "kB" => value.checked_mul(1024),
             "mB" | "MB" => value.checked_mul(1024 * 1024),
             "gB" | "GB" => value.checked_mul(1024 * 1024 * 1024),
             _ => None,
         }
-        .ok_or_else(|| invalid_argument("out", "Hugepagesize value overflow"))?;
+        .ok_or_else(|| core_platform::invalid_argument("out", "Hugepagesize value overflow"))?;
 
         return Ok(Some(bytes));
     }

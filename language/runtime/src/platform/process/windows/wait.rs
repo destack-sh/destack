@@ -26,21 +26,15 @@ fn resolve_spawned_process_handle(
     context: &BindingCallContext,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<(ProcessId, Option<windows_sys::Win32::Foundation::HANDLE>)> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SpawnedProcess>())
-            .map(|process| (process.pid, entry.handle().map(|handle| handle as _)))
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown process handle",
-        ))
-        .boxed()
-    })
+    resource::require_payload_with::<core_process::SpawnedProcess, _>(
+        context,
+        handle.0,
+        resource::ResourceKind::Process,
+        None,
+        "handle",
+        "process",
+        |process, entry| (process.pid, entry.handle().map(|handle| handle as _)),
+    )
 }
 
 /// Return true when a wait status is terminal for a spawned process.
@@ -58,21 +52,16 @@ fn wait_process_handle_with_timeout(
     process_handle: windows_sys::Win32::Foundation::HANDLE,
     timeout_ms: u32,
 ) -> RuntimeResult<ProcessWaitStatus> {
-    use windows_sys::Win32::Foundation::{STILL_ACTIVE, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT};
+    use windows_sys::Win32::Foundation::STILL_ACTIVE;
     use windows_sys::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
 
     let wait_status = unsafe { WaitForSingleObject(process_handle, timeout_ms) };
-    match wait_status {
-        WAIT_TIMEOUT => Err(RuntimeError::from(PlatformError::io_with(
-            Some(PlatformErrorCode::IoWouldBlock),
-            None,
-            None,
-            Some("WaitForSingleObject".to_string()),
-            None,
+    match core_platform::decode_wait_for_single_object_status(wait_status, "WaitForSingleObject")? {
+        core_platform::WaitStatus::TimedOut => Err(core_platform::io_would_block(
+            "WaitForSingleObject",
             format!("wait timed out for pid {}", pid.0),
-        ))
-        .boxed()),
-        WAIT_OBJECT_0 => {
+        )),
+        core_platform::WaitStatus::Signaled => {
             let mut exit_code = 0_u32;
             let read_exit_code = unsafe { GetExitCodeProcess(process_handle, &mut exit_code) };
             if read_exit_code == 0 {
@@ -100,15 +89,7 @@ fn wait_process_handle_with_timeout(
                 },
             ))
         }
-        WAIT_FAILED => {
-            let error = core_platform::last_error_code();
-            Err(RuntimeError::from(PlatformError::io(format!(
-                "wait failed for pid {}: {error}",
-                pid.0
-            )))
-            .boxed())
-        }
-        _ => Err(RuntimeError::from(PlatformError::io("wait returned unexpected result")).boxed()),
+        core_platform::WaitStatus::Abandoned => Err(core_platform::io_error("WaitForSingleObject")),
     }
 }
 
@@ -270,10 +251,7 @@ pub(crate) const PROCESS_WAIT_FLAG_NOHANG: u32 = 0x0000_0001;
 
 /// Wait for one process state transition.
 fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWaitStatus> {
-    use windows_sys::Win32::Foundation::{
-        CloseHandle, ERROR_INVALID_PARAMETER, STILL_ACTIVE, WAIT_FAILED, WAIT_OBJECT_0,
-        WAIT_TIMEOUT,
-    };
+    use windows_sys::Win32::Foundation::{CloseHandle, ERROR_INVALID_PARAMETER, STILL_ACTIVE};
     use windows_sys::Win32::System::Threading::{
         GetExitCodeProcess, INFINITE, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
         WaitForSingleObject,
@@ -320,17 +298,15 @@ fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWaitStatus> {
         INFINITE
     };
     let wait_status = unsafe { WaitForSingleObject(process, timeout) };
-    let status = match wait_status {
-        WAIT_TIMEOUT => Err(RuntimeError::from(PlatformError::io_with(
-            Some(PlatformErrorCode::IoWouldBlock),
-            None,
-            None,
-            Some("WaitForSingleObject".to_string()),
-            None,
+    let status = match core_platform::decode_wait_for_single_object_status(
+        wait_status,
+        "WaitForSingleObject",
+    )? {
+        core_platform::WaitStatus::TimedOut => Err(core_platform::io_would_block(
+            "WaitForSingleObject",
             format!("wait would block for pid {pid}"),
-        ))
-        .boxed()),
-        WAIT_OBJECT_0 => {
+        )),
+        core_platform::WaitStatus::Signaled => {
             let mut exit_code = 0_u32;
             let rc = unsafe { GetExitCodeProcess(process, &mut exit_code) };
             if rc == 0 {
@@ -356,14 +332,7 @@ fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWaitStatus> {
                 ))
             }
         }
-        WAIT_FAILED => {
-            let error = core_platform::last_error_code();
-            Err(RuntimeError::from(PlatformError::io(format!(
-                "wait failed for pid {pid}: {error}",
-            )))
-            .boxed())
-        }
-        _ => Err(RuntimeError::from(PlatformError::io("wait returned unexpected result")).boxed()),
+        core_platform::WaitStatus::Abandoned => Err(core_platform::io_error("WaitForSingleObject")),
     };
 
     unsafe {

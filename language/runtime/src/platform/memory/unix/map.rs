@@ -1,16 +1,14 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::memory::{
     MemoryNumaPolicy, MemoryProtection, MemoryRange, MemoryReserveFlags, core as memory_core,
 };
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    NUMA_BIND_OPERATION, decode_reserve_flags, io_error, mapped_address, page_size, to_size_t,
-    unix_protection, validated_hint, validated_range, zero_offset,
+    NUMA_BIND_OPERATION, decode_reserve_flags, page_size, to_size_t, unix_protection,
+    validated_hint, validated_range, zero_offset,
 };
-#[cfg(target_os = "linux")]
-use memory_core::invalid_argument;
-use memory_core::{ensure_out, not_supported, usize_to_u64};
 
 /// Reserve one virtual memory range.
 pub(crate) unsafe fn destack_memory_reserve(
@@ -21,7 +19,7 @@ pub(crate) unsafe fn destack_memory_reserve(
     flags: MemoryReserveFlags,
 ) -> RuntimeResult<()> {
     // validate output pointer and reserve parameters
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
     let page_size = page_size()?;
     let length = memory_core::nonzero_length(length, "length")?;
     memory_core::require_page_alignment(length, page_size, "length")?;
@@ -42,12 +40,12 @@ pub(crate) unsafe fn destack_memory_reserve(
         )
     };
     if mapped == libc::MAP_FAILED {
-        return Err(io_error("mmap"));
+        return Err(core_platform::io_error("mmap", None));
     }
 
     // return the reserved range to the caller
-    let mapped_address = mapped_address(mapped, "out.address")?;
-    let mapped_length = usize_to_u64(length, "out.length")?;
+    let mapped_address = core_platform::usize_to_u64(mapped as usize, "out.address")?;
+    let mapped_length = core_platform::usize_to_u64(length, "out.length")?;
     unsafe {
         out.write(MemoryRange {
             address: mapped_address,
@@ -73,7 +71,7 @@ pub(crate) unsafe fn destack_memory_commit(
     // commit by switching the mapping protection
     let status = unsafe { libc::mprotect(pointer, length, protection) };
     if status != 0 {
-        return Err(io_error("mprotect"));
+        return Err(core_platform::io_error("mprotect", None));
     }
 
     Ok(())
@@ -101,7 +99,7 @@ pub(crate) unsafe fn destack_memory_decommit(
         )
     };
     if mapped == libc::MAP_FAILED {
-        return Err(io_error("mmap"));
+        return Err(core_platform::io_error("mmap", None));
     }
 
     Ok(())
@@ -120,7 +118,7 @@ pub(crate) unsafe fn destack_memory_release(
     // release the mapping back to the host
     let status = unsafe { libc::munmap(pointer, length) };
     if status != 0 {
-        return Err(io_error("munmap"));
+        return Err(core_platform::io_error("munmap", None));
     }
 
     Ok(())
@@ -150,8 +148,9 @@ pub(crate) unsafe fn destack_memory_numa_bind(
         };
 
         // validate nodemask width for the host c_ulong representation
-        let nodemask_value = libc::c_ulong::try_from(nodemask)
-            .map_err(|_| invalid_argument("nodeMask", "node mask exceeds host word size"))?;
+        let nodemask_value = libc::c_ulong::try_from(nodemask).map_err(|_| {
+            core_platform::invalid_argument("nodeMask", "node mask exceeds host word size")
+        })?;
         let nodemask_pointer = &nodemask_value as *const libc::c_ulong;
         let maxnode = libc::c_ulong::from(usize::BITS);
 
@@ -168,7 +167,7 @@ pub(crate) unsafe fn destack_memory_numa_bind(
             )
         };
         if status != 0 {
-            return Err(io_error("mbind"));
+            return Err(core_platform::io_error("mbind", None));
         }
 
         return Ok(());
@@ -178,6 +177,6 @@ pub(crate) unsafe fn destack_memory_numa_bind(
     {
         // mark unsupported numa-bind operation on this unix backend
         let _ = (pointer, length, policy, nodemask);
-        Err(not_supported(NUMA_BIND_OPERATION))
+        Err(core_platform::not_supported(NUMA_BIND_OPERATION))
     }
 }

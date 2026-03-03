@@ -1,12 +1,27 @@
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
-use windows_sys::Win32::Foundation::GetLastError;
+use windows_sys::Win32::Foundation::{
+    GetLastError, WAIT_ABANDONED, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT,
+};
 use windows_sys::Win32::Networking::WinSock::WSAGetLastError;
+use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, PlatformErrorCode};
+
+/// Decoded WaitForSingleObject status category.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WaitStatus {
+    /// The waited object became signaled.
+    Signaled,
+    /// The wait timed out.
+    TimedOut,
+    /// The waited object was abandoned.
+    Abandoned,
+}
 
 /// Return the last Win32 error code.
 pub(crate) fn last_error_code() -> i32 {
@@ -81,6 +96,72 @@ pub(crate) fn net_error_with_code(syscall: &str, code: i32) -> Box<RuntimeError>
         message,
     ))
     .boxed()
+}
+
+/// Decode one WaitForSingleObject return value into one stable wait status.
+pub(crate) fn decode_wait_for_single_object_status(
+    status: u32,
+    syscall: &str,
+) -> RuntimeResult<WaitStatus> {
+    if status == WAIT_OBJECT_0 {
+        return Ok(WaitStatus::Signaled);
+    }
+    if status == WAIT_TIMEOUT {
+        return Ok(WaitStatus::TimedOut);
+    }
+    if status == WAIT_ABANDONED {
+        return Ok(WaitStatus::Abandoned);
+    }
+    if status == WAIT_FAILED {
+        return Err(io_error(syscall));
+    }
+
+    Err(RuntimeError::from(PlatformError::io(format!(
+        "{syscall} returned unexpected wait status: {status:#x}",
+    )))
+    .boxed())
+}
+
+/// Return one cached QueryPerformanceCounter frequency.
+pub(crate) fn qpc_frequency_hz() -> u64 {
+    static QPC_FREQUENCY_HZ: OnceLock<u64> = OnceLock::new();
+
+    *QPC_FREQUENCY_HZ.get_or_init(|| {
+        let mut frequency = 0i64;
+        let status = unsafe { QueryPerformanceFrequency(&mut frequency) };
+        if status == 0 || frequency <= 0 {
+            return 0;
+        }
+
+        frequency as u64
+    })
+}
+
+/// Read one QueryPerformanceCounter tick value.
+pub(crate) fn qpc_now_ticks() -> Option<u64> {
+    let mut counter = 0i64;
+    let status = unsafe { QueryPerformanceCounter(&mut counter) };
+    if status == 0 || counter < 0 {
+        return None;
+    }
+
+    Some(counter as u64)
+}
+
+/// Convert one QPC tick value into nanoseconds.
+pub(crate) fn qpc_ticks_to_ns(counter: u64) -> Option<u64> {
+    let frequency = qpc_frequency_hz();
+    if frequency == 0 {
+        return None;
+    }
+
+    Some(((u128::from(counter) * 1_000_000_000u128) / u128::from(frequency)) as u64)
+}
+
+/// Read one monotonic timestamp from QueryPerformanceCounter.
+pub(crate) fn qpc_now_ns() -> Option<u64> {
+    let counter = qpc_now_ticks()?;
+    qpc_ticks_to_ns(counter)
 }
 
 /// Convert a utf-8 byte slice into a nul-terminated wide string.

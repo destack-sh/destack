@@ -18,6 +18,7 @@ use security_framework_sys::keychain_item::SecItemDelete;
 use std::os::raw::c_void;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
@@ -30,8 +31,8 @@ use crate::runtime::BindingCallContext;
 
 use super::constants::{MACOS_SECURE_ENCLAVE_KEY_SIZE_BITS, MACOS_SECURE_ENCLAVE_PROBE_LABEL};
 use super::core::{
-    copy_cf_data_bytes, create_cf_string, filesystem_mode_enabled, invalid_data, not_supported,
-    permission_denied, security_operation_error,
+    copy_cf_data_bytes, create_cf_string, filesystem_mode_enabled, invalid_data, permission_denied,
+    security_operation_error,
 };
 use super::format::{
     create_ec_public_key_from_x963, ec_public_key_from_x963, ec_public_key_to_x963,
@@ -102,21 +103,21 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 ) -> RuntimeResult<HostGeneratedKeyPair> {
     // filesystem override does not expose secure-enclave lanes
     if filesystem_mode_enabled(context) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // enforce secure-enclave lane shape
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if algorithm != CryptoKeyAlgorithm::Ec {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if !matches!(
         named_curve,
         CryptoNamedCurve::Unknown | CryptoNamedCurve::P256
     ) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // create private key and derive public key
@@ -193,7 +194,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
         persistent_key_label,
     );
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Generate one host-managed persistent key pair when available.
@@ -514,10 +515,10 @@ pub(crate) fn host_key_sign(
 ) -> RuntimeResult<Vec<u8>> {
     // filesystem override does not expose secure-enclave lanes
     if filesystem_mode_enabled(context) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if store_kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // resolve sec-key signing algorithm for this backend and runtime lane
@@ -526,7 +527,7 @@ pub(crate) fn host_key_sign(
             if algorithm != CryptoKeyAlgorithm::Ec
                 || parameters.algorithm != CryptoSignatureAlgorithm::Ecdsa
             {
-                return Err(not_supported(operation));
+                return Err(core_platform::not_supported(operation));
             }
 
             ecdsa_signature_algorithm(parameters.digest, operation)?
@@ -535,14 +536,14 @@ pub(crate) fn host_key_sign(
             if algorithm != CryptoKeyAlgorithm::Ec
                 || parameters.algorithm != CryptoSignatureAlgorithm::Ecdsa
             {
-                return Err(not_supported(operation));
+                return Err(core_platform::not_supported(operation));
             }
 
             ecdsa_signature_algorithm(parameters.digest, operation)?
         }
         HostKeyBackend::KeychainRsa => {
             if algorithm != CryptoKeyAlgorithm::Rsa {
-                return Err(not_supported(operation));
+                return Err(core_platform::not_supported(operation));
             }
 
             rsa_signature_algorithm(parameters, operation)?
@@ -563,7 +564,7 @@ pub(crate) fn host_key_sign(
         | HostKeyBackend::IosSoftwareKeyStorageEc
         | HostKeyBackend::PosixSoftwareKeyStorageRsa
         | HostKeyBackend::PosixSoftwareKeyStorageEc => {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
     };
 
@@ -575,7 +576,7 @@ pub(crate) fn host_key_sign(
         unsafe {
             CFRelease(private_key as CFTypeRef);
         }
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // sign and return signature bytes
@@ -632,15 +633,15 @@ pub(crate) fn host_key_decrypt(
 ) -> RuntimeResult<Vec<u8>> {
     // filesystem override does not expose keychain host-lane keys
     if filesystem_mode_enabled(context) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if store_kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // this backend currently supports host-key decrypt only for keychain RSA
     if key.backend != HostKeyBackend::KeychainRsa || algorithm != CryptoKeyAlgorithm::Rsa {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // resolve sec-key decrypt algorithm and ensure host support
@@ -653,7 +654,7 @@ pub(crate) fn host_key_decrypt(
         unsafe {
             CFRelease(private_key as CFTypeRef);
         }
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // decode payload as one cf-data blob
@@ -708,10 +709,10 @@ pub(crate) fn host_key_delete(
 ) -> RuntimeResult<()> {
     // filesystem override does not expose secure-enclave lanes
     if filesystem_mode_enabled(context) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if store_kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // enforce key backend lane
@@ -719,7 +720,7 @@ pub(crate) fn host_key_delete(
         key.backend,
         HostKeyBackend::SecureEnclave | HostKeyBackend::KeychainRsa | HostKeyBackend::KeychainEc
     ) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // build key-delete query
@@ -787,10 +788,10 @@ pub(crate) fn host_key_derive_shared_secret(
 ) -> RuntimeResult<Vec<u8>> {
     // filesystem override does not expose keychain host-lane keys
     if filesystem_mode_enabled(context) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if store_kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // only ec private-key lanes support host key exchange
@@ -798,10 +799,10 @@ pub(crate) fn host_key_derive_shared_secret(
         key.backend,
         HostKeyBackend::SecureEnclave | HostKeyBackend::KeychainEc
     ) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if algorithm != CryptoKeyAlgorithm::Ec {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // resolve peer ec public key bytes for sec-key import
@@ -835,7 +836,7 @@ pub(crate) fn host_key_derive_shared_secret(
             CFRelease(peer_public_key as CFTypeRef);
             CFRelease(private_key as CFTypeRef);
         }
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // derive one raw ecdh shared secret
@@ -882,7 +883,7 @@ pub(crate) fn host_key_cipher_encrypt(
 ) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Decrypt one payload with one host-managed secret key.
@@ -897,7 +898,7 @@ pub(crate) fn host_key_cipher_decrypt(
 ) -> RuntimeResult<Vec<u8>> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Compute one MAC with one host-managed secret key.
@@ -912,5 +913,5 @@ pub(crate) fn host_key_mac_compute(
 ) -> RuntimeResult<Vec<u8>> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }

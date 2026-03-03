@@ -1602,8 +1602,11 @@ fn test_input_linux_pointer_state_and_relative_mode_surface_matches_capabilities
             "absolute pointer snapshots should use finite coordinates"
         );
         assert!(
-            absolute.pressure.is_finite(),
-            "absolute pointer snapshots should use finite pressure values"
+            absolute
+                .pen
+                .map(|pen| pen.pressure.is_finite())
+                .unwrap_or(true),
+            "absolute pen pressure should be finite when available"
         );
 
         assert_platform_error_code(
@@ -2373,8 +2376,11 @@ fn test_input_windows_pointer_state_and_relative_mode_surface_matches_capabiliti
             "absolute pointer snapshots should use finite coordinates"
         );
         assert!(
-            absolute.pressure.is_finite(),
-            "absolute pointer snapshots should use finite pressure values"
+            absolute
+                .pen
+                .map(|pen| pen.pressure.is_finite())
+                .unwrap_or(true),
+            "absolute pen pressure should be finite when available"
         );
 
         assert_platform_error_code(

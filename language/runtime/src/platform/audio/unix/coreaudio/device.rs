@@ -25,6 +25,7 @@ use super::property::{
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::platform::core as core_platform;
 
 /// Enumerate one normalized CoreAudio device list on macOS.
 #[cfg(target_os = "macos")]
@@ -32,7 +33,7 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDes
     // load the current system device list
     let device_ids = device_ids()?;
     if device_ids.is_empty() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.device.list",
             "CoreAudio reported no devices",
         ));
@@ -192,7 +193,7 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDes
 
     // ensure one usable row exists after normalization
     if descriptors.is_empty() {
-        return Err(audio_core::audio_not_found(
+        return Err(core_platform::io_not_found(
             "destack.audio.device.list",
             "CoreAudio reported no usable devices",
         ));

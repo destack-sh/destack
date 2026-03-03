@@ -5,6 +5,7 @@ use crate::host::{
     HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
     HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, HOST_STATUS_PERMISSION_DENIED,
 };
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::BindingCallContext;
@@ -46,25 +47,10 @@ pub(super) fn keystore_path(
 }
 
 /// Return one ioInvalidData runtime error.
-pub(super) fn invalid_data(
-    operation: &'static str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    unix_core::invalid_data(operation, message)
-}
+pub(super) use unix_core::invalid_data;
 
 /// Return one ioPermissionDenied runtime error.
-pub(super) fn permission_denied(
-    operation: &'static str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    unix_core::permission_denied(operation, message)
-}
-
-/// Return one notSupported runtime error.
-pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    unix_core::not_supported(operation)
-}
+pub(super) use unix_core::permission_denied;
 
 /// Resolve one callback runtime identifier for Android host callback routing.
 pub(super) fn callback_runtime_id(
@@ -72,7 +58,7 @@ pub(super) fn callback_runtime_id(
     operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
     let Some(runtime_id) = context.host().callback_runtime_id() else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
 
     Ok(runtime_id)
@@ -105,7 +91,7 @@ pub(super) fn host_status_result(
     }
 
     if status == HOST_STATUS_NOT_SUPPORTED {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     if status == HOST_STATUS_INVALID_ARGUMENT {

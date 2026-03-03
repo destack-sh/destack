@@ -12,6 +12,7 @@ use windows_sys::Win32::Security::Cryptography::{
 };
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::core::{CRYPTO_STORE_OPEN_OPERATION, push_der_certificate_if_unique};
 use crate::runtime::BindingCallContext;
@@ -20,7 +21,7 @@ use super::constants::{
     WINDOWS_CERT_STORE_CURRENT_USER, WINDOWS_CERT_STORE_DELETE_ORDER, WINDOWS_CERT_STORE_IMPORT,
     WINDOWS_CERT_STORE_LOCAL_MACHINE,
 };
-use super::core::{invalid_data, not_supported, permission_denied, windows_store_name_utf16};
+use super::core::{invalid_data, permission_denied, windows_store_name_utf16};
 
 /// Return one writable store location for one host store lane.
 fn writable_store_location(kind: CryptoStoreKind) -> Option<u32> {
@@ -199,7 +200,7 @@ pub(crate) fn host_store_import_certificate(
 ) -> RuntimeResult<()> {
     // resolve one writable store lane for this request
     let Some(location) = writable_store_location(kind) else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
 
     // encode certificate as DER bytes for crypt32 import
@@ -252,7 +253,7 @@ pub(crate) fn host_store_delete_certificate(
 ) -> RuntimeResult<()> {
     // resolve one writable store lane for this request
     let Some(location) = writable_store_location(kind) else {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     };
 
     // encode certificate as DER bytes for exact-match deletion

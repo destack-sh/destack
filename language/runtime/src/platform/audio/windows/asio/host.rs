@@ -560,7 +560,7 @@ pub(super) fn driver_by_key_name(key_name: &str) -> RuntimeResult<AsioDriverRow>
         .into_iter()
         .find(|row| row.key_name == key_name)
         .ok_or_else(|| {
-            audio_core::audio_not_found(
+            core_platform::io_not_found(
                 "destack.audio.stream.open",
                 format!("asio driver not found: {key_name}"),
             )

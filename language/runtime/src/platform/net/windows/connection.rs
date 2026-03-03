@@ -7,11 +7,11 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::net::{
     AcceptFlags, SocketAddress, SocketFamily, SocketPair, SocketProtocol, SocketType,
 };
 use crate::platform::resource::{ListenerHandle, ResourceEntry, ResourceKind, SocketHandle};
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 const IPV4_LOOPBACK: [u8; 4] = [127, 0, 0, 1];
@@ -39,7 +39,10 @@ fn bind_socket_loopback(socket: usize, family: i32) -> RuntimeResult<()> {
             )
         };
         if rc != 0 {
-            return Err(last_net_error("bind"));
+            return Err(core_platform::net_error_with_code(
+                "bind",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         return Ok(());
@@ -66,7 +69,10 @@ fn bind_socket_loopback(socket: usize, family: i32) -> RuntimeResult<()> {
             )
         };
         if rc != 0 {
-            return Err(last_net_error("bind"));
+            return Err(core_platform::net_error_with_code(
+                "bind",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         return Ok(());
@@ -86,7 +92,10 @@ fn local_socket_address(socket: usize) -> RuntimeResult<(SOCKADDR_STORAGE, i32)>
     let mut length = std::mem::size_of::<SOCKADDR_STORAGE>() as i32;
     let rc = unsafe { getsockname(socket, &mut address as *mut _ as *mut SOCKADDR, &mut length) };
     if rc != 0 {
-        return Err(last_net_error("getsockname"));
+        return Err(core_platform::net_error_with_code(
+            "getsockname",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     Ok((address, length))
@@ -136,7 +145,10 @@ fn socket_pair_stream_loopback(
     // create one temporary listener socket
     let listener = unsafe { socket(family, SOCK_STREAM, protocol) };
     if listener == INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // set SO_REUSEADDR on the listener
@@ -154,7 +166,10 @@ fn socket_pair_stream_loopback(
         unsafe {
             closesocket(listener);
         }
-        return Err(last_net_error("setsockopt(SO_REUSEADDR)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(SO_REUSEADDR",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // bind the listener on loopback
@@ -182,7 +197,10 @@ fn socket_pair_stream_loopback(
         unsafe {
             closesocket(listener);
         }
-        return Err(last_net_error("listen"));
+        return Err(core_platform::net_error_with_code(
+            "listen",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // connect one client socket to the listener endpoint
@@ -191,7 +209,10 @@ fn socket_pair_stream_loopback(
         unsafe {
             closesocket(listener);
         }
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
     let rc = unsafe {
         connect(
@@ -205,7 +226,10 @@ fn socket_pair_stream_loopback(
             closesocket(client_socket);
             closesocket(listener);
         }
-        return Err(last_net_error("connect"));
+        return Err(core_platform::net_error_with_code(
+            "connect",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // accept one server socket
@@ -215,7 +239,10 @@ fn socket_pair_stream_loopback(
             closesocket(client_socket);
             closesocket(listener);
         }
-        return Err(last_net_error("accept"));
+        return Err(core_platform::net_error_with_code(
+            "accept",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // close the listener after establishing the pair
@@ -239,7 +266,10 @@ fn socket_pair_dgram_loopback(
     // create the first datagram socket
     let first_socket = unsafe { socket(family, SOCK_DGRAM, protocol) };
     if first_socket == INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // create the second datagram socket
@@ -248,7 +278,10 @@ fn socket_pair_dgram_loopback(
         unsafe {
             closesocket(first_socket);
         }
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // bind the first socket to loopback
@@ -304,7 +337,10 @@ fn socket_pair_dgram_loopback(
             closesocket(second_socket);
             closesocket(first_socket);
         }
-        return Err(last_net_error("connect"));
+        return Err(core_platform::net_error_with_code(
+            "connect",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // connect second to first
@@ -320,7 +356,10 @@ fn socket_pair_dgram_loopback(
             closesocket(second_socket);
             closesocket(first_socket);
         }
-        return Err(last_net_error("connect"));
+        return Err(core_platform::net_error_with_code(
+            "connect",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // publish both endpoints
@@ -358,13 +397,16 @@ pub(crate) unsafe fn destack_net_accept(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // accept the connection
     let socket = listener_descriptor(context, listener)?;
     let client = unsafe { accept(socket, std::ptr::null_mut(), std::ptr::null_mut()) };
     if client == INVALID_SOCKET {
-        return Err(last_net_error("accept"));
+        return Err(core_platform::net_error_with_code(
+            "accept",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // register the socket
@@ -469,7 +511,7 @@ pub(crate) unsafe fn destack_net_connect_raw(
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve the socket descriptor
     let socket = socket_descriptor(context, handle)?;
@@ -478,7 +520,10 @@ pub(crate) unsafe fn destack_net_connect_raw(
     with_socket_address_raw(address, |sockaddr, length| {
         let rc = unsafe { connect(socket, sockaddr, length) };
         if rc != 0 {
-            return Err(last_net_error("connect"));
+            return Err(core_platform::net_error_with_code(
+                "connect",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         Ok(())
@@ -509,7 +554,7 @@ pub(crate) unsafe fn destack_net_bind(
     address: SocketAddress,
 ) -> RuntimeResult<()> {
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve the socket descriptor
     let socket = socket_descriptor(context, handle)?;
@@ -518,7 +563,10 @@ pub(crate) unsafe fn destack_net_bind(
     with_socket_address_raw(address, |sockaddr, length| {
         let rc = unsafe { bind(socket, sockaddr, length) };
         if rc != 0 {
-            return Err(last_net_error("bind"));
+            return Err(core_platform::net_error_with_code(
+                "bind",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         Ok(())
@@ -539,7 +587,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // resolve the socket family from the raw address bytes
     let mut family = address.family as i32;
@@ -553,7 +601,10 @@ pub(crate) unsafe fn destack_net_listen_raw(
     // create the listening socket
     let listener = unsafe { socket(family, SOCK_STREAM, IPPROTO_TCP) };
     if listener == INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // set SO_REUSEADDR for quick local test rebinding
@@ -571,14 +622,20 @@ pub(crate) unsafe fn destack_net_listen_raw(
         unsafe {
             closesocket(listener);
         }
-        return Err(last_net_error("setsockopt(SO_REUSEADDR)"));
+        return Err(core_platform::net_error_with_code(
+            "setsockopt(SO_REUSEADDR",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // bind and listen using the provided address
     let bind_result = with_socket_address_raw(address, |sockaddr, length| {
         let rc = unsafe { bind(listener, sockaddr, length) };
         if rc != 0 {
-            return Err(last_net_error("bind"));
+            return Err(core_platform::net_error_with_code(
+                "bind",
+                core_platform::last_wsa_error_code(),
+            ));
         }
 
         Ok(())
@@ -600,7 +657,10 @@ pub(crate) unsafe fn destack_net_listen_raw(
         unsafe {
             closesocket(listener);
         }
-        return Err(last_net_error("listen"));
+        return Err(core_platform::net_error_with_code(
+            "listen",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // register the listener handle
@@ -649,13 +709,16 @@ pub(crate) unsafe fn destack_net_socket(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // create the socket
     let af = socket_family_to_raw(family);
     let socket = unsafe { socket(af, socket_type.0 as i32, protocol.0) };
     if socket == INVALID_SOCKET {
-        return Err(last_net_error("socket"));
+        return Err(core_platform::net_error_with_code(
+            "socket",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // register the socket handle
@@ -704,7 +767,7 @@ pub(crate) unsafe fn destack_net_socket_pair(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // choose the address family
     let family = socket_family_to_raw(family);

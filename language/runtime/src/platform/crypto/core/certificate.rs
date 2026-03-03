@@ -15,7 +15,7 @@ use crate::platform::crypto::{
     CryptoCertificateVerifyError, CryptoCertificateVerifyRequest, CryptoCertificateVerifyResult,
     CryptoDigestAlgorithm, CryptoStoreKind, host as crypto_host,
 };
-use crate::platform::resource;
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::constants::{
@@ -28,9 +28,8 @@ use super::constants::{
 use super::core::{
     CRYPTO_CERTIFICATE_RESOURCE_KIND, CryptoCertificateResource, attach_certificate_to_store,
     decode_native_string, enforce_object_delete_policy, enforce_store_certificate_write_policy,
-    handle_not_found, insert_certificate_resource, invalid_argument, openssl_error,
-    resolve_certificate_resource, resolve_store_resource, store_provenance_from_store,
-    store_provenance_to_descriptor,
+    insert_certificate_resource, openssl_error, resolve_certificate_resource,
+    resolve_store_resource, store_provenance_from_store, store_provenance_to_descriptor,
 };
 use super::digest::message_digest;
 
@@ -88,7 +87,7 @@ fn verify_certificate_chain(
                 .map_err(|error| openssl_error(operation, error))?,
             CryptoCertificateIdentityKind::IpAddress => {
                 let ip_address = identity_value.parse::<IpAddr>().map_err(|_| {
-                    invalid_argument(
+                    core_platform::invalid_argument(
                         "request.identity.value",
                         "ipAddress identity must be one valid textual ip address",
                     )
@@ -336,7 +335,7 @@ pub(crate) fn certificate_verify(
     let mut intermediates =
         openssl::stack::Stack::new().map_err(|error| openssl_error(operation, error))?;
     let handles = unsafe { request.intermediates.as_slice() }.map_err(|_| {
-        invalid_argument(
+        core_platform::invalid_argument(
             "request.intermediates",
             "intermediates slice argument was invalid",
         )
@@ -350,7 +349,7 @@ pub(crate) fn certificate_verify(
 
     // resolve explicit trust anchors
     let trust_anchors = unsafe { request.trust_anchors.as_slice() }.map_err(|_| {
-        invalid_argument(
+        core_platform::invalid_argument(
             "request.trustAnchors",
             "trustAnchors slice argument was invalid",
         )
@@ -491,7 +490,7 @@ fn parse_uri_identity_host(value: &str) -> RuntimeResult<String> {
         .rsplit_once('@')
         .map_or(authority, |(_, tail)| tail);
     if authority.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.identity.value",
             "uri identity must include one host",
         ));
@@ -500,7 +499,7 @@ fn parse_uri_identity_host(value: &str) -> RuntimeResult<String> {
     // remove brackets and port from authority host
     if authority.starts_with('[') {
         let Some(end_index) = authority.find(']') else {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "request.identity.value",
                 "uri identity has one malformed ipv6 host",
             ));
@@ -508,7 +507,7 @@ fn parse_uri_identity_host(value: &str) -> RuntimeResult<String> {
 
         let host = &authority[1..end_index];
         if host.is_empty() {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "request.identity.value",
                 "uri identity must include one host",
             ));
@@ -519,7 +518,7 @@ fn parse_uri_identity_host(value: &str) -> RuntimeResult<String> {
 
     let host = authority.split(':').next().unwrap_or(authority);
     if host.is_empty() {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "request.identity.value",
             "uri identity must include one host",
         ));
@@ -569,19 +568,17 @@ pub(crate) fn certificate_delete(
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.certificate.delete",
-            "crypto certificate",
-            handle.0.0,
+            format!("unknown crypto certificate handle {}", handle.0.0),
         ));
     };
 
     // validate handle kind
     if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
-        return Err(handle_not_found(
+        return Err(core_platform::io_not_found(
             "destack.crypto.certificate.delete",
-            "crypto certificate",
-            handle.0.0,
+            format!("unknown crypto certificate handle {}", handle.0.0),
         ));
     }
 

@@ -13,16 +13,19 @@ use super::with_harness_context;
 fn test_message_queue_lanes_report_not_supported() {
     with_harness_context(|mut context| {
         let name = context.string_value("/ipc_message_queue_not_supported")?;
-        let open_error = context
-            .destack_ipc_message_queue_open(name, 0, 0, 1, 64)
-            .err()
-            .expect("expected messageQueueOpen to report notSupported");
+        let open_error = context.destack_ipc_message_queue_open(name, 0, 0, 1, 64);
+        let open_error = match open_error {
+            Ok(_) => panic!("expected messageQueueOpen to report notSupported"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&open_error, PlatformErrorCode::NotSupported);
 
         let close_error = context
-            .destack_ipc_message_queue_close(resource::MessageQueueHandle(resource::ResourceId(0)))
-            .err()
-            .expect("expected messageQueueClose to report notSupported");
+            .destack_ipc_message_queue_close(resource::MessageQueueHandle(resource::ResourceId(0)));
+        let close_error = match close_error {
+            Ok(_) => panic!("expected messageQueueClose to report notSupported"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&close_error, PlatformErrorCode::NotSupported);
 
         Ok(())
@@ -39,16 +42,18 @@ fn test_futex_lanes_report_not_supported() {
     with_harness_context(|mut context| {
         let handle = resource::SharedMemoryHandle(resource::ResourceId(0));
 
-        let wait_error = context
-            .destack_ipc_futex_wait(handle, 0, 0, 0)
-            .err()
-            .expect("expected futexWait to report notSupported");
+        let wait_error = context.destack_ipc_futex_wait(handle, 0, 0, 0);
+        let wait_error = match wait_error {
+            Ok(_) => panic!("expected futexWait to report notSupported"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&wait_error, PlatformErrorCode::NotSupported);
 
-        let wake_error = context
-            .destack_ipc_futex_wake(handle, 0, 1)
-            .err()
-            .expect("expected futexWake to report notSupported");
+        let wake_error = context.destack_ipc_futex_wake(handle, 0, 1);
+        let wake_error = match wake_error {
+            Ok(_) => panic!("expected futexWake to report notSupported"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&wake_error, PlatformErrorCode::NotSupported);
 
         Ok(())
@@ -62,18 +67,20 @@ fn test_unix_ancillary_lanes_report_not_supported() {
     with_harness_context(|mut context| {
         let socket = resource::SocketHandle(resource::ResourceId(0));
 
-        let receive_error = context
-            .destack_ipc_unix_receive(socket, 0)
-            .err()
-            .expect("expected unixReceive to report notSupported");
+        let receive_error = context.destack_ipc_unix_receive(socket, 0);
+        let receive_error = match receive_error {
+            Ok(_) => panic!("expected unixReceive to report notSupported"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&receive_error, PlatformErrorCode::NotSupported);
 
         let payload = context.bytes_value(b"payload")?;
         let handles = context.transferred_handles_value(&[])?;
-        let send_error = context
-            .destack_ipc_unix_send(socket, payload, handles)
-            .err()
-            .expect("expected unixSend to report notSupported");
+        let send_error = context.destack_ipc_unix_send(socket, payload, handles);
+        let send_error = match send_error {
+            Ok(_) => panic!("expected unixSend to report notSupported"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&send_error, PlatformErrorCode::NotSupported);
 
         Ok(())

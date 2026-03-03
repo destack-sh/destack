@@ -167,19 +167,21 @@ fn test_unix_ancillary_rejects_unknown_socket_handle() {
         let unknown = resource::SocketHandle(resource::ResourceId(0));
 
         // receive should fail with invalid-argument for unknown socket handles
-        let receive_error = context
-            .destack_ipc_unix_receive(unknown, 0)
-            .err()
-            .expect("expected unixReceive to fail for unknown socket handle");
+        let receive_error = context.destack_ipc_unix_receive(unknown, 0);
+        let receive_error = match receive_error {
+            Ok(_) => panic!("expected unixReceive to fail for unknown socket handle"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&receive_error, PlatformErrorCode::InvalidArgumentValue);
 
         // send should fail with invalid-argument for unknown socket handles
         let payload = context.bytes_value(b"payload")?;
         let handles = context.transferred_handles_value(&[])?;
-        let send_error = context
-            .destack_ipc_unix_send(unknown, payload, handles)
-            .err()
-            .expect("expected unixSend to fail for unknown socket handle");
+        let send_error = context.destack_ipc_unix_send(unknown, payload, handles);
+        let send_error = match send_error {
+            Ok(_) => panic!("expected unixSend to fail for unknown socket handle"),
+            Err(error) => error,
+        };
         assert_platform_error_code(&send_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())

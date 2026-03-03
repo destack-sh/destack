@@ -1,11 +1,10 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::{UnixPeerCredentials, UnixReceiveAncillary};
-use crate::platform::{NativeSlice, resource};
+use crate::platform::{NativeSlice, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    ensure_out, invalid_argument, io_error, register_transferred_descriptor, socket_descriptor,
-    transferable_descriptor,
+    io_error, register_transferred_descriptor, socket_descriptor, transferable_descriptor,
 };
 
 /// Unix ancillary receive operation.
@@ -112,7 +111,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
     socket: resource::SocketHandle,
     maxhandles: u32,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     // resolve one unix socket descriptor
     let descriptor = socket_descriptor(context, socket, UNIX_RECEIVE_OPERATION)?;
@@ -125,13 +124,16 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
     };
 
     // allocate one ancillary control buffer for transferred descriptors
-    let descriptor_capacity = usize::try_from(maxhandles)
-        .map_err(|_| invalid_argument("maxHandles", "maxHandles exceeds host usize range"))?;
+    let descriptor_capacity = usize::try_from(maxhandles).map_err(|_| {
+        core_platform::invalid_argument("maxHandles", "maxHandles exceeds host usize range")
+    })?;
     let descriptor_bytes = descriptor_capacity
         .checked_mul(std::mem::size_of::<libc::c_int>())
-        .ok_or_else(|| invalid_argument("maxHandles", "maxHandles overflowed descriptor bytes"))?;
+        .ok_or_else(|| {
+            core_platform::invalid_argument("maxHandles", "maxHandles overflowed descriptor bytes")
+        })?;
     if descriptor_bytes > u32::MAX as usize {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "maxHandles",
             "maxHandles descriptor bytes exceed host cmsg range",
         ));
@@ -235,7 +237,7 @@ pub(crate) unsafe fn destack_ipc_unix_send(
     argument_payload: NativeSlice<u8>,
     handles: NativeSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<()> {
-    ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     // resolve one unix socket descriptor
     let descriptor = socket_descriptor(context, socket, UNIX_SEND_OPERATION)?;
@@ -259,9 +261,11 @@ pub(crate) unsafe fn destack_ipc_unix_send(
     let descriptor_bytes = descriptors
         .len()
         .checked_mul(std::mem::size_of::<libc::c_int>())
-        .ok_or_else(|| invalid_argument("handles", "handle list overflowed descriptor bytes"))?;
+        .ok_or_else(|| {
+            core_platform::invalid_argument("handles", "handle list overflowed descriptor bytes")
+        })?;
     if descriptor_bytes > u32::MAX as usize {
-        return Err(invalid_argument(
+        return Err(core_platform::invalid_argument(
             "handles",
             "handle list exceeds host cmsg range",
         ));
@@ -284,7 +288,7 @@ pub(crate) unsafe fn destack_ipc_unix_send(
 
         let cmsg = unsafe { libc::CMSG_FIRSTHDR(&message) };
         if cmsg.is_null() {
-            return Err(invalid_argument(
+            return Err(core_platform::invalid_argument(
                 "handles",
                 "failed to allocate ancillary descriptor header",
             ));

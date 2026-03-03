@@ -90,21 +90,15 @@ fn resolve_process_fd(
     context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<ProcessId> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
-            .map(|binding| binding.pid)
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown process fd handle",
-        ))
-        .boxed()
-    })
+    resource::require_payload::<core_process::ProcessFdBinding>(
+        context,
+        handle.0,
+        resource::ResourceKind::ProcessFd,
+        None,
+        "handle",
+        "process fd",
+    )
+    .map(|binding| binding.pid)
 }
 
 /// Resolve a signal-fd handle into its signal mask payload.
@@ -112,21 +106,15 @@ fn resolve_signal_fd(
     context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<Vec<Signal>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
-            .map(|binding| binding.signals.clone())
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed()
-    })
+    resource::require_payload::<core_process::SignalFdBinding>(
+        context,
+        handle.0,
+        resource::ResourceKind::SignalFd,
+        None,
+        "handle",
+        "signal fd",
+    )
+    .map(|binding| binding.signals)
 }
 
 /// Replace the signal mask payload for one signal-fd handle.
@@ -135,25 +123,22 @@ fn update_signal_fd(
     handle: resource::SignalFdHandle,
     signals: Vec<Signal>,
 ) -> RuntimeResult<()> {
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
+    let updated = resource::with_entry_mut(
+        context,
+        handle.0,
+        resource::ResourceKind::SignalFd,
+        None,
+        |entry| {
             entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<core_process::SignalFdBinding>())
+                .payload_mut::<core_process::SignalFdBinding>()
                 .map(|binding| {
                     binding.signals = signals;
                 })
-        });
+        },
+    );
 
     if updated.flatten().is_none() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "signal fd"));
     }
 
     Ok(())
@@ -164,20 +149,16 @@ fn ensure_process_fd_handle(
     context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    let is_process_fd = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
-            .is_some()
-    });
+    let is_process_fd = resource::with_payload::<core_process::ProcessFdBinding, _>(
+        context,
+        handle.0,
+        resource::ResourceKind::ProcessFd,
+        None,
+        |_binding, _entry| true,
+    );
 
     if is_process_fd != Some(true) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown process fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "process fd"));
     }
 
     Ok(())
@@ -188,20 +169,16 @@ fn ensure_signal_fd_handle(
     context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    let is_signal_fd = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
-            .is_some()
-    });
+    let is_signal_fd = resource::with_payload::<core_process::SignalFdBinding, _>(
+        context,
+        handle.0,
+        resource::ResourceKind::SignalFd,
+        None,
+        |_binding, _entry| true,
+    );
 
     if is_signal_fd != Some(true) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "signal fd"));
     }
 
     Ok(())
@@ -307,11 +284,7 @@ pub(crate) unsafe fn destack_process_process_fd_close(
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown process fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "process fd"));
     }
 
     Ok(())
@@ -500,11 +473,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "signal fd"));
     }
 
     Ok(())

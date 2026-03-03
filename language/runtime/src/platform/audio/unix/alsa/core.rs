@@ -1,46 +1,27 @@
-use std::ffi::{CStr, CString, c_int, c_void};
-use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::ffi::{CStr, CString, c_int};
+use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
 use super::abi::{AlsaApi, AlsaPcm};
 use super::ffi::alsa_library;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::{PlatformError, core as core_platform};
 
 /// Return whether ALSA backend support is implemented for this build.
 pub(crate) fn is_backend_supported() -> bool {
     cfg!(target_os = "linux") && alsa_library().is_some()
 }
 
-/// One process-global ALSA dynamic library slot.
-pub(super) static ALSA_LIBRARY_SLOT: OnceLock<Option<Arc<AlsaLibrary>>> = OnceLock::new();
-
 /// One loaded ALSA dynamic library payload.
 #[derive(Debug)]
 pub(super) struct AlsaLibrary {
-    /// Raw dynamic-library handle from `dlopen`.
-    pub(super) handle: *mut c_void,
+    /// Loaded dynamic-library lifetime owner.
+    pub(super) _library: core_platform::DynamicLibrary,
     /// Loaded ALSA function table.
     pub(super) api: AlsaApi,
 }
-
-impl Drop for AlsaLibrary {
-    fn drop(&mut self) {
-        if self.handle.is_null() {
-            return;
-        }
-
-        // close one open dynamic-library handle
-        unsafe {
-            libc::dlclose(self.handle);
-        }
-    }
-}
-
-unsafe impl Send for AlsaLibrary {}
-unsafe impl Sync for AlsaLibrary {}
 
 /// One direction marker parsed from ALSA hint metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,6 +108,8 @@ pub(super) struct AlsaDeviceProfile {
 pub(super) struct AlsaPcmHandle {
     /// Raw `snd_pcm_t*` pointer.
     pub(super) raw: *mut AlsaPcm,
+    /// Shared ALSA symbol table.
+    pub(super) library: Arc<AlsaLibrary>,
 }
 
 impl Drop for AlsaPcmHandle {
@@ -136,10 +119,8 @@ impl Drop for AlsaPcmHandle {
         }
 
         // close one owned pcm handle
-        if let Some(library) = alsa_library() {
-            unsafe {
-                let _ = (library.api.snd_pcm_close)(self.raw);
-            }
+        unsafe {
+            let _ = (self.library.api.snd_pcm_close)(self.raw);
         }
     }
 }

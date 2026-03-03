@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::runtime::BindingCallContext;
 
 use super::{
-    SnapshotConfig, load_host_key_snapshot_bytes as load_snapshot_bytes, not_supported,
+    SnapshotConfig, load_host_key_snapshot_bytes as load_snapshot_bytes,
     store_host_key_snapshot_bytes as store_snapshot_bytes,
 };
 
@@ -60,7 +61,7 @@ pub(crate) fn open_host_store_certificates_with_collector(
         CryptoStoreKind::System => Ok(collect_system_certificates(context)),
         CryptoStoreKind::User => Ok(Vec::new()),
         CryptoStoreKind::Machine => Ok(collect_system_certificates(context)),
-        CryptoStoreKind::Provider => Err(not_supported(operation)),
+        CryptoStoreKind::Provider => Err(core_platform::not_supported(operation)),
         CryptoStoreKind::Ephemeral => Ok(Vec::new()),
     }
 }

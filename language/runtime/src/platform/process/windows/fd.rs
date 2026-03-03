@@ -313,26 +313,20 @@ fn resolve_process_fd(
     context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<(ProcessId, windows_sys::Win32::Foundation::HANDLE)> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
-            .map(|binding| {
-                (
-                    binding.pid,
-                    entry.handle().map(|raw_handle| raw_handle as _),
-                )
-            })
-    });
-
-    let Some((pid, process_handle)) = resolved.flatten() else {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown process fd handle",
-        ))
-        .boxed());
-    };
+    let (pid, process_handle) = resource::require_payload_with::<core_process::ProcessFdBinding, _>(
+        context,
+        handle.0,
+        resource::ResourceKind::ProcessFd,
+        None,
+        "handle",
+        "process fd",
+        |binding, entry| {
+            (
+                binding.pid,
+                entry.handle().map(|raw_handle| raw_handle as _),
+            )
+        },
+    )?;
     let Some(process_handle) = process_handle else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -350,21 +344,16 @@ fn wait_process_handle_with_timeout(
     process_handle: windows_sys::Win32::Foundation::HANDLE,
     timeout_ms: u32,
 ) -> RuntimeResult<ProcessWaitStatus> {
-    use windows_sys::Win32::Foundation::{STILL_ACTIVE, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT};
+    use windows_sys::Win32::Foundation::STILL_ACTIVE;
     use windows_sys::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
 
     let wait_status = unsafe { WaitForSingleObject(process_handle, timeout_ms) };
-    match wait_status {
-        WAIT_TIMEOUT => Err(RuntimeError::from(PlatformError::io_with(
-            Some(PlatformErrorCode::IoWouldBlock),
-            None,
-            None,
-            Some("WaitForSingleObject".to_string()),
-            None,
+    match core_platform::decode_wait_for_single_object_status(wait_status, "WaitForSingleObject")? {
+        core_platform::WaitStatus::TimedOut => Err(core_platform::io_would_block(
+            "WaitForSingleObject",
             format!("wait timed out for pid {}", pid.0),
-        ))
-        .boxed()),
-        WAIT_OBJECT_0 => {
+        )),
+        core_platform::WaitStatus::Signaled => {
             let mut exit_code = 0_u32;
             let read_exit_code = unsafe { GetExitCodeProcess(process_handle, &mut exit_code) };
             if read_exit_code == 0 {
@@ -392,15 +381,7 @@ fn wait_process_handle_with_timeout(
                 },
             ))
         }
-        WAIT_FAILED => {
-            let error = core_platform::last_error_code();
-            Err(RuntimeError::from(PlatformError::io(format!(
-                "wait failed for pid {}: {error}",
-                pid.0
-            )))
-            .boxed())
-        }
-        _ => Err(RuntimeError::from(PlatformError::io("wait returned unexpected result")).boxed()),
+        core_platform::WaitStatus::Abandoned => Err(core_platform::io_error("WaitForSingleObject")),
     }
 }
 
@@ -516,21 +497,15 @@ fn resolve_signal_fd(
     context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<Vec<Signal>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
-            .map(|binding| binding.signals.clone())
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed()
-    })
+    resource::require_payload::<core_process::SignalFdBinding>(
+        context,
+        handle.0,
+        resource::ResourceKind::SignalFd,
+        None,
+        "handle",
+        "signal fd",
+    )
+    .map(|binding| binding.signals)
 }
 
 /// Replace the signal mask payload for one signal-fd handle.
@@ -539,25 +514,22 @@ fn update_signal_fd(
     handle: resource::SignalFdHandle,
     signals: Vec<Signal>,
 ) -> RuntimeResult<()> {
-    let updated = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
+    let updated = resource::with_entry_mut(
+        context,
+        handle.0,
+        resource::ResourceKind::SignalFd,
+        None,
+        |entry| {
             entry
-                .payload
-                .as_mut()
-                .and_then(|payload| payload.downcast_mut::<core_process::SignalFdBinding>())
+                .payload_mut::<core_process::SignalFdBinding>()
                 .map(|binding| {
                     binding.signals = signals;
                 })
-        });
+        },
+    );
 
     if updated.flatten().is_none() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "signal fd"));
     }
 
     Ok(())
@@ -568,20 +540,16 @@ fn ensure_process_fd_handle(
     context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    let is_process_fd = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
-            .is_some()
-    });
+    let is_process_fd = resource::with_payload::<core_process::ProcessFdBinding, _>(
+        context,
+        handle.0,
+        resource::ResourceKind::ProcessFd,
+        None,
+        |_binding, _entry| true,
+    );
 
     if is_process_fd != Some(true) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown process fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "process fd"));
     }
 
     Ok(())
@@ -592,20 +560,16 @@ fn ensure_signal_fd_handle(
     context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    let is_signal_fd = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
-            .is_some()
-    });
+    let is_signal_fd = resource::with_payload::<core_process::SignalFdBinding, _>(
+        context,
+        handle.0,
+        resource::ResourceKind::SignalFd,
+        None,
+        |_binding, _entry| true,
+    );
 
     if is_signal_fd != Some(true) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "signal fd"));
     }
 
     Ok(())
@@ -638,11 +602,7 @@ pub(crate) unsafe fn destack_process_process_fd_close(
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown process fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "process fd"));
     }
 
     Ok(())
@@ -836,11 +796,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
+        return Err(core_platform::unknown_handle("handle", "signal fd"));
     }
 
     Ok(())

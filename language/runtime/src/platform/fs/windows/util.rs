@@ -630,11 +630,6 @@ pub(super) fn last_os_error(syscall: &str, path: Option<&str>) -> Box<RuntimeErr
     .boxed()
 }
 
-/// Convert a Windows wide buffer into a String.
-pub(super) fn string_from_wide(buffer: &[u16], name: &str) -> RuntimeResult<String> {
-    core_platform::string_from_wide(name, buffer)
-}
-
 /// Stored payload for file handles that need cursor tracking.
 #[derive(Debug, Clone)]
 pub(super) struct FileResource {
@@ -711,11 +706,7 @@ pub(super) fn file_handle(
     // resolve the resource entry
     let handle =
         core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {
-            if let Some(resource) = entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<FileResource>())
-            {
+            if let Some(resource) = entry.payload_ref::<FileResource>() {
                 return Ok(resource.handle as HANDLE);
             }
             entry
@@ -791,11 +782,7 @@ pub(super) fn file_state(
     // resolve the resource entry
     let state =
         core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {
-            let Some(resource) = entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<FileResource>())
-            else {
+            let Some(resource) = entry.payload_ref::<FileResource>() else {
                 return Err(RuntimeError::from(PlatformError::generic(
                     None,
                     "file state missing payload",

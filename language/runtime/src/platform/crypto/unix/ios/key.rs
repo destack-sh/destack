@@ -1,6 +1,7 @@
 use std::ptr;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
@@ -21,7 +22,7 @@ use security_framework_sys::key::{
 };
 
 use super::constants::{IOS_SECURE_ENCLAVE_KEY_SIZE_BITS, IOS_SECURE_ENCLAVE_PROBE_LABEL};
-use super::core::{invalid_data, not_supported};
+use super::core::invalid_data;
 use crate::platform::crypto::host::unix::apple::{
     copy_cf_data_bytes, copy_key_external_representation, copy_private_key_by_label,
     create_ec_public_key_from_x963, create_secure_enclave_private_key,
@@ -88,16 +89,16 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 ) -> RuntimeResult<HostGeneratedKeyPair> {
     // enforce secure-enclave lane shape
     if kind != CryptoStoreKind::User {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if algorithm != CryptoKeyAlgorithm::Ec {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
     if !matches!(
         named_curve,
         CryptoNamedCurve::Unknown | CryptoNamedCurve::P256
     ) {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     // create private key and derive public key
@@ -174,7 +175,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
         persistent_key_label,
     );
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Generate one host-managed persistent key pair when available.
@@ -243,14 +244,14 @@ pub(crate) fn host_key_sign(
     // secure-enclave signing lane
     if key.backend == HostKeyBackend::SecureEnclave {
         if store_kind != CryptoStoreKind::User {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         // secure-enclave signing only supports ec ecdsa lanes
         if algorithm != CryptoKeyAlgorithm::Ec
             || parameters.algorithm != CryptoSignatureAlgorithm::Ecdsa
         {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         // map digest into sec-key signing algorithm
@@ -265,7 +266,7 @@ pub(crate) fn host_key_sign(
             unsafe {
                 CFRelease(private_key as CFTypeRef);
             }
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         // encode payload and sign with Security.framework
@@ -335,7 +336,7 @@ pub(crate) fn host_key_decrypt(
 
     // secure-enclave keys do not support decrypt lane
     if key.backend == HostKeyBackend::SecureEnclave {
-        return Err(not_supported(operation));
+        return Err(core_platform::not_supported(operation));
     }
 
     unix_core::decrypt_with_software_host_key(
@@ -358,7 +359,7 @@ pub(crate) fn host_key_delete(
     // secure-enclave key deletion uses keychain label lookup
     if key.backend == HostKeyBackend::SecureEnclave {
         if store_kind != CryptoStoreKind::User {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         return delete_private_key_by_label_if_present(&key.key_label, operation);
@@ -380,18 +381,18 @@ pub(crate) fn host_key_derive_shared_secret(
     // secure-enclave derive lane
     if key.backend == HostKeyBackend::SecureEnclave {
         if store_kind != CryptoStoreKind::User {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         // secure-enclave derive only supports p256 ecdh
         if algorithm != CryptoKeyAlgorithm::Ec {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
         if !matches!(
             named_curve,
             CryptoNamedCurve::Unknown | CryptoNamedCurve::P256
         ) {
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         // decode peer key and convert to x9.63 payload
@@ -427,7 +428,7 @@ pub(crate) fn host_key_derive_shared_secret(
                 CFRelease(peer_public_key as CFTypeRef);
                 CFRelease(private_key as CFTypeRef);
             }
-            return Err(not_supported(operation));
+            return Err(core_platform::not_supported(operation));
         }
 
         // derive one raw ecdh shared secret
@@ -486,7 +487,7 @@ pub(crate) fn host_key_cipher_encrypt(
 ) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Decrypt one payload with one host-managed secret key.
@@ -501,7 +502,7 @@ pub(crate) fn host_key_cipher_decrypt(
 ) -> RuntimeResult<Vec<u8>> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Compute one MAC with one host-managed secret key.
@@ -516,5 +517,5 @@ pub(crate) fn host_key_mac_compute(
 ) -> RuntimeResult<Vec<u8>> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }

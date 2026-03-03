@@ -12,9 +12,7 @@ use crate::platform::resource::{
 };
 use crate::platform::thread::{core as core_thread, resource as resource_thread};
 use crate::platform::{PlatformError, core as core_platform};
-use windows_sys::Win32::Foundation::{
-    ERROR_TIMEOUT, ERROR_TOO_MANY_POSTS, GetLastError, WAIT_OBJECT_0, WAIT_TIMEOUT,
-};
+use windows_sys::Win32::Foundation::{ERROR_TIMEOUT, ERROR_TOO_MANY_POSTS, GetLastError};
 use windows_sys::Win32::System::Threading::{
     AcquireSRWLockExclusive, AcquireSRWLockShared, CreateSemaphoreW, EnterCriticalSection,
     EnterSynchronizationBarrier, INFINITE, InitializeConditionVariable, InitializeCriticalSection,
@@ -1094,26 +1092,21 @@ pub(crate) unsafe fn destack_thread_semaphore_wait(
     let timeout = core_thread::timeout_from_ns(timeoutns);
     let timeout_milliseconds = timeout_to_wait_milliseconds(timeout)?;
     let status = unsafe { WaitForSingleObject(semaphore.semaphore, timeout_milliseconds) };
-    if status == WAIT_OBJECT_0 {
-        return Ok(());
-    }
+    match core_platform::decode_wait_for_single_object_status(status, "WaitForSingleObject")? {
+        core_platform::WaitStatus::Signaled => Ok(()),
+        core_platform::WaitStatus::TimedOut => {
+            if timeoutns == 0 {
+                return Err(core_thread::io_would_block_error(
+                    "semaphoreWait",
+                    "failed to wait semaphore: no permits are currently available",
+                ));
+            }
 
-    if status == WAIT_TIMEOUT {
-        if timeoutns == 0 {
-            return Err(core_thread::io_would_block_error(
+            Err(core_thread::io_timed_out_error(
                 "semaphoreWait",
-                "failed to wait semaphore: no permits are currently available",
-            ));
+                "failed to wait semaphore: timed out waiting for one permit",
+            ))
         }
-
-        return Err(core_thread::io_timed_out_error(
-            "semaphoreWait",
-            "failed to wait semaphore: timed out waiting for one permit",
-        ));
+        core_platform::WaitStatus::Abandoned => Err(core_platform::io_error("WaitForSingleObject")),
     }
-
-    Err(core_platform::io_error_with_code(
-        "WaitForSingleObject",
-        status as i32,
-    ))
 }

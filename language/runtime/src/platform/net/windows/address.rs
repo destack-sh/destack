@@ -155,7 +155,10 @@ pub(crate) unsafe fn destack_net_interface_index(
     // resolve interface index
     let index = unsafe { if_nametoindex(name.as_ptr() as *const u8) };
     if index == 0 {
-        return Err(last_net_error("if_nametoindex"));
+        return Err(core_platform::net_error_with_code(
+            "if_nametoindex",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // write output value
@@ -197,7 +200,10 @@ pub(crate) unsafe fn destack_net_interface_name(
     let mut buffer = vec![0u8; 256];
     let pointer = unsafe { if_indextoname(index, buffer.as_mut_ptr()) };
     if pointer.is_null() {
-        return Err(last_net_error("if_indextoname"));
+        return Err(core_platform::net_error_with_code(
+            "if_indextoname",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // decode and store output string
@@ -259,7 +265,10 @@ pub(crate) unsafe fn destack_net_list_interfaces(
         break status;
     };
     if result != ERROR_SUCCESS {
-        return Err(net_error_with_code("GetAdaptersAddresses", result as i32));
+        return Err(core_platform::net_error_with_code(
+            "GetAdaptersAddresses",
+            result as i32,
+        ));
     }
 
     // collect interface rows from adapter output
@@ -353,7 +362,10 @@ pub(crate) unsafe fn destack_net_local_address_raw(
     let mut length = mem::size_of::<SOCKADDR_STORAGE>() as i32;
     let rc = unsafe { getsockname(socket, storage.as_mut_ptr() as *mut SOCKADDR, &mut length) };
     if rc != 0 {
-        return Err(last_net_error("getsockname"));
+        return Err(core_platform::net_error_with_code(
+            "getsockname",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // decode and write the output
@@ -385,7 +397,10 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
     let mut length = mem::size_of::<SOCKADDR_STORAGE>() as i32;
     let rc = unsafe { getpeername(socket, storage.as_mut_ptr() as *mut SOCKADDR, &mut length) };
     if rc != 0 {
-        return Err(last_net_error("getpeername"));
+        return Err(core_platform::net_error_with_code(
+            "getpeername",
+            core_platform::last_wsa_error_code(),
+        ));
     }
 
     // decode and write the output
@@ -414,7 +429,7 @@ pub(crate) unsafe fn destack_net_resolve_raw(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // decode and validate the host
     let host = unsafe { host.as_str()? };
@@ -471,7 +486,7 @@ pub(crate) unsafe fn destack_net_resolve_raw(
     let mut result: *mut ADDRINFOW = std::ptr::null_mut();
     let rc = unsafe { GetAddrInfoW(host.as_ptr(), service.as_ptr(), &hints, &mut result) };
     if rc != 0 {
-        return Err(net_error_with_code("GetAddrInfoW", rc));
+        return Err(core_platform::net_error_with_code("GetAddrInfoW", rc));
     }
     let _guard = AddrInfoGuard { result };
 
@@ -514,7 +529,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
     }
 
     // ensure winsock is initialized
-    ensure_winsock()?;
+    core_platform::ensure_winsock()?;
 
     // decode reverse-lookup flags
     let native_flags = reverse_lookup_native_flags(flags)?;
@@ -536,7 +551,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
             )
         };
         if rc != 0 {
-            return Err(net_error_with_code("GetNameInfoW", rc));
+            return Err(core_platform::net_error_with_code("GetNameInfoW", rc));
         }
 
         // decode resolved host and service strings

@@ -140,6 +140,75 @@ pub enum ResourceKind {
     Unknown,
 }
 
+impl ResourceKind {
+    /// Return one stable runtime label for this resource kind.
+    pub const fn label(self) -> &'static str {
+        match self {
+            ResourceKind::File => "file",
+            ResourceKind::Directory => "directory",
+            ResourceKind::Pipe => "pipe",
+            ResourceKind::Socket => "socket",
+            ResourceKind::Listener => "listener",
+            ResourceKind::Timer => "timer",
+            ResourceKind::TimerFd => "timer_fd",
+            ResourceKind::Watch => "watch",
+            ResourceKind::Process => "process",
+            ResourceKind::Poll => "poll",
+            ResourceKind::Completion => "completion",
+            ResourceKind::Event => "event",
+            ResourceKind::Uring => "uring",
+            ResourceKind::ProcessFd => "process_fd",
+            ResourceKind::SharedMemory => "shared_memory",
+            ResourceKind::Semaphore => "semaphore",
+            ResourceKind::Signal => "signal",
+            ResourceKind::SignalFd => "signal_fd",
+            ResourceKind::Thread => "thread",
+            ResourceKind::Mutex => "mutex",
+            ResourceKind::RwLock => "rw_lock",
+            ResourceKind::CondVar => "cond_var",
+            ResourceKind::ThreadSemaphore => "thread_semaphore",
+            ResourceKind::Barrier => "barrier",
+            ResourceKind::ThreadLocal => "thread_local",
+            ResourceKind::Library => "library",
+            ResourceKind::Symbol => "symbol",
+            ResourceKind::CryptoStore => "crypto_store",
+            ResourceKind::CryptoKey => "crypto_key",
+            ResourceKind::CryptoCertificate => "crypto_certificate",
+            ResourceKind::CryptoDigest => "crypto_digest",
+            ResourceKind::CryptoMac => "crypto_mac",
+            ResourceKind::CryptoCipher => "crypto_cipher",
+            ResourceKind::TlsContext => "tls_context",
+            ResourceKind::TlsSession => "tls_session",
+            ResourceKind::Device => "device",
+            ResourceKind::Pty => "pty",
+            ResourceKind::Tty => "tty",
+            ResourceKind::Sandbox => "sandbox",
+            ResourceKind::Inspector => "inspector",
+            ResourceKind::Profile => "profile",
+            ResourceKind::Trace => "trace",
+            ResourceKind::Transferred => "transferred",
+            ResourceKind::MessageQueue => "message_queue",
+            ResourceKind::AudioDevice => "audio_device",
+            ResourceKind::AudioStream => "audio_stream",
+            ResourceKind::AudioEvent => "audio_event",
+            ResourceKind::Display => "display",
+            ResourceKind::Window => "window",
+            ResourceKind::Input => "input",
+            ResourceKind::GpuAdapter => "gpu_adapter",
+            ResourceKind::GpuDevice => "gpu_device",
+            ResourceKind::GpuQueue => "gpu_queue",
+            ResourceKind::GpuCommandList => "gpu_command_list",
+            ResourceKind::GpuMemory => "gpu_memory",
+            ResourceKind::GpuBuffer => "gpu_buffer",
+            ResourceKind::GpuTexture => "gpu_texture",
+            ResourceKind::GpuSampler => "gpu_sampler",
+            ResourceKind::GpuShader => "gpu_shader",
+            ResourceKind::GpuPipeline => "gpu_pipeline",
+            ResourceKind::Unknown => "unknown",
+        }
+    }
+}
+
 /// Finalizer callback for resource cleanup.
 pub trait ResourceFinalizer: Send + Sync {
     /// Finalize the resource for the given id.
@@ -216,6 +285,70 @@ impl ResourceEntry {
         }
     }
 
+    /// Create one labeled resource entry.
+    pub fn labeled(kind: ResourceKind, label: impl Into<String>) -> Self {
+        Self::new(kind).with_label(label)
+    }
+
+    /// Create one labeled resource entry with one typed payload.
+    pub fn labeled_payload(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        payload: impl Any + Send + Sync,
+    ) -> Self {
+        Self::new(kind).with_label(label).with_payload(payload)
+    }
+
+    /// Create one labeled resource entry with one typed payload and finalizer.
+    pub fn labeled_payload_finalizer(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        payload: impl Any + Send + Sync,
+        finalizer: impl ResourceFinalizer + 'static,
+    ) -> Self {
+        Self::new(kind)
+            .with_label(label)
+            .with_payload(payload)
+            .with_finalizer(finalizer)
+    }
+
+    /// Create one labeled resource entry with one finalizer.
+    pub fn labeled_finalizer(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        finalizer: impl ResourceFinalizer + 'static,
+    ) -> Self {
+        Self::new(kind).with_label(label).with_finalizer(finalizer)
+    }
+
+    /// Create one labeled unix descriptor entry with one finalizer.
+    #[cfg(unix)]
+    pub fn labeled_fd_finalizer(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        descriptor: RawFd,
+        finalizer: impl ResourceFinalizer + 'static,
+    ) -> Self {
+        Self::new(kind)
+            .with_label(label)
+            .with_fd(descriptor)
+            .with_finalizer(finalizer)
+    }
+
+    /// Create one labeled windows handle entry with one finalizer.
+    #[cfg(windows)]
+    pub fn labeled_handle_finalizer(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        handle: RawHandle,
+        finalizer: impl ResourceFinalizer + 'static,
+    ) -> Self {
+        Self::new(kind)
+            .with_label(label)
+            .with_handle(handle)
+            .with_finalizer(finalizer)
+    }
+
     /// Attach a diagnostic label.
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
         self.label = Some(label.into());
@@ -285,30 +418,39 @@ impl ResourceEntry {
     /// Read a raw file descriptor payload when present.
     #[cfg(unix)]
     pub fn fd(&self) -> Option<RawFd> {
-        self.payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<RawFd>())
-            .copied()
+        self.payload_ref::<RawFd>().copied()
     }
 
     /// Read a raw handle payload when present.
     #[cfg(windows)]
     pub fn handle(&self) -> Option<RawHandle> {
-        self.raw_handle.or_else(|| {
-            self.payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<HandlePayload>())
-                .map(|payload| payload.0)
-        })
+        self.raw_handle
+            .or_else(|| self.payload_ref::<HandlePayload>().map(|payload| payload.0))
     }
 
     /// Read a raw socket payload when present.
     #[cfg(windows)]
     pub fn socket(&self) -> Option<RawSocket> {
+        self.payload_ref::<RawSocket>().copied()
+    }
+
+    /// Read one typed payload reference when present.
+    pub fn payload_ref<T: Send + Sync + 'static>(&self) -> Option<&T> {
         self.payload
             .as_ref()
-            .and_then(|payload| payload.downcast_ref::<RawSocket>())
-            .copied()
+            .and_then(|payload| payload.downcast_ref::<T>())
+    }
+
+    /// Read one mutable typed payload reference when present.
+    pub fn payload_mut<T: Send + Sync + 'static>(&mut self) -> Option<&mut T> {
+        self.payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<T>())
+    }
+
+    /// Read one cloned typed payload value when present.
+    pub fn payload_cloned<T: Clone + Send + Sync + 'static>(&self) -> Option<T> {
+        self.payload_ref::<T>().cloned()
     }
 
     /// Attach a resource finalizer.

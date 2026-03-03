@@ -1,6 +1,7 @@
 use openssl::pkey::{PKey, Private};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::crypto::core::{HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial};
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::platform::crypto::{
@@ -9,8 +10,6 @@ use crate::platform::crypto::{
     CryptoSignatureParameters, CryptoStoreKind,
 };
 use crate::runtime::BindingCallContext;
-
-use super::core::not_supported;
 
 /// Supported software host-key backends for POSIX key operations.
 const POSIX_SOFTWARE_BACKENDS: [HostKeyBackend; 2] = [
@@ -66,7 +65,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 ) -> RuntimeResult<HostGeneratedKeyPair> {
     let _ = (context, kind, algorithm, named_curve, persistent_key_label);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Generate one host-backed hardware secret key.
@@ -90,7 +89,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
         persistent_key_label,
     );
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Generate one host-managed persistent key pair when available.
@@ -251,7 +250,7 @@ pub(crate) fn host_key_cipher_encrypt(
 ) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Decrypt one payload with one host-managed secret key.
@@ -266,7 +265,7 @@ pub(crate) fn host_key_cipher_decrypt(
 ) -> RuntimeResult<Vec<u8>> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
 
 /// Compute one MAC with one host-managed secret key.
@@ -281,5 +280,5 @@ pub(crate) fn host_key_mac_compute(
 ) -> RuntimeResult<Vec<u8>> {
     let _ = (context, key, store_kind, algorithm, parameters, payload);
 
-    Err(not_supported(operation))
+    Err(core_platform::not_supported(operation))
 }
