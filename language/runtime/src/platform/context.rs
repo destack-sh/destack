@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::abi::NativeStringRef;
+use crate::runtime::NativeStringRef;
 
 /// Platform context available to binding installers.
 #[derive(Debug, Clone)]

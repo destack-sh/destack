@@ -14,9 +14,9 @@ pub struct NativeStringRef {
     pub len: u32,
 }
 
-// safety: points into PlatformContext-owned strings that stay immutable for the platform lifetime
+// safety: points into runtime-owned strings that stay immutable for the reference lifetime
 unsafe impl Send for NativeStringRef {}
-// safety: points into PlatformContext-owned strings that stay immutable for the platform lifetime
+// safety: points into runtime-owned strings that stay immutable for the reference lifetime
 unsafe impl Sync for NativeStringRef {}
 
 impl NativeStringRef {
@@ -64,9 +64,9 @@ pub struct NativeStringSlice {
     pub len: u32,
 }
 
-// safety: points into PlatformContext-owned string references that stay immutable
+// safety: points into runtime-owned string references that stay immutable
 unsafe impl Send for NativeStringSlice {}
-// safety: points into PlatformContext-owned string references that stay immutable
+// safety: points into runtime-owned string references that stay immutable
 unsafe impl Sync for NativeStringSlice {}
 
 impl NativeStringSlice {

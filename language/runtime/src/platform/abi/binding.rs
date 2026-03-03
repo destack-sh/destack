@@ -1,8 +1,7 @@
 use destack_vm as vm;
 
-use crate::platform::abi::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, VmArray, VmSlice,
-};
+use crate::platform::abi::{NativeArray, VmArray, VmSlice};
+use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 /// ABI configuration for platform bindings.
 pub trait BindingAbi {
