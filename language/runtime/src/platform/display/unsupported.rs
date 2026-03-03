@@ -9,15 +9,16 @@ use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::display::{
-    DisplayAddedPayload, DisplayDescriptor, DisplayDescriptorChangedPayload, DisplayEvent,
-    DisplayMode, DisplayModeChangedPayload, DisplayMonitorEventOpenOptions,
-    DisplayMonitorListRequest, DisplayMonitorOpenOptions, DisplayOrientation,
-    DisplayPrimaryPayload, DisplayRemovedPayload, WindowAttentionLevel, WindowCursorIcon,
-    WindowCursorMode, WindowDescriptor, WindowDisplayPayload, WindowEvent, WindowEventOpenOptions,
-    WindowFocusPayload, WindowLogicalSize, WindowMode, WindowModeOptions, WindowModePayload,
-    WindowOcclusionPayload, WindowOptions, WindowPhysicalSize, WindowPosition,
-    WindowPositionPayload, WindowScaleFactorPayload, WindowSizeConstraints, WindowSizePayload,
-    WindowState, WindowTheme, WindowThemePayload, WindowVisibility, WindowVisibilityPayload,
+    DisplayAddedPayload, DisplayColorState, DisplayDescriptor, DisplayDescriptorChangedPayload,
+    DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayModeChangedPayload, DisplayMonitorEvent,
+    DisplayMonitorEventOpenOptions, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
+    DisplayOrientation, DisplayPrimaryPayload, DisplayRemovedPayload, WindowAspectRatio,
+    WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowDescriptor,
+    WindowDisplayPayload, WindowEvent, WindowEventOpenOptions, WindowFocusPayload, WindowIconSet,
+    WindowLogicalSize, WindowModeOptions, WindowModePayload, WindowOcclusionPayload, WindowOptions,
+    WindowPhysicalSize, WindowPosition, WindowPositionPayload, WindowResizeEdge,
+    WindowScaleFactorPayload, WindowSizeConstraints, WindowSizePayload, WindowState, WindowTheme,
+    WindowThemePayload, WindowVisibility, WindowVisibilityPayload,
 };
 use crate::platform::resource;
 
@@ -261,7 +262,7 @@ pub(crate) unsafe fn destack_display_monitor_event_open(
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_read(
     context: &BindingCallContext,
-    out: *mut DisplayEvent,
+    out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -294,7 +295,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read(
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_read_batch(
     context: &BindingCallContext,
-    out: *mut NativeArray<DisplayEvent>,
+    out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
     timeoutns: u64,
@@ -329,7 +330,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read_batch(
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_try_read(
     context: &BindingCallContext,
-    out: *mut DisplayEvent,
+    out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -361,7 +362,7 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read(
 /// External, recordable.
 pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
     context: &BindingCallContext,
-    out: *mut NativeArray<DisplayEvent>,
+    out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<()> {
@@ -529,6 +530,85 @@ pub(crate) unsafe fn destack_display_monitor_set_mode(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.setMode",
+    ))
+    .boxed())
+}
+
+/// Read display color state.
+pub(crate) unsafe fn destack_display_monitor_color_state(
+    context: &BindingCallContext,
+    out: *mut DisplayColorState,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.colorState",
+    ))
+    .boxed())
+}
+
+/// Read display HDR mode.
+pub(crate) unsafe fn destack_display_monitor_hdr_mode(
+    context: &BindingCallContext,
+    out: *mut DisplayHdrMode,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.hdrMode",
+    ))
+    .boxed())
+}
+
+/// Set display HDR mode.
+pub(crate) unsafe fn destack_display_monitor_set_hdr_mode(
+    context: &BindingCallContext,
+    handle: resource::DisplayHandle,
+    mode: DisplayHdrMode,
+) -> RuntimeResult<()> {
+    let _ = (context, handle, mode);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.setHdrMode",
+    ))
+    .boxed())
+}
+
+/// Read display gamma ramp.
+pub(crate) unsafe fn destack_display_monitor_gamma_ramp(
+    context: &BindingCallContext,
+    out: *mut DisplayGammaRamp,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.gammaRamp",
+    ))
+    .boxed())
+}
+
+/// Set display gamma ramp.
+pub(crate) unsafe fn destack_display_monitor_set_gamma_ramp(
+    context: &BindingCallContext,
+    handle: resource::DisplayHandle,
+    ramp: DisplayGammaRamp,
+) -> RuntimeResult<()> {
+    let _ = (context, handle, ramp);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.setGammaRamp",
     ))
     .boxed())
 }
@@ -1075,6 +1155,34 @@ pub(crate) unsafe fn destack_display_window_set_mode(
     .boxed())
 }
 
+/// Set one window aspect ratio lock.
+pub(crate) unsafe fn destack_display_window_set_aspect_ratio(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    aspectratio: Option<WindowAspectRatio>,
+) -> RuntimeResult<()> {
+    let _ = (context, window, aspectratio);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setAspectRatio",
+    ))
+    .boxed())
+}
+
+/// Set one window chrome kind.
+pub(crate) unsafe fn destack_display_window_set_chrome(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    chrome: WindowChromeKind,
+) -> RuntimeResult<()> {
+    let _ = (context, window, chrome);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setChrome",
+    ))
+    .boxed())
+}
+
 /// Set one window position.
 ///
 /// Apply one host window position in desktop coordinates.
@@ -1250,6 +1358,207 @@ pub(crate) unsafe fn destack_display_window_set_title(
     .boxed())
 }
 
+/// Set one window icon set.
+pub(crate) unsafe fn destack_display_window_set_icons(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    icons: Option<WindowIconSet>,
+) -> RuntimeResult<()> {
+    let _ = (context, window, icons);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setIcons",
+    ))
+    .boxed())
+}
+
+/// Set one window modal state.
+pub(crate) unsafe fn destack_display_window_set_modal(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    modal: bool,
+) -> RuntimeResult<()> {
+    let _ = (context, window, modal);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setModal",
+    ))
+    .boxed())
+}
+
+/// Set one window mouse passthrough state.
+pub(crate) unsafe fn destack_display_window_set_mouse_passthrough(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    passthrough: bool,
+) -> RuntimeResult<()> {
+    let _ = (context, window, passthrough);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setMousePassthrough",
+    ))
+    .boxed())
+}
+
+/// Set one window opacity.
+pub(crate) unsafe fn destack_display_window_set_opacity(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    opacity: f64,
+) -> RuntimeResult<()> {
+    let _ = (context, window, opacity);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setOpacity",
+    ))
+    .boxed())
+}
+
+/// Read one window opacity.
+pub(crate) unsafe fn destack_display_window_opacity(
+    context: &BindingCallContext,
+    out: *mut f64,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out, window);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.opacity",
+    ))
+    .boxed())
+}
+
+/// Focus one window.
+pub(crate) unsafe fn destack_display_window_focus(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, window);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.focus")).boxed())
+}
+
+/// Raise one window.
+pub(crate) unsafe fn destack_display_window_raise(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, window);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.raise")).boxed())
+}
+
+/// Minimize one window.
+pub(crate) unsafe fn destack_display_window_minimize(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, window);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.minimize",
+    ))
+    .boxed())
+}
+
+/// Maximize one window.
+pub(crate) unsafe fn destack_display_window_maximize(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, window);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.maximize",
+    ))
+    .boxed())
+}
+
+/// Restore one window.
+pub(crate) unsafe fn destack_display_window_restore(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, window);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.restore",
+    ))
+    .boxed())
+}
+
+/// Set one window parent relationship.
+pub(crate) unsafe fn destack_display_window_set_parent(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    parent: Option<resource::WindowHandle>,
+) -> RuntimeResult<()> {
+    let _ = (context, window, parent);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setParent",
+    ))
+    .boxed())
+}
+
+/// Set one window transient relationship.
+pub(crate) unsafe fn destack_display_window_set_transient_for(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    transientfor: Option<resource::WindowHandle>,
+) -> RuntimeResult<()> {
+    let _ = (context, window, transientfor);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setTransientFor",
+    ))
+    .boxed())
+}
+
+/// Set one window taskbar visibility.
+pub(crate) unsafe fn destack_display_window_set_taskbar_visible(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    visible: bool,
+) -> RuntimeResult<()> {
+    let _ = (context, window, visible);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setTaskbarVisible",
+    ))
+    .boxed())
+}
+
+/// Begin one native move-drag interaction.
+pub(crate) unsafe fn destack_display_window_begin_move_drag(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, window);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.beginMoveDrag",
+    ))
+    .boxed())
+}
+
+/// Begin one native resize-drag interaction.
+pub(crate) unsafe fn destack_display_window_begin_resize_drag(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    edge: WindowResizeEdge,
+) -> RuntimeResult<()> {
+    let _ = (context, window, edge);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.beginResizeDrag",
+    ))
+    .boxed())
+}
+
 /// Set one window visibility state.
 ///
 /// Apply one window visibility state transition.
@@ -1306,33 +1615,4 @@ pub(crate) unsafe fn destack_display_window_state(
     let _ = (context, out, window);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.state")).boxed())
-}
-
-/// Present one frame interval marker.
-///
-/// Block until the next present interval for one window when host backends support vsync synchronization.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses compositor frame callbacks or swap-chain present fences.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.vsync`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_display_window_vsync_wait(
-    context: &BindingCallContext,
-    window: resource::WindowHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    let _ = (context, window, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.display.window.vsyncWait",
-    ))
-    .boxed())
 }

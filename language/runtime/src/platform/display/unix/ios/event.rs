@@ -1,7 +1,7 @@
-use super::core::display_unsupported;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayEvent, DisplayMonitorEventOpenOptions, WindowEvent, WindowEventOpenOptions,
+    DisplayMonitorEvent, DisplayMonitorEventOpenOptions, WindowEvent, WindowEventOpenOptions,
+    unsupported,
 };
 use crate::platform::{NativeArray, resource};
 use crate::runtime::BindingCallContext;
@@ -11,7 +11,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_close(
     context: &BindingCallContext,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_monitor_event_close(context, handle) }
+    unsafe { unsupported::destack_display_monitor_event_close(context, handle) }
 }
 
 /// Open one global monitor-event stream.
@@ -20,31 +20,29 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_open(
     out: *mut resource::DisplayEventHandle,
     options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_monitor_event_open(context, out, options) }
+    unsafe { unsupported::destack_display_monitor_event_open(context, out, options) }
 }
 
 /// Wait for one monitor event.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read(
     context: &BindingCallContext,
-    out: *mut DisplayEvent,
+    out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe {
-        display_unsupported::destack_display_monitor_event_read(context, out, handle, timeoutns)
-    }
+    unsafe { unsupported::destack_display_monitor_event_read(context, out, handle, timeoutns) }
 }
 
 /// Wait for one batch of monitor events.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read_batch(
     context: &BindingCallContext,
-    out: *mut NativeArray<DisplayEvent>,
+    out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     unsafe {
-        display_unsupported::destack_display_monitor_event_read_batch(
+        unsupported::destack_display_monitor_event_read_batch(
             context, out, handle, maxevents, timeoutns,
         )
     }
@@ -53,23 +51,21 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_event_read_batch(
 /// Poll one monitor event without blocking.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_event_try_read(
     context: &BindingCallContext,
-    out: *mut DisplayEvent,
+    out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_monitor_event_try_read(context, out, handle) }
+    unsafe { unsupported::destack_display_monitor_event_try_read(context, out, handle) }
 }
 
 /// Poll one batch of monitor events without blocking.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_event_try_read_batch(
     context: &BindingCallContext,
-    out: *mut NativeArray<DisplayEvent>,
+    out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<()> {
     unsafe {
-        display_unsupported::destack_display_monitor_event_try_read_batch(
-            context, out, handle, maxevents,
-        )
+        unsupported::destack_display_monitor_event_try_read_batch(context, out, handle, maxevents)
     }
 }
 
@@ -78,7 +74,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_close(
     context: &BindingCallContext,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_event_close(context, handle) }
+    unsafe { unsupported::destack_display_window_event_close(context, handle) }
 }
 
 /// Open one global window-event stream.
@@ -87,7 +83,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_open(
     out: *mut resource::WindowEventHandle,
     options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_event_open(context, out, options) }
+    unsafe { unsupported::destack_display_window_event_open(context, out, options) }
 }
 
 /// Wait for one window event.
@@ -97,9 +93,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_read(
     handle: resource::WindowEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe {
-        display_unsupported::destack_display_window_event_read(context, out, handle, timeoutns)
-    }
+    unsafe { unsupported::destack_display_window_event_read(context, out, handle, timeoutns) }
 }
 
 /// Wait for one batch of window events.
@@ -111,7 +105,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_read_batch(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     unsafe {
-        display_unsupported::destack_display_window_event_read_batch(
+        unsupported::destack_display_window_event_read_batch(
             context, out, handle, maxevents, timeoutns,
         )
     }
@@ -123,7 +117,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_try_read(
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_event_try_read(context, out, handle) }
+    unsafe { unsupported::destack_display_window_event_try_read(context, out, handle) }
 }
 
 /// Poll one batch of window events without blocking.
@@ -134,8 +128,6 @@ pub(in crate::platform::display::host::unix) unsafe fn window_event_try_read_bat
     maxevents: u32,
 ) -> RuntimeResult<()> {
     unsafe {
-        display_unsupported::destack_display_window_event_try_read_batch(
-            context, out, handle, maxevents,
-        )
+        unsupported::destack_display_window_event_try_read_batch(context, out, handle, maxevents)
     }
 }

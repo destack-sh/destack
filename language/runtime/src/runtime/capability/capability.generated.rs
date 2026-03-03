@@ -61,8 +61,6 @@ pub enum PlatformCapability {
     DisplayMode,
     /// `display.read`.
     DisplayRead,
-    /// `display.vsync`.
-    DisplayVsync,
     /// `display.window`.
     DisplayWindow,
     /// `display.window.events`.
@@ -484,7 +482,6 @@ impl PlatformCapability {
         Self::CryptoStoreWrite,
         Self::DisplayMode,
         Self::DisplayRead,
-        Self::DisplayVsync,
         Self::DisplayWindow,
         Self::DisplayWindowEvents,
         Self::ConsoleWrite,
@@ -712,7 +709,6 @@ impl PlatformCapability {
             Self::CryptoStoreWrite => "crypto.store.write",
             Self::DisplayMode => "display.mode",
             Self::DisplayRead => "display.read",
-            Self::DisplayVsync => "display.vsync",
             Self::DisplayWindow => "display.window",
             Self::DisplayWindowEvents => "display.window.events",
             Self::ConsoleWrite => "console.write",
@@ -946,7 +942,6 @@ impl PlatformCapability {
             "crypto.store.write" => Some(Self::CryptoStoreWrite),
             "display.mode" => Some(Self::DisplayMode),
             "display.read" => Some(Self::DisplayRead),
-            "display.vsync" => Some(Self::DisplayVsync),
             "display.window" => Some(Self::DisplayWindow),
             "display.window.events" => Some(Self::DisplayWindowEvents),
             "console.write" => Some(Self::ConsoleWrite),

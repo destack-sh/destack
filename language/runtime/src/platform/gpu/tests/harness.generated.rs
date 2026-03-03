@@ -4364,6 +4364,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// Configure one present surface with explicit dimensions and swap behavior.
     /// Surface configuration must precede frame acquisition and presentation.
+    /// Present mode selection in this API defines frame pacing and v-sync behavior.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -4454,6 +4455,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Present one previously acquired frame on one configured surface.
     /// The `frameId` must match one outstanding successful `surfaceAcquire` result.
     /// Presentation timing and tearing behavior follow compositor and backend contracts.
+    /// This is the authoritative frame-pacing lane for rendered output.
     ///
     /// # Platform
     /// Unix and Windows.

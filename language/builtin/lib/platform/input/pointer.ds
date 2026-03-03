@@ -200,6 +200,8 @@ declare namespace input {
     ///
     /// Set one pointer position for one opened pointer-capable device and one optional window target.
     /// Warped coordinates are interpreted in backend-native window or surface space for the selected target scope.
+    /// This is the canonical lane for device-target scoped pointer warping.
+    /// Use `display.windowSetCursorPosition` for window-scoped UI convenience operations.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where pointer warping or one window scope is unavailable.

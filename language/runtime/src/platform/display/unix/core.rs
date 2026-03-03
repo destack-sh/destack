@@ -33,7 +33,6 @@ const DISPLAY_CAP_EXCLUSIVE_FULLSCREEN: u64 = 0x10;
 const DISPLAY_CAP_BORDERLESS_FULLSCREEN: u64 = 0x20;
 const DISPLAY_CAP_CURSOR_LOCK: u64 = 0x40;
 const DISPLAY_CAP_CURSOR_CONFINE: u64 = 0x80;
-const DISPLAY_CAP_VSYNC_WAIT: u64 = 0x100;
 const DISPLAY_CAP_TRANSPARENCY: u64 = 0x200;
 
 /// Return unix display backend priority order for auto-selection.
@@ -115,7 +114,6 @@ pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCap
             | DISPLAY_CAP_BORDERLESS_FULLSCREEN
             | DISPLAY_CAP_CURSOR_LOCK
             | DISPLAY_CAP_CURSOR_CONFINE
-            | DISPLAY_CAP_VSYNC_WAIT
             | DISPLAY_CAP_TRANSPARENCY,
     )
 }

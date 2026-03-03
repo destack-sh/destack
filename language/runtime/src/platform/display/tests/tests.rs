@@ -4,7 +4,7 @@ use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, VmSlice, display};
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError, VmSlice, display, resource};
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
@@ -249,13 +249,20 @@ pub(crate) fn decode_display_descriptor(
 pub(crate) fn decode_display_descriptor_metrics(
     context: &mut DisplayHarnessContext<'_>,
     value: HarnessValue<display::DisplayDescriptor, display::DisplayDescriptorVm>,
-) -> RuntimeResult<(display::DisplayOrientation, bool, bool, bool, u32, u32)> {
+) -> RuntimeResult<(
+    display::DisplayOrientation,
+    display::DisplaySupportStatus,
+    display::DisplaySupportStatus,
+    display::DisplaySupportStatus,
+    u32,
+    u32,
+)> {
     match value {
         HarnessValue::Native(value) => Ok((
             value.orientation,
-            value.is_builtin,
-            value.supports_variable_refresh,
-            value.supports_hdr,
+            value.builtin_panel,
+            value.variable_refresh_support,
+            value.hdr_support,
             value.width_px,
             value.height_px,
         )),
@@ -269,9 +276,9 @@ pub(crate) fn decode_display_descriptor_metrics(
             let _vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
             Ok((
                 value.orientation,
-                value.is_builtin,
-                value.supports_variable_refresh,
-                value.supports_hdr,
+                value.builtin_panel,
+                value.variable_refresh_support,
+                value.hdr_support,
                 value.width_px,
                 value.height_px,
             ))
@@ -332,17 +339,25 @@ pub(crate) fn default_window_options(
                 position: Some(display::WindowPositionVm { x: 40, y: 50 }),
                 constraints: None,
                 display: None,
-                mode: display::WindowModeOptionsVm {
-                    mode: display::WindowMode::Windowed,
-                    display: None,
-                    display_mode: None,
-                },
+                mode: display::WindowModeOptionsVm::WindowWindowedModeOptions(
+                    display::WindowWindowedModeOptionsVm {
+                        kind: vm::StringHandle::new(vm_context.intern_string("windowed")),
+                    },
+                ),
                 visibility: display::WindowVisibility::Visible,
                 resizable: true,
                 decorated: true,
                 transparent: false,
+                chrome: display::WindowChromeKind::Standard,
+                taskbar_visible: true,
+                opacity: None,
                 focus_on_show: true,
                 always_on_top: false,
+                parent: None,
+                transient_for: None,
+                modal: None,
+                mouse_passthrough: None,
+                aspect_ratio: None,
             })
         }
         None => HarnessValue::Native(display::WindowOptions {
@@ -356,17 +371,25 @@ pub(crate) fn default_window_options(
             position: Some(display::WindowPosition { x: 40, y: 50 }),
             constraints: None,
             display: None,
-            mode: display::WindowModeOptions {
-                mode: display::WindowMode::Windowed,
-                display: None,
-                display_mode: None,
-            },
+            mode: display::WindowModeOptions::WindowWindowedModeOptions(
+                display::WindowWindowedModeOptions {
+                    kind: context.call_context.store_string("windowed"),
+                },
+            ),
             visibility: display::WindowVisibility::Visible,
             resizable: true,
             decorated: true,
             transparent: false,
+            chrome: display::WindowChromeKind::Standard,
+            taskbar_visible: true,
+            opacity: None,
             focus_on_show: true,
             always_on_top: false,
+            parent: None,
+            transient_for: None,
+            modal: None,
+            mouse_passthrough: None,
+            aspect_ratio: None,
         }),
     };
 
@@ -410,19 +433,26 @@ pub(crate) fn default_monitor_event_open_options(
     context: &DisplayHarnessContext<'_>,
 ) -> HarnessValue<display::DisplayMonitorEventOpenOptions, display::DisplayMonitorEventOpenOptionsVm>
 {
-    let options = display::DisplayMonitorEventOpenOptions {
-        backend: display::DisplayBackend::Auto,
-        backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
-        queue: display::DisplayEventQueueOptions {
-            queue_capacity: 256,
-            overflow_policy: display::DisplayEventOverflowPolicy::DropOldest,
-        },
-    };
-
     if context.vm_context.is_some() {
-        HarnessValue::Vm(options)
+        HarnessValue::Vm(display::DisplayMonitorEventOpenOptionsVm {
+            backend: display::DisplayBackend::Auto,
+            backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+            queue: display::DisplayEventQueueOptions {
+                queue_capacity: 256,
+                overflow_policy: display::DisplayEventOverflowPolicy::DropOldest,
+            },
+            filter: None,
+        })
     } else {
-        HarnessValue::Native(options)
+        HarnessValue::Native(display::DisplayMonitorEventOpenOptions {
+            backend: display::DisplayBackend::Auto,
+            backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+            queue: display::DisplayEventQueueOptions {
+                queue_capacity: 256,
+                overflow_policy: display::DisplayEventOverflowPolicy::DropOldest,
+            },
+            filter: None,
+        })
     }
 }
 
@@ -433,19 +463,26 @@ pub(crate) fn monitor_event_open_options(
     overflow_policy: display::DisplayEventOverflowPolicy,
 ) -> HarnessValue<display::DisplayMonitorEventOpenOptions, display::DisplayMonitorEventOpenOptionsVm>
 {
-    let options = display::DisplayMonitorEventOpenOptions {
-        backend: display::DisplayBackend::Auto,
-        backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
-        queue: display::DisplayEventQueueOptions {
-            queue_capacity,
-            overflow_policy,
-        },
-    };
-
     if context.vm_context.is_some() {
-        HarnessValue::Vm(options)
+        HarnessValue::Vm(display::DisplayMonitorEventOpenOptionsVm {
+            backend: display::DisplayBackend::Auto,
+            backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+            queue: display::DisplayEventQueueOptions {
+                queue_capacity,
+                overflow_policy,
+            },
+            filter: None,
+        })
     } else {
-        HarnessValue::Native(options)
+        HarnessValue::Native(display::DisplayMonitorEventOpenOptions {
+            backend: display::DisplayBackend::Auto,
+            backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+            queue: display::DisplayEventQueueOptions {
+                queue_capacity,
+                overflow_policy,
+            },
+            filter: None,
+        })
     }
 }
 
@@ -460,6 +497,7 @@ pub(crate) fn default_window_event_open_options(
             queue_capacity: 256,
             overflow_policy: display::DisplayEventOverflowPolicy::DropOldest,
         },
+        filter: None,
     };
 
     if context.vm_context.is_some() {
@@ -482,6 +520,7 @@ pub(crate) fn window_event_open_options(
             queue_capacity,
             overflow_policy,
         },
+        filter: None,
     };
 
     if context.vm_context.is_some() {
@@ -552,20 +591,143 @@ pub(crate) fn harness_window_physical_size(
     }
 }
 
+/// Build one window icon-set payload for native and VM binding calls.
+#[cfg(windows)]
+pub(crate) fn harness_window_icon_set(
+    context: &mut DisplayHarnessContext<'_>,
+) -> RuntimeResult<HarnessValue<Option<display::WindowIconSet>, Option<display::WindowIconSetVm>>> {
+    let pixels = vec![
+        0xFF, 0x00, 0x00, 0xFF, //
+        0x00, 0xFF, 0x00, 0xFF, //
+        0x00, 0x00, 0xFF, 0xFF, //
+        0xFF, 0xFF, 0xFF, 0xFF, //
+    ];
+
+    if let Some(vm_context) = context.vm_context {
+        let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+        let pixels_vm = VmSlice::from_bytes(vm_context, &pixels);
+        let image_vm = display::WindowIconImageVm {
+            width: 2,
+            height: 2,
+            pixel_format: display::WindowIconPixelFormat::Rgba8,
+            pixels: pixels_vm,
+        };
+        let images_vm = VmSlice::from_values(vm_context, &[image_vm])?;
+        let icon_set_vm = display::WindowIconSetVm { images: images_vm };
+
+        return Ok(HarnessValue::Vm(Some(icon_set_vm)));
+    }
+
+    let pixels_native = context.call_context.store_slice(pixels);
+    let image_native = display::WindowIconImage {
+        width: 2,
+        height: 2,
+        pixel_format: display::WindowIconPixelFormat::Rgba8,
+        pixels: pixels_native,
+    };
+    let images_native = context.call_context.store_slice(vec![image_native]);
+    let icon_set_native = display::WindowIconSet {
+        images: images_native,
+    };
+    Ok(HarnessValue::Native(Some(icon_set_native)))
+}
+
+/// Build one empty icon-set payload for native and VM binding calls.
+#[cfg(windows)]
+pub(crate) fn harness_window_icon_set_none(
+    context: &DisplayHarnessContext<'_>,
+) -> HarnessValue<Option<display::WindowIconSet>, Option<display::WindowIconSetVm>> {
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(None)
+    } else {
+        HarnessValue::Native(None)
+    }
+}
+
+/// Window mode helper for harness payload construction.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) enum HarnessWindowMode {
+    /// Windowed mode.
+    Windowed,
+    /// Borderless mode.
+    Borderless,
+    /// Exclusive fullscreen mode.
+    ExclusiveFullscreen {
+        /// Target display handle.
+        display: resource::DisplayHandle,
+        /// Optional preferred display mode.
+        display_mode: Option<display::DisplayMode>,
+    },
+}
+
 /// Build one window mode options payload for native and VM binding calls.
 pub(crate) fn harness_window_mode_options(
     context: &DisplayHarnessContext<'_>,
-    mode: display::WindowMode,
+    mode: HarnessWindowMode,
 ) -> HarnessValue<display::WindowModeOptions, display::WindowModeOptionsVm> {
-    let options = display::WindowModeOptions {
-        mode,
-        display: None,
-        display_mode: None,
-    };
-    if context.vm_context.is_some() {
-        HarnessValue::Vm(options)
+    if let Some(vm_context) = context.vm_context {
+        let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+        match mode {
+            HarnessWindowMode::Windowed => {
+                HarnessValue::Vm(display::WindowModeOptionsVm::WindowWindowedModeOptions(
+                    display::WindowWindowedModeOptionsVm {
+                        kind: vm::StringHandle::new(vm_context.intern_string("windowed")),
+                    },
+                ))
+            }
+            HarnessWindowMode::Borderless => {
+                HarnessValue::Vm(display::WindowModeOptionsVm::WindowBorderlessModeOptions(
+                    display::WindowBorderlessModeOptionsVm {
+                        kind: vm::StringHandle::new(vm_context.intern_string("borderless")),
+                        display: None,
+                    },
+                ))
+            }
+            HarnessWindowMode::ExclusiveFullscreen {
+                display,
+                display_mode,
+            } => HarnessValue::Vm(
+                display::WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(
+                    display::WindowExclusiveFullscreenModeOptionsVm {
+                        kind: vm::StringHandle::new(
+                            vm_context.intern_string("exclusiveFullscreen"),
+                        ),
+                        display,
+                        display_mode,
+                    },
+                ),
+            ),
+        }
     } else {
-        HarnessValue::Native(options)
+        match mode {
+            HarnessWindowMode::Windowed => {
+                HarnessValue::Native(display::WindowModeOptions::WindowWindowedModeOptions(
+                    display::WindowWindowedModeOptions {
+                        kind: context.call_context.store_string("windowed"),
+                    },
+                ))
+            }
+            HarnessWindowMode::Borderless => {
+                HarnessValue::Native(display::WindowModeOptions::WindowBorderlessModeOptions(
+                    display::WindowBorderlessModeOptions {
+                        kind: context.call_context.store_string("borderless"),
+                        display: None,
+                    },
+                ))
+            }
+            HarnessWindowMode::ExclusiveFullscreen {
+                display,
+                display_mode,
+            } => HarnessValue::Native(
+                display::WindowModeOptions::WindowExclusiveFullscreenModeOptions(
+                    display::WindowExclusiveFullscreenModeOptions {
+                        kind: context.call_context.store_string("exclusiveFullscreen"),
+                        display,
+                        display_mode,
+                    },
+                ),
+            ),
+        }
     }
 }
 

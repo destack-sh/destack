@@ -1,15 +1,22 @@
 use super::{
-    HarnessValue, decode_harness_value, default_window_options, error_code,
+    HarnessValue, HarnessWindowMode, decode_harness_value, default_window_options, error_code,
     harness_window_logical_size, harness_window_mode_options, harness_window_physical_size,
     with_harness_context,
 };
+#[cfg(windows)]
+use super::{harness_window_icon_set, harness_window_icon_set_none};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::display::{WindowMode, WindowVisibility};
+use crate::platform::display::WindowVisibility;
+#[cfg(windows)]
+use crate::platform::display::{WindowAspectRatio, WindowAspectRatioVm};
+use crate::platform::resource::{DisplayHandle, ResourceId};
 
 #[cfg(windows)]
 use windows_sys::Win32::Foundation::POINT;
 #[cfg(windows)]
-use windows_sys::Win32::UI::WindowsAndMessaging::{CURSOR_SHOWING, CURSORINFO, GetCursorInfo};
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    CURSOR_SHOWING, CURSORINFO, GWL_STYLE, GetCursorInfo, GetWindowLongPtrW, WS_DISABLED,
+};
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -54,7 +61,7 @@ fn test_window_rejects_invalid_size_values() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_window_mode_exclusive_without_display_is_rejected() {
+fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "exclusive-mode")?;
         let window = match context.destack_display_window_open(options) {
@@ -68,12 +75,19 @@ fn test_window_mode_exclusive_without_display_is_rejected() {
             }
         };
 
-        let exclusive = harness_window_mode_options(&context, WindowMode::ExclusiveFullscreen);
+        let exclusive = harness_window_mode_options(
+            &context,
+            HarnessWindowMode::ExclusiveFullscreen {
+                display: DisplayHandle(ResourceId(0)),
+                display_mode: None,
+            },
+        );
         let result = context.destack_display_window_set_mode(window, exclusive);
-        let error = result.expect_err("exclusive mode without target display should fail");
+        let error = result.expect_err("exclusive mode with invalid target display should fail");
         assert!(matches!(
             error_code(&error),
             Some(PlatformErrorCode::InvalidArgument)
+                | Some(PlatformErrorCode::IoNotFound)
                 | Some(PlatformErrorCode::InvalidArgumentValue)
         ));
 
@@ -84,28 +98,47 @@ fn test_window_mode_exclusive_without_display_is_rejected() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_window_open_mode_exclusive_without_display_is_rejected() {
+fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "exclusive-open")?;
         match &mut options {
             HarnessValue::Native(options) => {
-                options.mode.mode = WindowMode::ExclusiveFullscreen;
-                options.mode.display = None;
+                options.mode = crate::platform::display::WindowModeOptions::WindowExclusiveFullscreenModeOptions(
+                    crate::platform::display::WindowExclusiveFullscreenModeOptions {
+                        kind: context.call_context.store_string("exclusiveFullscreen"),
+                        display: DisplayHandle(ResourceId(0)),
+                        display_mode: None,
+                    },
+                );
             }
             HarnessValue::Vm(options) => {
-                options.mode.mode = WindowMode::ExclusiveFullscreen;
-                options.mode.display = None;
+                let vm_context = context
+                    .vm_context
+                    .map(|vm_context| unsafe {
+                        &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
+                    })
+                    .expect("vm context should exist for vm harness");
+                options.mode = crate::platform::display::WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(
+                    crate::platform::display::WindowExclusiveFullscreenModeOptionsVm {
+                        kind: destack_vm::StringHandle::new(
+                            vm_context.intern_string("exclusiveFullscreen"),
+                        ),
+                        display: DisplayHandle(ResourceId(0)),
+                        display_mode: None,
+                    },
+                );
             }
         }
 
         let result = context.destack_display_window_open(options);
-        let error = result.expect_err("exclusive open without target display should fail");
+        let error = result.expect_err("exclusive open with invalid target display should fail");
         if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
             return Ok(());
         }
         assert!(matches!(
             error_code(&error),
             Some(PlatformErrorCode::InvalidArgument)
+                | Some(PlatformErrorCode::IoNotFound)
                 | Some(PlatformErrorCode::InvalidArgumentValue)
         ));
 
@@ -178,6 +211,42 @@ fn test_window_set_size_physical_matches_client_size() {
 
 #[cfg(windows)]
 #[test]
+fn test_window_open_size_matches_requested_client_size() {
+    with_harness_context(|mut context| {
+        let mut options = default_window_options(&mut context, "open-client-size")?;
+        match &mut options {
+            HarnessValue::Native(options) => {
+                options.size_logical.width = 900.0;
+                options.size_logical.height = 540.0;
+            }
+            HarnessValue::Vm(options) => {
+                options.size_logical.width = 900.0;
+                options.size_logical.height = 540.0;
+            }
+        }
+
+        let window = match context.destack_display_window_open(options) {
+            Ok(window) => window,
+            Err(error) => {
+                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let state = decode_harness_value(context.destack_display_window_state(window)?);
+        assert!((state.size_logical.width - 900.0).abs() <= 1.0);
+        assert!((state.size_logical.height - 540.0).abs() <= 1.0);
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
 fn test_window_focus_on_show_false_does_not_force_focus() {
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "focus-disabled")?;
@@ -205,6 +274,55 @@ fn test_window_focus_on_show_false_does_not_force_focus() {
 
         let state = decode_harness_value(context.destack_display_window_state(window)?);
         assert!(!state.focused);
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn test_window_aspect_ratio_roundtrip_and_size_lock() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "aspect-ratio")?;
+        let window = match context.destack_display_window_open(options) {
+            Ok(window) => window,
+            Err(error) => {
+                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let aspect_ratio = if context.vm_context.is_some() {
+            HarnessValue::Vm(Some(WindowAspectRatioVm {
+                numerator: 16,
+                denominator: 9,
+            }))
+        } else {
+            HarnessValue::Native(Some(WindowAspectRatio {
+                numerator: 16,
+                denominator: 9,
+            }))
+        };
+        context.destack_display_window_set_aspect_ratio(window, aspect_ratio)?;
+
+        let logical_size = harness_window_logical_size(&context, 1280.0, 1000.0);
+        context.destack_display_window_set_size_logical(window, logical_size)?;
+
+        let state = decode_harness_value(context.destack_display_window_state(window)?);
+        let ratio = state.size_logical.width / state.size_logical.height;
+        let expected = 16.0 / 9.0;
+        assert!((ratio - expected).abs() <= 0.05);
+        assert_eq!(
+            state.aspect_ratio,
+            Some(WindowAspectRatio {
+                numerator: 16,
+                denominator: 9
+            })
+        );
 
         context.destack_display_window_close(window)?;
         Ok(())
@@ -243,6 +361,90 @@ fn test_window_close_restores_cursor_visibility() {
         assert_ne!(status, 0);
         assert_ne!(cursor.flags & CURSOR_SHOWING, 0);
 
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn test_window_icons_set_and_clear() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "icon-set")?;
+        let window = match context.destack_display_window_open(options) {
+            Ok(window) => window,
+            Err(error) => {
+                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let icons = harness_window_icon_set(&mut context)?;
+        context.destack_display_window_set_icons(window, icons)?;
+        context.destack_display_window_set_icons(window, harness_window_icon_set_none(&context))?;
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn test_window_modal_parent_transition_reenables_previous_owner() {
+    with_harness_context(|mut context| {
+        let owner_a_options = default_window_options(&mut context, "owner-a")?;
+        let owner_a = match context.destack_display_window_open(owner_a_options) {
+            Ok(window) => window,
+            Err(error) => {
+                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let owner_b_options = default_window_options(&mut context, "owner-b")?;
+        let owner_b = context.destack_display_window_open(owner_b_options)?;
+        let child_options = default_window_options(&mut context, "child-modal")?;
+        let child = context.destack_display_window_open(child_options)?;
+
+        context.destack_display_window_set_parent(child, Some(owner_a))?;
+        context.destack_display_window_set_modal(child, true)?;
+
+        let owner_a_hwnd = context
+            .call_context
+            .runtime()
+            .resources
+            .with_entry(owner_a.0, |entry| entry.raw_handle)
+            .flatten()
+            .expect("owner-a window resource should expose raw hwnd");
+        let owner_b_hwnd = context
+            .call_context
+            .runtime()
+            .resources
+            .with_entry(owner_b.0, |entry| entry.raw_handle)
+            .flatten()
+            .expect("owner-b window resource should expose raw hwnd");
+
+        let owner_a_style = unsafe { GetWindowLongPtrW(owner_a_hwnd as isize, GWL_STYLE) } as u32;
+        assert_ne!(owner_a_style & WS_DISABLED, 0);
+
+        context.destack_display_window_set_parent(child, Some(owner_b))?;
+        let owner_a_style = unsafe { GetWindowLongPtrW(owner_a_hwnd as isize, GWL_STYLE) } as u32;
+        let owner_b_style = unsafe { GetWindowLongPtrW(owner_b_hwnd as isize, GWL_STYLE) } as u32;
+        assert_eq!(owner_a_style & WS_DISABLED, 0);
+        assert_ne!(owner_b_style & WS_DISABLED, 0);
+
+        context.destack_display_window_set_modal(child, false)?;
+        let owner_b_style = unsafe { GetWindowLongPtrW(owner_b_hwnd as isize, GWL_STYLE) } as u32;
+        assert_eq!(owner_b_style & WS_DISABLED, 0);
+
+        context.destack_display_window_close(child)?;
+        context.destack_display_window_close(owner_b)?;
+        context.destack_display_window_close(owner_a)?;
         Ok(())
     });
 }

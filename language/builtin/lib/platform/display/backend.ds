@@ -98,8 +98,6 @@ export const DISPLAY_BACKEND_CAP_CURSOR_WARP: DisplayBackendCapabilityFlags = Di
 export const DISPLAY_BACKEND_CAP_CURSOR_ICON: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x4000);
 /// Backend capability flag bit for explicit cursor visibility control.
 export const DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x8000);
-/// Backend capability flag bit for explicit vsync wait.
-export const DISPLAY_BACKEND_CAP_VSYNC_WAIT: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x10000);
 /// Backend capability flag bit for compositor transparency.
 export const DISPLAY_BACKEND_CAP_TRANSPARENCY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x20000);
 /// Backend capability flag bit for always-on-top state control.
