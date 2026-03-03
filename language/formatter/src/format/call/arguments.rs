@@ -7,6 +7,9 @@ use crate::format::analysis::{
     previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
     timing,
 };
+use crate::format::annotation::{
+    AnnotationCapture, annotation_render_items, write_annotation_render_items,
+};
 use crate::format::call::layout::{
     CallArgumentLayout, argument_has_callback_blocking_comment_annotation, call_argument_layout,
     call_argument_layout_cache, call_force_expand_single_collection_for_type_binary_callee,
@@ -1192,10 +1195,28 @@ pub(crate) fn write_separator_line_comment_after_comma<'ast>(
     Ok(())
 }
 
-/// Write one argument without separator line comments that are emitted at list level.
-pub(crate) fn write_argument_without_separator_line_comment<'ast>(
+/// Write one argument's prefix annotations while suppressing detached separator comment nodes.
+fn write_argument_prefix_annotations_with_suppressed_separator_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
+    suppressed_comment_ids: Option<&[LocalNodeId<Comment>]>,
+) -> FormatResult<()> {
+    let mut items = annotation_render_items(f.context(), AnnotationCapture::AnyPrefix, argument_id);
+    if let Some(comment_ids) = suppressed_comment_ids {
+        items.retain(|item| {
+            let annotation = f.context().annotation(item.annotation_id);
+            !matches!(annotation, Annotation::Comment { node, .. } if comment_ids.contains(&node))
+        });
+    }
+
+    write_annotation_render_items(f, AnnotationCapture::AnyPrefix, argument_id, &items)
+}
+
+/// Write one argument without separator line comments and with optional prefix comment suppression.
+fn write_argument_without_separator_line_comment_with_prefix_filter<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+    suppressed_prefix_separator_comment_ids: Option<&[LocalNodeId<Comment>]>,
 ) -> FormatResult<bool> {
     if !argument_can_render_without_separator_line_comment(f.context(), argument_id) {
         return Ok(false);
@@ -1209,7 +1230,11 @@ pub(crate) fn write_argument_without_separator_line_comment<'ast>(
         && argument_prefix_lambda_comment_needs_forced_break(f.context(), argument_id);
 
     if has_lambda_value || should_emit_prefix_annotations {
-        write!(f, [f.context().any_prefix_annotations(argument_id)])?;
+        write_argument_prefix_annotations_with_suppressed_separator_comments(
+            f,
+            argument_id,
+            suppressed_prefix_separator_comment_ids,
+        )?;
     }
 
     write_argument_with_modifiers_and_value(argument, force_break_after_lambda_prefix_comment, f)?;
@@ -1220,6 +1245,14 @@ pub(crate) fn write_argument_without_separator_line_comment<'ast>(
     )?;
 
     Ok(true)
+}
+
+/// Write one argument without separator line comments that are emitted at list level.
+pub(crate) fn write_argument_without_separator_line_comment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<bool> {
+    write_argument_without_separator_line_comment_with_prefix_filter(f, argument_id, None)
 }
 
 /// Format one single plain argument with a separator line comment seam.
@@ -1580,7 +1613,11 @@ fn write_separator_comment_multiline_arguments<'ast>(
             && let Some(previous_separator_source) =
                 separator_line_comment_sources[index - 1].as_ref()
             && previous_separator_source.detached_from_following_prefix
-            && write_argument_without_separator_line_comment(f, *argument_id)?
+            && write_argument_without_separator_line_comment_with_prefix_filter(
+                f,
+                *argument_id,
+                Some(previous_separator_source.comment_ids.as_slice()),
+            )?
         {
             if index + 1 < dynamic_arguments.len() || should_emit_trailing_separator {
                 write!(f, [token(",")])?;
@@ -2313,7 +2350,7 @@ mod tests {
     }
 
     #[test]
-    fn test_separator_comment_source_and_plain_render_eligibility_for_oxfmt_conditional_fixture() {
+    fn test_separator_comment_source_and_plain_render_eligibility_for_conditional_fixture() {
         let source = "cb(
     overflowing ? 'absolute top-0' : 'relative', // inline-separator-marker
     parameter

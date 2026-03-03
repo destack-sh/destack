@@ -27,18 +27,6 @@ js/import-assertions/re-export.js
 js/import-assertions/static-import.js
 js/import-assertions/without-from.js
 
-# oxc / prettier-conformance snapshot mismatches (oxfmt behavior is preferred)
-js/ignore/issue-10661.js
-js/comments/return-statement.js
-js/explicit-resource-management/valid-await-using-comments.js
-js/multiparser-html/lit-html.js
-typescript/angular-component-examples/test.component.ts
-typescript/arrow/comments.ts
-typescript/prettier-ignore/mapped-types.ts
-typescript/prettier-ignore/prettier-ignore-parenthesized-type.ts
-# oxc currently rewrites single-type union leading comment placement across passes
-typescript/union/consistent-with-flow/single-type.ts
-
 # unsupported flow and flow-repo syntax (1429)
 flow-repo/ambient_declarations/component_namespace.js
 flow-repo/ambient_declarations/flow-typed/components.js

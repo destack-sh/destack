@@ -78,7 +78,13 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
             Annotation::Blank { node, .. } => {
                 // skip trailing blanks at the end of the source
                 let annotation_span = f.context().annotation_span(node_id);
-                if annotation_span.end >= f.context().file.len.saturating_sub(1) {
+                let next_token_is_end = f
+                    .context()
+                    .annotation_next_non_whitespace_token_type(node_id)
+                    == Some(TokenType::End);
+                if next_token_is_end
+                    || annotation_span.end >= f.context().file.len.saturating_sub(1)
+                {
                     return Ok(());
                 }
 
@@ -1552,26 +1558,6 @@ pub(crate) struct AnnotationFlow {
     pub(crate) next_token_is_else_keyword: bool,
 }
 
-/// Return whether there is one empty line between this and the next annotation in source.
-fn has_blank_line_before_next_annotation(
-    context: &DestackFormatContext<'_>,
-    items: &[AnnotationRenderItem],
-    annotation_index: usize,
-) -> bool {
-    let Some(current_item) = items.get(annotation_index).copied() else {
-        return false;
-    };
-    let Some(next_item) = items.get(annotation_index + 1).copied() else {
-        return false;
-    };
-
-    let current_span = context.annotation_span(current_item.annotation_id);
-    let next_span = context.annotation_span(next_item.annotation_id);
-    current_span
-        .gap_to(next_span)
-        .is_some_and(|between_span| context.has_blank_line(between_span))
-}
-
 /// Return next-annotation spacing signals in one capture pass.
 fn next_annotation_spacing_signals(
     context: &DestackFormatContext<'_>,
@@ -1621,6 +1607,26 @@ fn next_annotation_spacing_signals(
             next_annotation_should_nestle_jsdoc_comment,
         ),
     }
+}
+
+/// Return whether there is one empty line between this and the next annotation in source.
+fn has_blank_line_before_next_annotation(
+    context: &DestackFormatContext<'_>,
+    items: &[AnnotationRenderItem],
+    annotation_index: usize,
+) -> bool {
+    let Some(current_item) = items.get(annotation_index).copied() else {
+        return false;
+    };
+    let Some(next_item) = items.get(annotation_index + 1).copied() else {
+        return false;
+    };
+
+    let current_span = context.annotation_span(current_item.annotation_id);
+    let next_span = context.annotation_span(next_item.annotation_id);
+    current_span
+        .gap_to(next_span)
+        .is_some_and(|between_span| context.has_blank_line(between_span))
 }
 
 /// Return whether one annotation is one multiline jsdoc block comment.
@@ -2240,6 +2246,10 @@ pub(crate) fn should_skip_blank_annotation_before_own_line_comment(
 
 /// Return trailing-spacing decision for one line prefix annotation.
 fn trailing_line_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    if flow.next_annotation_is_own_line_comment && flow.has_blank_line_before_next_annotation {
+        return AnnotationSpacing::EmptyLine;
+    }
+
     if flow.is_slash_comment && flow.next_token_is_on_same_line {
         return AnnotationSpacing::Space;
     }
@@ -2352,10 +2362,6 @@ fn trailing_block_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
 
 /// Return trailing-spacing decision for one block prefix annotation.
 fn trailing_block_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
-    if flow.next_annotation_is_own_line_comment && flow.has_blank_line_before_next_annotation {
-        return AnnotationSpacing::EmptyLine;
-    }
-
     // decorators stay inline by default, but own-line comments between decorator and owner
     // must preserve their line boundary
     if flow.is_inline_decorator_prefix && flow.next_annotation_is_own_line_comment {
@@ -2378,6 +2384,10 @@ fn trailing_block_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
 
     if flow.is_inline_decorator_prefix {
         return AnnotationSpacing::Space;
+    }
+
+    if flow.next_annotation_is_own_line_comment && flow.has_blank_line_before_next_annotation {
+        return AnnotationSpacing::EmptyLine;
     }
 
     AnnotationSpacing::HardLine
@@ -2596,6 +2606,19 @@ where
     Ok(())
 }
 
+/// Format a pre-filtered annotation item list for one capture mode.
+pub(crate) fn write_annotation_render_items<'ast, T: Node + Clone>(
+    f: &mut DestackFormatter<'ast, '_>,
+    capture: AnnotationCapture,
+    node_id: LocalNodeId<T>,
+    items: &[AnnotationRenderItem],
+) -> FormatResult<()>
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    format_annotation_render_items(f, capture, node_id, items)
+}
+
 impl<'ast, T> Format<DestackFormatContext<'ast>> for Annotations<T>
 where
     T: Node + Clone,
@@ -2604,6 +2627,6 @@ where
     /// Format captured annotations at one node and position.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let items = annotation_render_items(f.context(), self.position, self.node_id);
-        format_annotation_render_items(f, self.position, self.node_id, &items)
+        write_annotation_render_items(f, self.position, self.node_id, &items)
     }
 }

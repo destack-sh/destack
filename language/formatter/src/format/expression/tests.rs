@@ -34,8 +34,8 @@ fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_>
     )
 }
 
-/// Build the JavaScript options used by prettier conformance tests.
-fn prettier_javascript_format_options() -> DestackFormatOptions {
+/// Build the JavaScript options used by fixture-derived tests.
+fn javascript_fixture_format_options() -> DestackFormatOptions {
     let formatter_options = FormatterOptions::default()
         .with_indent_width(2)
         .with_line_width(80)
@@ -43,14 +43,113 @@ fn prettier_javascript_format_options() -> DestackFormatOptions {
     DestackFormatOptions::from_formatter_options(formatter_options, LanguageType::JavaScript)
 }
 
-/// Build the TypeScript options used by oxfmt conformance tests.
-fn oxfmt_typescript_format_options() -> DestackFormatOptions {
+/// Build the TypeScript options used by fixture-derived tests.
+fn typescript_fixture_format_options() -> DestackFormatOptions {
     let formatter_options = FormatterOptions::default()
         .with_indent_width(2)
         .with_line_width(80)
         .with_quote_style(QuoteStyle::Double);
     DestackFormatOptions::from_formatter_options(formatter_options, LanguageType::TypeScript)
 }
+
+const OPTIONAL_CALL_NO_ARGUMENT_SOURCE: &str = r#"call// 101
+()
+call
+// 102
+()
+call(// 103
+  )
+call
+  (// 104
+  )
+call(
+  // 105
+  )
+call// 106
+?.(
+  )
+call// 107
+?.(
+  )
+call?.// 108
+(
+  )
+
+call/* 201 */
+()
+call
+/* 202 */
+()
+call/* 203 */()
+call(/* 204 */
+  )
+call(
+  /* 205 */
+  )
+call/* 206 */?.
+()
+call/* 207 */
+?.
+()
+call
+/* 208 */?.
+()
+
+call/* 209 */
+?.
+()
+call?./* 210 */
+()
+call
+?./* 211 */
+()
+call
+?.
+/* 212 */
+()
+"#;
+
+const TYPESCRIPT_AS_SOURCE: &str = r#"const name = (description as DescriptionObject).name || (description as string);
+this.isTabActionBar((e.target || e.srcElement) as HTMLElement);
+(originalError ? wrappedError(errMsg, originalError) : Error(errMsg)) as InjectionError;
+'current' in (props.pagination as Object);
+('current' in props.pagination) as Object;
+start + (yearSelectTotal as number);
+(start + yearSelectTotal) as number;
+scrollTop > (visibilityHeight as number);
+(scrollTop > visibilityHeight) as number;
+export default class Column<T> extends (RcTable.Column as React.ComponentClass<ColumnProps<T>,ColumnProps<T>,ColumnProps<T>,ColumnProps<T>>) {}
+export const MobxTypedForm = class extends (Form as { new (): any }) {}
+export abstract class MobxTypedForm1 extends (Form as { new (): any }) {}
+({}) as {};
+function*g() {
+  const test = (yield 'foo') as number;
+}
+async function g1() {
+  const test = (await 'foo') as number;
+}
+({}) as X;
+() => ({}) as X;
+const state = JSON.stringify({
+  next: window.location.href,
+  nonce,
+} as State);
+
+(foo.bar as Baz) = [bar];
+(foo.bar as any)++;
+
+(bValue as boolean) ? 0 : -1;
+<boolean>bValue ? 0 : -1;
+
+const value1 = thisIsAReallyReallyReallyReallyReallyLongIdentifier as SomeInterface;
+const value2 = thisIsAnIdentifier as thisIsAReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyLongInterface;
+const value3 = thisIsAReallyLongIdentifier as (SomeInterface | SomeOtherInterface);
+const value4 = thisIsAReallyLongIdentifier as { prop1: string, prop2: number, prop3: number }[];
+const value5 = thisIsAReallyReallyReallyReallyReallyReallyReallyReallyReallyLongIdentifier as [string, number];
+
+const iter1 = createIterator(this.controller, child, this.tag as SyncFunctionComponent);
+const iter2 = createIterator(self.controller, child, self.tag as SyncFunctionComponent);
+"#;
 
 /// Find the first parenthesized expression whose inner expression satisfies a predicate.
 fn find_parenthesized_expression_by_inner(
@@ -318,7 +417,7 @@ fn test_format_assignment_seam_inline_doc_comment_roundtrip() {
         "foo = (/** @type {!Baz} */ (baz).bar);\n",
         "foo = /** @type {!Baz} */ (baz).bar;\n",
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -545,7 +644,7 @@ fn test_format_non_null_object_chain_base_keeps_grouping_idempotent() {
 
 /// Multiline type-assertion roots should keep non-null and member tails attached on one line.
 #[test]
-fn test_format_non_null_static_member_chain_after_multiline_type_assertion_matches_oxfmt() {
+fn test_format_non_null_static_member_chain_after_multiline_type_assertion_has_expected_layout() {
     let source = r#"(<IJSONSchema>(
   compoundConfigurationsSchema.items
 )).oneOf![1].properties!.folder.enum = folderNames;
@@ -555,7 +654,7 @@ fn test_format_non_null_static_member_chain_after_multiline_type_assertion_match
         source,
         source,
         FileType::TypeScript,
-        oxfmt_typescript_format_options(),
+        typescript_fixture_format_options(),
     );
 }
 
@@ -592,7 +691,7 @@ class A_long_long_long_long_long_long_long_long_name3
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::TypeScript,
-        oxfmt_typescript_format_options(),
+        typescript_fixture_format_options(),
     );
 }
 
@@ -926,7 +1025,7 @@ fn test_format_return_optional_call_callee_line_comment_is_idempotent() {
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -939,7 +1038,7 @@ fn test_format_call_argument_head_line_comment_is_idempotent() {
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -952,7 +1051,7 @@ fn test_format_new_argument_head_line_comment_is_idempotent() {
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -969,16 +1068,14 @@ fn test_format_return_parenthesized_optional_call_callee_line_comment_is_idempot
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
-/// Prettier no-argument optional-call fixture should stay idempotent in JS/TSX mode.
+/// No-argument optional-call fixture should stay idempotent in JS/TSX mode.
 #[test]
 fn test_format_optional_call_no_argument_fixture_is_idempotent_jsx_mode() {
-    let source = include_str!(
-        "../../../../test/fixtures/formatter/conformance/staging/prettier/tests/format/js/call/no-argument/no-arguments.js"
-    );
+    let source = OPTIONAL_CALL_NO_ARGUMENT_SOURCE;
     let formatter_options = FormatterOptions::default()
         .with_indent_width(2)
         .with_line_width(80)
@@ -1400,7 +1497,7 @@ var inspect = 4 === util.inspect.length
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -2311,11 +2408,11 @@ fn test_format_inline_block_comment_between_closing_paren_and_semicolon_is_idemp
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
-/// Declaration seams before guarded parenthesized calls should match oxfmt output.
+/// Declaration seams before guarded parenthesized calls should keep the expected output.
 #[test]
 fn test_format_declare_semicolon_guard_comment_parenthesized_call_output() {
     let source = "declare const PAGE_PATH: string\n  //<- THIS spaces\n;(()=>{})()\n";
@@ -2384,7 +2481,7 @@ fooooooooooooooooooooooooooooooooooooooooooooooooooooooooo(aaaaaaaaaaaaaaaaaaa)
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -2509,7 +2606,7 @@ fn test_format_if_condition_tail_line_comment_before_empty_body_is_idempotent() 
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -2524,7 +2621,7 @@ fn test_format_if_condition_call_head_line_comment_is_idempotent() {
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -2540,7 +2637,7 @@ fn test_format_if_condition_nested_unary_comment_is_idempotent() {
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -2556,7 +2653,7 @@ fn test_format_if_condition_unary_head_line_comment_is_idempotent() {
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -2583,7 +2680,7 @@ if (!! // mixed-unary-c
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -2596,7 +2693,7 @@ a /* comment */:;"#;
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        prettier_javascript_format_options(),
+        javascript_fixture_format_options(),
     );
 }
 
@@ -2783,8 +2880,7 @@ fn test_format_empty_container_dangling_comments_stay_inside_delimiters() {
 /// Program-leading comments and top-level blank seams should not introduce extra empty lines.
 #[test]
 fn test_format_program_leading_comments_and_top_level_blank_seam_stay_stable() {
-    let source = r#"// This file copies from https://github.com/prettier/prettier/blob/main/tests/format/js/ignore/ignore.js,
-// and replace all `oxfmt-ignore` to `oxfmt-ignore` to verify that oxfmt correctly ignores those comments.
+    let source = r#"// Fixture-derived coverage for ignore directives and top-level seams.
 function a() {
   const first = 1;
 
@@ -3294,12 +3390,10 @@ const value3 = thisIsAReallyLongIdentifier as (SomeInterface | SomeOtherInterfac
     assert_format_program_idempotent_with_file_type(source, FileType::TypeScript, options);
 }
 
-/// Prettier `typescript/as/as.ts` should stay idempotent for cast rhs layout.
+/// TypeScript `as/as.ts` should stay idempotent for cast rhs layout.
 #[test]
 fn test_format_typescript_as_fixture_is_idempotent() {
-    let source = include_str!(
-        "../../../../test/fixtures/formatter/conformance/staging/prettier/tests/format/typescript/as/as.ts"
-    );
+    let source = TYPESCRIPT_AS_SOURCE;
     let options = DestackFormatOptions::default()
         .with_indent_width(2)
         .with_line_width(80);
@@ -4109,7 +4203,7 @@ fn test_format_export_comment_fixture_shape_is_idempotent() {
 
 /// Export alias comments after `as` should format as own-line specifier comments.
 #[test]
-fn test_format_export_alias_line_comment_after_as_matches_oxfmt_shape() {
+fn test_format_export_alias_line_comment_after_as_has_expected_layout() {
     let source = "const foooo = ''\nconst barrr = ''\nexport {\n  foooo,\n  barrr as  // comment\n\t\t baz,\n} from 'foo'\n";
     let expected = "const foooo = \"\";\nconst barrr = \"\";\nexport {\n    foooo,\n    // comment\n    barrr as baz,\n} from \"foo\";\n";
     assert_format_program_roundtrip_with_file_type(
