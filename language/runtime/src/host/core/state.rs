@@ -6,8 +6,9 @@ use parking_lot::RwLock;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{
-    HostEvent, HostEventQueue, HostLifecycleState, HostMemoryPressureLevel, HostPollOutcome,
-    HostPowerMode, HostThermalState, HostWindowEvent,
+    HostEvent, HostEventQueue, HostLifecycleState, HostMemoryPressureLevel, HostPlatform,
+    HostPollOutcome, HostPowerMode, HostStateCleanup, HostStateRegistration, HostThermalState,
+    HostWindowEvent, register_host_state,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::poller::HostPollerWakeHandle;
@@ -40,6 +41,40 @@ const THERMAL_CRITICAL: u8 = 3;
 const POWER_MODE_NORMAL: u8 = 0;
 /// Encoded power mode value for low power.
 const POWER_MODE_LOW_POWER: u8 = 1;
+
+/// Shared host adapter state for one platform adapter instance.
+#[derive(Debug)]
+pub(crate) struct HostAdapterState {
+    /// Shared host service state used for event ingestion and state updates.
+    state: Arc<HostState>,
+    /// Shared registration guard for callback routing.
+    registration: HostStateRegistration,
+}
+
+impl HostAdapterState {
+    /// Create one shared host adapter state for one platform.
+    pub(crate) fn new(platform: HostPlatform, cleanup: Option<HostStateCleanup>) -> Self {
+        // create the shared host state and register callback routing
+        let state = Arc::new(HostState::new());
+        state.push_lifecycle(HostLifecycleState::Initializing);
+        let registration = register_host_state(platform, &state, cleanup);
+
+        Self {
+            state,
+            registration,
+        }
+    }
+
+    /// Return one shared host state handle.
+    pub(crate) fn state(&self) -> &Arc<HostState> {
+        &self.state
+    }
+
+    /// Return the callback runtime id for native host callback routing.
+    pub(crate) fn callback_runtime_id(&self) -> u64 {
+        self.registration.runtime_id()
+    }
+}
 
 /// Mutable host service state shared by adapter service surfaces.
 #[derive(Debug)]

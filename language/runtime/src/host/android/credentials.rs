@@ -1,6 +1,6 @@
 use super::abi::HOST_STATUS_INVALID_ARGUMENT;
 use super::bindings::invoke_android_binding_callback;
-use crate::platform::{NativeSlice, NativeStringRef};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Host callback for reading one credential payload.
 pub type AndroidHostCredentialsReadCallback = unsafe extern "C" fn(

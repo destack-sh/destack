@@ -31,12 +31,16 @@ pub trait HostAdapter: std::fmt::Debug + Send + Sync {
     fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>>;
 
     /// Configure host integration options on this host.
-    fn configure_host_options(&self, _host_options: &PlatformHostOptions) {}
+    fn configure_host_options(&self, host_options: &PlatformHostOptions);
 
     /// Return the callback runtime id used by native host callback routing.
-    fn callback_runtime_id(&self) -> Option<u64> {
-        None
-    }
+    fn callback_runtime_id(&self) -> Option<u64>;
+
+    /// Drain pending platform thread messages without blocking.
+    fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool>;
+
+    /// Run one blocking platform thread message loop.
+    fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()>;
 
     /// Return host platform capabilities for this host target.
     fn host_capabilities(&self) -> PlatformCapabilitySet;

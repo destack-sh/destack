@@ -16,7 +16,11 @@ pub(crate) fn callback_test_lock() -> &'static Mutex<()> {
 /// Register one temporary Android host state and keep registration state alive.
 pub(crate) fn register_android_runtime() -> (Arc<HostState>, HostStateRegistration, u64) {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Android, &state);
+    let registration = register_host_state(
+        HostPlatform::Android,
+        &state,
+        Some(crate::host::android::unregister_android_bindings),
+    );
     let runtime_id = registration.runtime_id();
 
     (state, registration, runtime_id)

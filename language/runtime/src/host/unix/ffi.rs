@@ -1,7 +1,7 @@
 use super::UnixApplicationLifecycle;
-use crate::diagnostic::{RuntimeError, RuntimeResult, RuntimeStatus};
-use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::diagnostic::{RuntimeResult, RuntimeStatus};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState, core as core_host};
+use crate::runtime::NativeStringRef;
 
 /// Unix lifecycle code for app-created initialization.
 const UNIX_LIFECYCLE_CREATED: u32 = 0;
@@ -43,11 +43,10 @@ pub(crate) fn decode_unix_application_lifecycle(
         UNIX_LIFECYCLE_STOPPED => UnixApplicationLifecycle::Stopped,
         UNIX_LIFECYCLE_DESTROYED => UnixApplicationLifecycle::Destroyed,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "lifecycle_code",
                 "invalid unix lifecycle code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -63,11 +62,10 @@ pub(crate) fn decode_unix_memory_pressure_level(
         UNIX_MEMORY_PRESSURE_WARNING => HostMemoryPressureLevel::Warning,
         UNIX_MEMORY_PRESSURE_CRITICAL => HostMemoryPressureLevel::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "level_code",
                 "invalid unix memory pressure level code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -82,11 +80,10 @@ pub(crate) fn decode_unix_thermal_state(thermal_code: u32) -> RuntimeResult<Host
         UNIX_THERMAL_SERIOUS => HostThermalState::Serious,
         UNIX_THERMAL_CRITICAL => HostThermalState::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "thermal_code",
                 "invalid unix thermal state code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -99,11 +96,10 @@ pub(crate) fn decode_unix_power_mode(power_mode_code: u32) -> RuntimeResult<Host
         UNIX_POWER_MODE_NORMAL => HostPowerMode::Normal,
         UNIX_POWER_MODE_LOW_POWER => HostPowerMode::LowPower,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "power_mode_code",
                 "invalid unix power mode code",
-            ))
-            .boxed());
+            ));
         }
     };
 

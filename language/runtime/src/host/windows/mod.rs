@@ -4,6 +4,8 @@ mod adapter;
 mod callback;
 #[cfg(any(test, windows))]
 mod ffi;
+#[cfg(windows)]
+mod message;
 #[cfg(test)]
 mod tests;
 

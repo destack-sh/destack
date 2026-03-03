@@ -7,9 +7,9 @@ use super::{
     android_notify_window_focus_changed, android_notify_window_resized,
     android_notify_window_terminated,
 };
-use crate::diagnostic::{RuntimeError, RuntimeResult, RuntimeStatus};
-use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::diagnostic::{RuntimeResult, RuntimeStatus};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState, core as core_host};
+use crate::runtime::NativeStringRef;
 
 /// Android lifecycle code for `onCreate`.
 pub(super) const ANDROID_LIFECYCLE_CREATED: u32 = 0;
@@ -196,11 +196,10 @@ pub(super) fn decode_android_activity_lifecycle(
         ANDROID_LIFECYCLE_STOPPED => AndroidActivityLifecycle::Stopped,
         ANDROID_LIFECYCLE_DESTROYED => AndroidActivityLifecycle::Destroyed,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "lifecycle_code",
                 "invalid android lifecycle code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -216,11 +215,10 @@ pub(super) fn decode_android_memory_pressure_level(
         ANDROID_MEMORY_PRESSURE_WARNING => HostMemoryPressureLevel::Warning,
         ANDROID_MEMORY_PRESSURE_CRITICAL => HostMemoryPressureLevel::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "level_code",
                 "invalid android memory pressure level code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -235,11 +233,10 @@ pub(super) fn decode_android_thermal_state(thermal_code: u32) -> RuntimeResult<H
         ANDROID_THERMAL_SERIOUS => HostThermalState::Serious,
         ANDROID_THERMAL_CRITICAL => HostThermalState::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "thermal_code",
                 "invalid android thermal state code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -252,11 +249,10 @@ pub(super) fn decode_android_power_mode(power_mode_code: u32) -> RuntimeResult<H
         ANDROID_POWER_MODE_NORMAL => HostPowerMode::Normal,
         ANDROID_POWER_MODE_LOW_POWER => HostPowerMode::LowPower,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "power_mode_code",
                 "invalid android power mode code",
-            ))
-            .boxed());
+            ));
         }
     };
 

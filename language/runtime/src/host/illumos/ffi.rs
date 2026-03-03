@@ -12,7 +12,7 @@ use crate::host::unix::{
     decode_unix_permission_name, decode_unix_power_mode, decode_unix_thermal_state,
     unix_runtime_status,
 };
-use crate::platform::NativeStringRef;
+use crate::runtime::NativeStringRef;
 
 /// Notify the runtime host state about one illumos application lifecycle transition.
 #[unsafe(no_mangle)]

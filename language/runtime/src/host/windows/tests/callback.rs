@@ -46,7 +46,7 @@ fn test_map_windows_lifecycle_to_destroyed() {
 #[test]
 fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Windows, &state);
+    let registration = register_host_state(HostPlatform::Windows, &state, None);
     let runtime_id = registration.runtime_id();
 
     windows_notify_window_available(runtime_id, 9).unwrap();
@@ -64,7 +64,7 @@ fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
 #[test]
 fn test_notify_window_available_rejects_platform_mismatch_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::MacOS, &state);
+    let registration = register_host_state(HostPlatform::MacOS, &state, None);
     let runtime_id = registration.runtime_id();
 
     let result = windows_notify_window_available(runtime_id, 9);

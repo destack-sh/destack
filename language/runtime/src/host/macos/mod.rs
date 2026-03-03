@@ -1,9 +1,11 @@
+#[cfg(target_os = "macos")]
 mod adapter;
 mod callback;
 mod ffi;
 #[cfg(test)]
 mod tests;
 
+#[cfg(target_os = "macos")]
 pub(super) use adapter::MacosHost;
 pub use callback::{
     MacosApplicationLifecycle, macos_notify_application_lifecycle,

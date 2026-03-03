@@ -1,6 +1,6 @@
 use super::abi::{HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK};
 use super::bindings::{invoke_android_binding_callback, resolve_android_binding_callback};
-use crate::platform::{NativeSlice, NativeStringRef};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Host key algorithm code for rsa.
 const HOST_KEY_ALGORITHM_RSA: u32 = 1;

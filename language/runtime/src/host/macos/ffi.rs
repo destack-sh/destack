@@ -6,9 +6,9 @@ use super::{
     macos_notify_window_available, macos_notify_window_focus_changed, macos_notify_window_resized,
     macos_notify_window_terminated,
 };
-use crate::diagnostic::{RuntimeError, RuntimeResult, RuntimeStatus};
-use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::diagnostic::{RuntimeResult, RuntimeStatus};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState, core as core_host};
+use crate::runtime::NativeStringRef;
 
 /// macOS lifecycle code for `applicationDidFinishLaunching`.
 const MACOS_LIFECYCLE_DID_FINISH_LAUNCHING: u32 = 0;
@@ -175,11 +175,10 @@ fn decode_macos_application_lifecycle(
         MACOS_LIFECYCLE_WILL_RESIGN_ACTIVE => MacosApplicationLifecycle::WillResignActive,
         MACOS_LIFECYCLE_WILL_TERMINATE => MacosApplicationLifecycle::WillTerminate,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "lifecycle_code",
                 "invalid macos lifecycle code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -193,11 +192,10 @@ fn decode_macos_memory_pressure_level(level_code: u32) -> RuntimeResult<HostMemo
         MACOS_MEMORY_PRESSURE_WARNING => HostMemoryPressureLevel::Warning,
         MACOS_MEMORY_PRESSURE_CRITICAL => HostMemoryPressureLevel::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "level_code",
                 "invalid macos memory pressure level code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -212,11 +210,10 @@ fn decode_macos_thermal_state(thermal_code: u32) -> RuntimeResult<HostThermalSta
         MACOS_THERMAL_SERIOUS => HostThermalState::Serious,
         MACOS_THERMAL_CRITICAL => HostThermalState::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "thermal_code",
                 "invalid macos thermal state code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -229,11 +226,10 @@ fn decode_macos_power_mode(power_mode_code: u32) -> RuntimeResult<HostPowerMode>
         MACOS_POWER_MODE_NORMAL => HostPowerMode::Normal,
         MACOS_POWER_MODE_LOW_POWER => HostPowerMode::LowPower,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "power_mode_code",
                 "invalid macos power mode code",
-            ))
-            .boxed());
+            ));
         }
     };
 

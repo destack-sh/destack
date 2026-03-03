@@ -5,9 +5,9 @@ use super::{
     ios_notify_wall_clock_changed, ios_notify_window_available, ios_notify_window_focus_changed,
     ios_notify_window_resized, ios_notify_window_terminated,
 };
-use crate::diagnostic::{RuntimeError, RuntimeResult, RuntimeStatus};
-use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::diagnostic::{RuntimeResult, RuntimeStatus};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState, core as core_host};
+use crate::runtime::NativeStringRef;
 
 /// iOS lifecycle code for `applicationDidFinishLaunching`.
 const IOS_LIFECYCLE_DID_FINISH_LAUNCHING: u32 = 0;
@@ -178,11 +178,10 @@ fn decode_ios_application_lifecycle(lifecycle_code: u32) -> RuntimeResult<IosApp
         IOS_LIFECYCLE_WILL_ENTER_FOREGROUND => IosApplicationLifecycle::WillEnterForeground,
         IOS_LIFECYCLE_WILL_TERMINATE => IosApplicationLifecycle::WillTerminate,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "lifecycle_code",
                 "invalid ios lifecycle code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -196,11 +195,10 @@ fn decode_ios_memory_pressure_level(level_code: u32) -> RuntimeResult<HostMemory
         IOS_MEMORY_PRESSURE_WARNING => HostMemoryPressureLevel::Warning,
         IOS_MEMORY_PRESSURE_CRITICAL => HostMemoryPressureLevel::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "level_code",
                 "invalid ios memory pressure level code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -215,11 +213,10 @@ fn decode_ios_thermal_state(thermal_code: u32) -> RuntimeResult<HostThermalState
         IOS_THERMAL_SERIOUS => HostThermalState::Serious,
         IOS_THERMAL_CRITICAL => HostThermalState::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "thermal_code",
                 "invalid ios thermal state code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -232,11 +229,10 @@ fn decode_ios_power_mode(power_mode_code: u32) -> RuntimeResult<HostPowerMode> {
         IOS_POWER_MODE_NORMAL => HostPowerMode::Normal,
         IOS_POWER_MODE_LOW_POWER => HostPowerMode::LowPower,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "power_mode_code",
                 "invalid ios power mode code",
-            ))
-            .boxed());
+            ));
         }
     };
 
