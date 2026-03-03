@@ -7,11 +7,13 @@ use destack_source::Span;
 
 use super::attachment::{
     FormatterTriviaOwnerIndex, attach_trailing_comma_close_brace_property_line_comment,
-    if_expression_then_owner_without_else, promote_owner_to_tree_expression_parent,
+    if_expression_then_owner_without_else, is_empty_dependency_expression_owner,
+    promote_owner_to_tree_expression_parent,
 };
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
-    CommentSeamData, comment_enclosing_owner, seam_is_template_interpolation_open_brace,
+    CommentSeamData, CommentSeamKeyword, comment_enclosing_owner,
+    seam_is_template_interpolation_open_brace,
 };
 use super::facts::{
     is_tree_closing_tag_head_seam, next_non_trivia_token_index, previous_non_trivia_token_index,
@@ -21,7 +23,7 @@ use super::ownership::{
     find_owner_at_or_after_token, find_owner_in_ancestor_chain, find_owner_in_candidate_ancestry,
     find_preferred_owner_starting_at, find_smallest_owner_enclosing_token,
     lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
-    normalize_owner_with_shared_end, promote_owner_by_shared_end, promote_owner_by_shared_start,
+    normalize_owner_with_shared_end, promote_owner_by_shared_start,
     promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
     promote_owner_to_parenthesized_expression_ancestor,
 };
@@ -48,6 +50,40 @@ fn first_dynamic_argument_owner_for_call_like(tree: &NodeTree, owner_id: u32) ->
     }
 }
 
+/// Return whether one call-like expression has static arguments.
+fn call_like_expression_has_static_arguments(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(owner_id);
+    match tree.get(expression_id) {
+        Expression::Call {
+            static_arguments, ..
+        }
+        | Expression::New {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty()),
+        Expression::Import { .. } => false,
+        _ => false,
+    }
+}
+
+/// Return whether one owner is one call-like expression.
+fn is_call_like_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(owner_id);
+    matches!(
+        tree.get(expression_id),
+        Expression::Call { .. } | Expression::New { .. } | Expression::Import { .. }
+    )
+}
+
 /// Return whether one owner belongs to one call-like expression ancestry.
 fn owner_has_call_like_expression_ancestor(
     tree: &NodeTree,
@@ -56,9 +92,7 @@ fn owner_has_call_like_expression_ancestor(
 ) -> bool {
     let mut current_owner = Some(owner_id);
     while let Some(current_id) = current_owner {
-        if tree.get_node_type(current_id) == NodeType::Expression
-            && first_dynamic_argument_owner_for_call_like(tree, current_id).is_some()
-        {
+        if is_call_like_expression_owner(tree, current_id) {
             return true;
         }
 
@@ -66,6 +100,11 @@ fn owner_has_call_like_expression_ancestor(
     }
 
     false
+}
+
+/// Return whether one token type is one assignment operator token.
+fn token_type_is_assignment_operator(token_type: Option<TokenType>) -> bool {
+    token_type.is_some_and(|token_type| ast::AssignOperator::from_token(token_type).is_some())
 }
 
 /// Promote one owner to the nearest labelled expression ancestor.
@@ -136,6 +175,49 @@ fn is_call_or_new_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
         tree.get(expression_id),
         Expression::Call { .. } | Expression::New { .. }
     )
+}
+
+/// Return whether one owner is one import or export dependency statement expression with a attribute.
+fn is_dependency_attribute_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(owner_id);
+    match tree.get(expression_id) {
+        Expression::Import {
+            source, arguments, ..
+        } => *source != ast::ImportSource::ImportCall && arguments.is_some(),
+        Expression::Export { arguments, .. } => arguments.is_some(),
+        _ => false,
+    }
+}
+
+/// Return one dependency attribute owner candidate from one seam.
+fn dependency_attribute_expression_owner_from_seam_candidates(
+    tree: &NodeTree,
+    candidates: [Option<u32>; 5],
+) -> Option<u32> {
+    candidates
+        .into_iter()
+        .flatten()
+        .find(|owner_id| is_dependency_attribute_expression_owner(tree, *owner_id))
+}
+
+/// Return one empty dependency owner candidate from one seam.
+fn empty_dependency_expression_owner_from_seam_candidates(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    candidates: [Option<u32>; 5],
+) -> Option<u32> {
+    candidates.into_iter().flatten().find_map(|owner_id| {
+        let expression_owner = if tree.get_node_type(owner_id) == NodeType::Expression {
+            Some(owner_id)
+        } else {
+            promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
+        }?;
+        is_empty_dependency_expression_owner(tree, expression_owner).then_some(expression_owner)
+    })
 }
 
 /// Return whether one owner is a tree expression owner.
@@ -473,6 +555,52 @@ fn optional_call_seam_position(
     }
 }
 
+/// Return one normalized preceding expression owner for one tail seam.
+fn normalized_preceding_expression_owner_for_tail_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    preceding_token_owner: Option<u32>,
+    preceding_owner: Option<u32>,
+    token_before_source_span: Option<Span>,
+) -> Option<u32> {
+    let mut target_owner = preceding_token_owner.or(preceding_owner)?;
+    target_owner =
+        normalize_owner_with_shared_end(tree, parents, target_owner, token_before_source_span);
+
+    if tree.get_node_type(target_owner) != NodeType::Expression
+        && let Some(expression_target) =
+            promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Expression)
+    {
+        target_owner = expression_target;
+    }
+
+    Some(normalize_formatter_trivia_target_owner(tree, target_owner))
+}
+
+/// Return whether seam candidates have one call-like expression ancestor.
+fn seam_candidates_have_call_like_expression_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam_candidates: [Option<u32>; 5],
+) -> bool {
+    seam_candidates
+        .into_iter()
+        .flatten()
+        .any(|owner| owner_has_call_like_expression_ancestor(tree, parents, owner))
+}
+
+/// Return one first call-like expression owner from seam candidates.
+fn first_call_like_expression_owner_from_seam_candidates(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam_candidates: [Option<u32>; 5],
+) -> Option<u32> {
+    seam_candidates
+        .into_iter()
+        .flatten()
+        .find_map(|owner| promote_owner_to_call_or_new_expression_ancestor(tree, parents, owner))
+}
+
 /// Return whether one owner belongs to a do-while expression ancestry.
 fn owner_has_do_while_expression_ancestor(
     tree: &NodeTree,
@@ -673,10 +801,6 @@ struct ExpressionCommentContext<'a, 'ctx> {
     is_enclosing_owner_call_or_new: bool,
     /// First dynamic argument owner for enclosing call/new.
     enclosing_owner_first_dynamic_argument: Option<u32>,
-    /// Separator appears before closing call parenthesis.
-    has_separator_before_close_parenthesis: bool,
-    /// Separator seam belongs to call-like expression context.
-    seam_is_call_like_closing_separator: bool,
     /// Control-head semicolon owns empty body.
     semicolon_after_control_head_empty_body: bool,
 }
@@ -684,13 +808,26 @@ struct ExpressionCommentContext<'a, 'ctx> {
 impl ExpressionCommentContext<'_, '_> {
     /// Return whether this seam should route to statement-level separator ownership.
     fn should_route_call_like_separator_to_statement(self) -> bool {
+        let token_after_close_parenthesis_following_type =
+            token_after_close_parenthesis_following_type(self.seam_context);
+        let has_separator_before_close_parenthesis =
+            self.seam.token_after_is(TokenType::CloseParenthesis)
+                || (self.seam.token_after_is(TokenType::Comma)
+                    && token_after_close_parenthesis_following_type
+                        == Some(TokenType::CloseParenthesis));
+        let seam_is_call_like_closing_separator = has_separator_before_close_parenthesis
+            && seam_candidates_have_call_like_expression_ancestor(
+                self.tree,
+                self.parents,
+                expression_seam_candidate_owners(&self),
+            );
         let supports_separator_comment =
             self.comment_is_line || (self.comment_is_star && self.has_leading_newline);
 
         supports_separator_comment
             && self.has_leading_newline
-            && self.has_separator_before_close_parenthesis
-            && self.seam_is_call_like_closing_separator
+            && has_separator_before_close_parenthesis
+            && seam_is_call_like_closing_separator
     }
 }
 
@@ -725,18 +862,13 @@ fn build_expression_comment_context<'a, 'ctx>(
     let is_trailing_line_comment =
         placement == ExpressionCommentPlacement::EndOfLine && comment_is_line;
 
-    let token_after_is_comma = seam.token_after_is(TokenType::Comma);
     let token_after_is_spread = seam.token_after_is(TokenType::Spread);
     let token_after_is_close_brace = seam.token_after_is(TokenType::CloseBrace);
-    let token_after_is_close_parenthesis = seam.token_after_is(TokenType::CloseParenthesis);
     let token_after_is_at = seam.token_after_is(TokenType::At);
     let token_before_is_open_brace = seam.token_before_is(TokenType::OpenBrace);
     let token_before_is_spread = seam.token_before_is(TokenType::Spread);
-    let token_after_close_parenthesis_following_type = seam_context
-        .token_after
-        .and_then(|index| next_non_trivia_token_index(seam_context.semantic_tokens, index))
-        .and_then(|index| seam_context.semantic_tokens.get(index))
-        .map(|token| token.token.ty);
+    let token_after_close_parenthesis_following_type =
+        token_after_close_parenthesis_following_type(seam_context);
     let token_after_close_parenthesis_is_logical_operator = matches!(
         token_after_close_parenthesis_following_type,
         Some(TokenType::LogicalAnd | TokenType::LogicalOr | TokenType::Coalesce)
@@ -774,21 +906,6 @@ fn build_expression_comment_context<'a, 'ctx>(
         enclosing_owner.is_some_and(|owner| is_call_or_new_expression_owner(tree, owner));
     let enclosing_owner_first_dynamic_argument =
         enclosing_owner.and_then(|owner| first_dynamic_argument_owner_for_call_like(tree, owner));
-
-    let has_separator_before_close_parenthesis = token_after_is_close_parenthesis
-        || (token_after_is_comma
-            && token_after_close_parenthesis_following_type == Some(TokenType::CloseParenthesis));
-    let seam_is_call_like_closing_separator = has_separator_before_close_parenthesis
-        && [
-            enclosing_owner,
-            preceding_owner,
-            following_owner,
-            preceding_token_owner,
-            following_token_owner,
-        ]
-        .into_iter()
-        .flatten()
-        .any(|owner| owner_has_call_like_expression_ancestor(tree, parents, owner));
 
     let semicolon_after_control_head_empty_body = seam.token_before_is(TokenType::CloseParenthesis)
         && seam.token_after_is(TokenType::Semicolon)
@@ -842,8 +959,6 @@ fn build_expression_comment_context<'a, 'ctx>(
         ternary_following_owner,
         is_enclosing_owner_call_or_new,
         enclosing_owner_first_dynamic_argument,
-        has_separator_before_close_parenthesis,
-        seam_is_call_like_closing_separator,
         semicolon_after_control_head_empty_body,
     }
 }
@@ -989,6 +1104,7 @@ fn attach_expression_middle_label_and_separator_comments(
     let preceding_owner = comment_context.preceding_owner;
     let following_owner = comment_context.following_owner;
     let token_before_span = comment_context.token_before_span;
+    let token_after_span = comment_context.token_after_span;
     let token_before_source_span = comment_context.token_before_source_span;
     let preceding_token_owner = comment_context.preceding_token_owner;
     let following_token_owner = comment_context.following_token_owner;
@@ -1008,6 +1124,21 @@ fn attach_expression_middle_label_and_separator_comments(
     let token_before_is_close_brace = seam.token_before_is(TokenType::CloseBrace);
     let token_before_is_close_bracket = seam.token_before_is(TokenType::CloseBracket);
     let token_before_is_close_parenthesis = seam.token_before_is(TokenType::CloseParenthesis);
+    let token_before_is_assignment_operator =
+        token_type_is_assignment_operator(seam.token_before_type);
+
+    // end-of-line line comments after assignment operators belong to the rhs expression
+    if is_trailing_line_comment
+        && token_before_is_assignment_operator
+        && let Some(target_node) = following_token_owner.or(following_owner).map(|owner| {
+            token_after_span.map_or(owner, |token_after_span| {
+                promote_owner_by_shared_start(tree, parents, owner, token_after_span.span.start)
+            })
+        })
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    }
 
     // closing-tag seams normalize to tree-expression boundary ownership
     if seam_is_tree_closing_tag_head(seam_context, seam)
@@ -1095,24 +1226,23 @@ fn attach_expression_middle_label_and_separator_comments(
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
-    // comments between a closing delimiter and a trailing semicolon stay on the preceding value boundary
-    if (comment_is_line || is_inline_star_comment)
+    let declaration_owner_for_semicolon_comment = [
+        preceding_token_owner,
+        preceding_owner,
+        following_owner,
+        enclosing_owner,
+    ]
+    .into_iter()
+    .flatten()
+    .find_map(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner));
+
+    // inline block comments before declaration semicolons stay on declaration boundaries
+    if is_inline_star_comment
         && token_after_is_semicolon
         && !comment_context.semicolon_after_control_head_empty_body
-        && (token_before_is_close_brace
-            || token_before_is_close_bracket
-            || token_before_is_close_parenthesis)
-        && let Some(mut target_node) = preceding_token_owner.or(preceding_owner)
+        && let Some(declaration_owner) = declaration_owner_for_semicolon_comment
     {
-        target_node = token_before_source_span.map_or(target_node, |span| {
-            promote_owner_by_shared_end(tree, parents, target_node, span.end)
-        });
-        target_node = if tree.get_node_type(target_node) == NodeType::Expression {
-            target_node
-        } else {
-            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Expression)
-                .unwrap_or(target_node)
-        };
+        let target_node = normalize_formatter_trivia_target_owner(tree, declaration_owner);
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
@@ -1432,6 +1562,17 @@ fn expression_seam_candidate_owners(
     ]
 }
 
+/// Return one token type after the next non-trivia token beyond seam `token_after`.
+fn token_after_close_parenthesis_following_type(
+    seam_context: &CommentSeamContext<'_>,
+) -> Option<TokenType> {
+    seam_context
+        .token_after
+        .and_then(|index| next_non_trivia_token_index(seam_context.semantic_tokens, index))
+        .and_then(|index| seam_context.semantic_tokens.get(index))
+        .map(|token| token.token.ty)
+}
+
 /// Handle pre-placement semicolon-guard ownership.
 fn attach_expression_pre_placement_semicolon_guard_comments(
     comment_context: &ExpressionCommentContext<'_, '_>,
@@ -1518,6 +1659,67 @@ fn attach_expression_pre_placement_spread_comments(
     None
 }
 
+/// Handle pre-placement dependency attribute seam ownership.
+fn attach_expression_pre_placement_dependency_attribute_comments(
+    comment_context: &ExpressionCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    let seam = comment_context.seam;
+    let token_after_is_dependency_attribute_keyword =
+        seam.token_after_is_keyword(CommentSeamKeyword::With);
+    if !token_after_is_dependency_attribute_keyword {
+        return None;
+    }
+
+    let seam_candidates = [
+        comment_context.preceding_token_owner,
+        comment_context.preceding_owner,
+        comment_context.enclosing_owner,
+        comment_context.following_owner,
+        comment_context.following_token_owner,
+    ];
+    let Some(target_node) = dependency_attribute_expression_owner_from_seam_candidates(
+        comment_context.tree,
+        seam_candidates,
+    ) else {
+        return None;
+    };
+
+    let target_node = normalize_formatter_trivia_target_owner(comment_context.tree, target_node);
+    Some((Some(target_node), AnnotationPosition::BlockInfix))
+}
+
+/// Handle pre-placement empty dependency item seam ownership.
+fn attach_expression_pre_placement_empty_dependency_item_comments(
+    comment_context: &ExpressionCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    let seam = comment_context.seam;
+    if !comment_context.is_inline_star_comment {
+        return None;
+    }
+
+    if !seam.token_before_is(TokenType::OpenBrace) || !seam.token_after_is(TokenType::CloseBrace) {
+        return None;
+    }
+
+    let seam_candidates = [
+        comment_context.preceding_token_owner,
+        comment_context.preceding_owner,
+        comment_context.enclosing_owner,
+        comment_context.following_owner,
+        comment_context.following_token_owner,
+    ];
+    let Some(target_node) = empty_dependency_expression_owner_from_seam_candidates(
+        comment_context.tree,
+        comment_context.parents,
+        seam_candidates,
+    ) else {
+        return None;
+    };
+
+    let target_node = normalize_formatter_trivia_target_owner(comment_context.tree, target_node);
+    Some((Some(target_node), AnnotationPosition::LinePostfixBoundary))
+}
+
 /// Resolve pre-placement expression seam rules.
 fn try_attach_comment_expression_pre_placement_rules(
     comment_context: &ExpressionCommentContext<'_, '_>,
@@ -1526,6 +1728,8 @@ fn try_attach_comment_expression_pre_placement_rules(
         comment_context,
         &[
             attach_expression_pre_placement_semicolon_guard_comments,
+            attach_expression_pre_placement_empty_dependency_item_comments,
+            attach_expression_pre_placement_dependency_attribute_comments,
             attach_expression_pre_placement_spread_comments,
         ],
     )
@@ -1622,11 +1826,8 @@ fn attach_expression_tail_chain_and_call_comments(
     let parents = comment_context.parents;
     let seam = comment_context.seam;
     let preceding_owner = comment_context.preceding_owner;
-    let following_owner = comment_context.following_owner;
     let token_before_source_span = comment_context.token_before_source_span;
     let preceding_token_owner = comment_context.preceding_token_owner;
-    let following_token_owner = comment_context.following_token_owner;
-    let enclosing_owner = comment_context.enclosing_owner;
     let has_leading_newline = comment_context.has_leading_newline;
     let has_trailing_newline = comment_context.has_trailing_newline;
     let comment_is_line = comment_context.comment_is_line;
@@ -1644,6 +1845,32 @@ fn attach_expression_tail_chain_and_call_comments(
     let token_before_is_greater_than = seam.token_before_is(TokenType::GreaterThan);
     let token_before_is_open_brace = seam.token_before_is(TokenType::OpenBrace);
     let token_before_is_open_parenthesis = seam.token_before_is(TokenType::OpenParenthesis);
+    let seam_candidates = expression_seam_candidate_owners(comment_context);
+    let seam_is_call_like_open_parenthesis_boundary = token_after_is_open_parenthesis
+        && seam_candidates_have_call_like_expression_ancestor(tree, parents, seam_candidates);
+
+    // same-line line comments between call-like callees and `(` stay as call postfix comments
+    if comment_is_line
+        && !has_leading_newline
+        && seam_is_call_like_open_parenthesis_boundary
+        && let Some(call_owner) =
+            first_call_like_expression_owner_from_seam_candidates(tree, parents, seam_candidates)
+    {
+        let call_owner_first_dynamic_argument =
+            first_dynamic_argument_owner_for_call_like(tree, call_owner);
+        let call_owner_has_static_arguments =
+            call_like_expression_has_static_arguments(tree, call_owner);
+
+        if call_owner_has_static_arguments || call_owner_first_dynamic_argument.is_none() {
+            let target_node = normalize_formatter_trivia_target_owner(tree, call_owner);
+            return Some((Some(target_node), AnnotationPosition::LinePostfix));
+        }
+
+        if let Some(target_node) = call_owner_first_dynamic_argument {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return Some((Some(target_node), AnnotationPosition::LinePrefix));
+        }
+    }
 
     // seam comments before index and inline member operators stay with the left segment
     if !has_leading_newline
@@ -1651,22 +1878,14 @@ fn attach_expression_tail_chain_and_call_comments(
         && seam_has_shared_expression_owner
         && !token_before_is_comma
         && !token_before_is_open_brace
-        && let Some(mut target_node) = preceding_token_owner.or(preceding_owner)
+        && let Some(target_node) = normalized_preceding_expression_owner_for_tail_seam(
+            tree,
+            parents,
+            preceding_token_owner,
+            preceding_owner,
+            token_before_source_span,
+        )
     {
-        target_node =
-            normalize_owner_with_shared_end(tree, parents, target_node, token_before_source_span);
-        if tree.get_node_type(target_node) != NodeType::Expression
-            && let Some(expression_target) = promote_owner_to_node_type_ancestor(
-                tree,
-                parents,
-                target_node,
-                NodeType::Expression,
-            )
-        {
-            target_node = expression_target;
-        }
-        target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-
         if has_trailing_newline {
             return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
         }
@@ -1680,48 +1899,24 @@ fn attach_expression_tail_chain_and_call_comments(
         && token_after_is_dot
         && !token_before_is_comma
         && !token_before_is_open_brace
-        && let Some(mut target_node) = preceding_token_owner.or(preceding_owner)
+        && let Some(target_node) = normalized_preceding_expression_owner_for_tail_seam(
+            tree,
+            parents,
+            preceding_token_owner,
+            preceding_owner,
+            token_before_source_span,
+        )
     {
-        target_node =
-            normalize_owner_with_shared_end(tree, parents, target_node, token_before_source_span);
-        if tree.get_node_type(target_node) != NodeType::Expression
-            && let Some(expression_target) = promote_owner_to_node_type_ancestor(
-                tree,
-                parents,
-                target_node,
-                NodeType::Expression,
-            )
-        {
-            target_node = expression_target;
-        }
-        target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
     // comments between static type-argument closers and call `(` follow call-like ownership
     let seam_is_call_like_static_argument_call_boundary = token_before_is_greater_than
         && token_after_is_open_parenthesis
-        && [
-            enclosing_owner,
-            preceding_owner,
-            following_owner,
-            preceding_token_owner,
-            following_token_owner,
-        ]
-        .into_iter()
-        .flatten()
-        .any(|owner| owner_has_call_like_expression_ancestor(tree, parents, owner));
+        && seam_is_call_like_open_parenthesis_boundary;
     if comment_is_line && seam_is_call_like_static_argument_call_boundary {
-        let call_owner = [
-            enclosing_owner,
-            preceding_owner,
-            following_owner,
-            preceding_token_owner,
-            following_token_owner,
-        ]
-        .into_iter()
-        .flatten()
-        .find_map(|owner| promote_owner_to_call_or_new_expression_ancestor(tree, parents, owner));
+        let call_owner =
+            first_call_like_expression_owner_from_seam_candidates(tree, parents, seam_candidates);
 
         if has_leading_newline && let Some(target_node) = enclosing_owner_first_dynamic_argument {
             let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
@@ -1730,7 +1925,7 @@ fn attach_expression_tail_chain_and_call_comments(
 
         if let Some(target_node) = call_owner {
             let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+            return Some((Some(target_node), AnnotationPosition::LinePostfix));
         }
     }
 
@@ -2044,6 +2239,7 @@ fn attach_expression_tail_grouping_comments(
     let parents = comment_context.parents;
     let seam = comment_context.seam;
     let preceding_owner = comment_context.preceding_owner;
+    let token_before_source_span = comment_context.token_before_source_span;
     let following_owner = comment_context.following_owner;
     let preceding_token_owner = comment_context.preceding_token_owner;
     let following_token_owner = comment_context.following_token_owner;
@@ -2101,6 +2297,24 @@ fn attach_expression_tail_grouping_comments(
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+    }
+
+    // inline comments before one closing `)` stay on the inner operand
+    if is_inline_star_comment
+        && token_after_is_close_parenthesis
+        && preceding_token_owner
+            .or(preceding_owner)
+            .is_some_and(|owner| tree.get_node_type(owner) == NodeType::Expression)
+        && let Some(target_node) = normalized_preceding_expression_owner_for_tail_seam(
+            tree,
+            parents,
+            preceding_token_owner,
+            preceding_owner,
+            token_before_source_span,
+        )
+        && owner_has_unary_expression_ancestor(tree, parents, target_node)
+    {
+        return Some((Some(target_node), AnnotationPosition::LinePostfix));
     }
 
     // inline comments before `)` on grouped expressions stay with the grouped wrapper
@@ -2308,6 +2522,15 @@ pub(crate) fn try_attach_comment_expression(
         && (comment_context.comment_is_line || comment_context.comment_is_star)
         && comment_context.seam.token_after_is(TokenType::Dot);
     if own_line_member_dot_seam {
+        return None;
+    }
+
+    // inline comments before statement semicolons use semicolon/end-of-line ownership routing
+    let inline_before_semicolon_seam = comment_context.comment_is_line
+        && !comment_context.has_leading_newline
+        && comment_context.seam.token_after_is(TokenType::Semicolon)
+        && !comment_context.seam.token_before_is(TokenType::Semicolon);
+    if inline_before_semicolon_seam {
         return None;
     }
 

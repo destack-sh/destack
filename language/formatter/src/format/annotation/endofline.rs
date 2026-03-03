@@ -22,7 +22,7 @@ use super::ownership::{
 };
 use super::semicolon::{
     attach_after_semicolon_terminated_statement_comment, attach_inline_comment_before_semicolon,
-    preceding_owner_with_non_newline_token_fallback,
+    preceding_owner_with_non_newline_token_fallback, seam_has_line_leading_semicolon_after_comment,
     seam_has_line_leading_semicolon_before_comment,
     try_attach_comment_before_empty_statement_semicolon,
 };
@@ -602,6 +602,8 @@ struct EndOfLineCommentContext<'a, 'ctx> {
     is_same_line_trailing_block_comment: bool,
     /// Line-leading semicolon classification.
     semicolon_is_line_leading: bool,
+    /// Line-leading semicolon classification for token after comment.
+    semicolon_after_is_line_leading: bool,
 }
 
 /// Build one end-of-line seam comment context.
@@ -626,6 +628,8 @@ fn build_end_of_line_comment_context<'a, 'ctx>(
     let is_same_line_trailing_block_comment =
         seam.comment_is_star && !seam.has_leading_newline && seam.has_trailing_newline;
     let semicolon_is_line_leading = seam_has_line_leading_semicolon_before_comment(context, seam);
+    let semicolon_after_is_line_leading =
+        seam_has_line_leading_semicolon_after_comment(context, seam);
 
     EndOfLineCommentContext {
         context,
@@ -642,6 +646,7 @@ fn build_end_of_line_comment_context<'a, 'ctx>(
         is_same_line_line_comment,
         is_same_line_trailing_block_comment,
         semicolon_is_line_leading,
+        semicolon_after_is_line_leading,
     }
 }
 
@@ -740,6 +745,7 @@ fn attach_end_of_line_inline_before_semicolon_comment(
         comment_context.tree,
         comment_context.parents,
         comment_context.seam,
+        comment_context.semicolon_after_is_line_leading,
         comment_context.preceding_owner,
         comment_context.token_before_span,
         comment_context.is_same_line_line_comment,

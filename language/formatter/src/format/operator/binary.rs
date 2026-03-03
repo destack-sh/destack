@@ -184,6 +184,45 @@ fn should_inline_union_with_terminal_line_postfix_comment(
     true
 }
 
+/// Return whether one union is the parenthesized rhs of cast or satisfies.
+fn union_is_parenthesized_cast_or_satisfies_rhs(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = node_id;
+    let mut saw_parenthesized_wrapper = false;
+
+    loop {
+        let Some((parent_id, parent_type)) = context.parent(current_id) else {
+            return false;
+        };
+        if parent_type != NodeType::Expression {
+            return false;
+        }
+
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        match context.tree.get(parent_expression_id) {
+            Expression::Parenthesized { expression } if *expression == current_id => {
+                saw_parenthesized_wrapper = true;
+                current_id = parent_expression_id;
+            }
+            Expression::Statement(expression) if *expression == current_id => {
+                current_id = parent_expression_id;
+            }
+            Expression::TypeBinary {
+                operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
+                right,
+                ..
+            } if *right == current_id => {
+                return saw_parenthesized_wrapper;
+            }
+            _ => {
+                return false;
+            }
+        }
+    }
+}
+
 /// Return whether one declaration-expression ancestor has a line-postfix comment annotation.
 fn declaration_expression_ancestor_has_line_postfix_comment_annotation(
     context: &DestackFormatContext<'_>,
@@ -1238,7 +1277,6 @@ pub(crate) fn format_type_binary_expression<'ast>(
         return Ok(());
     }
 
-    let has_postfix = f.context().has_postfix_annotation(formatted_left);
     let left_has_leading_prefix_comment =
         expression_has_leading_prefix_comment(f.context(), formatted_left);
     let left_is_chain_expression = is_expression_chain(f.context().tree, formatted_left)
@@ -1262,9 +1300,7 @@ pub(crate) fn format_type_binary_expression<'ast>(
         if !wrote_inline_object_left {
             write!(f, [group(&format_with(format_left))])?;
         }
-        if !has_postfix {
-            write!(f, [space()])?;
-        }
+        write!(f, [space()])?;
         write!(
             f,
             [
@@ -1310,9 +1346,7 @@ pub(crate) fn format_type_binary_expression<'ast>(
                     }))
                     .should_expand(true)]
                 )?;
-                if !has_postfix {
-                    write!(f, [space()])?;
-                }
+                write!(f, [space()])?;
                 write_type_binary_operator_and_right(f, operator, right)
             }))]
         )?;
@@ -1327,12 +1361,10 @@ pub(crate) fn format_type_binary_expression<'ast>(
             [group(&format_args![
                 format_with(format_left),
                 indent(&format_with(|f| {
-                    if !has_postfix {
-                        if left_has_leading_prefix_comment || keep_left_and_operator_on_same_line {
-                            write!(f, [space()])?;
-                        } else {
-                            write!(f, [soft_line_break_or_space()])?;
-                        }
+                    if keep_left_and_operator_on_same_line || left_has_leading_prefix_comment {
+                        write!(f, [space()])?;
+                    } else {
+                        write!(f, [soft_line_break_or_space()])?;
                     }
                     write_type_binary_operator_and_right(f, operator, right)
                 }))
@@ -2182,7 +2214,16 @@ pub(crate) fn format_binary_expression<'ast>(
             || union_has_breaking_postfix_comments
             || union_has_own_line_doc_prefix_annotation
             || union_is_template_interpolation_multiline;
+        let union_is_parenthesized_cast_or_satisfies_rhs =
+            union_is_parenthesized_cast_or_satisfies_rhs(f.context(), node_id);
+        let union_should_keep_parenthesized_cast_rhs_inline =
+            union_is_parenthesized_cast_or_satisfies_rhs
+                && !union_prefers_multiline_layout
+                && !has_node_annotation
+                && !has_operand_annotations
+                && !has_operand_prefix_comments;
         let should_inline_union = union_should_hug_layout
+            || union_should_keep_parenthesized_cast_rhs_inline
             || should_inline_union_with_terminal_line_postfix_comment(
                 f.context(),
                 node_id,

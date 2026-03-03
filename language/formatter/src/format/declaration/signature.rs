@@ -8,10 +8,10 @@ use crate::format::collection::property::{
 };
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Asynchrony, Comment, CommentStyle, Declaration, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    Keyword, LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
-    PatternField, Property, TokenType, WhereClause,
+    AbstractionModifier, AnnotationPosition, Asynchrony, Comment, CommentStyle, Declaration,
+    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature, Keyword, LocalNodeId, Member, Mutability, Node, NodeTree, NodeTreeImpl,
+    NodeType, Parameter, Pattern, PatternField, Property, TokenType, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -293,29 +293,39 @@ pub(crate) fn parameter_is_variadic(
 }
 
 /// Return whether this parameter declares any modifiers.
-pub(crate) fn parameter_has_modifier(
+fn parameter_has_constructor_property_modifier(
     context: &DestackFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
-    match context.tree.get(parameter_id) {
+    let modifiers = match context.tree.get(parameter_id) {
         Parameter::Named { modifiers, .. }
         | Parameter::Pattern { modifiers, .. }
         | Parameter::VariadicNamed { modifiers, .. }
-        | Parameter::VariadicPattern { modifiers, .. } => modifiers.is_some(),
-    }
+        | Parameter::VariadicPattern { modifiers, .. } => *modifiers,
+    };
+
+    let Some(modifiers) = modifiers else {
+        return false;
+    };
+
+    let has_visibility_modifier = modifiers.visibility.is_some();
+    let has_readonly_modifier = modifiers.mutability == Some(Mutability::Immutable);
+    let has_override_modifier = matches!(
+        modifiers.abstraction,
+        Some(AbstractionModifier::Override | AbstractionModifier::AbstractOverride)
+    );
+    has_visibility_modifier || has_readonly_modifier || has_override_modifier
 }
 
-/// Return whether constructor parameter lists should break by default.
-pub(crate) fn constructor_parameters_should_expand(
+/// Return whether parameter lists with modifier parameters should break by default.
+pub(crate) fn parameters_with_modifiers_should_expand(
     context: &DestackFormatContext<'_>,
-    mode: Option<FunctionMode>,
     parameters: &[LocalNodeId<Parameter>],
 ) -> bool {
-    matches!(mode, Some(FunctionMode::Constructor | FunctionMode::New))
-        && parameters.len() >= CONSTRUCTOR_PARAMETER_EXPAND_MIN_COUNT
+    parameters.len() >= CONSTRUCTOR_PARAMETER_EXPAND_MIN_COUNT
         && parameters
             .iter()
-            .any(|parameter_id| parameter_has_modifier(context, *parameter_id))
+            .any(|parameter_id| parameter_has_constructor_property_modifier(context, *parameter_id))
 }
 
 /// Return whether this parameter has any slash comment annotation.
@@ -876,7 +886,7 @@ pub(crate) fn signature_should_elide_space_before_body(
 /// Return whether dynamic parameters should force multiline signature formatting.
 pub(crate) fn signature_parameters_should_expand(
     context: &DestackFormatContext<'_>,
-    mode: Option<FunctionMode>,
+    _mode: Option<FunctionMode>,
     parameters: &[LocalNodeId<Parameter>],
     _return_type: Option<LocalNodeId<Expression>>,
     include_parameter_shape_expansion: bool,
@@ -888,7 +898,7 @@ pub(crate) fn signature_parameters_should_expand(
             .copied()
             .any(|parameter_id| parameter_should_force_expand_in_signature(context, parameter_id));
     let should_break_constructor_parameters =
-        constructor_parameters_should_expand(context, mode, parameters);
+        parameters_with_modifiers_should_expand(context, parameters);
     let should_expand_for_parameter_line_comments = parameters
         .iter()
         .copied()

@@ -472,31 +472,6 @@ fn should_force_quote_keys_for_member<'ast>(
     true
 }
 
-/// Decide whether a field default should stay inline after `=`.
-fn should_keep_field_default_inline<'ast>(
-    f: &DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if f.context().has_prefix_annotation(expression_id) {
-        return false;
-    }
-
-    let is_call_like = matches!(
-        f.context().tree.get(expression_id),
-        Expression::Call { .. } | Expression::New { .. } | Expression::Instantiation { .. }
-    );
-    if !is_call_like {
-        return false;
-    }
-
-    // preserve inline `= <expr>` when source already uses multiline rhs structure
-    if f.context().node_has_newline(expression_id) {
-        return true;
-    }
-
-    false
-}
-
 /// Write a field type annotation.
 #[inline]
 fn write_field_type_annotation<'ast>(
@@ -507,6 +482,35 @@ fn write_field_type_annotation<'ast>(
         write!(f, [token(":"), indent(&format_args![space(), value])])
     } else {
         write!(f, [token(":"), space(), value])
+    }
+}
+
+/// Return whether one field initializer should keep `=` inline.
+fn field_default_prefers_inline_operator_seam(
+    f: &DestackFormatter<'_, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if f.context().has_prefix_annotation(expression_id) {
+        return false;
+    }
+
+    match f.context().tree.get(expression_id) {
+        Expression::Call {
+            static_arguments,
+            dynamic_arguments,
+            ..
+        }
+        | Expression::New {
+            static_arguments,
+            dynamic_arguments,
+            ..
+        } => {
+            static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+                && dynamic_arguments.is_empty()
+        }
+        _ => false,
     }
 }
 
@@ -543,7 +547,7 @@ fn format_field_like<'ast>(
     }
     // default
     if let Some(default) = default {
-        if should_keep_field_default_inline(f, default) {
+        if field_default_prefers_inline_operator_seam(f, default) {
             write!(
                 f,
                 [group(&format_args![space(), token("="), space(), default])]
@@ -985,9 +989,12 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use crate::{
+        DestackFormatOptions, TestFormatter, assert_format,
+        assert_format_program_roundtrip_with_file_type,
+    };
     use destack_ast::DeclarationDescriptor;
-    use destack_source::LanguageType;
+    use destack_source::{FileType, LanguageType};
 
     #[test]
     fn test_format_struct_empty() {
@@ -1059,6 +1066,88 @@ mod tests {
             "struct Foo<T: Numeric> extends Bar implements Baz {}",
             |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default(), false),
             DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_typescript_constructor_parameter_properties_expand_for_quoted_constructor_name()
+    {
+        let source = r#"
+[
+  class {
+    "constructor"(protected x: number, private y: string) {}
+  },
+]
+"#;
+        let expected = r#"
+[
+  class {
+    constructor(
+      protected x: number,
+      private y: string,
+    ) {}
+  },
+];
+"#;
+        assert_format_program_roundtrip_with_file_type(
+            source,
+            expected.trim_start(),
+            FileType::TypeScript,
+            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        );
+    }
+
+    #[test]
+    fn test_format_typescript_field_initializer_call_breaks_after_equals_stably() {
+        let source = r#"
+class X {
+  value: Type = memoize((arg: Arg): Ret => { const result = doSomething(arg); return result; });
+}
+"#;
+        let expected = r#"
+class X {
+  value: Type =
+    memoize((arg: Arg): Ret => {
+      const result = doSomething(arg);
+      return result;
+    });
+}
+"#;
+        assert_format_program_roundtrip_with_file_type(
+            source,
+            expected.trim_start(),
+            FileType::TypeScript,
+            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        );
+    }
+
+    #[test]
+    fn test_format_typescript_field_initializer_with_type_arguments_keeps_equals_inline() {
+        let source = r#"
+export class Test {
+  readonly coordinates = model.required<
+    Immutable<{
+      latitude: number;
+      longitude: number;
+    }>
+  >();
+}
+"#;
+        let expected = r#"
+export class Test {
+  readonly coordinates = model.required<
+    Immutable<{
+      latitude: number;
+      longitude: number;
+    }>
+  >();
+}
+"#;
+        assert_format_program_roundtrip_with_file_type(
+            source,
+            expected.trim_start(),
+            FileType::TypeScript,
+            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
         );
     }
 }

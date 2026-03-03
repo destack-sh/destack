@@ -644,6 +644,22 @@ fn delimiter_interior_container_owner(
     container_owner
 }
 
+/// Return whether one owner is one empty import or export dependency expression.
+pub(crate) fn is_empty_dependency_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(owner_id);
+    match tree.get(expression_id) {
+        Expression::Import { source, items, .. } => {
+            *source != ast::ImportSource::ImportCall && items.is_empty()
+        }
+        Expression::Export { items, .. } => items.is_empty(),
+        _ => false,
+    }
+}
+
 /// Try to attach one comment inside matching delimiters as container infix trivia.
 fn try_attach_comment_delimiter_interior(
     tree: &NodeTree,
@@ -678,6 +694,12 @@ fn try_attach_comment_delimiter_interior(
         token_before_span.token.ty,
         token_after_span.token.ty,
     );
+    if token_before_span.token.ty == TokenType::OpenBrace
+        && token_after_span.token.ty == TokenType::CloseBrace
+        && is_empty_dependency_expression_owner(tree, container_owner)
+    {
+        return None;
+    }
 
     let target_node = if tree.get_node_type(container_owner) == NodeType::Expression {
         let expression_id = LocalNodeId::<ast::Expression>::new(container_owner);
@@ -1158,16 +1180,6 @@ pub(crate) fn comment_trivia_attachment(
     let attachment = run_comment_attachment_handlers(&mut dispatch_context, &handlers);
     let attachment =
         attachment.expect("comment attachment pipeline should always produce one attachment");
-
-    let (target_node, mut position) = attachment;
-
-    if seam.comment_is_line
-        && position == AnnotationPosition::BlockPrefix
-        && comment_directive_is_ignore(trivia.directive)
-    {
-        position = AnnotationPosition::LinePrefix;
-    }
-    let attachment = (target_node, position);
 
     normalize_trailing_object_member_comment_attachment(tree, parents, &context, &seam, attachment)
 }

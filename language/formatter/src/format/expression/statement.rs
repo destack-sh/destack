@@ -24,15 +24,33 @@ use destack_fir::write;
 /// Format `with { ... }` arguments for import and export statements.
 fn format_dependency_with_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<crate::format::expression::Argument>],
 ) -> FormatResult<()> {
+    // attribute head comments should stay attached to the with head, not drift to statement tails
+    let has_attribute_head_annotation = f
+        .context()
+        .has_dependency_attribute_head_annotation(node_id);
+    if has_attribute_head_annotation {
+        write!(
+            f,
+            [f.context().dependency_attribute_head_annotations(node_id)]
+        )?;
+    }
+
     // source newlines inside `with` should expand the collection
-    let should_expand_with_arguments = call_arguments_are_multiline_span(f.context(), arguments);
+    let should_expand_attribute_arguments =
+        call_arguments_are_multiline_span(f.context(), arguments);
     let mut with_arguments = list_like("{", "}", ",", arguments);
     with_arguments
         .as_collection()
         .include_space()
-        .should_expand(should_expand_with_arguments);
+        .should_expand(should_expand_attribute_arguments);
+
+    if has_attribute_head_annotation {
+        write!(f, [Keyword::With, space(), with_arguments])?;
+        return Ok(());
+    }
 
     write!(f, [space(), Keyword::With, space(), with_arguments])
 }
@@ -40,6 +58,7 @@ fn format_dependency_with_arguments<'ast>(
 /// Format an import expression.
 pub(crate) fn format_import_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     source: ImportSource,
     kind: DependencyKind,
     target: &ImportTarget,
@@ -84,7 +103,7 @@ pub(crate) fn format_import_expression<'ast>(
                             write!(f, [token(",")])?;
                         }
 
-                        // with-arguments items
+                        // attribute-arguments items
                         if let Some(arguments) = arguments {
                             for (index, argument) in arguments.iter().enumerate() {
                                 write!(f, [hard_line_break(), *argument])?;
@@ -248,9 +267,9 @@ pub(crate) fn format_import_expression<'ast>(
     }
     write!(f, [token("\""), target, token("\"")])?;
 
-    // with clause
+    // attribute clause
     if let Some(arguments) = arguments {
-        format_dependency_with_arguments(f, arguments)?;
+        format_dependency_with_arguments(f, node_id, arguments)?;
     }
 
     Ok(())
@@ -259,6 +278,7 @@ pub(crate) fn format_import_expression<'ast>(
 /// Format an export expression.
 pub(crate) fn format_export_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     kind: DependencyKind,
     target: Option<StringId>,
     items: &[LocalNodeId<crate::format::expression::DependencyItem>],
@@ -384,9 +404,9 @@ pub(crate) fn format_export_expression<'ast>(
         )?;
     }
 
-    // with clause
+    // attribute clause
     if let Some(arguments) = arguments {
-        format_dependency_with_arguments(f, arguments)?;
+        format_dependency_with_arguments(f, node_id, arguments)?;
     }
 
     Ok(())
@@ -527,10 +547,23 @@ fn format_statement_wrapped_expression<'ast>(
         )
         && expression_has_multiline_block_postfix_annotation(f.context(), node_id);
 
-    // statement terminator should stay attached to the statement expression,
-    // not drift after postfix trivia into its own line
+    let should_emit_postfix_annotations = !matches!(
+        directive,
+        Some(FormatterDirective {
+            kind: FormatterDirectiveKind::IgnoreFormat,
+            position: FormatterDirectivePosition::Postfix { .. },
+        })
+    );
+
+    // statement terminator
     if needs_semicolon && !semicolon_after_multiline_as_const_postfix {
         write!(f, [token(";")])?;
+    }
+
+    // statement-level boundary comments print after the terminator
+    // this matches direct statement-list formatting and prevents wrapper/non-wrapper churn
+    if should_emit_postfix_annotations {
+        write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
     }
 
     // regular if chains emit their own edge annotations in control formatter
@@ -543,15 +576,7 @@ fn format_statement_wrapped_expression<'ast>(
     );
 
     // postfix and infix annotations
-    if !if_chain_handles_annotations
-        && !matches!(
-            directive,
-            Some(FormatterDirective {
-                kind: FormatterDirectiveKind::IgnoreFormat,
-                position: FormatterDirectivePosition::Postfix { .. },
-            })
-        )
-    {
+    if !if_chain_handles_annotations && should_emit_postfix_annotations {
         let call_or_new_handles_empty_infix = matches!(
             expression,
             Expression::Call {
@@ -579,11 +604,23 @@ fn format_statement_wrapped_expression<'ast>(
                 ..
             }
         ) {
-            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+            write!(
+                f,
+                [f.context()
+                    .any_postfix_except_line_postfix_boundary_annotations(node_id)]
+            )?;
         } else if call_or_new_handles_empty_infix || collection_handles_empty_infix {
-            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+            write!(
+                f,
+                [f.context()
+                    .any_postfix_except_line_postfix_boundary_annotations(node_id)]
+            )?;
         } else {
-            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+            write!(
+                f,
+                [f.context()
+                    .any_infix_or_postfix_except_line_postfix_boundary_annotations(node_id)]
+            )?;
         }
     }
 
@@ -1347,7 +1384,15 @@ pub(crate) fn format_statement_expression<'ast>(
             let _timing = f
                 .context()
                 .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_IMPORT);
-            format_import_expression(f, *source, *kind, target, items, arguments.as_deref())?;
+            format_import_expression(
+                f,
+                node_id,
+                *source,
+                *kind,
+                target,
+                items,
+                arguments.as_deref(),
+            )?;
         }
 
         // export
@@ -1360,7 +1405,7 @@ pub(crate) fn format_statement_expression<'ast>(
             let _timing = f
                 .context()
                 .timing_scope(timing::FORMAT_EXPRESSION_STATEMENT_EXPORT);
-            format_export_expression(f, *kind, *target, items, arguments.as_deref())?;
+            format_export_expression(f, node_id, *kind, *target, items, arguments.as_deref())?;
         }
 
         // export as namespace

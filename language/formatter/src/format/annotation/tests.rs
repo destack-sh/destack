@@ -842,6 +842,42 @@ fn test_annotation_type_declaration_assignment_line_comment_attaches_to_rhs_valu
     );
 }
 
+/// Type declaration `prettier-ignore` comments after `=` should stay block-prefixed on the rhs.
+#[test]
+fn test_annotation_type_declaration_assignment_prettier_ignore_attaches_to_rhs_value() {
+    let source = "type Foo =
+// prettier-ignore
+aa;";
+    let expected = "type Foo =
+    // prettier-ignore
+    aa;
+";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse type declaration prettier-ignore seam source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+        .expect("expected type assignment prettier-ignore annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected type assignment prettier-ignore owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::BlockPrefix);
+    assert_eq!(
+        owner_node_type,
+        NodeType::Expression,
+        "position={position:?}, owner={owner_node}"
+    );
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        typescript_format_options(),
+    );
+}
+
 /// Type value-seam comments should stay on their own declaration across omitted-semicolon boundaries.
 #[test]
 fn test_annotation_type_declaration_value_seam_keeps_local_declaration_ownership() {
@@ -1284,7 +1320,7 @@ fn test_annotation_call_callee_line_comment_stays_on_call_expression() {
     let position = context.annotation(annotation_id).position();
 
     assert_eq!(owner_node_type, NodeType::Expression);
-    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(position, AnnotationPosition::LinePostfix);
 }
 
 /// Line comments between call callees and argument parentheses should normalize to call boundaries.
@@ -1457,6 +1493,38 @@ const y = 1;
     );
 }
 
+/// Comments before a line-leading semicolon should keep preceding statement ownership.
+#[test]
+fn test_annotation_comment_before_line_leading_semicolon_stays_with_preceding_statement() {
+    let source = r#"function x() {
+} // first-marker
+; // second-marker
+const y = 1;
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse line-leading semicolon seam source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id =
+        find_annotation_by_marker(&context, "first-marker").expect("expected first marker");
+    let position = context.annotation(annotation_id).position();
+    let owner_node =
+        find_annotation_target_owner_node(&context, annotation_id).expect("expected owner");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePostfixBoundary,
+        "unexpected first marker position"
+    );
+    assert_eq!(
+        owner_node_type,
+        NodeType::Declaration,
+        "expected declaration owner for first marker"
+    );
+}
+
 /// Standalone semicolon block-tail comments should stay as leading comments of the following statement.
 #[test]
 fn test_format_line_leading_semicolon_block_tail_comment_stays_with_following_statement() {
@@ -1523,10 +1591,218 @@ fn test_format_import_trailing_block_comment_after_semicolon_keeps_space_typescr
     );
 }
 
-/// Empty import-assertion comments should stay idempotent when lowered to postfix tails.
+/// Empty import-with comments after semicolons should keep stable postfix spacing.
 #[test]
-fn test_format_import_assertion_empty_comment_tail_is_idempotent() {
-    let source = "export * as baz from \"baz.json\" assert { /* comment */ }\nimport * as baz from \"baz.json\" assert { /* comment */ }\n";
+fn test_format_import_with_empty_comment_tail_is_idempotent() {
+    let source = "export * as baz from \"baz.json\" with {}; /* comment */\nimport * as baz from \"baz.json\" with {}; /* comment */\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// JavaScript empty import specifier comments should keep one space after semicolons.
+#[test]
+fn test_format_import_empty_specifier_comment_keeps_tail_space_javascript() {
+    let source = "import { /* import-empty-specifier-marker */ } from \"a\";\n";
+    let expected = "import \"a\"; /* import-empty-specifier-marker */\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse empty import specifier source");
+    let context = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&context, "import-empty-specifier-marker")
+        .expect("expected empty import specifier annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected empty import specifier owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePostfixBoundary,
+        "position={position:?}, owner_type={owner_node_type:?}"
+    );
+    assert_eq!(owner_node_type, NodeType::Expression);
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// TypeScript empty import specifier comments should keep one space after semicolons.
+#[test]
+fn test_format_import_empty_specifier_comment_keeps_tail_space_typescript() {
+    let source = "import type { /* import-type-empty-specifier-marker */ } from \"a\";\n";
+    let expected = "import type {} from \"a\"; /* import-type-empty-specifier-marker */\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse empty type import specifier source");
+    let context = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&context, "import-type-empty-specifier-marker")
+        .expect("expected empty type import specifier annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected empty type import specifier owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePostfixBoundary,
+        "position={position:?}, owner_type={owner_node_type:?}"
+    );
+    assert_eq!(owner_node_type, NodeType::Expression);
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Import comments before a line-leading semicolon should keep stable semicolon-boundary spacing.
+#[test]
+fn test_format_import_line_comment_before_line_leading_semicolon_is_idempotent() {
+    let source = r#"import "a" // import-line-semicolon-marker
+;
+const y = 1;
+"#;
+    let expected = r#"import "a"; // import-line-semicolon-marker
+
+const y = 1;
+"#;
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Import head line comments before source literals should keep semicolon-before-comment order.
+#[test]
+fn test_format_import_head_line_comment_keeps_semicolon_before_comment_javascript() {
+    let source = r#"import // import-head-marker
+"a";
+"#;
+    let expected = r#"import "a"; // import-head-marker
+"#;
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Inline leading and trailing import block comments should normalize trailing semicolon spacing.
+#[test]
+fn test_format_import_with_inline_leading_and_trailing_block_comments_keeps_tail_space() {
+    let source = "/* lead */ import \"a\";/* tail */\n";
+    let expected = "/* lead */ import \"a\"; /* tail */\n";
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Inline trailing import block comments after inline leading comments should use boundary position.
+#[test]
+fn test_annotation_import_with_inline_leading_and_trailing_block_comments_uses_boundary_position() {
+    let source = "/* lead */ import \"a\";/* tail */\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse import inline leading and trailing comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "tail")
+        .expect("expected import trailing block comment marker");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected import trailing block comment owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Import attribute empty object comments should keep stable semicolon spacing.
+#[test]
+fn test_format_import_with_empty_object_comments_keep_tail_space() {
+    let source = "export * as baz from \"baz.json\" with { /* comment */ }\nimport * as baz from \"baz.json\" with { /* comment */ }\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse import with empty comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_ids = find_annotations_by_marker(&context, "comment");
+    assert_eq!(annotation_ids.len(), 2);
+    for annotation_id in annotation_ids {
+        let position = context.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected import with empty comment owner node");
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        assert_eq!(position, AnnotationPosition::BlockInfix);
+        assert_eq!(owner_node_type, NodeType::Expression);
+    }
+
+    let expected = "export * as baz from \"baz.json\" /* comment */ with {};\nimport * as baz from \"baz.json\" /* comment */ with {};\n";
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Import list comments around trailing separators should remain idempotent.
+#[test]
+fn test_format_import_list_separator_comments_keep_stable_spacing() {
+    let source = r#"import {
+  // comment 1
+  FN1, // comment 2
+  /* comment 3 */ FN2,
+  // FN3,
+  FN4 /* comment 4 */
+  // FN4,
+  // FN5
+} from "./module";
+
+import {
+  ExecutionResult,
+  DocumentNode,
+  /* tslint:disable */
+  SelectionSetNode,
+  /* tslint:enable */
+} from 'graphql';
+"#;
+
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse import list separator comment source");
+    let context = context_from_formatter(&formatter);
+    for marker in ["FN4,", "tslint:enable"] {
+        let annotation_id = find_annotation_by_marker_fragment(&context, marker)
+            .unwrap_or_else(|| panic!("expected marker annotation: {marker}"));
+        let annotation = context.annotation(annotation_id);
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .unwrap_or_else(|| panic!("expected marker owner node: {marker}"));
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        assert_eq!(
+            annotation.position(),
+            AnnotationPosition::LinePostfixBoundary
+        );
+        assert_eq!(owner_node_type, NodeType::DependencyItem);
+    }
+
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
@@ -1876,7 +2152,7 @@ fn test_annotation_type_binary_own_line_comment_after_as_with_union_attaches_to_
     let position = context.annotation(annotation_id).position();
     assert_eq!(
         position,
-        AnnotationPosition::LinePrefix,
+        AnnotationPosition::BlockPrefix,
         "position={position:?}"
     );
 }
@@ -3149,6 +3425,37 @@ export class Board {
     assert_eq!(first_output, second_output);
 }
 
+/// TypeScript parameter decorators after separators should keep one separator space.
+#[test]
+fn test_format_typescript_parameter_decorator_keeps_single_separator_space() {
+    let source = r#"class Class4 {
+    method(param1, @Decorator { prop1, prop2 }: Type) {}
+}
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+
+    let (first_formatter, first_expressions) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse parameter decorator source");
+    let first_output = first_formatter.format(
+        &statement_list(first_expressions.as_slice()),
+        options.clone(),
+    );
+
+    assert!(
+        !first_output.contains(",  @Decorator"),
+        "parameter decorator gained duplicate separator spacing:\n{first_output}"
+    );
+
+    let (second_formatter, second_expressions) =
+        TestFormatter::parse_with_file_type(&first_output, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse first pass parameter decorator output");
+    let second_output =
+        second_formatter.format(&statement_list(second_expressions.as_slice()), options);
+
+    assert_eq!(first_output, second_output);
+}
+
 /// Own-line chain boundary comments after yield should keep member-call shape.
 #[test]
 fn test_format_yield_chain_boundary_comment_keeps_call_chain_shape() {
@@ -3856,6 +4163,19 @@ fn test_format_inline_block_comment_before_semicolon_is_idempotent() {
     );
 }
 
+/// Logical grouped trailing block comments before semicolons should stay after grouped operands.
+#[test]
+fn test_format_logical_group_trailing_block_comment_before_semicolon_is_idempotent() {
+    let source = "code || (!escapeless && (true /* 1 */ || false) /* logical-tail-marker */);\n";
+    let expected = "code || (!escapeless && (true /* 1 */ || false) /* logical-tail-marker */);\n";
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Own-line comments between `for..of` heads and non-block bodies should stay idempotent.
 #[test]
 fn test_format_for_of_head_body_own_line_comment_is_idempotent() {
@@ -4037,6 +4357,104 @@ test.fixme("x", async ({ page: _page }, testInfo) => {
         expected,
         FileType::JavaScript,
         javascript_format_options(),
+    );
+}
+
+/// TypeScript export return-type comments before semicolons should attach as boundary postfix seams.
+#[test]
+fn test_annotation_typescript_export_return_comment_before_semicolon_is_boundary_postfix() {
+    let source = "export function match(): string /* export-return-marker */;\na;\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse typescript export return semicolon source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "export-return-marker")
+        .expect("expected export return marker annotation");
+    let annotation = context.annotation(annotation_id);
+    let position = annotation.position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected export return marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    if owner_node_type == NodeType::Expression {
+        let owner_expression = context
+            .tree
+            .get(LocalNodeId::<Expression>::new(owner_node as u32));
+        assert!(
+            !matches!(owner_expression, Expression::Declaration(_)),
+            "return-type semicolon seam comment should not attach to declaration wrappers"
+        );
+    }
+    assert!(
+        annotation_precedes_separator(&context, annotation_id),
+        "export return marker should precede trailing semicolon separator"
+    );
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Inline comments before unary grouped close parens should stay on the inner operand.
+#[test]
+fn test_annotation_unary_inner_comment_before_close_parenthesis_stays_inner_operand() {
+    let source = r#"!(+(3 /* unary-inner-marker */) // foo
+);
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse unary grouped close-parenthesis comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "unary-inner-marker")
+        .expect("expected unary grouped close-parenthesis marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected unary grouped close-parenthesis marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePostfix);
+    if owner_node_type == NodeType::Expression {
+        let owner_expression = context
+            .tree
+            .get(LocalNodeId::<Expression>::new(owner_node as u32));
+        assert!(
+            !matches!(owner_expression, Expression::Parenthesized { .. }),
+            "unary grouped close-parenthesis seam should stay on inner operand expression"
+        );
+    }
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Multiline unary grouping should keep operand-inline close-paren comments inside `+(...)`.
+#[test]
+fn test_annotation_unary_multiline_grouping_keeps_inner_comment_inside_parentheses() {
+    let source = r#"!(
+  +(
+    3 /* unary-multiline-marker */
+  ) // foo
+);
+"#;
+    let expected = r#"!(+(3 /* unary-multiline-marker */) // foo
+);
+"#;
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
     );
 }
 

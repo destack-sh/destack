@@ -12,6 +12,21 @@ js/comments/while-like/with.js
 js/no-semi/with-statement.js
 js/with/indent.js
 
+# unsupported legacy import `assert { ... }` attributes syntax
+js/import-assertions/bracket-spacing/dynamic-import.js
+js/import-assertions/bracket-spacing/empty.js
+js/import-assertions/bracket-spacing/re-export.js
+js/import-assertions/bracket-spacing/static-import.js
+js/import-assertions/dynamic-import.js
+js/import-assertions/empty.js
+js/import-assertions/keyword-detect.js
+js/import-assertions/multi-types.js
+js/import-assertions/non-type.js
+js/import-assertions/not-import-assertions.js
+js/import-assertions/re-export.js
+js/import-assertions/static-import.js
+js/import-assertions/without-from.js
+
 # oxc / prettier-conformance snapshot mismatches (oxfmt behavior is preferred)
 js/ignore/issue-10661.js
 js/comments/return-statement.js

@@ -174,12 +174,7 @@ pub(crate) fn format_type_index_expression<'ast>(
     left: LocalNodeId<Expression>,
     index: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let needs_parentheses = matches!(
-        f.context().tree.get(left),
-        Expression::TypeBinary { .. }
-            | Expression::TypeConditional { .. }
-            | Expression::TypeMapped { .. }
-    );
+    let needs_parentheses = type_index_left_requires_parentheses(f.context().tree.get(left));
     if needs_parentheses {
         write!(f, [token("("), left, token(")")])?;
     } else {
@@ -187,6 +182,16 @@ pub(crate) fn format_type_index_expression<'ast>(
     }
     write!(f, [token("["), index, token("]")])?;
     Ok(())
+}
+
+/// Return whether one type-index left expression requires explicit parentheses.
+pub(crate) fn type_index_left_requires_parentheses(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::TypeBinary { .. }
+            | Expression::TypeConditional { .. }
+            | Expression::TypeMapped { .. }
+    )
 }
 
 /// Format a type template literal expression.

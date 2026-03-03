@@ -489,6 +489,8 @@ pub(crate) fn format_function_declaration<'ast>(
         || is_statement_lambda_declaration
         || is_bodyless_function_declaration;
 
+    write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
+
     if needs_trailing_semicolon {
         write!(f, [token(";")])?;
     }

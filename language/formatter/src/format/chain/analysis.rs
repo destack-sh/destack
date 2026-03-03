@@ -760,20 +760,16 @@ pub(crate) fn should_expand_static_argument_list(
         return false;
     }
 
-    // only expand list-level generic wrappers when source is already multiline and
-    // the nested type arguments include object-like forms
-    if !context.node_has_newline(value_id) {
-        return false;
-    }
-
+    // expand list-level wrappers only when nested type arguments are structurally multiline
     expression_static_arguments(context.tree.get(value_id)).is_some_and(|nested_arguments| {
         nested_arguments.iter().copied().any(|nested_argument_id| {
             let nested_value_id = argument_value_id(context.tree, nested_argument_id);
             let nested_value_id = transparent_inner_expression(context, nested_value_id);
-            matches!(
-                context.tree.get(nested_value_id),
-                Expression::ObjectExpression { .. } | Expression::TypeMapped { .. }
-            )
+            match context.tree.get(nested_value_id) {
+                Expression::ObjectExpression { properties, .. } => properties.len() > 1,
+                Expression::TypeMapped { .. } => true,
+                _ => false,
+            }
         })
     })
 }
