@@ -12,6 +12,8 @@ mod credentials;
 mod crypto;
 #[cfg(any(test, target_os = "android"))]
 mod ffi;
+#[cfg(target_os = "android")]
+mod message;
 #[cfg(any(test, target_os = "android"))]
 mod registry;
 #[cfg(test)]

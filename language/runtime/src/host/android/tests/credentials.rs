@@ -10,7 +10,7 @@ use super::super::credentials::{
 use super::super::tests::{
     callback_test_lock, register_android_bindings_credentials, register_android_runtime,
 };
-use crate::platform::{NativeSlice, NativeStringRef};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Mechanism code for one biometric host authentication result.
 const TEST_AUTHENTICATION_MECHANISM_BIOMETRIC: u32 = 2;

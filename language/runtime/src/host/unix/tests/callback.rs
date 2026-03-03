@@ -34,7 +34,7 @@ fn test_map_unix_lifecycle_to_host_states() {
 #[test]
 fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Linux, &state);
+    let registration = register_host_state(HostPlatform::Linux, &state, None);
     let runtime_id = registration.runtime_id();
 
     unix_notify_window_available(runtime_id, HostPlatform::Linux, 7).unwrap();
@@ -52,7 +52,7 @@ fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
 #[test]
 fn test_notify_window_available_rejects_platform_mismatch_for_runtime_bridge() {
     let state = Arc::new(HostState::new());
-    let registration = register_host_state(HostPlatform::Linux, &state);
+    let registration = register_host_state(HostPlatform::Linux, &state, None);
     let runtime_id = registration.runtime_id();
 
     let result = unix_notify_window_available(runtime_id, HostPlatform::FreeBsd, 7);

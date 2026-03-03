@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostState, HostStateRegistration, register_host_state};
+use crate::host::core::{HostState, HostStateRegistration, not_supported, register_host_state};
 use crate::host::{HostAdapter, HostLifecycleState, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
@@ -22,7 +22,7 @@ impl UnsupportedHost {
     pub(crate) fn new() -> Self {
         let state = Arc::new(HostState::new());
         state.push_lifecycle(HostLifecycleState::Initializing);
-        let registration = register_host_state(HostPlatform::Universal, &state);
+        let registration = register_host_state(HostPlatform::Universal, &state, None);
 
         Self {
             state,
@@ -50,6 +50,19 @@ impl HostAdapter for UnsupportedHost {
 
     fn callback_runtime_id(&self) -> Option<u64> {
         Some(self.registration.runtime_id())
+    }
+
+    fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
+        let _ = ignore_quit_message;
+        Err(not_supported(
+            "runtime.host.platform.pumpPendingThreadMessages",
+        ))
+    }
+
+    fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()> {
+        Err(not_supported(
+            "runtime.host.platform.runBlockingThreadMessageLoop",
+        ))
     }
 
     fn host_capabilities(&self) -> PlatformCapabilitySet {

@@ -22,7 +22,7 @@ use super::super::crypto::{
 use super::super::tests::{
     callback_test_lock, register_android_bindings_crypto, register_android_runtime,
 };
-use crate::platform::{NativeSlice, NativeStringRef};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Report one supported hardware lane in callback tests.
 unsafe extern "C" fn test_supports_hardware_key(_runtime_id: u64, _store_kind: u32) -> u32 {

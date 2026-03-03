@@ -6,9 +6,9 @@ use super::{
     windows_notify_window_available, windows_notify_window_focus_changed,
     windows_notify_window_resized, windows_notify_window_terminated,
 };
-use crate::diagnostic::{RuntimeError, RuntimeResult, RuntimeStatus};
-use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::diagnostic::{RuntimeResult, RuntimeStatus};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState, core as core_host};
+use crate::runtime::NativeStringRef;
 
 /// Windows lifecycle code for app-created initialization.
 const WINDOWS_LIFECYCLE_CREATED: u32 = 0;
@@ -181,11 +181,10 @@ fn decode_windows_application_lifecycle(
         WINDOWS_LIFECYCLE_STOPPING => WindowsApplicationLifecycle::Stopping,
         WINDOWS_LIFECYCLE_DESTROYED => WindowsApplicationLifecycle::Destroyed,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "lifecycle_code",
                 "invalid windows lifecycle code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -199,11 +198,10 @@ fn decode_windows_memory_pressure_level(level_code: u32) -> RuntimeResult<HostMe
         WINDOWS_MEMORY_PRESSURE_WARNING => HostMemoryPressureLevel::Warning,
         WINDOWS_MEMORY_PRESSURE_CRITICAL => HostMemoryPressureLevel::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "level_code",
                 "invalid windows memory pressure level code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -218,11 +216,10 @@ fn decode_windows_thermal_state(thermal_code: u32) -> RuntimeResult<HostThermalS
         WINDOWS_THERMAL_SERIOUS => HostThermalState::Serious,
         WINDOWS_THERMAL_CRITICAL => HostThermalState::Critical,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "thermal_code",
                 "invalid windows thermal state code",
-            ))
-            .boxed());
+            ));
         }
     };
 
@@ -235,11 +232,10 @@ fn decode_windows_power_mode(power_mode_code: u32) -> RuntimeResult<HostPowerMod
         WINDOWS_POWER_MODE_NORMAL => HostPowerMode::Normal,
         WINDOWS_POWER_MODE_LOW_POWER => HostPowerMode::LowPower,
         _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(core_host::invalid_argument_value(
                 "power_mode_code",
                 "invalid windows power mode code",
-            ))
-            .boxed());
+            ));
         }
     };
 

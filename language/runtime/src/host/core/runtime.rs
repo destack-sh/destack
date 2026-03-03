@@ -137,6 +137,17 @@ impl Host {
     pub fn callback_runtime_id(&self) -> Option<u64> {
         self.adapter.callback_runtime_id()
     }
+
+    /// Drain pending platform thread messages without blocking.
+    pub fn pump_pending_thread_messages(&self, ignore_quit_message: bool) -> RuntimeResult<bool> {
+        self.adapter
+            .pump_pending_thread_messages(ignore_quit_message)
+    }
+
+    /// Run one blocking platform thread message loop.
+    pub fn run_blocking_thread_message_loop(&self) -> RuntimeResult<()> {
+        self.adapter.run_blocking_thread_message_loop()
+    }
 }
 
 impl Default for Host {
