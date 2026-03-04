@@ -1,6 +1,10 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    ast_expression_unwrap_parenthesized, expression_constant_to_bool, expression_has_side_effects,
+    expression_is_equal,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -25,13 +29,17 @@ declare_lint! {
 }
 
 impl LintRule for NoConstantBinaryExpression {
+    /// Return lint metadata.
     fn meta(&self) -> &'static crate::LintMeta {
         NoConstantBinaryExpression::meta()
     }
 
+    /// Check module AST nodes for binary expressions with constant outcomes.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata
         let meta = self.meta();
 
+        // walk binary expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Binary {
                 left,
@@ -42,7 +50,7 @@ impl LintRule for NoConstantBinaryExpression {
                 continue;
             };
 
-            // check for constant results
+            // check for constant outcomes
             if let Some(message) = check_constant_result(ctx, *left, *operator, *right) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
@@ -73,11 +81,45 @@ fn check_constant_result(
     operator: ast::BinaryOperator,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<&'static str> {
-    // check for `x || x` or `x && x` where both sides are identical literals
-    if matches!(operator, ast::BinaryOperator::Or | ast::BinaryOperator::And)
-        && are_identical_literals(ctx, left_id, right_id)
+    // normalize expression shape
+    let left_id = ast_expression_unwrap_parenthesized(ctx.tree, left_id);
+    let right_id = ast_expression_unwrap_parenthesized(ctx.tree, right_id);
+
+    // resolve expression references
+    let left = ctx.tree.get(left_id);
+    let right = ctx.tree.get(right_id);
+
+    // detect no-op logical operations on the same side effect free value
+    if matches!(
+        operator,
+        ast::BinaryOperator::Or | ast::BinaryOperator::And | ast::BinaryOperator::Coalesce
+    ) && expression_is_equal(ctx, left_id, right_id)
+        && !expression_has_side_effects(ctx, left_id)
+        && !expression_has_side_effects(ctx, right_id)
     {
         return Some("logical operation on identical operands");
+    }
+
+    // detect constant short-circuit behavior from the left operand truthiness
+    if let Some(left_boolean) = expression_constant_to_bool(ctx, left) {
+        if operator == ast::BinaryOperator::Or && left_boolean {
+            return Some("logical OR short-circuits to a constant result");
+        }
+
+        if operator == ast::BinaryOperator::And && !left_boolean {
+            return Some("logical AND short-circuits to a constant result");
+        }
+    }
+
+    // detect nullish coalescing with statically known left nullishness
+    if operator == ast::BinaryOperator::Coalesce {
+        if expression_is_definitely_nullish(left) {
+            return Some("nullish coalescing left operand is always nullish");
+        }
+
+        if expression_is_definitely_non_nullish(left) {
+            return Some("nullish coalescing left operand is never nullish");
+        }
     }
 
     // check for `new X() === new X()` (always false for object comparisons)
@@ -85,8 +127,6 @@ fn check_constant_result(
         operator,
         ast::BinaryOperator::EqualStrict | ast::BinaryOperator::NotEqualStrict
     ) {
-        let left = ctx.tree.get(left_id);
-        let right = ctx.tree.get(right_id);
         if matches!(left, ast::Expression::New { .. })
             && matches!(right, ast::Expression::New { .. })
         {
@@ -97,10 +137,11 @@ fn check_constant_result(
     // check for `{} === {}` or `[] === []` (always false)
     if matches!(
         operator,
-        ast::BinaryOperator::EqualStrict | ast::BinaryOperator::NotEqualStrict
+        ast::BinaryOperator::Equal
+            | ast::BinaryOperator::NotEqual
+            | ast::BinaryOperator::EqualStrict
+            | ast::BinaryOperator::NotEqualStrict
     ) {
-        let left = ctx.tree.get(left_id);
-        let right = ctx.tree.get(right_id);
         let left_is_object = matches!(
             left,
             ast::Expression::ObjectExpression { .. } | ast::Expression::ArrayExpression { .. }
@@ -116,8 +157,6 @@ fn check_constant_result(
 
     // check for string + undefined or string + null
     if operator == ast::BinaryOperator::Add {
-        let left = ctx.tree.get(left_id);
-        let right = ctx.tree.get(right_id);
         let left_is_string = matches!(
             left,
             ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
@@ -141,37 +180,32 @@ fn check_constant_result(
     None
 }
 
-/// Check if two expressions are identical literals.
-fn are_identical_literals(
-    ctx: &LintModuleAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::Expression>,
-    right_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
-    let left = ctx.tree.get(left_id);
-    let right = ctx.tree.get(right_id);
-
-    match (left, right) {
-        (ast::Expression::ScalarLiteral(l), ast::Expression::ScalarLiteral(r)) => l == r,
-        (ast::Expression::TypeLiteral(l), ast::Expression::TypeLiteral(r)) => l == r,
-        (
-            ast::Expression::Parenthesized { expression: l },
-            ast::Expression::Parenthesized { expression: r },
-        ) => are_identical_literals(ctx, *l, *r),
-        (ast::Expression::Parenthesized { expression: l }, _) => {
-            are_identical_literals(ctx, *l, right_id)
-        }
-        (_, ast::Expression::Parenthesized { expression: r }) => {
-            are_identical_literals(ctx, left_id, *r)
-        }
-        _ => false,
-    }
-}
-
 /// Check if an expression is nullish (null or undefined).
 fn is_nullish(expression: &ast::Expression) -> bool {
     matches!(
         expression,
         ast::Expression::TypeLiteral(ast::TypeLiteral::Null | ast::TypeLiteral::Undefined)
+    )
+}
+
+/// Return true when the expression is statically nullish.
+fn expression_is_definitely_nullish(expression: &ast::Expression) -> bool {
+    is_nullish(expression)
+}
+
+/// Return true when the expression is statically non-nullish.
+fn expression_is_definitely_non_nullish(expression: &ast::Expression) -> bool {
+    matches!(
+        expression,
+        ast::Expression::ScalarLiteral(_)
+            | ast::Expression::TemplateExpression { .. }
+            | ast::Expression::ArrayExpression { .. }
+            | ast::Expression::ObjectExpression { .. }
+            | ast::Expression::New { .. }
+            | ast::Expression::Declaration(_)
+            | ast::Expression::Path { .. }
+            | ast::Expression::This
+            | ast::Expression::Super
     )
 }
 
@@ -272,16 +306,16 @@ const x = {} === {};
     }
 
     #[test]
-    fn test_allows_different_literals_or() {
+    fn test_detects_different_literals_or() {
         let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
         let result = test.lint_ast(
-            "no_constant_binary_expression/test_allows_different_literals_or.ds",
+            "no_constant_binary_expression/test_detects_different_literals_or.ds",
             r#"
 true || false;
 "#,
         );
         test.result(result)
-            .assert_no_lint("no-constant-binary-expression");
+            .assert_lint("no-constant-binary-expression");
     }
 
     #[test]
@@ -306,6 +340,85 @@ x === y;
             "no_constant_binary_expression/test_allows_string_concatenation.ds",
             r#"
 "hello" + "world";
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_detects_logical_or_short_circuit_true_left() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_detects_logical_or_short_circuit_true_left.ds",
+            r#"
+true || compute();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_detects_logical_and_short_circuit_false_left() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_detects_logical_and_short_circuit_false_left.ds",
+            r#"
+false && compute();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_detects_nullish_coalesce_non_nullish_left() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_detects_nullish_coalesce_non_nullish_left.ds",
+            r#"
+"value" ?? fallback;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_detects_nullish_coalesce_nullish_left() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_detects_nullish_coalesce_nullish_left.ds",
+            r#"
+null ?? fallback;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_detects_identical_variable_operands() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_detects_identical_variable_operands.ds",
+            r#"
+let value = maybe();
+value || value;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-constant-binary-expression");
+    }
+
+    #[test]
+    fn test_allows_identical_call_operands_with_side_effects() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantBinaryExpression);
+        let result = test.lint_ast(
+            "no_constant_binary_expression/test_allows_identical_call_operands_with_side_effects.ds",
+            r#"
+compute() || compute();
 "#,
         );
         test.result(result)
