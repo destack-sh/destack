@@ -1,7 +1,11 @@
+use std::collections::HashSet;
+
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{is_any_type, is_infer_var_type};
+use crate::rules::common::{
+    collect_pattern_value_binding_symbols, is_any_type, is_infer_var_type,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -133,14 +137,43 @@ fn should_report_declarator(
     declarator_id: dir::LocalNodeId<dir::Declarator>,
 ) -> bool {
     let declarator = ctx.tree.get(declarator_id);
+
+    // explicit type annotations are always intentional
     if declarator.ty.is_some() {
         return false;
     }
-    if declarator.value.is_some() {
+
+    // collect declarator-bound symbols
+    let mut bound_symbols = HashSet::new();
+    collect_pattern_value_binding_symbols(
+        ctx.tree,
+        ctx.symbols,
+        declarator.pattern,
+        &mut bound_symbols,
+    );
+    if bound_symbols.is_empty() {
         return false;
     }
 
-    true
+    // no initializer means no inference context: always implicit any
+    if declarator.value.is_none() {
+        return true;
+    }
+
+    // with initializers, report if inferred declarator symbols are still any/infer
+    let module_id = ctx.module_id();
+    for local_symbol in bound_symbols {
+        let symbol_id = local_symbol.into_global(module_id);
+        let Some(type_id) = ctx.types.get_value_type_id(symbol_id) else {
+            return true;
+        };
+
+        if is_infer_var_type(ctx.types, type_id) || is_any_type(ctx.types, type_id) {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Return true when a parameter is an implicit any candidate.
@@ -211,6 +244,20 @@ let value = 1;
 "#,
         );
         test.result(result).assert_no_lint("no-implicit-any");
+    }
+
+    /// Flag untyped declarators that still infer any from initializer values.
+    #[test]
+    fn test_flags_untyped_declarator_with_any_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoImplicitAny);
+        let result = test.lint_dir(
+            "no_implicit_any/test_flags_untyped_declarator_with_any_initializer.ts",
+            r#"
+let source: any;
+let value = source;
+"#,
+        );
+        test.result(result).assert_lint("no-implicit-any");
     }
 
     /// Flag untyped function parameters.
