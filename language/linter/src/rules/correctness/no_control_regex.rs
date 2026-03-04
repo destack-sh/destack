@@ -1,7 +1,7 @@
-use destack_ast::{self as ast, Expression, ScalarLiteral};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_path_segments;
+use crate::rules::common::ast_regex_pattern_info;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -39,13 +39,12 @@ impl LintRule for NoControlRegex {
 
         // walk expression nodes
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            let Some(pattern_id) = regex_pattern_string_id(ctx, expression, regexp_name) else {
+            let Some(pattern_info) = ast_regex_pattern_info(ctx.tree, node_id, regexp_name) else {
                 continue;
             };
 
             // resolve control character from pattern text
-            let Some(control_char) = ctx.regex_control_character(pattern_id) else {
+            let Some(control_char) = ctx.regex_control_character(pattern_info.pattern_id) else {
                 continue;
             };
 
@@ -73,59 +72,6 @@ impl LintRule for NoControlRegex {
             );
         }
     }
-}
-
-/// Resolve one regex pattern string id from a literal or RegExp constructor call.
-fn regex_pattern_string_id(
-    ctx: &LintModuleAstContext<'_>,
-    expression: &ast::Expression,
-    regexp_name: ast::StringId,
-) -> Option<ast::StringId> {
-    // support direct regex literals
-    if let Expression::ScalarLiteral(ScalarLiteral::RegexString { content, .. }) = expression {
-        return Some(*content);
-    }
-
-    // normalize call and constructor forms
-    let (callee_id, arguments) = match expression {
-        ast::Expression::Call {
-            left,
-            dynamic_arguments,
-            ..
-        }
-        | ast::Expression::New {
-            left,
-            dynamic_arguments,
-            ..
-        } => (*left, dynamic_arguments.as_slice()),
-        _ => return None,
-    };
-
-    // require global RegExp constructor identifier
-    let Some(path_segments) = expression_path_segments(ctx.tree, callee_id) else {
-        return None;
-    };
-    if path_segments.as_slice() != [regexp_name] {
-        return None;
-    }
-
-    // require first positional string pattern argument
-    let first_argument_id = *arguments.first()?;
-    let first_argument = ctx.tree.get(first_argument_id);
-    let ast::Argument::Positional {
-        value: pattern_value,
-        ..
-    } = first_argument
-    else {
-        return None;
-    };
-    let pattern_expression = ctx.tree.get(*pattern_value);
-    let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(pattern_id)) = pattern_expression
-    else {
-        return None;
-    };
-
-    Some(*pattern_id)
 }
 
 #[cfg(test)]
