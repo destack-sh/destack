@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expressions_have_equivalent_syntax;
-use crate::{LintDiagnostic, LintModuleDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing a value to itself.
@@ -39,7 +39,7 @@ fn is_comparison_operator(op: dir::BinaryOperator) -> bool {
 }
 
 impl LintRule for NoSelfCompare {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoSelfCompare::meta()
     }
 
