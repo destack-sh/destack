@@ -81,66 +81,48 @@ check:
 
 # lint ci workflows and shell scripts with strict policy checks
 check-ci-hygiene:
-    actionlint
-    shellcheck .github/scripts/*.sh scripts/toolchain/*.sh scripts/ci/*.sh
-    shfmt -d .github/scripts/*.sh scripts/toolchain/*.sh scripts/ci/*.sh
-    ./scripts/ci/check-target-policy-sync.sh
-    ./scripts/ci/check-branch-protection-check-names.sh
-    ./scripts/ci/check-release-tier1-dependencies.sh
-    # runtime workflows should go through top-level just wrappers
-    if rg -n "run: just language/check-runtime-" .github/workflows/runtime-*.yml; then \
-        echo "runtime workflows must call top-level just check-runtime-* wrappers"; \
-        exit 1; \
-    fi
-    # cross compiler env should resolve via toolchain wrappers, not inline zig cc commands
-    if rg -n "CC_[A-Za-z0-9_]+.*zig cc -target" justfile language/justfile .github/workflows/*.yml; then \
-        echo "inline zig cc toolchain env is not allowed, use scripts/toolchain wrappers"; \
-        exit 1; \
-    fi
-    # tier 1 runtime workflow files should exist
-    if [ ! -f .github/workflows/runtime-linux.yml ] || [ ! -f .github/workflows/runtime-windows-gnu.yml ]; then \
-        echo "missing required tier 1 runtime workflows"; \
-        exit 1; \
-    fi
-    # ci should call all tier 1 runtime lanes
-    if ! rg -n "^  runtime-linux:" .github/workflows/ci.yml >/dev/null; then \
-        echo "ci.yml missing runtime-linux tier 1 lane"; \
-        exit 1; \
-    fi
-    if ! rg -n "^  runtime-macos:" .github/workflows/ci.yml >/dev/null; then \
-        echo "ci.yml missing runtime-macos tier 1 lane"; \
-        exit 1; \
-    fi
-    if ! rg -n "^  runtime-windows:" .github/workflows/ci.yml >/dev/null; then \
-        echo "ci.yml missing runtime-windows tier 1 lane"; \
-        exit 1; \
-    fi
-    if ! rg -n "^  runtime-windows-gnu:" .github/workflows/ci.yml >/dev/null; then \
-        echo "ci.yml missing runtime-windows-gnu tier 1 lane"; \
-        exit 1; \
-    fi
-    # runtime linux tier 1 lane should test both host architectures
-    if ! rg -n "arch: x86_64" .github/workflows/runtime-linux.yml >/dev/null; then \
-        echo "runtime-linux.yml missing x86_64 host lane"; \
-        exit 1; \
-    fi
-    if ! rg -n "arch: aarch64" .github/workflows/runtime-linux.yml >/dev/null; then \
-        echo "runtime-linux.yml missing aarch64 host lane"; \
-        exit 1; \
-    fi
-    # tier 1 rows in target policy should include linux and windows gnu
-    if ! rg -n "^\\| `x86_64-unknown-linux-gnu` \\| Tier 1 \\|" TARGETS.md >/dev/null; then \
-        echo "TARGETS.md must keep x86_64-unknown-linux-gnu in Tier 1"; \
-        exit 1; \
-    fi
-    if ! rg -n "^\\| `aarch64-unknown-linux-gnu` \\| Tier 1 \\|" TARGETS.md >/dev/null; then \
-        echo "TARGETS.md must keep aarch64-unknown-linux-gnu in Tier 1"; \
-        exit 1; \
-    fi
-    if ! rg -n "^\\| `x86_64-pc-windows-gnu` \\| Tier 1 \\|" TARGETS.md >/dev/null; then \
-        echo "TARGETS.md must keep x86_64-pc-windows-gnu in Tier 1"; \
-        exit 1; \
-    fi
+    just ci-hygiene-toolchain-ensure
+    PATH="${HOME}/.local/bin:${PATH}" actionlint
+    shellcheck -x .github/scripts/*.sh scripts/toolchain/*.sh scripts/toolchain/lib/*.sh scripts/ci/*.sh bridge/scripts/*.sh
+    shfmt -d .github/scripts/*.sh scripts/toolchain/*.sh scripts/toolchain/lib/*.sh scripts/ci/*.sh bridge/scripts/*.sh
+    just check-workflow-policy
+
+# validate ci workflow and target policy architecture
+check-workflow-policy:
+    ./scripts/ci/check-workflow-policy.sh
+
+# install ci hygiene toolchains on this host
+ci-hygiene-toolchain-install:
+    bash scripts/ci/hygiene-toolchain.sh install
+
+# inspect ci hygiene toolchain readiness on this host
+ci-hygiene-toolchain-doctor:
+    bash scripts/ci/hygiene-toolchain.sh doctor
+
+# ensure ci hygiene toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
+ci-hygiene-toolchain-ensure:
+    bash scripts/ci/hygiene-toolchain.sh ensure
+
+# backwards compatibility alias
+alias install-ci-hygiene-toolchains := ci-hygiene-toolchain-install
+
+# install all toolchains used by runtime, bridge, and ci hygiene lanes
+toolchain-install:
+    just runtime-toolchain-install
+    just bridge/toolchain-install
+    just ci-hygiene-toolchain-install
+
+# inspect runtime, bridge, and ci hygiene toolchain readiness on this host
+toolchain-doctor:
+    just runtime-toolchain-doctor
+    just bridge/toolchain-doctor
+    just ci-hygiene-toolchain-doctor
+
+# ensure runtime, bridge, and ci hygiene toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
+toolchain-ensure:
+    just runtime-toolchain-ensure
+    just bridge/toolchain-ensure
+    just ci-hygiene-toolchain-ensure
 
 # apply github branch protection for tier 1 runtime checks
 apply-branch-protection *args:
@@ -218,17 +200,28 @@ test-ide:
 runtime-windows-gnu-test *args:
     just language/runtime-windows-gnu-test {{args}}
 
+# run language runtime windows gnu smoke binary through wine
+runtime-windows-gnu-smoke *args:
+    just language/runtime-windows-gnu-smoke {{args}}
+
+# install runtime target toolchains and host prerequisites where possible
+runtime-toolchain-install:
+    just language/toolchain-install
+
 # inspect runtime target toolchain readiness on this host
 runtime-toolchain-doctor:
-    just language/runtime-toolchain-doctor
+    just language/toolchain-doctor
+
+# ensure runtime target toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
+runtime-toolchain-ensure:
+    just language/toolchain-ensure
 
 # lint runtime toolchain shell scripts
 runtime-toolchain-lint:
-    just language/runtime-toolchain-lint
+    just language/toolchain-lint
 
-# bootstrap runtime target toolchains and host prerequisites where possible
-runtime-toolchain-bootstrap:
-    just language/runtime-toolchain-bootstrap
+# backwards compatibility alias
+alias runtime-toolchain-bootstrap := runtime-toolchain-install
 
 # run language runtime android target checks
 runtime-android-check:

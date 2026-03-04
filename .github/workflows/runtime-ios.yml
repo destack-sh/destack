@@ -3,10 +3,6 @@ name: Runtime iOS
 on:
   workflow_call:
     inputs:
-      rust_toolchain:
-        description: "Rust toolchain version"
-        required: true
-        type: string
       ios_deployment_target:
         description: "iOS deployment target version"
         required: false
@@ -29,19 +25,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${{ inputs.rust_toolchain }}" --profile minimal --component clippy
-          rustup default "${{ inputs.rust_toolchain }}"
-          rustup target add aarch64-apple-ios
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
+        with:
+          rust_components: clippy
+          rust_targets: aarch64-apple-ios
 
       - name: Run iOS runtime check
         run: just runtime-ios-check

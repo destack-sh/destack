@@ -1,0 +1,50 @@
+name: setup-rust-bun-just
+description: install rust toolchain, restore rust cache, install just, and setup bun
+
+inputs:
+  rust_components:
+    description: rust components to install as a space separated list
+    required: false
+    default: ""
+  rust_targets:
+    description: rust targets to install as a space separated list
+    required: false
+    default: ""
+  install_js_dependencies:
+    description: install js dependencies through bun
+    required: false
+    default: "false"
+
+outputs:
+  rust_toolchain:
+    description: resolved rust toolchain version
+    value: ${{ steps.rust.outputs.rust_toolchain }}
+  bun_version:
+    description: resolved bun version
+    value: ${{ steps.versions.outputs.bun_version }}
+
+runs:
+  using: composite
+  steps:
+    - id: rust
+      uses: ./.github/actions/setup-rust-just
+      with:
+        rust_components: ${{ inputs.rust_components }}
+        rust_targets: ${{ inputs.rust_targets }}
+
+    - id: versions
+      shell: bash
+      run: |
+        set -euo pipefail
+        source "${GITHUB_ACTION_PATH}/../../../scripts/toolchain/versions.sh"
+        echo "bun_version=${DESTACK_BUN_VERSION}" >> "${GITHUB_OUTPUT}"
+
+    - uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+      with:
+        bun-version: ${{ steps.versions.outputs.bun_version }}
+
+    - if: inputs.install_js_dependencies == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        bun install --frozen-lockfile

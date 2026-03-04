@@ -12,12 +12,12 @@ latest_directory="${cmdline_tools_directory}/latest"
 sdkmanager="${latest_directory}/bin/sdkmanager"
 archive_platform=""
 if [ "${host_os}" = "Linux" ]; then
-    archive_platform="linux"
+	archive_platform="linux"
 elif [ "${host_os}" = "Darwin" ]; then
-    archive_platform="mac"
+	archive_platform="mac"
 else
-    echo "unsupported host os for android commandline tools: ${host_os}" >&2
-    exit 1
+	echo "unsupported host os for android commandline tools: ${host_os}" >&2
+	exit 1
 fi
 
 archive_name="commandlinetools-${archive_platform}-${cmdline_tools_version}_latest.zip"
@@ -26,16 +26,16 @@ archive_url="https://dl.google.com/android/repository/${archive_name}"
 mkdir -p "${cmdline_tools_directory}" "${sdk_root}/licenses"
 
 if [ ! -x "${sdkmanager}" ]; then
-    temporary_directory="$(mktemp -d)"
-    archive_path="${temporary_directory}/${archive_name}"
+	temporary_directory="$(mktemp -d)"
+	archive_path="${temporary_directory}/${archive_name}"
 
-    curl -fsSL "${archive_url}" -o "${archive_path}"
-    unzip -q "${archive_path}" -d "${temporary_directory}"
+	curl -fsSL "${archive_url}" -o "${archive_path}"
+	unzip -q "${archive_path}" -d "${temporary_directory}"
 
-    rm -rf "${latest_directory}"
-    mkdir -p "${latest_directory}"
-    mv "${temporary_directory}/cmdline-tools/"* "${latest_directory}/"
-    rm -rf "${temporary_directory}"
+	rm -rf "${latest_directory}"
+	mkdir -p "${latest_directory}"
+	mv "${temporary_directory}/cmdline-tools/"* "${latest_directory}/"
+	rm -rf "${temporary_directory}"
 fi
 
 # sdkmanager closes stdin once licenses are accepted:
@@ -45,14 +45,14 @@ yes | "${sdkmanager}" --sdk_root="${sdk_root}" --licenses >/dev/null
 set -o pipefail
 
 "${sdkmanager}" --sdk_root="${sdk_root}" \
-    "platforms;android-${api_level}" \
-    "ndk;${ndk_version}" >/dev/null
+	"platforms;android-${api_level}" \
+	"ndk;${ndk_version}" >/dev/null
 
 toolchain_bin="$("$(dirname "$0")/../../scripts/toolchain/android-ndk-toolchain-bin.sh" "${sdk_root}/ndk/${ndk_version}")"
 
 if [ ! -x "${toolchain_bin}/aarch64-linux-android${api_level}-clang" ]; then
-    echo "missing android clang toolchain wrapper in ${toolchain_bin}" >&2
-    exit 1
+	echo "missing android clang toolchain wrapper in ${toolchain_bin}" >&2
+	exit 1
 fi
 
 echo "android sdk root: ${sdk_root}"

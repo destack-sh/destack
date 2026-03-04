@@ -24,9 +24,9 @@ runtime_windows_gnu_run cargo clippy -p destack_runtime --target "${target}" --n
 
 # run executable windows gnu checks only on linux and macos hosts
 if ! runtime_windows_gnu_is_execution_host; then
-    host_kernel="$(runtime_host_kernel)"
-    echo "skipping windows gnu executable checks on ${host_kernel}: run this lane on linux or macos"
-    exit 0
+	host_kernel="$(runtime_host_kernel)"
+	echo "skipping windows gnu executable checks on ${host_kernel}: run this lane on linux or macos"
+	exit 0
 fi
 
 runtime_windows_gnu_require_wine

@@ -1,0 +1,42 @@
+name: Release Runtime Smoke Unix
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  release-smoke-runtime-unix:
+    name: Runtime Release Smoke (${{ matrix.id }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - id: linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          - id: macos-aarch64
+            runner: macos-14
+            target: aarch64-apple-darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
+        with:
+          rust_targets: ${{ matrix.target }}
+
+      - name: Build runtime smoke release binary
+        run: cargo build --release -p destack_runtime --bin runtime-smoke --target "${{ matrix.target }}"
+
+      - name: Run runtime smoke release binary
+        run: "./target/${{ matrix.target }}/release/runtime-smoke"

@@ -1,0 +1,55 @@
+name: setup-rust-just
+description: install rust toolchain, restore rust cache, and install just
+
+inputs:
+  rust_components:
+    description: rust components to install as a space separated list
+    required: false
+    default: ""
+  rust_targets:
+    description: rust targets to install as a space separated list
+    required: false
+    default: ""
+
+outputs:
+  rust_toolchain:
+    description: resolved rust toolchain version
+    value: ${{ steps.versions.outputs.rust_toolchain }}
+
+runs:
+  using: composite
+  steps:
+    - id: versions
+      shell: bash
+      run: |
+        set -euo pipefail
+        source "${GITHUB_ACTION_PATH}/../../../scripts/toolchain/versions.sh"
+        echo "rust_toolchain=${DESTACK_RUST_TOOLCHAIN}" >> "${GITHUB_OUTPUT}"
+
+    - shell: bash
+      run: |
+        set -euo pipefail
+
+        rust_components="${{ inputs.rust_components }}"
+        rust_targets="${{ inputs.rust_targets }}"
+        rust_component_args=()
+
+        # collect optional rust components
+        for rust_component in ${rust_components}; do
+            rust_component_args+=(--component "${rust_component}")
+        done
+
+        rustup toolchain install "${{ steps.versions.outputs.rust_toolchain }}" --profile minimal "${rust_component_args[@]}"
+        rustup default "${{ steps.versions.outputs.rust_toolchain }}"
+
+        # add optional rust targets
+        if [ -n "${rust_targets}" ]; then
+            rustup target add ${rust_targets}
+        fi
+
+        rustc --version
+        cargo --version
+
+    - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+
+    - uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
