@@ -529,6 +529,9 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
+      - name: Ensure bridge publish toolchains
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
+
       - name: Stage cli npm binaries from release artifacts
         run: just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "release-cli-assets"
 
@@ -550,6 +553,46 @@ jobs:
             echo "missing VSCE_PAT secret"
             exit 1
           fi
+          if [ -z "${NUGET_API_KEY}" ]; then
+            echo "missing NUGET_API_KEY secret"
+            exit 1
+          fi
+          if [ -z "${MAVEN_REPOSITORY_ID}" ]; then
+            echo "missing MAVEN_REPOSITORY_ID variable"
+            exit 1
+          fi
+          if [ -z "${MAVEN_REPOSITORY_URL}" ]; then
+            echo "missing MAVEN_REPOSITORY_URL variable"
+            exit 1
+          fi
+          if [ -z "${MAVEN_REPOSITORY_USERNAME}" ]; then
+            echo "missing MAVEN_REPOSITORY_USERNAME secret"
+            exit 1
+          fi
+          if [ -z "${MAVEN_REPOSITORY_PASSWORD}" ]; then
+            echo "missing MAVEN_REPOSITORY_PASSWORD secret"
+            exit 1
+          fi
+          if [ -z "${MAVEN_GPG_PRIVATE_KEY}" ]; then
+            echo "missing MAVEN_GPG_PRIVATE_KEY secret"
+            exit 1
+          fi
+          if [ -z "${MAVEN_GPG_PASSPHRASE}" ]; then
+            echo "missing MAVEN_GPG_PASSPHRASE secret"
+            exit 1
+          fi
+          if [ -z "${RUBYGEMS_API_KEY}" ]; then
+            echo "missing RUBYGEMS_API_KEY secret"
+            exit 1
+          fi
+          if [ -z "${HEX_API_KEY}" ]; then
+            echo "missing HEX_API_KEY secret"
+            exit 1
+          fi
+          if [ -z "${PUB_DEV_CREDENTIALS_JSON}" ]; then
+            echo "missing PUB_DEV_CREDENTIALS_JSON secret"
+            exit 1
+          fi
           if [ "${PUBLISH_ZED}" = "true" ]; then
             if [ -z "${ZED_GITHUB_TOKEN}" ]; then
               echo "missing ZED_GITHUB_TOKEN secret"
@@ -565,6 +608,16 @@ jobs:
           CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          MAVEN_REPOSITORY_ID: ${{ vars.MAVEN_REPOSITORY_ID }}
+          MAVEN_REPOSITORY_URL: ${{ vars.MAVEN_REPOSITORY_URL }}
+          MAVEN_REPOSITORY_USERNAME: ${{ secrets.MAVEN_REPOSITORY_USERNAME }}
+          MAVEN_REPOSITORY_PASSWORD: ${{ secrets.MAVEN_REPOSITORY_PASSWORD }}
+          MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+          PUB_DEV_CREDENTIALS_JSON: ${{ secrets.PUB_DEV_CREDENTIALS_JSON }}
           PUBLISH_ZED: ${{ inputs.publish_zed }}
           ZED_GITHUB_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}
           ZED_REGISTRY_PUSH_TO: ${{ vars.ZED_REGISTRY_PUSH_TO }}
@@ -576,12 +629,22 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish packages
-        run: just publish ""
+        run: just publish-live-packages
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          MAVEN_REPOSITORY_ID: ${{ vars.MAVEN_REPOSITORY_ID }}
+          MAVEN_REPOSITORY_URL: ${{ vars.MAVEN_REPOSITORY_URL }}
+          MAVEN_REPOSITORY_USERNAME: ${{ secrets.MAVEN_REPOSITORY_USERNAME }}
+          MAVEN_REPOSITORY_PASSWORD: ${{ secrets.MAVEN_REPOSITORY_PASSWORD }}
+          MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+          PUB_DEV_CREDENTIALS_JSON: ${{ secrets.PUB_DEV_CREDENTIALS_JSON }}
 
       - name: Publish zed registry PR
         if: inputs.publish_zed == true

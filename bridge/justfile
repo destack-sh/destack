@@ -205,15 +205,19 @@ publish-npm dry="--dry-run":
 # publish cargo sdk crate dry by default
 publish-cargo dry="--dry-run":
     @if [ "{{dry}}" = "--dry-run" ]; then \
-        cd rust && cargo publish --dry-run --allow-dirty; \
-        cd rust/compat/destack-rs && cargo publish --dry-run --allow-dirty; \
+        cargo check -p destack_bridge_core -p destack; \
+        cargo check --manifest-path rust/compat/destack-rs/Cargo.toml; \
+        (cd core && cargo package --allow-dirty --list >/dev/null); \
+        (cd rust && cargo package --allow-dirty --list >/dev/null); \
+        (cd rust/compat/destack-rs && cargo package --allow-dirty --list >/dev/null); \
     else \
         if [ -z "${CARGO_TOKEN:-}" ]; then \
             echo "missing CARGO_TOKEN env var for live cargo publish"; \
             exit 1; \
         fi; \
-        cd rust && cargo publish --token "${CARGO_TOKEN}"; \
-        cd rust/compat/destack-rs && cargo publish --token "${CARGO_TOKEN}"; \
+        (cd core && cargo publish --token "${CARGO_TOKEN}"); \
+        (cd rust && cargo publish --token "${CARGO_TOKEN}"); \
+        (cd rust/compat/destack-rs && cargo publish --token "${CARGO_TOKEN}"); \
     fi
 
 # publish pypi package dry by default
@@ -252,6 +256,127 @@ publish-pypi dry="--dry-run":
         rm -r python/compat/destack-py/dist; \
     fi
 
+# publish nuget package dry by default
+publish-nuget dry="--dry-run":
+    @dotnet_bin="$(command -v dotnet 2>/dev/null || true)"; \
+    if [ -z "${dotnet_bin}" ] && [ -x "${HOME}/.dotnet/dotnet" ]; then \
+        dotnet_bin="${HOME}/.dotnet/dotnet"; \
+    fi; \
+    if [ -z "${dotnet_bin}" ]; then \
+        echo "missing dotnet command, run: just bridge/toolchain-ensure"; \
+        exit 1; \
+    fi; \
+    (cd dotnet && "${dotnet_bin}" pack -c Release --nologo src/Destack/Destack.csproj)
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: built and packed nuget package"; \
+    else \
+        if [ -z "${NUGET_API_KEY:-}" ]; then \
+            echo "missing NUGET_API_KEY env var for live nuget publish"; \
+            exit 1; \
+        fi; \
+        version="$(cat ../VERSION.txt)"; \
+        nupkg_path="dotnet/src/Destack/bin/Release/Destack.${version}.nupkg"; \
+        snupkg_path="dotnet/src/Destack/bin/Release/Destack.${version}.snupkg"; \
+        "${dotnet_bin}" nuget push "${nupkg_path}" --source "https://api.nuget.org/v3/index.json" --api-key "${NUGET_API_KEY}" --skip-duplicate; \
+        if [ -f "${snupkg_path}" ]; then \
+            "${dotnet_bin}" nuget push "${snupkg_path}" --source "https://api.nuget.org/v3/index.json" --api-key "${NUGET_API_KEY}" --skip-duplicate; \
+        fi; \
+    fi
+
+# publish maven package dry by default
+publish-maven dry="--dry-run":
+    (cd java && mvn -q -DskipTests package)
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: built java package"; \
+    else \
+        if [ -z "${MAVEN_REPOSITORY_ID:-}" ]; then \
+            echo "missing MAVEN_REPOSITORY_ID env var for live maven publish"; \
+            exit 1; \
+        fi; \
+        if [ -z "${MAVEN_REPOSITORY_URL:-}" ]; then \
+            echo "missing MAVEN_REPOSITORY_URL env var for live maven publish"; \
+            exit 1; \
+        fi; \
+        if [ -z "${MAVEN_REPOSITORY_USERNAME:-}" ]; then \
+            echo "missing MAVEN_REPOSITORY_USERNAME env var for live maven publish"; \
+            exit 1; \
+        fi; \
+        if [ -z "${MAVEN_REPOSITORY_PASSWORD:-}" ]; then \
+            echo "missing MAVEN_REPOSITORY_PASSWORD env var for live maven publish"; \
+            exit 1; \
+        fi; \
+        settings_path=".maven-settings.xml"; \
+        printf '%s\n' \
+            '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">' \
+            '  <servers>' \
+            "    <server><id>${MAVEN_REPOSITORY_ID}</id><username>${MAVEN_REPOSITORY_USERNAME}</username><password>${MAVEN_REPOSITORY_PASSWORD}</password></server>" \
+            '  </servers>' \
+            '</settings>' > "${settings_path}"; \
+        if [ -n "${MAVEN_GPG_PRIVATE_KEY:-}" ]; then \
+            printf '%s\n' "${MAVEN_GPG_PRIVATE_KEY}" | gpg --batch --import; \
+        fi; \
+        (cd java && mvn -q -DskipTests -P release-signing -Dgpg.passphrase="${MAVEN_GPG_PASSPHRASE:-}" -DaltDeploymentRepository="${MAVEN_REPOSITORY_ID}::default::${MAVEN_REPOSITORY_URL}" --settings "../${settings_path}" deploy); \
+        rm -f "${settings_path}"; \
+    fi
+
+# publish rubygems package dry by default
+publish-rubygems dry="--dry-run":
+    (cd ruby && gem build destack.gemspec >/dev/null)
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: built ruby gem"; \
+    else \
+        if [ -z "${RUBYGEMS_API_KEY:-}" ]; then \
+            echo "missing RUBYGEMS_API_KEY env var for live rubygems publish"; \
+            exit 1; \
+        fi; \
+        version="$(cat ../VERSION.txt)"; \
+        GEM_HOST_API_KEY="${RUBYGEMS_API_KEY}" gem push "ruby/destack-${version}.gem"; \
+    fi
+    @version="$(cat ../VERSION.txt)"; \
+    if [ -f "ruby/destack-${version}.gem" ]; then \
+        rm "ruby/destack-${version}.gem"; \
+    fi
+
+# publish hex package dry by default
+publish-hex dry="--dry-run":
+    (cd elixir && mix local.hex --force)
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        (cd elixir && mix hex.build); \
+        echo "Dry run: built hex package"; \
+    else \
+        if [ -z "${HEX_API_KEY:-}" ]; then \
+            echo "missing HEX_API_KEY env var for live hex publish"; \
+            exit 1; \
+        fi; \
+        (cd elixir && HEX_API_KEY="${HEX_API_KEY}" mix hex.publish --yes); \
+    fi
+
+# publish pub.dev package dry by default
+publish-pub dry="--dry-run":
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        (cd dart && dart pub publish --dry-run); \
+    else \
+        if [ -n "${PUB_DEV_CREDENTIALS_JSON:-}" ]; then \
+            mkdir -p "${HOME}/.pub-cache"; \
+            printf '%s' "${PUB_DEV_CREDENTIALS_JSON}" > "${HOME}/.pub-cache/credentials.json"; \
+        fi; \
+        if [ ! -f "${HOME}/.pub-cache/credentials.json" ]; then \
+            echo "missing pub.dev credentials, set PUB_DEV_CREDENTIALS_JSON or run dart pub token add"; \
+            exit 1; \
+        fi; \
+        (cd dart && dart pub publish --force); \
+    fi
+
+# publish swift package dry by default
+publish-swift dry="--dry-run":
+    (cd swift && swift package describe >/dev/null)
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: validated swift package manifest"; \
+    else \
+        version="$(cat ../VERSION.txt)"; \
+        echo "SwiftPM package publishing is tag based, push tag v${version} to publish"; \
+    fi
+
 # publish bun bridge package dry by default
 publish-bun dry="--dry-run":
     cd bun && npm publish {{dry}} --access public
@@ -282,6 +407,20 @@ publish dry="--dry-run":
     just publish-npm "{{dry}}"
     just publish-cargo "{{dry}}"
     just publish-pypi "{{dry}}"
+    just publish-nuget "{{dry}}"
+    just publish-maven "{{dry}}"
+    just publish-rubygems "{{dry}}"
+    just publish-hex "{{dry}}"
+    just publish-pub "{{dry}}"
+    just publish-swift "{{dry}}"
     just publish-bun "{{dry}}"
     just publish-vite "{{dry}}"
     just publish-vscode "{{dry}}"
+
+# publish all bridge packages as dry run
+publish-dry:
+    just publish --dry-run
+
+# publish all bridge packages live
+publish-live:
+    just publish ""

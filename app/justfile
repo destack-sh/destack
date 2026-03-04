@@ -223,3 +223,11 @@ publish-cli dry="--dry-run":
 # publish app packages dry by default
 publish dry="--dry-run":
     just publish-cli "{{dry}}"
+
+# publish app packages as dry run
+publish-dry:
+    just publish --dry-run
+
+# publish app packages live
+publish-live:
+    just publish ""
