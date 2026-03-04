@@ -7,7 +7,7 @@
     },
     "app/cli": {
       "name": "@destack/cli",
-      "version": "0.55.2",
+      "version": "0.55.3",
       "bin": {
         "destack": "npm/dist/bin/destack.js",
         "ds": "npm/dist/bin/ds.js",
@@ -24,27 +24,27 @@
     },
     "app/cli/npm-darwin-arm64": {
       "name": "@destack/cli-darwin-arm64",
-      "version": "0.55.2",
+      "version": "0.55.3",
     },
     "app/cli/npm-darwin-x64": {
       "name": "@destack/cli-darwin-x64",
-      "version": "0.55.2",
+      "version": "0.55.3",
     },
     "app/cli/npm-linux-arm64-gnu": {
       "name": "@destack/cli-linux-arm64-gnu",
-      "version": "0.55.2",
+      "version": "0.55.3",
     },
     "app/cli/npm-linux-x64-gnu": {
       "name": "@destack/cli-linux-x64-gnu",
-      "version": "0.55.2",
+      "version": "0.55.3",
     },
     "app/cli/npm-win32-x64-msvc": {
       "name": "@destack/cli-win32-x64-msvc",
-      "version": "0.55.2",
+      "version": "0.55.3",
     },
     "bridge/bun": {
       "name": "@destack/bun",
-      "version": "0.55.2",
+      "version": "0.55.3",
       "dependencies": {
         "@destack/napi": "workspace:*",
       },
@@ -54,15 +54,15 @@
     },
     "bridge/napi": {
       "name": "@destack/napi",
-      "version": "0.55.2",
+      "version": "0.55.3",
     },
     "bridge/typescript": {
-      "name": "@destack/typescript",
-      "version": "0.55.2",
+      "name": "@destack/runtime",
+      "version": "0.55.3",
     },
     "bridge/vite": {
       "name": "@destack/vite",
-      "version": "0.55.2",
+      "version": "0.55.3",
       "dependencies": {
         "@destack/napi": "workspace:*",
       },
@@ -75,7 +75,7 @@
     },
     "bridge/vscode": {
       "name": "destack",
-      "version": "0.55.2",
+      "version": "0.55.3",
       "devDependencies": {
         "@types/mocha": "^10.0.10",
         "@types/node": "^20.11.25",
@@ -92,25 +92,25 @@
     },
     "bridge/wasm": {
       "name": "@destack/wasm",
-      "version": "0.55.2",
+      "version": "0.55.3",
     },
     "library/schema": {
       "name": "@destack/schema",
-      "version": "0.55.2",
+      "version": "0.55.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "library/test": {
       "name": "@destack/test",
-      "version": "0.55.2",
+      "version": "0.55.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "template/create-destack": {
       "name": "create-destack",
-      "version": "0.55.2",
+      "version": "0.55.3",
       "bin": {
         "create-destack": "bin/create-destack.mjs",
       },
@@ -166,11 +166,11 @@
 
     "@destack/napi": ["@destack/napi@workspace:bridge/napi"],
 
+    "@destack/runtime": ["@destack/runtime@workspace:bridge/typescript"],
+
     "@destack/schema": ["@destack/schema@workspace:library/schema"],
 
     "@destack/test": ["@destack/test@workspace:library/test"],
-
-    "@destack/typescript": ["@destack/typescript@workspace:bridge/typescript"],
 
     "@destack/vite": ["@destack/vite@workspace:bridge/vite"],
 

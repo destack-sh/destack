@@ -1,4 +1,4 @@
-import packageJson from "../package.json";
+const PACKAGE_VERSION = "0.55.3";
 
 /** Supported backend kinds. */
 export type ClientBackend = "napi" | "wasm";
@@ -15,7 +15,7 @@ class DefaultClient implements DestackClient {
     public constructor(public readonly backend: ClientBackend) {}
 
     public version(): string {
-        return packageJson.version;
+        return PACKAGE_VERSION;
     }
 }
 
@@ -30,4 +30,14 @@ export async function createClient(
     backend: ClientBackend = detectDefaultBackend(),
 ): Promise<DestackClient> {
     return new DefaultClient(backend);
+}
+
+/** Create a client pinned to the Node-API backend. */
+export async function createNapiClient(): Promise<DestackClient> {
+    return createClient("napi");
+}
+
+/** Create a client pinned to the WebAssembly backend. */
+export async function createWasmClient(): Promise<DestackClient> {
+    return createClient("wasm");
 }

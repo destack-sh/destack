@@ -1,38 +1,80 @@
 from __future__ import annotations
 
+import ctypes
+import os
+import platform
 from importlib.metadata import PackageNotFoundError, version as package_version
-from pathlib import Path
+from typing import Final
+
+FALLBACK_VERSION: Final = "0.55.3"
+BACKEND = "python"
 
 
-def _version_from_local_pyproject() -> str | None:
-    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
-    if not pyproject.exists():
+class _CapiBindings:
+    def __init__(self, library: ctypes.CDLL) -> None:
+        self._abi_version = library.destack_capi_abi_version
+        self._abi_version.restype = ctypes.c_uint32
+
+        self._version = library.destack_capi_version
+        self._version.restype = ctypes.c_char_p
+
+        self._is_available = library.destack_capi_is_available
+        self._is_available.restype = ctypes.c_bool
+
+    @classmethod
+    def try_load(cls) -> _CapiBindings | None:
+        explicit_path = os.environ.get("DESTACK_CAPI_LIB")
+        candidates = []
+        if explicit_path:
+            candidates.append(explicit_path)
+
+        if os.name == "nt":
+            candidates.append("destack_capi.dll")
+        elif platform.system() == "Darwin":
+            candidates.append("libdestack_capi.dylib")
+        else:
+            candidates.append("libdestack_capi.so")
+
+        for candidate in candidates:
+            try:
+                library = ctypes.CDLL(candidate)
+            except OSError:
+                continue
+
+            try:
+                return cls(library)
+            except AttributeError:
+                continue
+
         return None
 
-    text = pyproject.read_text(encoding="utf8")
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("version = "):
-            continue
+    def capi_abi_version(self) -> int:
+        return int(self._abi_version())
 
-        return stripped.split("=", 1)[1].strip().strip('"').strip("'")
+    def capi_is_available(self) -> bool:
+        return bool(self._is_available())
 
-    return None
+    def capi_version(self) -> str:
+        value = self._version()
+        if value is None:
+            return FALLBACK_VERSION
+
+        text = value.decode("utf8")
+        if text == "":
+            return FALLBACK_VERSION
+
+        return text
 
 
 def _resolve_version() -> str:
-    local_version = _version_from_local_pyproject()
-    if local_version is not None:
-        return local_version
-
     try:
         return package_version("destack")
-    except PackageNotFoundError as error:
-        raise RuntimeError("failed to resolve destack package version") from error
+    except PackageNotFoundError:
+        return FALLBACK_VERSION
 
 
 VERSION = _resolve_version()
-BACKEND = "python"
+_CAPI = _CapiBindings.try_load()
 
 
 class DestackClient:
@@ -43,7 +85,26 @@ class DestackClient:
     def version(self) -> str:
         """Return the package version."""
 
-        return VERSION
+        if _CAPI is None:
+            return VERSION
+
+        return _CAPI.capi_version()
+
+    def capi_abi_version(self) -> int:
+        """Return the loaded capi abi version."""
+
+        if _CAPI is None:
+            return 0
+
+        return _CAPI.capi_abi_version()
+
+    def capi_is_available(self) -> bool:
+        """Return whether the capi surface is available."""
+
+        if _CAPI is None:
+            return False
+
+        return _CAPI.capi_is_available()
 
 
 def create_client() -> DestackClient:

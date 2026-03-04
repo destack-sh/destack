@@ -1,7 +1,7 @@
 {
-    "name": "@destack/typescript",
+    "name": "@destack/runtime",
     "version": "0.55.3",
-    "description": "Destack client for TypeScript and JavaScript",
+    "description": "Destack runtime client for JavaScript and TypeScript",
     "license": "MIT",
     "type": "module",
     "repository": {
@@ -15,23 +15,38 @@
     },
     "keywords": [
         "destack",
-        "typescript",
+        "runtime",
+        "javascript",
         "sdk",
         "client"
     ],
     "files": [
-        "src",
-        "README.md",
-        "tsconfig.json"
+        "dist",
+        "README.md"
     ],
-    "main": "./src/index.ts",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "exports": {
-        ".": "./src/index.ts"
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        },
+        "./napi": {
+            "types": "./dist/napi.d.ts",
+            "import": "./dist/napi.js",
+            "default": "./dist/napi.js"
+        },
+        "./wasm": {
+            "types": "./dist/wasm.d.ts",
+            "import": "./dist/wasm.js",
+            "default": "./dist/wasm.js"
+        }
     },
     "sideEffects": false,
     "scripts": {
-        "build": "bunx --bun tsc -p tsconfig.json",
-        "test": "bunx --bun tsc -p tsconfig.json",
+        "build": "rm -rf dist && bunx --bun tsc -p tsconfig.json",
+        "test": "bunx --bun tsc --noEmit -p tsconfig.json",
         "prepublishOnly": "bun run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"

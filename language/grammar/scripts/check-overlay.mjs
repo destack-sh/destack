@@ -12,7 +12,7 @@ const zedHighlightsPath = path.resolve(
     "..",
     "..",
     "..",
-    "platform",
+    "bridge",
     "zed",
     "languages",
     "destack",

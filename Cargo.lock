@@ -1120,6 +1120,9 @@ dependencies = [
 [[package]]
 name = "destack"
 version = "0.55.3"
+dependencies = [
+ "destack_bridge_core",
+]
 
 [[package]]
 name = "destack_ast"
@@ -1147,8 +1150,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_bridge_core"
+version = "0.55.3"
+
+[[package]]
 name = "destack_builtin"
 version = "0.55.3"
+
+[[package]]
+name = "destack_capi"
+version = "0.55.3"
+dependencies = [
+ "destack_bridge_core",
+]
 
 [[package]]
 name = "destack_cli"
@@ -1495,6 +1509,7 @@ dependencies = [
 name = "destack_napi"
 version = "0.55.3"
 dependencies = [
+ "destack_bridge_core",
  "napi",
  "napi-derive",
 ]
@@ -1520,6 +1535,9 @@ dependencies = [
 [[package]]
 name = "destack_python"
 version = "0.55.3"
+dependencies = [
+ "destack_bridge_core",
+]
 
 [[package]]
 name = "destack_resolver"
@@ -1693,6 +1711,7 @@ version = "0.55.3"
 name = "destack_wasm"
 version = "0.55.3"
 dependencies = [
+ "destack_bridge_core",
  "wasm-bindgen",
 ]
 

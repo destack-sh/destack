@@ -53,6 +53,8 @@ members = [
 	# app
 	"app/cli",
 	# bridge
+	"bridge/capi",
+	"bridge/core",
 	"bridge/napi",
 	"bridge/python/rust",
 	"bridge/rust",
@@ -108,6 +110,8 @@ destack_lsp_types = { path = "service/lsp/types" }
 destack_cli = { path = "app/cli" }
 
 # bridge
+destack_bridge_core = { path = "bridge/core" }
+destack_capi = { path = "bridge/capi" }
 destack_napi = { path = "bridge/napi" }
 destack_wasm = { path = "bridge/wasm" }
 destack = { path = "bridge/rust" }

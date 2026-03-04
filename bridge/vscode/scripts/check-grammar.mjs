@@ -7,7 +7,7 @@ const repoRoot = path.resolve(scriptDir, "..", "..", "..");
 
 const keywordPath = path.join(repoRoot, "language", "ast", "src", "tree", "keyword.rs");
 const tokenPath = path.join(repoRoot, "language", "ast", "src", "token", "print.rs");
-const grammarPath = path.join(repoRoot, "platform", "vscode", "destack.tmLanguage.json");
+const grammarPath = path.join(repoRoot, "bridge", "vscode", "destack.tmLanguage.json");
 
 function readFileOrThrow(filePath) {
     if (!fs.existsSync(filePath)) {
