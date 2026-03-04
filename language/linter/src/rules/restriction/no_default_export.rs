@@ -1,3 +1,4 @@
+use destack_base::StringId;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
@@ -30,20 +31,11 @@ impl LintRule for NoDefaultExport {
 
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
+        let default_name = ctx.program.strings.intern("default");
 
         // check for DependencyItem nodes with Default mode
         for (node_id, item) in ctx.tree.iter_nodes_of_type::<dir::DependencyItem>() {
-            let is_default = match item {
-                dir::DependencyItem::Local { mode, .. } => *mode == dir::DependencyMode::Default,
-                dir::DependencyItem::UnresolvedLocal { mode, .. } => {
-                    *mode == dir::DependencyMode::Default
-                }
-                dir::DependencyItem::Remote { mode, .. } => *mode == dir::DependencyMode::Default,
-                dir::DependencyItem::UnresolvedRemote { mode, .. } => {
-                    *mode == dir::DependencyMode::Default
-                }
-                dir::DependencyItem::Value { mode, .. } => *mode == dir::DependencyMode::Default,
-            };
+            let is_default = dependency_item_is_default(item, default_name);
 
             if is_default {
                 let severity = ctx.get_effective_severity(meta, node_id);
@@ -99,11 +91,63 @@ impl LintRule for NoDefaultExport {
     }
 }
 
+/// Return true when a dependency item exports or aliases the `default` binding.
+fn dependency_item_is_default(item: &dir::DependencyItem, default_name: StringId) -> bool {
+    // check dependency modes that are explicitly default
+    if matches!(
+        item,
+        dir::DependencyItem::Local {
+            mode: dir::DependencyMode::Default,
+            ..
+        } | dir::DependencyItem::UnresolvedLocal {
+            mode: dir::DependencyMode::Default,
+            ..
+        } | dir::DependencyItem::Remote {
+            mode: dir::DependencyMode::Default,
+            ..
+        } | dir::DependencyItem::UnresolvedRemote {
+            mode: dir::DependencyMode::Default,
+            ..
+        } | dir::DependencyItem::Value {
+            mode: dir::DependencyMode::Default,
+            ..
+        }
+    ) {
+        return true;
+    }
+
+    // check local or remote alias forms like `export { foo as default }`
+    match item {
+        dir::DependencyItem::Local { alias, name, .. }
+        | dir::DependencyItem::UnresolvedLocal { alias, name, .. }
+        | dir::DependencyItem::Remote { alias, name, .. }
+        | dir::DependencyItem::UnresolvedRemote { alias, name, .. } => {
+            alias.is_some_and(|alias| alias == default_name)
+                || name.is_some_and(|name| name.string() == default_name)
+        }
+        dir::DependencyItem::Value { .. } => false,
+    }
+}
+
 /// Build an unsafe fix that rewrites declaration default exports to named exports.
 fn default_export_declaration_fix(
     ctx: &LintModuleDirContext<'_>,
     declaration_id: dir::LocalNodeId<dir::Declaration>,
 ) -> Option<LintFix> {
+    // only rewrite named function and class declarations
+    let declaration = ctx.tree.get(declaration_id);
+    let descriptor = declaration.descriptor();
+    if descriptor.name.is_none() {
+        return None;
+    }
+    if !matches!(
+        declaration,
+        dir::Declaration::Function { .. } | dir::Declaration::Class { .. }
+    ) {
+        return None;
+    }
+
+    // rewrite `export default` into `export` for declaration forms
     let declaration_span = ctx.get_span(declaration_id);
     let declaration_text = ctx.get_span_text(declaration_span);
     let declaration_text: &str = declaration_text.as_ref();
@@ -202,5 +246,31 @@ export async function foo() {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_detects_default_export_alias_specifier() {
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let result = test.lint_dir(
+            "no_default_export/test_detects_default_export_alias_specifier.ds",
+            "const foo = 1;\nexport { foo as default };",
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint("no-default-export")
+            .assert_has_no_fix("no-default-export");
+    }
+
+    #[test]
+    fn test_no_fix_for_anonymous_default_function_declaration() {
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let result = test.lint_dir(
+            "no_default_export/test_no_fix_for_anonymous_default_function_declaration.ds",
+            "export default function() { return 1; }",
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint("no-default-export")
+            .assert_has_no_fix("no-default-export");
     }
 }

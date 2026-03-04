@@ -48,11 +48,11 @@ impl LintRule for NoContinue {
                     NO_CONTINUE.code,
                     NO_CONTINUE.category,
                     severity,
-                    "`continue` is not allowed",
+                    "unexpected use of continue statement",
                     ctx.module.file_id,
                     span,
                 )
-                .with_label("restructure loop to avoid `continue`"),
+                .with_label("avoid continue statements"),
             );
         }
     }
@@ -106,5 +106,21 @@ for (let i = 0; i < 10; i++) {
 "#,
         );
         test.result(result).assert_no_lint("no-continue");
+    }
+
+    #[test]
+    fn test_detects_continue_in_do_while() {
+        let test = TestProgram::for_rule_without_prelude(NoContinue);
+        let result = test.lint_ast(
+            "no_continue/test_detects_continue_in_do_while.ts",
+            r#"
+let i = 0;
+do {
+    i += 1;
+    continue;
+} while (i < 3);
+"#,
+        );
+        test.result(result).assert_lint("no-continue");
     }
 }
