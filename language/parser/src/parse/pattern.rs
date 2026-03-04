@@ -46,7 +46,7 @@ impl Parser {
         // ------------------------------------------------------------
         // Primary patterns
         // ------------------------------------------------------------
-        let pattern_id = {
+        let mut pattern_id = {
             // wildcard
             if self.language.is_destack() && self.peek_identifier_str_is("_") {
                 self.bump(); // eat wildcard
@@ -285,8 +285,7 @@ impl Parser {
         if self.peek_is(TokenType::Not) {
             self.bump(); // eat !
             let pattern = Pattern::Must(pattern_id);
-            let pattern_id = self.tree.insert(pattern, self.get_span_from(&start));
-            return Ok(pattern_id);
+            pattern_id = self.tree.insert(pattern, self.get_span_from(&start));
         }
         // union
         if self.peek_is(TokenType::ElementwiseOr) && !self.options.is_in_union_pattern() {
@@ -1212,6 +1211,50 @@ mod tests {
         assert_node!(parser.tree, pattern_id, Pattern::Must(inner) => {
             assert_node!(parser.tree, *inner, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_union_with_must_arms() {
+        let mut test = TestParser::new("1! | 2!");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
+            assert_eq!(patterns.len(), 2);
+            // 1!
+            assert_node!(parser.tree, patterns[0], Pattern::Must(inner) => {
+                assert_node!(parser.tree, *inner, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                });
+            });
+            // 2!
+            assert_node!(parser.tree, patterns[1], Pattern::Must(inner) => {
+                assert_node!(parser.tree, *inner, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_union_with_trailing_must_arm() {
+        let mut test = TestParser::new("1 | 2!");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
+            assert_eq!(patterns.len(), 2);
+            // 1
+            assert_node!(parser.tree, patterns[0], Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+            // 2!
+            assert_node!(parser.tree, patterns[1], Pattern::Must(inner) => {
+                assert_node!(parser.tree, *inner, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
             });
         });
     }
