@@ -1,6 +1,6 @@
 [package]
 name = "destack-rs"
-description = "Rust compatibility crate for Destack"
+description = "Rust legacy alias crate for Destack"
 version = "0.55.3"
 edition = "2024"
 authors = ["Symbol Industries"]

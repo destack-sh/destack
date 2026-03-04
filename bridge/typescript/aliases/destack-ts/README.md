@@ -1,6 +1,6 @@
 # destack-ts
 
-Destack compatibility package for TypeScript.
+Destack legacy alias package for TypeScript.
 This package forwards exports from `@destack/runtime`.
 
 ## Installation

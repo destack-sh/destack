@@ -1,6 +1,6 @@
 # destack-rs
 
-Destack compatibility crate for Rust.
+Destack legacy alias crate for Rust.
 This crate re-exports the canonical `destack` crate.
 
 ## Installation

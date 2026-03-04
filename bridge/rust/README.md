@@ -2,7 +2,7 @@
 
 Rust client for Destack.
 This crate is published to crates.io as `destack`.
-Compatibility crate `destack-rs` is in [`compat/destack-rs`](compat/destack-rs/README.md).
+Legacy alias crate `destack-rs` is in [`aliases/destack-rs`](aliases/destack-rs/README.md).
 
 ## Installation
 
