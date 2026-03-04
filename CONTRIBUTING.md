@@ -85,6 +85,29 @@ just bridge/ci
 ## Release Credentials
 
 Publishing commands load credentials from `.env.local` via `just`.
-The canonical env vars are `NPM_TOKEN`, `CARGO_TOKEN`, `PYPI_TOKEN`, and `VSCE_PAT`.
-The release workflow expects the same names as GitHub environment secrets.
-Zed registry publishing additionally uses `ZED_GITHUB_TOKEN` and `ZED_REGISTRY_PUSH_TO`.
+Use the following variable level matrix for the GitHub Actions `release` environment.
+
+| Key | Kind | Required when | Purpose |
+|--------------|----------|------------------------------------------------------|------------------------------------------------------------|
+| `NPM_USE_TRUSTED_PUBLISHING` | Variable | Optional | Enables npm trusted publishing in CI |
+| `NPM_TOKEN` | Secret | `NPM_USE_TRUSTED_PUBLISHING != true` | Fallback npm authentication |
+| `CARGO_TOKEN` | Secret | Always | crates.io publishing |
+| `NUGET_USE_TRUSTED_PUBLISHING` | Variable | Optional | Enables NuGet trusted publishing in CI |
+| `NUGET_PUBLISH_USERNAME` | Variable | `NUGET_USE_TRUSTED_PUBLISHING == true` | NuGet trusted publishing identity |
+| `NUGET_API_KEY` | Secret | `NUGET_USE_TRUSTED_PUBLISHING != true` | Fallback NuGet authentication |
+| `MAVEN_REPOSITORY_USERNAME` | Secret | Always | Maven Central portal username |
+| `MAVEN_REPOSITORY_PASSWORD` | Secret | Always | Maven Central portal password |
+| `MAVEN_GPG_PRIVATE_KEY` | Secret | Always | Armored private key for Maven signing |
+| `MAVEN_GPG_PASSPHRASE` | Secret | Always | Passphrase for Maven signing key |
+| `MAVEN_GPG_KEY_ID` | Variable | Always | Key id used by Maven GPG plugin |
+| `RUBYGEMS_USE_TRUSTED_PUBLISHING` | Variable | Optional | Enables RubyGems trusted publishing in CI |
+| `RUBYGEMS_OIDC_ROLE` | Variable | `RUBYGEMS_USE_TRUSTED_PUBLISHING == true` | RubyGems trusted publishing role |
+| `RUBYGEMS_API_KEY` | Secret | `RUBYGEMS_USE_TRUSTED_PUBLISHING != true` | Fallback RubyGems authentication |
+| `HEX_API_KEY` | Secret | Always | Hex publishing |
+| `PUB_DEV_USE_OIDC` | Variable | Optional | Enables pub.dev trusted publishing in CI |
+| `PUB_DEV_CREDENTIALS_JSON` | Secret | `PUB_DEV_USE_OIDC != true` | Fallback pub.dev credentials |
+| `VSCE_PAT` | Secret | Always | VS Code extension publishing |
+| `ZED_GITHUB_TOKEN` | Secret | `publish_zed == true` | GitHub token for zed registry PR lane |
+| `ZED_REGISTRY_PUSH_TO` | Variable | `publish_zed == true` | zed registry target fork/owner |
+
+For local live publishing outside CI, token based env vars such as `NPM_TOKEN`, `CARGO_TOKEN`, `PYPI_TOKEN`, and `VSCE_PAT` are still supported.

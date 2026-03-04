@@ -16,7 +16,7 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "bridge/dotnet/src/Destack/Client.cs",
     "bridge/dotnet/src/Destack/Destack.csproj",
     "bridge/java/pom.xml",
-    "bridge/java/src/main/java/com/symbol/destack/Destack.java",
+    "bridge/java/src/main/java/industries/symbol/destack/Destack.java",
     "bridge/ruby/lib/destack/version.rb",
     "bridge/dart/pubspec.yaml",
     "bridge/dart/lib/src/client.dart",
