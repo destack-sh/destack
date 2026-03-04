@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use destack_workspace::PlatformWindowsPacketBackend;
 use parking_lot::Mutex;
-use windows_sys::Win32::Foundation::{ERROR_BUFFER_OVERFLOW, ERROR_SUCCESS};
+use windows_sys::Win32::Foundation::{
+    ERROR_BUFFER_OVERFLOW, ERROR_CALL_NOT_IMPLEMENTED, ERROR_NOT_SUPPORTED, ERROR_SUCCESS,
+};
 use windows_sys::Win32::NetworkManagement::IpHelper::{
     GAA_FLAG_INCLUDE_PREFIX, GetAdaptersAddresses, IP_ADAPTER_ADDRESSES_LH,
 };
@@ -209,6 +211,11 @@ fn windows_packet_not_supported(operation: &'static str) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
 
+/// Return whether one ip-helper status code reports not-supported behavior.
+fn is_ip_helper_not_supported(status: u32) -> bool {
+    status == ERROR_NOT_SUPPORTED || status == ERROR_CALL_NOT_IMPLEMENTED
+}
+
 /// Require that the Windows packet backend is enabled in runtime options.
 fn require_windows_packet_backend(
     context: &BindingCallContext,
@@ -270,6 +277,13 @@ fn interface_ipv4_bind_address(interface_index: u32) -> RuntimeResult<SOCKADDR_I
         break status;
     };
     if status != ERROR_SUCCESS {
+        if is_ip_helper_not_supported(status) {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.net.packet.open",
+            ))
+            .boxed());
+        }
+
         return Err(core_platform::net_error_with_code(
             "GetAdaptersAddresses",
             status as i32,

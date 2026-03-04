@@ -90,12 +90,24 @@ fn test_credentials_read_policy_lanes_on_linux_and_windows() {
         // reject interactive-auth read lanes where backend key stores have no challenge API
         let query = credential_query_value(&mut context, "destack.policy", "read-auth", "", true);
         let result = context.destack_os_credentials_read(query);
-        let error = match result {
+        // assert platform-specific policy behavior
+        match result {
+            // linux keyring currently has no interactive challenge lane
+            #[cfg(target_os = "linux")]
             Ok(_) => panic!("read with requireAuthentication should report notSupported"),
-            Err(error) => error,
-        };
+            #[cfg(target_os = "linux")]
+            Err(error) => assert_not_supported_error(&error),
 
-        assert_not_supported_error(&error);
+            // windows implements the lane and should never report notSupported
+            #[cfg(windows)]
+            Err(error) => assert_not_not_supported_error(&error),
+            #[cfg(windows)]
+            Ok(_) => {}
+
+            // other targets are not part of this policy check
+            #[cfg(not(any(target_os = "linux", windows)))]
+            _ => {}
+        }
 
         Ok(())
     });

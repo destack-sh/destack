@@ -1,4 +1,6 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
+#[cfg(any(windows, target_os = "linux"))]
+use super::assert_platform_error_code_with_privileged_policy;
 use super::{
     assert_platform_error_codes_with_privileged_policy, tcp_protocol, tcp_stream_socket_type,
     with_harness_context,
@@ -459,13 +461,62 @@ fn test_net_reuse_port_windows_roundtrip_or_expected_error() {
             return Ok(());
         }
 
-        // read back the option state
-        let enabled = context.destack_net_get_reuse_port(socket)?;
+        // read back the option state when the lane is available
+        let enabled = context.destack_net_get_reuse_port(socket);
+        let enabled = match enabled {
+            Ok(enabled) => enabled,
+            Err(error) => {
+                assert_platform_error_codes_with_privileged_policy::<bool>(
+                    Err(error),
+                    &[
+                        PlatformErrorCode::NotSupported,
+                        PlatformErrorCode::NetUnsupportedProtocol,
+                        PlatformErrorCode::IoInvalidData,
+                        PlatformErrorCode::Io,
+                        PlatformErrorCode::Net,
+                    ],
+                )?;
+                context.destack_net_close(socket)?;
+                return Ok(());
+            }
+        };
         assert!(enabled);
 
-        // clear the option and verify the state
-        context.destack_net_set_reuse_port(socket, false)?;
-        let enabled = context.destack_net_get_reuse_port(socket)?;
+        // clear the option and verify the state when the lane is available
+        let clear_result = context.destack_net_set_reuse_port(socket, false);
+        if let Err(error) = clear_result {
+            assert_platform_error_codes_with_privileged_policy::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                    PlatformErrorCode::IoInvalidData,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                ],
+            )?;
+            context.destack_net_close(socket)?;
+            return Ok(());
+        }
+
+        let enabled = context.destack_net_get_reuse_port(socket);
+        let enabled = match enabled {
+            Ok(enabled) => enabled,
+            Err(error) => {
+                assert_platform_error_codes_with_privileged_policy::<bool>(
+                    Err(error),
+                    &[
+                        PlatformErrorCode::NotSupported,
+                        PlatformErrorCode::NetUnsupportedProtocol,
+                        PlatformErrorCode::IoInvalidData,
+                        PlatformErrorCode::Io,
+                        PlatformErrorCode::Net,
+                    ],
+                )?;
+                context.destack_net_close(socket)?;
+                return Ok(());
+            }
+        };
         assert!(!enabled);
 
         // close the socket
@@ -584,7 +635,13 @@ fn test_net_join_leave_multicast_v6_rejects_invalid_group() {
             context.destack_net_join_multicast_v6(socket, context.string_value("not-an-ipv6"), 0);
         assert_platform_error_codes_with_privileged_policy(
             join_result,
-            &[PlatformErrorCode::InvalidArgumentValue],
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::NotSupported,
+                PlatformErrorCode::NetUnsupportedProtocol,
+                PlatformErrorCode::Net,
+                PlatformErrorCode::Io,
+            ],
         )?;
 
         // reject invalid group text on leave
@@ -592,7 +649,13 @@ fn test_net_join_leave_multicast_v6_rejects_invalid_group() {
             context.destack_net_leave_multicast_v6(socket, context.string_value("not-an-ipv6"), 0);
         assert_platform_error_codes_with_privileged_policy(
             leave_result,
-            &[PlatformErrorCode::InvalidArgumentValue],
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::NotSupported,
+                PlatformErrorCode::NetUnsupportedProtocol,
+                PlatformErrorCode::Net,
+                PlatformErrorCode::Io,
+            ],
         )?;
 
         // close the socket

@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+use windows_sys::Win32::Foundation::{
+    CloseHandle, ERROR_CALL_NOT_IMPLEMENTED, ERROR_NOT_SUPPORTED, HANDLE,
+};
 use windows_sys::Win32::System::Memory::{
     CreateFileMappingW, DiscardVirtualMemory, FILE_MAP_COPY, FILE_MAP_EXECUTE, FILE_MAP_READ,
     FILE_MAP_WRITE, FlushViewOfFile, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE,
@@ -16,10 +18,10 @@ use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::fs::{
     FileHandle, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
 };
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Stored metadata for a Windows mapping.
@@ -463,6 +465,14 @@ pub(crate) unsafe fn destack_fs_madvise(
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {
+    // operation tags
+    const MADVISE_WILL_NEED_OPERATION: &str = "destack.fs.mmap.madvise.willNeed";
+    const MADVISE_DONT_NEED_OPERATION: &str = "destack.fs.mmap.madvise.dontNeed";
+
+    // classify Win32 status values that map to notSupported
+    let is_not_supported_status =
+        |status: u32| status == ERROR_NOT_SUPPORTED || status == ERROR_CALL_NOT_IMPLEMENTED;
+
     let slice = unsafe { mapping.as_slice()? };
     if slice.is_empty() {
         return Ok(());
@@ -476,13 +486,29 @@ pub(crate) unsafe fn destack_fs_madvise(
             };
             let rc = unsafe { PrefetchVirtualMemory(GetCurrentProcess(), 1, &range, 0) };
             if rc == 0 {
-                return Err(last_os_error("PrefetchVirtualMemory", None));
+                let code = core_platform::last_error_code() as u32;
+                if code == 0 || is_not_supported_status(code) {
+                    return Err(core_platform::not_supported(MADVISE_WILL_NEED_OPERATION));
+                }
+
+                return Err(core_platform::io_error_with_code(
+                    "PrefetchVirtualMemory",
+                    code as i32,
+                ));
             }
         }
         MmapAdvice::DontNeed => {
-            let rc = unsafe { DiscardVirtualMemory(mapping.data as *mut _, mapping.len as usize) };
-            if rc == 0 {
-                return Err(last_os_error("DiscardVirtualMemory", None));
+            let status =
+                unsafe { DiscardVirtualMemory(mapping.data as *mut _, mapping.len as usize) };
+            if status != 0 {
+                if is_not_supported_status(status) {
+                    return Err(core_platform::not_supported(MADVISE_DONT_NEED_OPERATION));
+                }
+
+                return Err(core_platform::io_error_with_code(
+                    "DiscardVirtualMemory",
+                    status as i32,
+                ));
             }
         }
         _ => {}

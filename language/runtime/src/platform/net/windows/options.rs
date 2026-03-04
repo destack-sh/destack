@@ -2,6 +2,7 @@ use std::ffi::CString;
 use std::mem;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use windows_sys::Win32::Foundation::{ERROR_CALL_NOT_IMPLEMENTED, ERROR_NOT_SUPPORTED};
 use windows_sys::Win32::NetworkManagement::IpHelper::if_nametoindex;
 use windows_sys::Win32::Networking::WinSock::{
     AF_INET, AF_INET6, FIONBIO, GROUP_SOURCE_REQ, IN_ADDR, IN_ADDR_0, IN6_ADDR, IN6_ADDR_0,
@@ -26,6 +27,14 @@ use crate::platform::net::{
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+
+/// Operation tag for interface-index lookup.
+const INTERFACE_INDEX_OPERATION: &str = "destack.net.interface.interfaceIndex";
+
+/// Return whether one ip-helper status code reports not-supported behavior.
+fn is_ip_helper_not_supported(status: u32) -> bool {
+    status == ERROR_NOT_SUPPORTED || status == ERROR_CALL_NOT_IMPLEMENTED
+}
 
 fn parse_ipv4_interface(value: &str) -> RuntimeResult<Ipv4Addr> {
     // treat empty values as INADDR_ANY
@@ -65,9 +74,14 @@ fn resolve_interface_index(value: &str) -> RuntimeResult<u32> {
 
     let index = unsafe { if_nametoindex(cstr.as_ptr() as *const u8) };
     if index == 0 {
+        let status = core_platform::last_error_code() as u32;
+        if status == 0 || is_ip_helper_not_supported(status) {
+            return Err(core_platform::not_supported(INTERFACE_INDEX_OPERATION));
+        }
+
         return Err(core_platform::net_error_with_code(
             "if_nametoindex",
-            core_platform::last_wsa_error_code(),
+            status as i32,
         ));
     }
 

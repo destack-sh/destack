@@ -1,7 +1,9 @@
 use std::ffi::{CStr, CString};
 use std::mem;
 use std::net::IpAddr;
-use windows_sys::Win32::Foundation::{ERROR_BUFFER_OVERFLOW, ERROR_SUCCESS};
+use windows_sys::Win32::Foundation::{
+    ERROR_BUFFER_OVERFLOW, ERROR_CALL_NOT_IMPLEMENTED, ERROR_NOT_SUPPORTED, ERROR_SUCCESS,
+};
 use windows_sys::Win32::NetworkManagement::IpHelper::{
     GAA_FLAG_INCLUDE_PREFIX, GetAdaptersAddresses, IP_ADAPTER_ADDRESSES_LH, if_indextoname,
     if_nametoindex,
@@ -38,6 +40,32 @@ const REVERSE_LOOKUP_SUPPORTED_FLAGS: u32 = REVERSE_LOOKUP_FLAG_NUMERIC_HOST
     | REVERSE_LOOKUP_FLAG_NAME_REQUIRED
     | REVERSE_LOOKUP_FLAG_DGRAM
     | REVERSE_LOOKUP_FLAG_NO_FQDN;
+/// Operation tag for interface-index lookup.
+const INTERFACE_INDEX_OPERATION: &str = "destack.net.interface.interfaceIndex";
+/// Operation tag for interface-name lookup.
+const INTERFACE_NAME_OPERATION: &str = "destack.net.interface.interfaceName";
+/// Operation tag for interface-list enumeration.
+const LIST_INTERFACES_OPERATION: &str = "destack.net.interface.listInterfaces";
+
+/// Return whether one ip-helper status code reports not-supported behavior.
+fn is_ip_helper_not_supported(status: u32) -> bool {
+    status == ERROR_NOT_SUPPORTED || status == ERROR_CALL_NOT_IMPLEMENTED
+}
+
+/// Build one interface-lookup error from one Win32 status code.
+fn interface_lookup_error(
+    syscall: &'static str,
+    operation: &'static str,
+    status: u32,
+) -> Box<RuntimeError> {
+    // map unsupported interfaces to one explicit notSupported lane
+    if status == 0 || is_ip_helper_not_supported(status) {
+        return core_platform::not_supported(operation);
+    }
+
+    // preserve remaining host status values
+    core_platform::net_error_with_code(syscall, status as i32)
+}
 
 /// Convert one runtime reverse-lookup bitmask into WinSock flags.
 fn reverse_lookup_native_flags(flags: ReverseLookupFlags) -> RuntimeResult<i32> {
@@ -155,9 +183,11 @@ pub(crate) unsafe fn destack_net_interface_index(
     // resolve interface index
     let index = unsafe { if_nametoindex(name.as_ptr() as *const u8) };
     if index == 0 {
-        return Err(core_platform::net_error_with_code(
+        let status = core_platform::last_error_code() as u32;
+        return Err(interface_lookup_error(
             "if_nametoindex",
-            core_platform::last_wsa_error_code(),
+            INTERFACE_INDEX_OPERATION,
+            status,
         ));
     }
 
@@ -200,9 +230,11 @@ pub(crate) unsafe fn destack_net_interface_name(
     let mut buffer = vec![0u8; 256];
     let pointer = unsafe { if_indextoname(index, buffer.as_mut_ptr()) };
     if pointer.is_null() {
-        return Err(core_platform::net_error_with_code(
+        let status = core_platform::last_error_code() as u32;
+        return Err(interface_lookup_error(
             "if_indextoname",
-            core_platform::last_wsa_error_code(),
+            INTERFACE_NAME_OPERATION,
+            status,
         ));
     }
 
@@ -265,6 +297,10 @@ pub(crate) unsafe fn destack_net_list_interfaces(
         break status;
     };
     if result != ERROR_SUCCESS {
+        if is_ip_helper_not_supported(result) {
+            return Err(core_platform::not_supported(LIST_INTERFACES_OPERATION));
+        }
+
         return Err(core_platform::net_error_with_code(
             "GetAdaptersAddresses",
             result as i32,

@@ -1,8 +1,10 @@
 #[cfg(unix)]
 use super::close_tty_worker_resource;
+#[cfg(unix)]
+use super::decode_harness_value;
 use super::{
-    assert_ok_or_expected_error, assert_platform_error_codes, decode_harness_value,
-    open_pty_or_skip_not_supported, with_harness_context,
+    assert_ok_or_expected_error, assert_platform_error_codes, open_pty_or_skip_not_supported,
+    with_harness_context,
 };
 #[cfg(unix)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
