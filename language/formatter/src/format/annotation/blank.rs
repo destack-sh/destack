@@ -675,6 +675,144 @@ fn blank_seam_facts(
 }
 
 /// Run ordered specialized blank seam handlers before fallback ownership.
+struct BlankSpecializedDispatchContext<'a> {
+    /// The syntax tree.
+    tree: &'a NodeTree,
+    /// Parent links for owner promotion.
+    parents: &'a NodeParentIndex,
+    /// Trivia owner index.
+    owner_index: &'a FormatterTriviaOwnerIndex,
+    /// Seam comment-shape state.
+    comment_state: &'a BlankSeamCommentState,
+    /// Seam owner topology state.
+    owner_state: &'a BlankSeamOwnerState,
+    /// Derived seam facts.
+    facts: BlankSeamFacts,
+}
+
+/// One specialized blank seam attachment handler in priority order.
+type BlankSpecializedHandler =
+    fn(&BlankSpecializedDispatchContext<'_>) -> Option<(Option<u32>, AnnotationPosition)>;
+
+/// Run ordered specialized blank seam handlers.
+fn run_blank_specialized_handlers(
+    ctx: &BlankSpecializedDispatchContext<'_>,
+    handlers: &[BlankSpecializedHandler],
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    for handler in handlers {
+        if let Some(attachment) = handler(ctx) {
+            return Some(attachment);
+        }
+    }
+
+    None
+}
+
+/// Attach statement-boundary blank seams before comments as spacing-only markers.
+fn attach_blank_specialized_statement_boundary_before_comment(
+    ctx: &BlankSpecializedDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    if !ctx.facts.seam_has_comment
+        && ctx.facts.token_before_is_statement_end
+        && (ctx.facts.token_after_is_comment || ctx.facts.raw_token_after_is_comment)
+    {
+        return Some(blank_infix_attachment());
+    }
+
+    None
+}
+
+/// Attach separator blank seams before comments as spacing-only markers.
+fn attach_blank_specialized_separator_before_comment(
+    ctx: &BlankSpecializedDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    if ctx.facts.token_before_is_comma
+        && (ctx.facts.token_after_is_comment || ctx.facts.raw_token_after_is_comment)
+    {
+        return Some(blank_infix_attachment());
+    }
+
+    None
+}
+
+/// Attach comment-shape specialized blank seams.
+fn attach_blank_specialized_comment_shape(
+    ctx: &BlankSpecializedDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    try_attach_comment_shape_blank_seam(
+        ctx.tree,
+        ctx.parents,
+        ctx.comment_state,
+        ctx.owner_state,
+        ctx.facts.semicolon_guard_seam,
+        ctx.facts.token_before_is_statement_end,
+        ctx.facts.token_before_is_colon,
+        ctx.facts.token_after_is_else,
+        ctx.facts.token_before_is_comment,
+        ctx.facts.token_after_is_comment,
+    )
+}
+
+/// Attach statement-end specialized blank seams.
+fn attach_blank_specialized_statement_end_comment(
+    ctx: &BlankSpecializedDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    try_attach_statement_end_comment_blank_seam(
+        ctx.tree,
+        ctx.parents,
+        ctx.comment_state,
+        ctx.owner_state,
+        ctx.facts.semicolon_guard_seam,
+        ctx.facts.token_before_is_statement_end,
+    )
+}
+
+/// Attach chain and delimiter specialized blank seams.
+fn attach_blank_specialized_chain_delimiter(
+    ctx: &BlankSpecializedDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    try_attach_chain_delimiter_blank_seam(
+        ctx.tree,
+        ctx.comment_state,
+        ctx.owner_state,
+        ctx.facts.token_after_span,
+        ctx.facts.token_before_is_semicolon,
+        ctx.facts.token_before_is_comma,
+        ctx.facts.token_before_is_else,
+        ctx.facts.token_after_is_chain_or_index_boundary,
+        ctx.facts.token_after_is_semicolon,
+        ctx.facts.token_after_is_close_brace,
+        ctx.facts.token_after_is_close_parenthesis,
+    )
+}
+
+/// Attach decorator-adjacent specialized blank seams.
+fn attach_blank_specialized_decorator(
+    ctx: &BlankSpecializedDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    try_attach_decorator_blank_seam(
+        ctx.tree,
+        ctx.parents,
+        ctx.owner_index,
+        ctx.owner_state,
+        ctx.facts.token_after_span,
+        ctx.facts.token_before_is_semicolon,
+        ctx.facts.token_after_is_at,
+        ctx.facts.token_after,
+    )
+}
+
+/// Ordered specialized blank seam handlers.
+const BLANK_SPECIALIZED_HANDLERS: &[BlankSpecializedHandler] = &[
+    attach_blank_specialized_statement_boundary_before_comment,
+    attach_blank_specialized_separator_before_comment,
+    attach_blank_specialized_comment_shape,
+    attach_blank_specialized_statement_end_comment,
+    attach_blank_specialized_chain_delimiter,
+    attach_blank_specialized_decorator,
+];
+
+/// Run ordered specialized blank seam handlers before fallback ownership.
 fn try_attach_blank_specialized_handlers(
     tree: &NodeTree,
     parents: &NodeParentIndex,
@@ -683,86 +821,54 @@ fn try_attach_blank_specialized_handlers(
     owner_state: &BlankSeamOwnerState,
     facts: BlankSeamFacts,
 ) -> Option<(Option<u32>, AnnotationPosition)> {
-    // statement-boundary blanks directly before comment trivia are represented by comment spacing
-    if !facts.seam_has_comment
-        && facts.token_before_is_statement_end
-        && (facts.token_after_is_comment || facts.raw_token_after_is_comment)
-    {
-        return Some(blank_infix_attachment());
-    }
-
-    // separator seams before comments are represented by comment spacing
-    if facts.token_before_is_comma
-        && (facts.token_after_is_comment || facts.raw_token_after_is_comment)
-    {
-        return Some(blank_infix_attachment());
-    }
-
-    if let Some(attachment) = try_attach_comment_shape_blank_seam(
-        tree,
-        parents,
-        comment_state,
-        owner_state,
-        facts.semicolon_guard_seam,
-        facts.token_before_is_statement_end,
-        facts.token_before_is_colon,
-        facts.token_after_is_else,
-        facts.token_before_is_comment,
-        facts.token_after_is_comment,
-    ) {
-        return Some(attachment);
-    }
-
-    if let Some(attachment) = try_attach_statement_end_comment_blank_seam(
-        tree,
-        parents,
-        comment_state,
-        owner_state,
-        facts.semicolon_guard_seam,
-        facts.token_before_is_statement_end,
-    ) {
-        return Some(attachment);
-    }
-
-    if let Some(attachment) = try_attach_chain_delimiter_blank_seam(
-        tree,
-        comment_state,
-        owner_state,
-        facts.token_after_span,
-        facts.token_before_is_semicolon,
-        facts.token_before_is_comma,
-        facts.token_before_is_else,
-        facts.token_after_is_chain_or_index_boundary,
-        facts.token_after_is_semicolon,
-        facts.token_after_is_close_brace,
-        facts.token_after_is_close_parenthesis,
-    ) {
-        return Some(attachment);
-    }
-
-    try_attach_decorator_blank_seam(
+    let ctx = BlankSpecializedDispatchContext {
         tree,
         parents,
         owner_index,
+        comment_state,
         owner_state,
-        facts.token_after_span,
-        facts.token_before_is_semicolon,
-        facts.token_after_is_at,
-        facts.token_after,
-    )
+        facts,
+    };
+
+    run_blank_specialized_handlers(&ctx, BLANK_SPECIALIZED_HANDLERS)
 }
 
-/// Run ordered generic blank seam handlers before default owner fallback.
-fn try_attach_blank_generic_handlers(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    owner_state: &BlankSeamOwnerState,
+struct BlankGenericDispatchContext<'a> {
+    /// The syntax tree.
+    tree: &'a NodeTree,
+    /// Parent links for owner promotion.
+    parents: &'a NodeParentIndex,
+    /// Seam owner topology state.
+    owner_state: &'a BlankSeamOwnerState,
+    /// Derived seam facts.
     facts: BlankSeamFacts,
+}
+
+/// One generic blank seam attachment handler in priority order.
+type BlankGenericHandler =
+    fn(&BlankGenericDispatchContext<'_>) -> Option<(Option<u32>, AnnotationPosition)>;
+
+/// Run ordered generic blank seam handlers.
+fn run_blank_generic_handlers(
+    ctx: &BlankGenericDispatchContext<'_>,
+    handlers: &[BlankGenericHandler],
 ) -> Option<(Option<u32>, AnnotationPosition)> {
-    // non comment seams before closing delimiters are represented by container layout
-    if !facts.seam_has_comment
+    for handler in handlers {
+        if let Some(attachment) = handler(ctx) {
+            return Some(attachment);
+        }
+    }
+
+    None
+}
+
+/// Attach non-comment blank seams before closing delimiters as spacing-only markers.
+fn attach_blank_generic_closing_delimiter_spacing(
+    ctx: &BlankGenericDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    if !ctx.facts.seam_has_comment
         && matches!(
-            facts.token_after_type,
+            ctx.facts.token_after_type,
             Some(
                 TokenType::CloseParenthesis
                     | TokenType::CloseBracket
@@ -774,47 +880,93 @@ fn try_attach_blank_generic_handlers(
         return Some(blank_infix_attachment());
     }
 
-    if !(facts.token_before_is_semicolon && facts.seam_has_comment)
+    None
+}
+
+/// Attach statement-spacing gaps as spacing-only markers.
+fn attach_blank_generic_statement_spacing_gap(
+    ctx: &BlankGenericDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    if !(ctx.facts.token_before_is_semicolon && ctx.facts.seam_has_comment)
         && seam_is_statement_spacing_gap(
-            tree,
-            parents,
-            owner_state.preceding_owner,
-            owner_state.following_owner,
-            owner_state.preceding_token_owner,
-            facts.seam_has_comment,
-            facts.seam_has_line_comment,
-            facts.token_before_is_top_level_statement_end,
-            facts.token_before_is_semicolon,
+            ctx.tree,
+            ctx.parents,
+            ctx.owner_state.preceding_owner,
+            ctx.owner_state.following_owner,
+            ctx.owner_state.preceding_token_owner,
+            ctx.facts.seam_has_comment,
+            ctx.facts.seam_has_line_comment,
+            ctx.facts.token_before_is_top_level_statement_end,
+            ctx.facts.token_before_is_semicolon,
         )
     {
         return Some(blank_infix_attachment());
     }
 
-    if facts.token_before_type == Some(TokenType::Assign)
-        && facts.token_after_type == Some(TokenType::OpenParenthesis)
-        && let Some(mut target_node) = owner_state.following_owner
-    {
-        if tree.get_node_type(target_node) != NodeType::Expression
-            && let Some(expression_target) = promote_owner_to_node_type_ancestor(
-                tree,
-                parents,
-                target_node,
-                NodeType::Expression,
-            )
-        {
-            target_node = expression_target;
-        }
+    None
+}
 
-        return Some(block_prefix_attachment(tree, target_node));
+/// Attach assignment-to-parenthesized rhs blank seams to rhs prefixes.
+fn attach_blank_generic_assignment_open_parenthesis(
+    ctx: &BlankGenericDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    if ctx.facts.token_before_type != Some(TokenType::Assign)
+        || ctx.facts.token_after_type != Some(TokenType::OpenParenthesis)
+    {
+        return None;
     }
 
-    if owner_state.following_owner_is_argument
-        && (facts.token_after_is_open_parenthesis || facts.token_before_is_open_parenthesis)
+    let mut target_node = ctx.owner_state.following_owner?;
+    if ctx.tree.get_node_type(target_node) != NodeType::Expression
+        && let Some(expression_target) = promote_owner_to_node_type_ancestor(
+            ctx.tree,
+            ctx.parents,
+            target_node,
+            NodeType::Expression,
+        )
+    {
+        target_node = expression_target;
+    }
+
+    Some(block_prefix_attachment(ctx.tree, target_node))
+}
+
+/// Attach argument-parenthesis blank seams as spacing-only markers.
+fn attach_blank_generic_argument_parenthesis_spacing(
+    ctx: &BlankGenericDispatchContext<'_>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    if ctx.owner_state.following_owner_is_argument
+        && (ctx.facts.token_after_is_open_parenthesis || ctx.facts.token_before_is_open_parenthesis)
     {
         return Some(blank_infix_attachment());
     }
 
     None
+}
+
+/// Ordered generic blank seam handlers.
+const BLANK_GENERIC_HANDLERS: &[BlankGenericHandler] = &[
+    attach_blank_generic_closing_delimiter_spacing,
+    attach_blank_generic_statement_spacing_gap,
+    attach_blank_generic_assignment_open_parenthesis,
+    attach_blank_generic_argument_parenthesis_spacing,
+];
+
+/// Run ordered generic blank seam handlers before default owner fallback.
+fn try_attach_blank_generic_handlers(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_state: &BlankSeamOwnerState,
+    facts: BlankSeamFacts,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    let ctx = BlankGenericDispatchContext {
+        tree,
+        parents,
+        owner_state,
+        facts,
+    };
+
+    run_blank_generic_handlers(&ctx, BLANK_GENERIC_HANDLERS)
 }
 
 /// Attach one blank seam by default ownership fallback ordering.

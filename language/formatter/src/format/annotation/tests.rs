@@ -15,7 +15,7 @@ use destack_source::{File, FileId, FileType, LanguageType, Uri};
 use destack_workspace::{FormatterOptions, QuoteStyle};
 use std::sync::Arc;
 
-/// Build a formatter context for annotation routing assertions.
+/// Build a formatter ctx for annotation routing assertions.
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
     DestackFormatContext::new(
         DestackFormatOptions::default(),
@@ -78,7 +78,7 @@ fn format_program_conformance_style(source: &str, file_type: FileType) -> String
             .with_quote_style(QuoteStyle::Double),
         language,
     );
-    let context = DestackFormatContext::new(
+    let ctx = DestackFormatContext::new(
         options,
         DestackFormatArtifacts {
             file: &file,
@@ -90,7 +90,7 @@ fn format_program_conformance_style(source: &str, file_type: FileType) -> String
             parents: NodeParentIndex::from_tree(&parser.tree),
         },
     );
-    let formatted = fir_format!(context.clone(), [statement_list(&expressions)]).unwrap();
+    let formatted = fir_format!(ctx.clone(), [statement_list(&expressions)]).unwrap();
     let mut output = formatted.print().unwrap().as_str().to_string();
     if !output.is_empty() && !output.ends_with('\n') {
         output.push('\n');
@@ -100,22 +100,21 @@ fn format_program_conformance_style(source: &str, file_type: FileType) -> String
 
 /// Find an annotation node by source marker text.
 fn find_annotation_by_marker(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     marker: &str,
 ) -> Option<LocalNodeId<Annotation>> {
-    let annotation_matches_marker =
-        |annotation_id: LocalNodeId<Annotation>, marker: &str| match context
-            .annotation(annotation_id)
-        {
-            Annotation::Comment { node, .. } => context.comment_text(node).trim() == marker,
-            Annotation::Doc { node, .. } => {
-                let document = context.tree.get(node);
-                context.strings.get(document.string).trim() == marker
-            }
-            Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
-        };
+    let annotation_matches_marker = |annotation_id: LocalNodeId<Annotation>, marker: &str| match ctx
+        .annotation(annotation_id)
+    {
+        Annotation::Comment { node, .. } => ctx.comment_text(node).trim() == marker,
+        Annotation::Doc { node, .. } => {
+            let document = ctx.tree.get(node);
+            ctx.strings.get(document.string).trim() == marker
+        }
+        Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
+    };
 
-    for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
+    for (entry_index, _) in ctx.formatter_annotation_entries.iter().enumerate() {
         let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
         if annotation_matches_marker(annotation_id, marker) {
             return Some(annotation_id);
@@ -127,16 +126,16 @@ fn find_annotation_by_marker(
 
 /// Find an annotation node by marker fragment in comment or doc text.
 fn find_annotation_by_marker_fragment(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     marker: &str,
 ) -> Option<LocalNodeId<Annotation>> {
-    for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
+    for (entry_index, _) in ctx.formatter_annotation_entries.iter().enumerate() {
         let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
-        let matches_marker = match context.annotation(annotation_id) {
-            Annotation::Comment { node, .. } => context.comment_text(node).contains(marker),
+        let matches_marker = match ctx.annotation(annotation_id) {
+            Annotation::Comment { node, .. } => ctx.comment_text(node).contains(marker),
             Annotation::Doc { node, .. } => {
-                let document = context.tree.get(node);
-                context.strings.get(document.string).contains(marker)
+                let document = ctx.tree.get(node);
+                ctx.strings.get(document.string).contains(marker)
             }
             Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
         };
@@ -150,17 +149,17 @@ fn find_annotation_by_marker_fragment(
 
 /// Find all comment annotation ids by source marker text.
 fn find_annotations_by_marker(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     marker: &str,
 ) -> Vec<LocalNodeId<Annotation>> {
     let mut annotation_ids = Vec::new();
 
-    for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
+    for (entry_index, _) in ctx.formatter_annotation_entries.iter().enumerate() {
         let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
-        let annotation = context.annotation(annotation_id);
+        let annotation = ctx.annotation(annotation_id);
         let matches_marker = matches!(
             annotation,
-            Annotation::Comment { node, .. } if context.comment_text(node).trim() == marker
+            Annotation::Comment { node, .. } if ctx.comment_text(node).trim() == marker
         );
         if matches_marker {
             annotation_ids.push(annotation_id);
@@ -172,11 +171,10 @@ fn find_annotations_by_marker(
 
 /// Find the target owner node for one annotation id.
 fn find_annotation_target_owner_node(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> Option<usize> {
-    context
-        .formatter_annotation_ids_by_node_id
+    ctx.formatter_annotation_ids_by_node_id
         .iter()
         .enumerate()
         .find_map(|(node_index, annotation_ids)| {
@@ -272,7 +270,7 @@ const fragmentAfterSlashBlock = <></ /* jsx-fragment-after-slash-block */
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
             .expect("parse jsx closing-tag seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     for (marker, expected_position) in [
         (
             "jsx-before-slash-line",
@@ -299,10 +297,10 @@ const fragmentAfterSlashBlock = <></ /* jsx-fragment-after-slash-block */
         ),
     ] {
         let annotation_id =
-            find_annotation_by_marker(&context, marker).expect("expected closing-tag annotation");
-        let annotation = context.annotation(annotation_id);
+            find_annotation_by_marker(&ctx, marker).expect("expected closing-tag annotation");
+        let annotation = ctx.annotation(annotation_id);
         let position = annotation.position();
-        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
             .expect("expected closing-tag annotation owner node");
         let owner_node_id = owner_node as u32;
 
@@ -311,15 +309,13 @@ const fragmentAfterSlashBlock = <></ /* jsx-fragment-after-slash-block */
             "marker={marker}, owner={owner_node}"
         );
         assert_eq!(
-            context.tree.get_node_type(owner_node_id),
+            ctx.tree.get_node_type(owner_node_id),
             NodeType::Expression,
             "marker={marker}, owner={owner_node}"
         );
         assert!(
             matches!(
-                context
-                    .tree
-                    .get(LocalNodeId::<Expression>::new(owner_node_id)),
+                ctx.tree.get(LocalNodeId::<Expression>::new(owner_node_id)),
                 Expression::TreeExpression { .. }
             ),
             "marker={marker}, owner={owner_node}"
@@ -343,25 +339,23 @@ const fragment = (
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
             .expect("parse parenthesized jsx closing-tag seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     for marker in ["jsx-element-after-slash", "jsx-fragment-after-slash"] {
         let annotation_id =
-            find_annotation_by_marker(&context, marker).expect("expected closing-tag annotation");
-        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            find_annotation_by_marker(&ctx, marker).expect("expected closing-tag annotation");
+        let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
             .expect("expected closing-tag annotation owner node");
         let owner_node_id = owner_node as u32;
 
         assert_eq!(
-            context.tree.get_node_type(owner_node_id),
+            ctx.tree.get_node_type(owner_node_id),
             NodeType::Expression,
             "marker={marker}, owner={owner_node}"
         );
         assert!(
             matches!(
-                context
-                    .tree
-                    .get(LocalNodeId::<Expression>::new(owner_node_id)),
+                ctx.tree.get(LocalNodeId::<Expression>::new(owner_node_id)),
                 Expression::TreeExpression { .. }
             ),
             "marker={marker}, owner={owner_node}"
@@ -383,10 +377,10 @@ function getClassNameFromPrototypeMethod(container) {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse cast member-chain source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "a").expect("expected marker a");
-    let comment_node = match context.annotation(annotation_id) {
+    let annotation_id = find_annotation_by_marker(&ctx, "a").expect("expected marker a");
+    let comment_node = match ctx.annotation(annotation_id) {
         Annotation::Comment { node, .. } => node,
         other => panic!("expected comment annotation for marker a, got {other:?}"),
     };
@@ -408,16 +402,14 @@ function getClassNameFromPrototypeMethod(container) {
         .get(token_after_index)
         .copied()
         .expect("expected token after marker a comment");
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected marker a owner node");
     let owner_node_id = owner_node as u32;
-    let owner_node_type = context.tree.get_node_type(owner_node_id);
+    let owner_node_type = ctx.tree.get_node_type(owner_node_id);
     let owner_expression_debug = if owner_node_type == NodeType::Expression {
         format!(
             "{:?}",
-            context
-                .tree
-                .get(LocalNodeId::<Expression>::new(owner_node_id))
+            ctx.tree.get(LocalNodeId::<Expression>::new(owner_node_id))
         )
     } else {
         "non-expression".to_string()
@@ -577,14 +569,14 @@ fn test_annotation_trailing_array_comma_line_comment_attaches_to_element_owner()
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse trailing array comma comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "trailing-array-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "trailing-array-marker")
         .expect("expected trailing array marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected trailing array marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert!(matches!(
         position,
@@ -608,18 +600,18 @@ fn test_annotation_array_element_own_line_comment_attaches_to_following_element(
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse own-line array element comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     for marker in [
         "array-element-prefix-marker-a",
         "array-element-prefix-marker-b",
     ] {
         let annotation_id =
-            find_annotation_by_marker(&context, marker).expect("expected array element marker");
-        let position = context.annotation(annotation_id).position();
-        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            find_annotation_by_marker(&ctx, marker).expect("expected array element marker");
+        let position = ctx.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
             .expect("expected array element marker owner node");
-        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
         assert_eq!(
             position,
@@ -643,26 +635,24 @@ fn test_annotation_empty_array_own_line_comment_attaches_as_array_infix() {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse empty array dangling comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "empty-array-dangling-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "empty-array-dangling-marker")
         .expect("expected empty array dangling marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected empty array dangling marker owner node");
     let owner_node_id = owner_node as u32;
 
     assert_eq!(position, AnnotationPosition::BlockInfix);
     assert_eq!(
-        context.tree.get_node_type(owner_node_id),
+        ctx.tree.get_node_type(owner_node_id),
         NodeType::Expression,
         "expected expression owner for empty array dangling comment, got node {owner_node}"
     );
     assert!(
         matches!(
-            context
-                .tree
-                .get(LocalNodeId::<Expression>::new(owner_node_id)),
+            ctx.tree.get(LocalNodeId::<Expression>::new(owner_node_id)),
             Expression::ArrayExpression { .. }
         ),
         "expected array expression owner for empty array dangling comment, got {owner_node}"
@@ -692,13 +682,13 @@ fn test_annotation_inline_comment_between_closing_paren_and_semicolon_is_boundar
     let (formatter, roots) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse closing-paren semicolon marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let _ = roots;
 
-    let annotation_id = find_annotation_by_marker(&context, "closing-paren-semicolon-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "closing-paren-semicolon-marker")
         .expect("expected closing-paren semicolon marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node_ids = context
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node_ids = ctx
         .formatter_annotation_ids_by_node_id
         .iter()
         .enumerate()
@@ -715,7 +705,7 @@ fn test_annotation_inline_comment_between_closing_paren_and_semicolon_is_boundar
         "expected one owner for closing-paren semicolon marker, got {owner_node_ids:?}"
     );
     let owner_node_id = owner_node_ids[0];
-    let owner_node_type = context.tree.get_node_type(owner_node_id);
+    let owner_node_type = ctx.tree.get_node_type(owner_node_id);
 
     assert_eq!(
         position,
@@ -750,7 +740,7 @@ fn test_annotation_mixed_array_element_own_line_comments_attach_as_line_prefix()
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse mixed array element own-line comments source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     for marker in [
         "mixed-array-prefix-marker-a",
@@ -759,11 +749,11 @@ fn test_annotation_mixed_array_element_own_line_comments_attach_as_line_prefix()
         "mixed-array-prefix-marker-d",
     ] {
         let annotation_id =
-            find_annotation_by_marker(&context, marker).expect("expected mixed array marker");
-        let position = context.annotation(annotation_id).position();
-        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            find_annotation_by_marker(&ctx, marker).expect("expected mixed array marker");
+        let position = ctx.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
             .expect("expected mixed array marker owner node");
-        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
         assert_eq!(
             position,
@@ -782,9 +772,9 @@ fn test_annotation_optional_call_line_boundary_comment_attaches_once() {
         p.eat_expression(Default::default())
     })
     .expect("parse optional-call boundary comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_ids = find_annotations_by_marker(&context, "keep-line");
+    let annotation_ids = find_annotations_by_marker(&ctx, "keep-line");
     assert_eq!(
         annotation_ids.len(),
         1,
@@ -792,12 +782,12 @@ fn test_annotation_optional_call_line_boundary_comment_attaches_once() {
     );
 
     let annotation_id = annotation_ids[0];
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("optional-call boundary comment should have one owner");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
     let owner_expression_kind = if owner_node_type == NodeType::Expression {
         let owner_expression_id = LocalNodeId::<Expression>::new(owner_node as u32);
-        match context.tree.get(owner_expression_id) {
+        match ctx.tree.get(owner_expression_id) {
             Expression::Path { .. } => "Path",
             Expression::Maybe { .. } => "Maybe",
             Expression::Call { .. } => "Call",
@@ -807,7 +797,7 @@ fn test_annotation_optional_call_line_boundary_comment_attaches_once() {
     } else {
         "NonExpression"
     };
-    let owner_annotation_count = context.formatter_annotation_ids_by_node_id[owner_node]
+    let owner_annotation_count = ctx.formatter_annotation_ids_by_node_id[owner_node]
         .iter()
         .filter(|candidate_id| candidate_id.id == annotation_id.id)
         .count();
@@ -820,7 +810,7 @@ fn test_annotation_optional_call_line_boundary_comment_attaches_once() {
         "optional-call line boundary comment owner kind should be Call, found {owner_expression_kind}",
     );
 
-    let total_owner_occurrences = context
+    let total_owner_occurrences = ctx
         .formatter_annotation_ids_by_node_id
         .iter()
         .flat_map(|annotation_ids| annotation_ids.iter())
@@ -845,14 +835,14 @@ fn test_annotation_declarator_assignment_line_comment_attaches_to_rhs_value() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse declarator assignment seam comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "declarator-rhs-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "declarator-rhs-marker")
         .expect("expected declarator rhs marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected declarator rhs marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -870,14 +860,14 @@ fn test_annotation_declarator_assignment_array_line_comment_attaches_to_rhs_valu
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse declarator assignment array seam comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "declarator-array-rhs-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "declarator-array-rhs-marker")
         .expect("expected declarator array rhs marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected declarator array rhs marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::BlockPrefix);
     assert_eq!(
@@ -900,14 +890,14 @@ fn test_annotation_type_declaration_value_seam_line_comment_attaches_to_rhs_valu
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse type declaration value seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "type-value-seam-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "type-value-seam-marker")
         .expect("expected type value seam marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected type value seam marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(
@@ -937,14 +927,14 @@ fn test_annotation_type_declaration_assignment_line_comment_attaches_to_rhs_valu
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse type declaration assignment seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "type-assignment-seam-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "type-assignment-seam-marker")
         .expect("expected type assignment seam marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected type assignment seam marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::BlockPrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -969,14 +959,14 @@ aa;";
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse type declaration ignore seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+    let annotation_id = find_annotation_by_marker(&ctx, "prettier-ignore")
         .expect("expected type assignment ignore annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected type assignment ignore owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(
@@ -1057,14 +1047,14 @@ fn test_annotation_call_inline_separator_comment_attaches_to_argument_owner() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse call inline separator marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "inline-separator-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "inline-separator-marker")
         .expect("expected inline separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(owner_node_type, NodeType::Argument);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1083,14 +1073,14 @@ fn test_annotation_call_conditional_separator_comment_matches_separator_fixture(
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse conditional separator marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "inline-separator-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "inline-separator-marker")
         .expect("expected inline separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(owner_node_type, NodeType::Argument);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1110,14 +1100,14 @@ fn test_annotation_call_conditional_separator_comment_with_inline_block_matches_
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse conditional separator marker with inline block source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "inline-separator-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "inline-separator-marker")
         .expect("expected inline separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(owner_node_type, NodeType::Argument);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1134,15 +1124,15 @@ export {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse export item separator marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "export-item-separator-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "export-item-separator-marker")
         .expect("expected export item separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected export item separator marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let next_token_type = ctx.annotation_next_non_whitespace_token_type(annotation_id);
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1159,16 +1149,16 @@ fn test_annotation_import_item_separator_line_comment_attaches_to_dependency_ite
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse import item separator marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "import-item-separator-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "import-item-separator-marker")
         .expect("expected import item separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected import item separator marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let previous_token_type = context.annotation_previous_non_whitespace_token_type(annotation_id);
-    let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let previous_token_type = ctx.annotation_previous_non_whitespace_token_type(annotation_id);
+    let next_token_type = ctx.annotation_next_non_whitespace_token_type(annotation_id);
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1186,15 +1176,15 @@ fn test_annotation_import_alias_comment_before_separator_comma_attaches_to_depen
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse import alias separator marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "import-alias-separator-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "import-alias-separator-marker")
         .expect("expected import alias separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected import alias separator marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let next_token_type = ctx.annotation_next_non_whitespace_token_type(annotation_id);
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1211,15 +1201,15 @@ fn test_annotation_import_block_comment_before_separator_comma_attaches_to_depen
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse import block separator marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "import-block-separator-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "import-block-separator-marker")
         .expect("expected import block separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected import block separator marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let next_token_type = ctx.annotation_next_non_whitespace_token_type(annotation_id);
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1236,14 +1226,14 @@ fn test_annotation_parameter_own_line_block_comment_before_close_paren_attaches_
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse parameter separator block marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "parameter-separator-block-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "parameter-separator-block-marker")
         .expect("expected parameter separator block marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected parameter separator block marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(owner_node_type, NodeType::Parameter);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1262,15 +1252,15 @@ fn test_annotation_parameter_multiline_own_line_block_comment_before_close_paren
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse multiline parameter separator block marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let annotation_id =
-        find_annotation_by_marker_fragment(&context, "parameter-separator-multiline-block-marker")
+        find_annotation_by_marker_fragment(&ctx, "parameter-separator-multiline-block-marker")
             .expect("expected multiline parameter separator block marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected multiline parameter separator block marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(owner_node_type, NodeType::Parameter);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1292,17 +1282,15 @@ fn test_annotation_method_parameter_default_own_line_block_comment_before_close_
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse method parameter separator block marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker_fragment(
-        &context,
-        "method-parameter-default-separator-block-marker",
-    )
-    .expect("expected method parameter separator block marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let annotation_id =
+        find_annotation_by_marker_fragment(&ctx, "method-parameter-default-separator-block-marker")
+            .expect("expected method parameter separator block marker annotation");
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected method parameter separator block marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(owner_node_type, NodeType::Parameter);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -1321,15 +1309,15 @@ export {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse export alias seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "export-alias-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "export-alias-marker")
         .expect("expected export alias marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected export alias marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let previous_token_type = context.annotation_previous_non_whitespace_token_type(annotation_id);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let previous_token_type = ctx.annotation_previous_non_whitespace_token_type(annotation_id);
 
     assert_eq!(owner_node_type, NodeType::DependencyItem);
     assert_eq!(position, AnnotationPosition::LinePrefix);
@@ -1358,14 +1346,14 @@ extends BaseInterface {}"#;
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse declaration heritage head seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "heritage-head-seam-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "heritage-head-seam-marker")
         .expect("expected declaration heritage head seam marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected declaration heritage head seam marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(owner_node_type, NodeType::Declaration);
@@ -1399,15 +1387,15 @@ export {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse export alias source with and without from");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     for marker in ["export-alias-from-marker", "export-alias-local-marker"] {
-        let annotation_id = find_annotation_by_marker(&context, marker)
+        let annotation_id = find_annotation_by_marker(&ctx, marker)
             .expect("expected export alias marker annotation");
-        let position = context.annotation(annotation_id).position();
-        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        let position = ctx.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
             .expect("expected export alias marker owner node");
-        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
         assert_eq!(owner_node_type, NodeType::DependencyItem);
         assert_eq!(position, AnnotationPosition::LinePrefix);
@@ -1425,14 +1413,14 @@ fn test_annotation_call_callee_line_comment_stays_on_call_expression() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse call callee line comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "call-line-marker")
-        .expect("expected call line annotation");
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let annotation_id =
+        find_annotation_by_marker(&ctx, "call-line-marker").expect("expected call line annotation");
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected call line annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let position = context.annotation(annotation_id).position();
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let position = ctx.annotation(annotation_id).position();
 
     assert_eq!(owner_node_type, NodeType::Expression);
     assert_eq!(position, AnnotationPosition::LinePostfix);
@@ -1516,14 +1504,14 @@ fn test_annotation_semicolon_guard_comment_before_parenthesized_call_uses_bounda
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse declaration semicolon guard source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "<- THIS spaces")
+    let annotation_id = find_annotation_by_marker(&ctx, "<- THIS spaces")
         .expect("expected semicolon guard marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected semicolon guard marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -1536,14 +1524,14 @@ fn test_annotation_control_head_comment_before_empty_statement_semicolon_stays_o
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse control-head empty statement source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "control-head-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "control-head-marker")
         .expect("expected control-head marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected control-head marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -1574,14 +1562,14 @@ fn test_annotation_do_while_semicolon_guard_comment_stays_on_guarded_expression(
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse do-while semicolon guard source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "do-while-guard-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "do-while-guard-marker")
         .expect("expected do-while guard marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected do-while guard marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::BlockPrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -1619,14 +1607,14 @@ const y = 1;
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse line-leading semicolon seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let annotation_id =
-        find_annotation_by_marker(&context, "first-marker").expect("expected first marker");
-    let position = context.annotation(annotation_id).position();
+        find_annotation_by_marker(&ctx, "first-marker").expect("expected first marker");
+    let position = ctx.annotation(annotation_id).position();
     let owner_node =
-        find_annotation_target_owner_node(&context, annotation_id).expect("expected owner");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        find_annotation_target_owner_node(&ctx, annotation_id).expect("expected owner");
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(
         position,
@@ -1667,14 +1655,14 @@ fn test_annotation_import_trailing_block_comment_after_semicolon_uses_boundary_p
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse import trailing block comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "import-tail-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "import-tail-marker")
         .expect("expected import trailing block comment marker");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected import trailing block comment owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -1725,13 +1713,13 @@ fn test_format_import_empty_specifier_comment_keeps_tail_space_javascript() {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse empty import specifier source");
-    let context = context_from_formatter(&formatter);
-    let annotation_id = find_annotation_by_marker(&context, "import-empty-specifier-marker")
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "import-empty-specifier-marker")
         .expect("expected empty import specifier annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected empty import specifier owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(
         position,
@@ -1756,13 +1744,13 @@ fn test_format_import_empty_specifier_comment_keeps_tail_space_typescript() {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse empty type import specifier source");
-    let context = context_from_formatter(&formatter);
-    let annotation_id = find_annotation_by_marker(&context, "import-type-empty-specifier-marker")
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "import-type-empty-specifier-marker")
         .expect("expected empty type import specifier annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected empty type import specifier owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(
         position,
@@ -1836,14 +1824,14 @@ fn test_annotation_import_with_inline_leading_and_trailing_block_comments_uses_b
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse import inline leading and trailing comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "tail")
+    let annotation_id = find_annotation_by_marker(&ctx, "tail")
         .expect("expected import trailing block comment marker");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected import trailing block comment owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -1856,15 +1844,15 @@ fn test_format_import_with_empty_object_comments_keep_tail_space() {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse import with empty comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_ids = find_annotations_by_marker(&context, "comment");
+    let annotation_ids = find_annotations_by_marker(&ctx, "comment");
     assert_eq!(annotation_ids.len(), 2);
     for annotation_id in annotation_ids {
-        let position = context.annotation(annotation_id).position();
-        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        let position = ctx.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
             .expect("expected import with empty comment owner node");
-        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
         assert_eq!(position, AnnotationPosition::BlockInfix);
         assert_eq!(owner_node_type, NodeType::Expression);
     }
@@ -1903,14 +1891,14 @@ import {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse import list separator comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     for marker in ["FN4,", "tslint:enable"] {
-        let annotation_id = find_annotation_by_marker_fragment(&context, marker)
+        let annotation_id = find_annotation_by_marker_fragment(&ctx, marker)
             .unwrap_or_else(|| panic!("expected marker annotation: {marker}"));
-        let annotation = context.annotation(annotation_id);
-        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        let annotation = ctx.annotation(annotation_id);
+        let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
             .unwrap_or_else(|| panic!("expected marker owner node: {marker}"));
-        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
         assert_eq!(
             annotation.position(),
             AnnotationPosition::LinePostfixBoundary
@@ -1969,11 +1957,11 @@ fn test_annotation_single_call_argument_trailing_line_comment_attachment() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse trailing call argument marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "trailing-argument-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "trailing-argument-marker")
         .expect("expected trailing marker annotation");
-    let position = context.annotation(annotation_id).position();
+    let position = ctx.annotation(annotation_id).position();
 
     assert!(matches!(
         position,
@@ -1999,14 +1987,14 @@ fn test_annotation_call_trailing_separator_comment_attaches_to_argument_owner() 
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse call trailing separator marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "trailing-separator-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "trailing-separator-marker")
         .expect("expected trailing separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Argument);
@@ -2029,14 +2017,14 @@ fn test_annotation_call_trailing_separator_comment_multi_argument_attaches_to_ar
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse call trailing separator marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "trailing-separator-multi-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "trailing-separator-multi-marker")
         .expect("expected trailing separator marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Argument);
@@ -2054,23 +2042,23 @@ fn test_annotation_call_callee_block_comment_stays_on_call_expression() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse call callee block comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let first_annotation_id =
-        find_annotation_by_marker(&context, "call-marker").expect("expected call annotation");
-    let first_owner_node = find_annotation_target_owner_node(&context, first_annotation_id)
+        find_annotation_by_marker(&ctx, "call-marker").expect("expected call annotation");
+    let first_owner_node = find_annotation_target_owner_node(&ctx, first_annotation_id)
         .expect("expected first annotation owner node");
-    let first_owner_node_type = context.tree.get_node_type(first_owner_node as u32);
-    let first_position = context.annotation(first_annotation_id).position();
+    let first_owner_node_type = ctx.tree.get_node_type(first_owner_node as u32);
+    let first_position = ctx.annotation(first_annotation_id).position();
     assert_eq!(first_owner_node_type, NodeType::Expression);
     assert_eq!(first_position, AnnotationPosition::LinePostfix);
 
-    let second_annotation_id = find_annotation_by_marker(&context, "optional-marker")
-        .expect("expected optional annotation");
-    let second_owner_node = find_annotation_target_owner_node(&context, second_annotation_id)
+    let second_annotation_id =
+        find_annotation_by_marker(&ctx, "optional-marker").expect("expected optional annotation");
+    let second_owner_node = find_annotation_target_owner_node(&ctx, second_annotation_id)
         .expect("expected second annotation owner node");
-    let second_owner_node_type = context.tree.get_node_type(second_owner_node as u32);
-    let second_position = context.annotation(second_annotation_id).position();
+    let second_owner_node_type = ctx.tree.get_node_type(second_owner_node as u32);
+    let second_position = ctx.annotation(second_annotation_id).position();
     assert_eq!(second_owner_node_type, NodeType::Expression);
     assert_eq!(second_position, AnnotationPosition::LinePostfix);
 
@@ -2088,10 +2076,10 @@ fn test_type_binary_block_comment_between_operator_and_right_type_renders() {
             p.eat_block(destack_ast::BlockContext::Expression)
         })
         .expect("parse type-binary block seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let annotation_id =
-        find_annotation_by_marker(&context, "between").expect("expected between annotation");
-    let annotation = context.annotation(annotation_id);
+        find_annotation_by_marker(&ctx, "between").expect("expected between annotation");
+    let annotation = ctx.annotation(annotation_id);
     assert_eq!(annotation.position(), AnnotationPosition::LinePrefix);
 
     let formatted = formatter.format(&block_id, DestackFormatOptions::default());
@@ -2107,14 +2095,14 @@ fn test_annotation_type_union_assignment_head_block_comment_is_block_prefix() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse union-head assignment comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "union-head-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "union-head-marker")
         .expect("expected union-head marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected union-head marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::BlockPrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -2142,14 +2130,14 @@ type Value =
     };
     let _ = formatter.tree.get(*value);
 
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "second-tail")
+    let annotation_id = find_annotation_by_marker(&ctx, "second-tail")
         .expect("expected trailing type alias marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected trailing type alias annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -2183,7 +2171,7 @@ type C2 = | (
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse c1 c2 metadata source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let expected_positions = [
         ("c1a", AnnotationPosition::LinePrefix),
@@ -2196,13 +2184,13 @@ type C2 = | (
     ];
 
     for (marker, expected_position) in expected_positions {
-        let annotation_id = find_annotation_by_marker(&context, marker)
+        let annotation_id = find_annotation_by_marker(&ctx, marker)
             .unwrap_or_else(|| panic!("expected marker annotation: {marker}"));
-        let position = context.annotation(annotation_id).position();
-        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        let position = ctx.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
             .unwrap_or_else(|| panic!("expected owner for marker annotation: {marker}"));
-        let owner_node_type = context.tree.get_node_type(owner_node as u32);
-        let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
+        let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+        let next_token = ctx.annotation_next_non_whitespace_token_type(annotation_id);
         assert_eq!(owner_node_type, NodeType::Expression, "marker={marker}");
         assert_eq!(position, expected_position, "marker={marker}");
         assert_eq!(next_token, Some(destack_ast::TokenType::ElementwiseOr));
@@ -2227,11 +2215,10 @@ type C2 = | (
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse c2 line-prefix source");
-    let context = context_from_formatter(&formatter);
-    let annotation_id =
-        find_annotation_by_marker(&context, "c2c").expect("expected c2c annotation");
-    let position = context.annotation(annotation_id).position();
-    let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "c2c").expect("expected c2c annotation");
+    let position = ctx.annotation(annotation_id).position();
+    let next_token = ctx.annotation_next_non_whitespace_token_type(annotation_id);
     assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(next_token, Some(destack_ast::TokenType::ElementwiseOr));
 }
@@ -2246,17 +2233,17 @@ fn test_type_binary_block_comment_between_operator_and_right_type_expression_sta
             p.eat_block(destack_ast::BlockContext::Expression)
         })
         .expect("parse type-binary block seam statement source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let first_annotation_id =
-        find_annotation_by_marker(&context, "between").expect("expected between annotation");
-    let second_annotation_id = find_annotation_by_marker(&context, "sat-between")
-        .expect("expected sat-between annotation");
+        find_annotation_by_marker(&ctx, "between").expect("expected between annotation");
+    let second_annotation_id =
+        find_annotation_by_marker(&ctx, "sat-between").expect("expected sat-between annotation");
     assert_eq!(
-        context.annotation(first_annotation_id).position(),
+        ctx.annotation(first_annotation_id).position(),
         AnnotationPosition::LinePrefix
     );
     assert_eq!(
-        context.annotation(second_annotation_id).position(),
+        ctx.annotation(second_annotation_id).position(),
         AnnotationPosition::LinePrefix
     );
 
@@ -2272,11 +2259,11 @@ fn test_annotation_type_binary_own_line_comment_after_as_attaches_to_rhs() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse own-line as comment source");
-    let context = context_from_formatter(&formatter);
-    let annotation_id = find_annotation_by_marker(&context, "own-line-as-marker")
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "own-line-as-marker")
         .expect("expected own-line as marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let position = ctx.annotation(annotation_id).position();
+    let next_token = ctx.annotation_next_non_whitespace_token_type(annotation_id);
     assert_eq!(
         position,
         AnnotationPosition::BlockPrefix,
@@ -2292,10 +2279,10 @@ fn test_annotation_type_binary_own_line_comment_after_as_with_union_attaches_to_
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse own-line as union comment source");
-    let context = context_from_formatter(&formatter);
-    let annotation_id = find_annotation_by_marker(&context, "own-line-as-union-marker")
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "own-line-as-union-marker")
         .expect("expected own-line as union marker annotation");
-    let position = context.annotation(annotation_id).position();
+    let position = ctx.annotation(annotation_id).position();
     assert_eq!(
         position,
         AnnotationPosition::BlockPrefix,
@@ -2319,11 +2306,11 @@ fn test_annotation_type_binary_own_line_comment_after_as_with_union_reparse_keep
             p.eat_block(destack_ast::BlockContext::Expression)
         })
         .expect("reparse own-line as union reparse formatted source");
-    let reparsed_context = context_from_formatter(&reparsed_formatter);
+    let reparsed_ctx = context_from_formatter(&reparsed_formatter);
     let annotation_id =
-        find_annotation_by_marker(&reparsed_context, "own-line-as-union-reparse-marker")
+        find_annotation_by_marker(&reparsed_ctx, "own-line-as-union-reparse-marker")
             .expect("expected own-line as union reparse marker annotation");
-    let position = reparsed_context.annotation(annotation_id).position();
+    let position = reparsed_ctx.annotation(annotation_id).position();
     assert_eq!(
         position,
         AnnotationPosition::BlockPrefix,
@@ -2347,18 +2334,17 @@ fn test_annotation_parenthesized_union_trailing_arm_comment_stays_on_arm() {
     let (formatter, expressions) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse parenthesized union comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let annotation_id =
-        find_annotation_by_marker(&context, "arm-b").expect("expected arm-b annotation");
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
-        .expect("expected arm-b owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let position = context.annotation(annotation_id).position();
+        find_annotation_by_marker(&ctx, "arm-b").expect("expected arm-b annotation");
+    let owner_node =
+        find_annotation_target_owner_node(&ctx, annotation_id).expect("expected arm-b owner node");
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let position = ctx.annotation(annotation_id).position();
     let owner_expression = if owner_node_type == NodeType::Expression {
         Some(
-            context
-                .tree
+            ctx.tree
                 .get(LocalNodeId::<Expression>::new(owner_node as u32)),
         )
     } else {
@@ -2412,14 +2398,14 @@ fn test_annotation_tsx_alternate_block_comment_stays_in_alternate_branch() {
     let (formatter, expressions) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScriptXml, |p| Ok(p.parse()))
             .expect("parse tsx alternate block comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "keep-inside-branch")
+    let annotation_id = find_annotation_by_marker(&ctx, "keep-inside-branch")
         .expect("expected tsx alternate block annotation");
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected tsx alternate block owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let position = context.annotation(annotation_id).position();
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let position = ctx.annotation(annotation_id).position();
 
     assert_eq!(
         owner_node_type,
@@ -2461,13 +2447,13 @@ fn test_type_mapped_remap_line_comment_attachment() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse mapped remap comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let annotation_id =
-        find_annotation_by_marker(&context, "remap-note").expect("expected remap-note annotation");
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
-        .expect("expected remap owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let position = context.annotation(annotation_id).position();
+        find_annotation_by_marker(&ctx, "remap-note").expect("expected remap-note annotation");
+    let owner_node =
+        find_annotation_target_owner_node(&ctx, annotation_id).expect("expected remap owner node");
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let position = ctx.annotation(annotation_id).position();
     assert_eq!(owner_node_type, NodeType::Expression);
     assert_eq!(position, AnnotationPosition::LinePostfix);
     assert_format_program_idempotent_with_file_type(
@@ -2487,21 +2473,21 @@ fn test_prefix_cast_comment_keeps_space_before_parenthesized_value() {
             p.eat_block(destack_ast::BlockContext::Expression)
         })
         .expect("parse parenthesized cast argument source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker_fragment(&context, "@type")
-        .expect("expected cast doc annotation");
-    let annotation_position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let annotation_id =
+        find_annotation_by_marker_fragment(&ctx, "@type").expect("expected cast doc annotation");
+    let annotation_position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected cast doc owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
     let owner_expression = (owner_node_type == NodeType::Expression).then(|| {
         let owner_expression_id = LocalNodeId::<Expression>::new(owner_node as u32);
-        context.tree.get(owner_expression_id)
+        ctx.tree.get(owner_expression_id)
     });
 
     assert!(matches!(
-        context.annotation(annotation_id),
+        ctx.annotation(annotation_id),
         Annotation::Doc { .. }
     ));
     assert_eq!(annotation_position, AnnotationPosition::LinePrefix);
@@ -2526,31 +2512,29 @@ fn test_assignment_rhs_docs_attach_to_rhs_owner() {
     let (formatter, expressions) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse assignment rhs docs source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let first_expression = expressions
         .first()
         .copied()
         .expect("expected one parsed expression");
-    let assignment_expression = match context.tree.get(first_expression) {
+    let assignment_expression = match ctx.tree.get(first_expression) {
         Expression::Statement(expression) => *expression,
         _ => first_expression,
     };
-    let Expression::Assign { right, .. } = context.tree.get(assignment_expression) else {
+    let Expression::Assign { right, .. } = ctx.tree.get(assignment_expression) else {
         panic!("expected assignment expression");
     };
 
-    let annotation_ids = context
+    let annotation_ids = ctx
         .annotations(*right)
         .expect("expected rhs annotation ids");
     let doc_count = annotation_ids
         .iter()
-        .filter(|annotation_id| {
-            matches!(context.annotation(**annotation_id), Annotation::Doc { .. })
-        })
+        .filter(|annotation_id| matches!(ctx.annotation(**annotation_id), Annotation::Doc { .. }))
         .count();
     assert_eq!(doc_count, 2);
-    assert!(context.has_prefix_annotation(*right));
+    assert!(ctx.has_prefix_annotation(*right));
 }
 
 /// Doc comments after declarator `=` attach to declarator rhs values.
@@ -2565,37 +2549,35 @@ fn test_declarator_rhs_docs_attach_to_rhs_owner() {
     let (formatter, expressions) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse declarator rhs docs source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let first_expression = expressions
         .first()
         .copied()
         .expect("expected one parsed expression");
-    let declaration_expression = match context.tree.get(first_expression) {
+    let declaration_expression = match ctx.tree.get(first_expression) {
         Expression::Statement(expression) => *expression,
         _ => first_expression,
     };
-    let Expression::Let { declarators, .. } = context.tree.get(declaration_expression) else {
+    let Expression::Let { declarators, .. } = ctx.tree.get(declaration_expression) else {
         panic!("expected let expression");
     };
     let declarator_id = declarators
         .first()
         .copied()
         .expect("expected one declarator");
-    let declarator = context.tree.get(declarator_id);
+    let declarator = ctx.tree.get(declarator_id);
     let value_id = declarator.value.expect("expected declarator value");
 
-    let annotation_ids = context
+    let annotation_ids = ctx
         .annotations(value_id)
         .expect("expected rhs annotation ids");
     let doc_count = annotation_ids
         .iter()
-        .filter(|annotation_id| {
-            matches!(context.annotation(**annotation_id), Annotation::Doc { .. })
-        })
+        .filter(|annotation_id| matches!(ctx.annotation(**annotation_id), Annotation::Doc { .. }))
         .count();
     assert_eq!(doc_count, 2);
-    assert!(context.has_prefix_annotation(value_id));
+    assert!(ctx.has_prefix_annotation(value_id));
 }
 
 /// Complex nested jsdoc declarator seams keep docs on the rhs value owner.
@@ -2617,37 +2599,35 @@ fn test_declarator_rhs_jsdoc_nestled_docs_attach_to_rhs_owner() {
     let (formatter, expressions) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse jsdoc nested assignment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let first_expression = expressions
         .first()
         .copied()
         .expect("expected one parsed expression");
-    let declaration_expression = match context.tree.get(first_expression) {
+    let declaration_expression = match ctx.tree.get(first_expression) {
         Expression::Statement(expression) => *expression,
         _ => first_expression,
     };
-    let Expression::Let { declarators, .. } = context.tree.get(declaration_expression) else {
+    let Expression::Let { declarators, .. } = ctx.tree.get(declaration_expression) else {
         panic!("expected let expression");
     };
     let declarator_id = declarators
         .first()
         .copied()
         .expect("expected one declarator");
-    let declarator = context.tree.get(declarator_id);
+    let declarator = ctx.tree.get(declarator_id);
     let value_id = declarator.value.expect("expected declarator value");
 
-    let annotation_ids = context
+    let annotation_ids = ctx
         .annotations(value_id)
         .expect("expected rhs annotation ids");
     let doc_count = annotation_ids
         .iter()
-        .filter(|annotation_id| {
-            matches!(context.annotation(**annotation_id), Annotation::Doc { .. })
-        })
+        .filter(|annotation_id| matches!(ctx.annotation(**annotation_id), Annotation::Doc { .. }))
         .count();
     assert!(doc_count >= 2);
-    assert!(context.has_prefix_annotation(value_id));
+    assert!(ctx.has_prefix_annotation(value_id));
 }
 
 /// Doc comments before assignment-expression declarator values should stay idempotent.
@@ -2714,10 +2694,10 @@ fn test_annotation_render_info_condition_comment_precedes_separator() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse separator marker source");
-    let context = context_from_formatter(&formatter);
-    let annotation_id = find_annotation_by_marker(&context, "separator-marker")
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "separator-marker")
         .expect("expected marker-tagged separator annotation");
-    let precedes_separator = annotation_precedes_separator(&context, annotation_id);
+    let precedes_separator = annotation_precedes_separator(&ctx, annotation_id);
     assert!(precedes_separator);
 }
 
@@ -2744,14 +2724,12 @@ export class MeetupSeries {
     let (formatter, expressions) =
         TestFormatter::parse_with_file_type(source, FileType::Destack, |p| Ok(p.parse()))
             .expect("parse file-level doc ownership source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(
-        &context,
-        "A Series of related Meetups (with a common prefix).",
-    )
-    .expect("expected class doc annotation");
-    let _ = find_annotation_target_owner_node(&context, annotation_id)
+    let annotation_id =
+        find_annotation_by_marker(&ctx, "A Series of related Meetups (with a common prefix).")
+            .expect("expected class doc annotation");
+    let _ = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected class doc owner node");
 
     let formatted = formatter.format(
@@ -2857,36 +2835,33 @@ fn test_annotation_decorator_between_comments_attach_to_declaration_prefix() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse decorator comment ownership source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let comment_after_entity_id = find_annotation_by_marker(&context, "comment after entity")
+    let comment_after_entity_id = find_annotation_by_marker(&ctx, "comment after entity")
         .expect("expected comment after entity annotation");
-    let comment_before_foo_id = find_annotation_by_marker(&context, "comment before foo")
+    let comment_before_foo_id = find_annotation_by_marker(&ctx, "comment before foo")
         .expect("expected comment before foo annotation");
 
     let comment_after_entity_owner =
-        find_annotation_target_owner_node(&context, comment_after_entity_id)
+        find_annotation_target_owner_node(&ctx, comment_after_entity_id)
             .expect("expected comment after entity owner");
-    let comment_before_foo_owner =
-        find_annotation_target_owner_node(&context, comment_before_foo_id)
-            .expect("expected comment before foo owner");
+    let comment_before_foo_owner = find_annotation_target_owner_node(&ctx, comment_before_foo_id)
+        .expect("expected comment before foo owner");
 
     assert_eq!(
-        context.annotation(comment_after_entity_id).position(),
+        ctx.annotation(comment_after_entity_id).position(),
         AnnotationPosition::BlockPrefix
     );
     assert_eq!(
-        context.annotation(comment_before_foo_id).position(),
+        ctx.annotation(comment_before_foo_id).position(),
         AnnotationPosition::BlockPrefix
     );
     assert_eq!(
-        context
-            .tree
-            .get_node_type(comment_after_entity_owner as u32),
+        ctx.tree.get_node_type(comment_after_entity_owner as u32),
         NodeType::Declaration
     );
     assert_eq!(
-        context.tree.get_node_type(comment_before_foo_owner as u32),
+        ctx.tree.get_node_type(comment_before_foo_owner as u32),
         NodeType::Declaration
     );
 }
@@ -2944,14 +2919,14 @@ fn test_annotation_decorator_call_object_member_trailing_comment_attachment() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse decorator call trailing comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "decorator-call-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "decorator-call-marker")
         .expect("expected decorator call marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(owner_node_type, NodeType::Property);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
@@ -3175,15 +3150,15 @@ fn test_annotation_roundtrip_fixture_0052_second_comment_stays_line_prefix() {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse roundtrip fixture 0052 source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let marker = "Glob include foo/**/*.js, glob exclude bar directory";
-    let annotation_id = find_annotation_by_marker(&context, marker)
+    let annotation_id = find_annotation_by_marker(&ctx, marker)
         .expect("expected second glob include marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected second glob include marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(
         position,
@@ -3213,14 +3188,14 @@ fn test_annotation_empty_object_line_comment_stays_object_infix() {
         p.eat_expression(Default::default())
     })
     .expect("parse empty object line comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "empty-object-line-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "empty-object-line-marker")
         .expect("expected empty object line marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected empty object line marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
     assert_eq!(
         position,
         AnnotationPosition::BlockInfix,
@@ -3250,14 +3225,14 @@ fn test_annotation_closing_delimiter_comma_own_line_comment_is_line_postfix_boun
         p.eat_expression(Default::default())
     })
     .expect("parse closing delimiter comma comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "closing-delimiter-comma-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "closing-delimiter-comma-marker")
         .expect("expected closing delimiter comma marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected closing delimiter comma marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(
         position,
@@ -3288,14 +3263,14 @@ fn test_annotation_closing_delimiter_own_line_comment_has_stable_owner() {
         p.eat_expression(Default::default())
     })
     .expect("parse closing delimiter comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "closing-delimiter-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "closing-delimiter-marker")
         .expect("expected closing delimiter marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected closing delimiter marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_ne!(
         position,
@@ -3451,26 +3426,26 @@ import x from "module";
     let (formatter, expressions) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse file-head line-comment gap source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let first_expression_id = *expressions.first().expect("expected import expression");
     let first_comment_annotation_id =
-        find_annotation_by_marker(&context, "first line").expect("expected first line comment");
-    let owner_node = find_annotation_target_owner_node(&context, first_comment_annotation_id)
+        find_annotation_by_marker(&ctx, "first line").expect("expected first line comment");
+    let owner_node = find_annotation_target_owner_node(&ctx, first_comment_annotation_id)
         .expect("expected owner for first line comment");
     let owner_node_id = owner_node as u32;
     assert_eq!(
-        context.tree.get_node_type(owner_node_id),
+        ctx.tree.get_node_type(owner_node_id),
         NodeType::Expression,
         "expected file-head line comment owner to be an expression node",
     );
 
-    let annotations = context
+    let annotations = ctx
         .formatter_annotation_ids_by_node_id
         .get(owner_node)
         .expect("expected annotation ids for comment owner node");
     let has_blank_prefix = annotations.iter().copied().any(|annotation_id| {
         matches!(
-            context.annotation(annotation_id),
+            ctx.annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
                 ..
@@ -3481,10 +3456,8 @@ import x from "module";
     assert!(
         has_blank_prefix,
         "expected one blank prefix annotation on file-head comment owner: owner={owner_node_id:?} owner_expression={:?} first_expression={:?} parse_expressions={:?}",
-        context
-            .tree
-            .get(LocalNodeId::<Expression>::new(owner_node_id)),
-        context.tree.get(first_expression_id),
+        ctx.tree.get(LocalNodeId::<Expression>::new(owner_node_id)),
+        ctx.tree.get(first_expression_id),
         expressions,
     );
 }
@@ -3949,14 +3922,14 @@ fn test_annotation_zero_argument_parenthesized_callee_comment_stays_on_parenthes
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse zero-argument parenthesized callee seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "zero-arg-callee-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "zero-arg-callee-marker")
         .expect("expected zero-argument parenthesized callee seam marker");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected zero-argument parenthesized callee seam owner node");
-    let owner_expression = context
+    let owner_expression = ctx
         .tree
         .get(LocalNodeId::<Expression>::new(owner_node as u32));
 
@@ -4082,40 +4055,38 @@ fn test_decorator_annotation_span_stops_before_inline_member_head() {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
     .expect("parse inline member decorator source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let (annotation_id, owner_node) = context
+    let (annotation_id, owner_node) = ctx
         .formatter_annotation_entries
         .iter()
         .enumerate()
         .find_map(|(index, _)| {
             let annotation_id = LocalNodeId::<Annotation>::new(index as u32);
-            let is_decorator = matches!(
-                context.annotation(annotation_id),
-                Annotation::Decorator { .. }
-            );
+            let is_decorator =
+                matches!(ctx.annotation(annotation_id), Annotation::Decorator { .. });
             if !is_decorator {
                 return None;
             }
-            let owner_node = find_annotation_target_owner_node(&context, annotation_id)?;
+            let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)?;
             Some((annotation_id, owner_node))
         })
         .expect("expected decorator annotation");
 
     let owner_node_id = owner_node as u32;
-    assert_eq!(context.tree.get_node_type(owner_node_id), NodeType::Member);
+    assert_eq!(ctx.tree.get_node_type(owner_node_id), NodeType::Member);
     assert_eq!(
-        context.annotation(annotation_id).position(),
+        ctx.annotation(annotation_id).position(),
         AnnotationPosition::BlockPrefix
     );
 
-    let annotation_span = context.annotation_span(annotation_id);
-    let owner_span = context.tree.get_span_by_id(owner_node_id);
+    let annotation_span = ctx.annotation_span(annotation_id);
+    let owner_span = ctx.tree.get_span_by_id(owner_node_id);
     assert!(
         annotation_span.end <= owner_span.start,
         "decorator span should end before member head: annotation_span={annotation_span:?} owner_span={owner_span:?} annotation={:?} owner={:?}",
-        context.span_str(annotation_span),
-        context.span_str(owner_span),
+        ctx.span_str(annotation_span),
+        ctx.span_str(owner_span),
     );
 }
 
@@ -4255,24 +4226,24 @@ verylongidentifierthatwillwrap123123123123123(
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse member-dot own-line comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "issue-10661-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "issue-10661-marker")
         .expect("expected member-dot marker annotation");
-    let ignore_annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+    let ignore_annotation_id = find_annotation_by_marker(&ctx, "prettier-ignore")
         .expect("expected member-dot ignore annotation");
-    let position = context.annotation(annotation_id).position();
-    let ignore_position = context.annotation(ignore_annotation_id).position();
-    let previous_token_type = context.annotation_previous_non_whitespace_token_type(annotation_id);
-    let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let position = ctx.annotation(annotation_id).position();
+    let ignore_position = ctx.annotation(ignore_annotation_id).position();
+    let previous_token_type = ctx.annotation_previous_non_whitespace_token_type(annotation_id);
+    let next_token_type = ctx.annotation_next_non_whitespace_token_type(annotation_id);
     let ignore_next_non_trivia_token_type =
-        context.annotation_next_non_trivia_token_type(ignore_annotation_id);
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        ctx.annotation_next_non_trivia_token_type(ignore_annotation_id);
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected member-dot marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let ignore_owner_node = find_annotation_target_owner_node(&context, ignore_annotation_id)
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let ignore_owner_node = find_annotation_target_owner_node(&ctx, ignore_annotation_id)
         .expect("expected member-dot ignore owner node");
-    let ignore_owner_node_type = context.tree.get_node_type(ignore_owner_node as u32);
+    let ignore_owner_node_type = ctx.tree.get_node_type(ignore_owner_node as u32);
 
     assert_eq!(
         position,
@@ -4290,7 +4261,7 @@ verylongidentifierthatwillwrap123123123123123(
         "expected member-dot ignore directive to stay on a dot continuation seam, got {ignore_next_non_trivia_token_type:?}"
     );
     assert_eq!(owner_node_type, NodeType::Expression);
-    let owner_expression = context
+    let owner_expression = ctx
         .tree
         .get(LocalNodeId::<Expression>::new(owner_node as u32));
     assert!(
@@ -4302,7 +4273,7 @@ verylongidentifierthatwillwrap123123123123123(
         NodeType::Expression,
         "expected member-dot ignore directive owner to stay expression-boundary, got owner={ignore_owner_node} type={ignore_owner_node_type:?}"
     );
-    let ignore_owner_expression = context
+    let ignore_owner_expression = ctx
         .tree
         .get(LocalNodeId::<Expression>::new(ignore_owner_node as u32));
     assert!(
@@ -4328,29 +4299,29 @@ verylongidentifierthatwillwrap123123123123123(
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse member-dot own-line ignore source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let ignore_annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+    let ignore_annotation_id = find_annotation_by_marker(&ctx, "prettier-ignore")
         .expect("expected member-dot ignore annotation");
-    let comment_annotation_id = find_annotation_by_marker(&context, "Some other comment here")
+    let comment_annotation_id = find_annotation_by_marker(&ctx, "Some other comment here")
         .expect("expected member-dot plain comment annotation");
-    let ignore_position = context.annotation(ignore_annotation_id).position();
-    let comment_position = context.annotation(comment_annotation_id).position();
+    let ignore_position = ctx.annotation(ignore_annotation_id).position();
+    let comment_position = ctx.annotation(comment_annotation_id).position();
     let ignore_next_non_trivia_token_type =
-        context.annotation_next_non_trivia_token_type(ignore_annotation_id);
-    let ignore_next_non_whitespace_token = context
+        ctx.annotation_next_non_trivia_token_type(ignore_annotation_id);
+    let ignore_next_non_whitespace_token = ctx
         .annotation_next_non_whitespace_token(ignore_annotation_id)
         .expect("expected next non-whitespace token for ignore annotation");
-    let ignore_owner_node = find_annotation_target_owner_node(&context, ignore_annotation_id)
+    let ignore_owner_node = find_annotation_target_owner_node(&ctx, ignore_annotation_id)
         .expect("expected member-dot ignore owner node");
-    let comment_owner_node = find_annotation_target_owner_node(&context, comment_annotation_id)
+    let comment_owner_node = find_annotation_target_owner_node(&ctx, comment_annotation_id)
         .expect("expected member-dot plain comment owner node");
     let ignore_owner_expression_id = LocalNodeId::<Expression>::new(ignore_owner_node as u32);
-    let ignore_owner_span = context.span(ignore_owner_expression_id);
-    let first_dot_start = context
+    let ignore_owner_span = ctx.span(ignore_owner_expression_id);
+    let first_dot_start = ctx
         .nth_token_type_start_in_span(ignore_owner_span, TokenType::Dot, 1)
         .expect("expected first path dot");
-    let second_dot_start = context
+    let second_dot_start = ctx
         .nth_token_type_start_in_span(ignore_owner_span, TokenType::Dot, 2)
         .expect("expected second path dot");
 
@@ -4366,17 +4337,17 @@ verylongidentifierthatwillwrap123123123123123(
         "member-dot ignore should not target the first dot seam",
     );
     assert_eq!(
-        context.tree.get_node_type(ignore_owner_node as u32),
+        ctx.tree.get_node_type(ignore_owner_node as u32),
         NodeType::Expression
     );
     assert_eq!(
-        context.tree.get_node_type(comment_owner_node as u32),
+        ctx.tree.get_node_type(comment_owner_node as u32),
         NodeType::Expression
     );
-    let ignore_owner_expression = context
+    let ignore_owner_expression = ctx
         .tree
         .get(LocalNodeId::<Expression>::new(ignore_owner_node as u32));
-    let comment_owner_expression = context
+    let comment_owner_expression = ctx
         .tree
         .get(LocalNodeId::<Expression>::new(comment_owner_node as u32));
     assert!(
@@ -4411,21 +4382,21 @@ Something
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse member-dot flowfix source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let annotation_id =
-        find_annotation_by_marker(&context, "flowfix-marker").expect("expected flowfix marker");
-    let position = context.annotation(annotation_id).position();
-    let has_leading_newline = context.annotation_has_leading_newline(annotation_id);
-    let starts_on_own_line = context.annotation_starts_on_own_line(annotation_id);
+        find_annotation_by_marker(&ctx, "flowfix-marker").expect("expected flowfix marker");
+    let position = ctx.annotation(annotation_id).position();
+    let has_leading_newline = ctx.annotation_has_leading_newline(annotation_id);
+    let starts_on_own_line = ctx.annotation_starts_on_own_line(annotation_id);
     let previous_non_whitespace_token_type =
-        context.annotation_previous_non_whitespace_token_type(annotation_id);
-    let next_non_trivia_token_type = context.annotation_next_non_trivia_token_type(annotation_id);
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        ctx.annotation_previous_non_whitespace_token_type(annotation_id);
+    let next_non_trivia_token_type = ctx.annotation_next_non_trivia_token_type(annotation_id);
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected flowfix marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
-    let owner_expression = context
+    let owner_expression = ctx
         .tree
         .get(LocalNodeId::<Expression>::new(owner_node as u32));
     assert_eq!(
@@ -4514,14 +4485,14 @@ type T = {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse mapped type value ignore source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+    let annotation_id = find_annotation_by_marker(&ctx, "prettier-ignore")
         .expect("expected mapped type value ignore annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected mapped type value ignore owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -4539,14 +4510,14 @@ type T = (A | B) & (
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse intersection rhs ignore source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+    let annotation_id = find_annotation_by_marker(&ctx, "prettier-ignore")
         .expect("expected intersection rhs ignore annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected intersection rhs ignore owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -4562,14 +4533,14 @@ Second
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse union separator seam source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "union-seam-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "union-seam-marker")
         .expect("expected union seam marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected union seam marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -4587,9 +4558,9 @@ fn test_annotation_jsx_spread_value_ignore_comment_stays_on_value_expression() {
     let (formatter, roots) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
             .expect("parse jsx spread value ignore source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_ids = find_annotations_by_marker(&context, "prettier-ignore");
+    let annotation_ids = find_annotations_by_marker(&ctx, "prettier-ignore");
     assert_eq!(
         annotation_ids.len(),
         1,
@@ -4597,23 +4568,23 @@ fn test_annotation_jsx_spread_value_ignore_comment_stays_on_value_expression() {
         annotation_ids.len()
     );
     let annotation_id = annotation_ids[0];
-    let position = context.annotation(annotation_id).position();
-    let annotation = context.annotation(annotation_id);
+    let position = ctx.annotation(annotation_id).position();
+    let annotation = ctx.annotation(annotation_id);
     let comment_node = match annotation {
         Annotation::Comment { node, .. } => node,
         _ => panic!("expected comment annotation for prettier-ignore"),
     };
-    let comment_span = context.span(comment_node);
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let comment_span = ctx.span(comment_node);
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected prettier-ignore owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
-    let owner_expression = context
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
+    let owner_expression = ctx
         .tree
         .get(LocalNodeId::<Expression>::new(owner_node as u32));
     let smallest_owner =
-        find_smallest_owner_enclosing_range(context.tree, comment_span.start, comment_span.end);
-    let previous_token_type = context.annotation_previous_non_whitespace_token_type(annotation_id);
-    let next_token_type = context
+        find_smallest_owner_enclosing_range(ctx.tree, comment_span.start, comment_span.end);
+    let previous_token_type = ctx.annotation_previous_non_whitespace_token_type(annotation_id);
+    let next_token_type = ctx
         .annotation_next_non_whitespace_token(annotation_id)
         .map(|token| token.token.ty);
 
@@ -4654,14 +4625,14 @@ type A3 =
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse leading-pipe union comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "leading-union-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "leading-union-marker")
         .expect("expected leading-pipe union annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected leading-pipe union annotation owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
@@ -4687,14 +4658,14 @@ type A2 =
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse union fixture 18379 ignore source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let ignore_annotations = find_annotations_by_marker(&context, "prettier-ignore");
+    let ignore_annotations = find_annotations_by_marker(&ctx, "prettier-ignore");
     assert_eq!(ignore_annotations.len(), 2);
 
     let positions: Vec<AnnotationPosition> = ignore_annotations
         .iter()
-        .map(|annotation_id| context.annotation(*annotation_id).position())
+        .map(|annotation_id| ctx.annotation(*annotation_id).position())
         .collect();
 
     assert!(positions.contains(&AnnotationPosition::LinePostfixBoundary));
@@ -4734,13 +4705,13 @@ type d= {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse mapped type ignore source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let ignore_annotations = find_annotations_by_marker(&context, "prettier-ignore");
+    let ignore_annotations = find_annotations_by_marker(&ctx, "prettier-ignore");
     assert_eq!(ignore_annotations.len(), 4);
     for annotation_id in ignore_annotations {
         assert_eq!(
-            context.annotation(annotation_id).position(),
+            ctx.annotation(annotation_id).position(),
             AnnotationPosition::LinePrefix
         );
     }
@@ -4810,16 +4781,16 @@ fn test_annotation_if_nested_unary_own_line_comment_attaches_to_inner_unary() {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse nested unary own-line marker source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "if-nested-unary-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "if-nested-unary-marker")
         .expect("expected nested unary own-line marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected nested unary own-line marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
     let owner_expression_kind = if owner_node_type == NodeType::Expression {
-        match context
+        match ctx
             .tree
             .get(LocalNodeId::<Expression>::new(owner_node as u32))
         {
@@ -4915,9 +4886,9 @@ fn test_format_type_member_multiline_block_comment_before_semicolon_is_idempoten
     let source = r#"type BitDecorator<T> = BitDecoratorCall<T> & {
   storage(
     value: unknown,
-    context: ClassFieldDecoratorContext<T, number>
+    ctx: ClassFieldDecoratorContext<T, number>
   ): void /*{
-    context.metadata.bitsStorage = context.access;
+    ctx.metadata.bitsStorage = ctx.access;
   }*/;
 };
 "#;
@@ -5108,14 +5079,14 @@ test.fixme("x", async ({ page: _page }, testInfo) => {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse own-line call-block comment source");
-    let context = context_from_formatter(&formatter);
-    let annotation_id = find_annotation_by_marker(&context, "issue-17272")
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "issue-17272")
         .expect("expected own-line comment annotation");
     assert_eq!(
-        context.annotation(annotation_id).position(),
+        ctx.annotation(annotation_id).position(),
         AnnotationPosition::LinePrefix,
         "position={:?}",
-        context.annotation(annotation_id).position()
+        ctx.annotation(annotation_id).position()
     );
 
     assert_format_program_roundtrip_with_file_type(
@@ -5133,19 +5104,19 @@ fn test_annotation_typescript_export_return_comment_before_semicolon_is_boundary
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse typescript export return semicolon source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "export-return-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "export-return-marker")
         .expect("expected export return marker annotation");
-    let annotation = context.annotation(annotation_id);
+    let annotation = ctx.annotation(annotation_id);
     let position = annotation.position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected export return marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     if owner_node_type == NodeType::Expression {
-        let owner_expression = context
+        let owner_expression = ctx
             .tree
             .get(LocalNodeId::<Expression>::new(owner_node as u32));
         assert!(
@@ -5154,7 +5125,7 @@ fn test_annotation_typescript_export_return_comment_before_semicolon_is_boundary
         );
     }
     assert!(
-        annotation_precedes_separator(&context, annotation_id),
+        annotation_precedes_separator(&ctx, annotation_id),
         "export return marker should precede trailing semicolon separator"
     );
 
@@ -5175,18 +5146,18 @@ fn test_annotation_unary_inner_comment_before_close_parenthesis_stays_inner_oper
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse unary grouped close-parenthesis comment source");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
-    let annotation_id = find_annotation_by_marker(&context, "unary-inner-marker")
+    let annotation_id = find_annotation_by_marker(&ctx, "unary-inner-marker")
         .expect("expected unary grouped close-parenthesis marker annotation");
-    let position = context.annotation(annotation_id).position();
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let position = ctx.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected unary grouped close-parenthesis marker owner node");
-    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_node_type = ctx.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePostfix);
     if owner_node_type == NodeType::Expression {
-        let owner_expression = context
+        let owner_expression = ctx
             .tree
             .get(LocalNodeId::<Expression>::new(owner_node as u32));
         assert!(
@@ -5249,11 +5220,11 @@ fn test_annotation_own_line_ignore_comment_after_nested_block_stays_leading() {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse own-line ignore comment source");
-    let context = context_from_formatter(&formatter);
-    let annotation_id = find_annotation_by_marker(&context, "oxfmt-ignore")
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "oxfmt-ignore")
         .expect("expected own-line ignore annotation");
     assert_eq!(
-        context.annotation(annotation_id).position(),
+        ctx.annotation(annotation_id).position(),
         AnnotationPosition::LinePrefix
     );
 
@@ -5342,8 +5313,8 @@ fn test_annotation_parenthesized_iife_ignore_comments_are_present() {
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
             .expect("parse parenthesized iife ignore source");
-    let context = context_from_formatter(&formatter);
-    let ignore_annotations = find_annotations_by_marker(&context, "prettier-ignore");
+    let ctx = context_from_formatter(&formatter);
+    let ignore_annotations = find_annotations_by_marker(&ctx, "prettier-ignore");
 
     assert_eq!(
         ignore_annotations.len(),
@@ -5352,7 +5323,7 @@ fn test_annotation_parenthesized_iife_ignore_comments_are_present() {
     );
 
     for annotation_id in ignore_annotations {
-        let position = context.annotation(annotation_id).position();
+        let position = ctx.annotation(annotation_id).position();
 
         assert_eq!(
             position,
@@ -5419,33 +5390,33 @@ fn test_annotation_arrow_iife_trailing_comma_comments_keep_owner_order() {
         | destack_ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
     };
 
-    let context = context_from_formatter(&formatter);
-    let leading_one_annotation = find_annotation_by_marker(&context, "leading 1")
+    let ctx = context_from_formatter(&formatter);
+    let leading_one_annotation = find_annotation_by_marker(&ctx, "leading 1")
         .expect("expected leading 1 trailing comma annotation");
-    let leading_two_annotation = find_annotation_by_marker(&context, "leading 2")
+    let leading_two_annotation = find_annotation_by_marker(&ctx, "leading 2")
         .expect("expected leading 2 trailing comma annotation");
 
-    let leading_one_owner = find_annotation_target_owner_node(&context, leading_one_annotation)
+    let leading_one_owner = find_annotation_target_owner_node(&ctx, leading_one_annotation)
         .expect("expected leading 1 owner");
-    let leading_two_owner = find_annotation_target_owner_node(&context, leading_two_annotation)
+    let leading_two_owner = find_annotation_target_owner_node(&ctx, leading_two_annotation)
         .expect("expected leading 2 owner");
-    let leading_one_owner_span_start = context.span_by_id(leading_one_owner as u32).start;
-    let leading_two_owner_span_start = context.span_by_id(leading_two_owner as u32).start;
+    let leading_one_owner_span_start = ctx.span_by_id(leading_one_owner as u32).start;
+    let leading_two_owner_span_start = ctx.span_by_id(leading_two_owner as u32).start;
     let leading_one_previous_token =
-        context.annotation_previous_non_whitespace_token_type(leading_one_annotation);
+        ctx.annotation_previous_non_whitespace_token_type(leading_one_annotation);
     let leading_two_previous_token =
-        context.annotation_previous_non_whitespace_token_type(leading_two_annotation);
+        ctx.annotation_previous_non_whitespace_token_type(leading_two_annotation);
     let leading_one_next_token =
-        context.annotation_next_non_whitespace_token_type(leading_one_annotation);
+        ctx.annotation_next_non_whitespace_token_type(leading_one_annotation);
     let leading_two_next_token =
-        context.annotation_next_non_whitespace_token_type(leading_two_annotation);
+        ctx.annotation_next_non_whitespace_token_type(leading_two_annotation);
 
     assert!(matches!(
-        context.annotation(leading_one_annotation).position(),
+        ctx.annotation(leading_one_annotation).position(),
         AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
     ));
     assert!(matches!(
-        context.annotation(leading_two_annotation).position(),
+        ctx.annotation(leading_two_annotation).position(),
         AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
     ));
     assert_eq!(leading_one_previous_token, Some(TokenType::Comma));
@@ -5490,23 +5461,23 @@ fn test_annotation_call_argument_head_own_line_comment_stays_on_first_argument()
         | destack_ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
     };
 
-    let context = context_from_formatter(&formatter);
-    let annotation_id = find_annotation_by_marker(&context, "Buttons 0-9")
+    let ctx = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&ctx, "Buttons 0-9")
         .expect("expected call argument head own-line annotation");
-    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+    let owner_node = find_annotation_target_owner_node(&ctx, annotation_id)
         .expect("expected call argument head own-line owner");
-    let owner_span_start = context.span_by_id(owner_node as u32).start;
+    let owner_span_start = ctx.span_by_id(owner_node as u32).start;
 
     assert_eq!(
-        context.annotation(annotation_id).position(),
+        ctx.annotation(annotation_id).position(),
         AnnotationPosition::LinePrefix
     );
     assert_eq!(
-        context.annotation_previous_non_whitespace_token_type(annotation_id),
+        ctx.annotation_previous_non_whitespace_token_type(annotation_id),
         Some(TokenType::OpenParenthesis)
     );
     assert_eq!(
-        context.annotation_next_non_whitespace_token_type(annotation_id),
+        ctx.annotation_next_non_whitespace_token_type(annotation_id),
         Some(TokenType::Identifier)
     );
     assert_eq!(owner_span_start, first_argument_span_start);
