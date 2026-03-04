@@ -4,7 +4,7 @@ defmodule Destack do
   """
 
   @backend "elixir"
-  @version "0.55.3"
+  @version "0.55.4"
 
   @doc """
   Return the backend marker.

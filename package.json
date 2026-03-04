@@ -1,6 +1,6 @@
 {
     "name": "@destack/monorepo",
-    "version": "0.55.3",
+    "version": "0.55.4",
     "license": "MIT",
     "private": true,
     "type": "module",

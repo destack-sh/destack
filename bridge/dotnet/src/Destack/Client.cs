@@ -18,7 +18,7 @@ public static class BackendMarker
 /// </summary>
 public sealed class Client
 {
-    private const string FallbackVersion = "0.55.3";
+    private const string FallbackVersion = "0.55.4";
 
     private static readonly CapiBindings? Capi = CapiBindings.TryLoad();
 
@@ -54,7 +54,7 @@ public sealed class Client
 
 internal sealed class CapiBindings
 {
-    private const string FallbackVersion = "0.55.3";
+    private const string FallbackVersion = "0.55.4";
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate uint AbiVersionFunction();

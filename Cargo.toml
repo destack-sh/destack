@@ -64,7 +64,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.55.3"
+version = "0.55.4"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "MIT"
@@ -110,7 +110,7 @@ destack_lsp_types = { path = "service/lsp/types" }
 destack_cli = { path = "app/cli" }
 
 # bridge
-destack_bridge_core = { path = "bridge/core", version = "=0.55.3" }
+destack_bridge_core = { path = "bridge/core", version = "=0.55.4" }
 destack_capi = { path = "bridge/capi" }
 destack_napi = { path = "bridge/napi" }
 destack_wasm = { path = "bridge/wasm" }

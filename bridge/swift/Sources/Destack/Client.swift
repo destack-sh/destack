@@ -8,7 +8,7 @@ import Darwin
 
 public enum Destack {
     public static let backend = "swift"
-    public static let version = "0.55.3"
+    public static let version = "0.55.4"
 }
 
 public struct Client {

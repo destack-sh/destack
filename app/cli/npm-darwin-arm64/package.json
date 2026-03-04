@@ -1,6 +1,6 @@
 {
     "name": "@destack/cli-darwin-arm64",
-    "version": "0.55.3",
+    "version": "0.55.4",
     "license": "MIT",
     "description": "Destack CLI binaries for darwin arm64",
     "os": ["darwin"],

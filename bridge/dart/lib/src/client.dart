@@ -5,7 +5,7 @@ import "package:ffi/ffi.dart";
 
 class DestackClient {
   static const String backendMarker = "dart";
-  static const String packageVersion = "0.55.3";
+  static const String packageVersion = "0.55.4";
 
   static final _capi = _DestackCapi.tryLoad();
 
