@@ -118,6 +118,44 @@ function factorial(n: number): number {
     );
 }
 
+/// Lower uninitialized let bindings that are assigned in control flow.
+#[test]
+fn test_lower_uninitialized_let_assignment_flow() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function choose(flag: boolean, a: number, b: number): number {
+    let value: number;
+    if (flag) {
+        value = a;
+    } else {
+        value = b;
+    }
+    return value;
+}
+"#,
+    );
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "choose",
+        &[Value::bool(true), Value::float64(3.0), Value::float64(5.0)],
+        Value::float64(3.0),
+    );
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "choose",
+        &[Value::bool(false), Value::float64(3.0), Value::float64(5.0)],
+        Value::float64(5.0),
+    );
+}
+
 /// Lower and execute unlabeled break in a while loop.
 #[test]
 fn test_lower_unlabeled_break() {

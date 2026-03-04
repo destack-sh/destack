@@ -1,5 +1,10 @@
+mod blocks;
+mod cast;
+mod control;
 mod declarator;
 mod r#let;
 mod r#match;
+mod resolution;
 mod statement;
+mod tagged;
 mod ternary;
