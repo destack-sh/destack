@@ -148,19 +148,14 @@ impl NodeVisitor for PromiseExecutorReturnVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // check Promise calls and constructors
-        match expression {
-            dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
-            } => self.check_executor_returns(id, *left, dynamic_arguments),
-            dir::Expression::New {
-                left,
-                dynamic_arguments,
-                ..
-            } => self.check_executor_returns(id, *left, dynamic_arguments),
-            _ => {}
+        // check Promise constructors only: Promise() call form is out of scope
+        if let dir::Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        {
+            self.check_executor_returns(id, *left, dynamic_arguments);
         }
 
         // walk expression children
@@ -453,5 +448,73 @@ let task = new Promise((resolve, reject) => resolve(1));
         test.result(result)
             .assert_lint("no-promise-executor-return")
             .assert_has_no_fix("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_allows_executor_return_without_value() {
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_allows_executor_return_without_value.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    reject(Error("failed"));
+    return;
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_allows_nested_function_return_value() {
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_allows_nested_function_return_value.ds",
+            r#"
+let task = new Promise((resolve, reject) => {
+    function helper() {
+        return 1;
+    }
+    resolve(helper());
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_ignores_shadowed_promise_symbol() {
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_ignores_shadowed_promise_symbol.ds",
+            r#"
+function Promise(executor) {
+    return executor;
+}
+
+let task = new Promise((resolve, reject) => {
+    return 1;
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-promise-executor-return");
+    }
+
+    #[test]
+    fn test_ignores_promise_call_without_new() {
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
+            "no_promise_executor_return/test_ignores_promise_call_without_new.ds",
+            r#"
+let task = Promise((resolve, reject) => {
+    return 1;
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-promise-executor-return");
     }
 }
