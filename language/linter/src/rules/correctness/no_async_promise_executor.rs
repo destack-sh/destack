@@ -2,7 +2,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_target_symbol, is_async_function_type};
+use crate::rules::common::{
+    expression_target_symbol, expression_unwrap_parenthesized, is_async_function_type,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,7 +35,10 @@ impl LintRule for NoAsyncPromiseExecutor {
 
     /// Check module DIR nodes for async Promise executors.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        // resolve lint metadata
         let meta = self.meta();
+
+        // walk module expressions
         let mut visitor = AsyncPromiseExecutorVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -139,12 +144,14 @@ fn async_promise_executor_fix(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let expression_id = unwrap_parenthesized_expression(ctx.tree, expression_id);
+    // require a direct inline declaration expression
+    let expression_id = expression_unwrap_parenthesized(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     if !matches!(expression, dir::Expression::Declaration { .. }) {
         return None;
     }
 
+    // strip one leading async keyword
     let expression_span = ctx.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
     let rewritten = strip_leading_async(expression_text.as_ref())?;
@@ -152,25 +159,14 @@ fn async_promise_executor_fix(
         return None;
     }
 
+    // build replacement edit
     let edits = ctx
         .edit_builder()
         .replace(expression_span, rewritten)
         .into_edits();
-    Some(LintFix::r#unsafe("Remove async from Promise executor").with_edits(edits))
-}
 
-/// Unwrap parenthesized expressions.
-fn unwrap_parenthesized_expression(
-    tree: &dir::NodeTree,
-    mut expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    loop {
-        let expression = tree.get(expression_id);
-        let dir::Expression::Parenthesized { expression } = expression else {
-            return expression_id;
-        };
-        expression_id = *expression;
-    }
+    // return unsafe rewrite fix
+    Some(LintFix::r#unsafe("Remove async from Promise executor").with_edits(edits))
 }
 
 /// Strip one leading async keyword from a function expression text.
@@ -340,6 +336,28 @@ let task = new Promise((async (resolve, reject) => {
 let task = new Promise(((resolve, reject) => {
     resolve(1);
 }));
+"#,
+            );
+    }
+
+    #[test]
+    fn test_flags_async_promise_executor_call_form() {
+        let test = TestProgram::for_rule_with_prelude(NoAsyncPromiseExecutor);
+        let result = test.lint_dir(
+            "no_async_promise_executor/test_flags_async_promise_executor_call_form.ds",
+            r#"
+let task = Promise(async (resolve, reject) => {
+    resolve(1);
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-async-promise-executor")
+            .assert_unsafe_fixed(
+                r#"
+let task = Promise((resolve, reject) => {
+    resolve(1);
+});
 "#,
             );
     }
