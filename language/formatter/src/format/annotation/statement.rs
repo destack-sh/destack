@@ -171,6 +171,31 @@ fn else_body_comment_target_owner(
 }
 
 /// Attach one separator comment before `)` to its parameter or argument owner.
+fn seam_has_separator_before_close_parenthesis(
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> bool {
+    if seam.token_after_is(TokenType::CloseParenthesis) {
+        return true;
+    }
+
+    seam.token_after_is(TokenType::Comma)
+        && context
+            .token_after
+            .and_then(|token_index| {
+                next_non_trivia_token_index(context.semantic_tokens, token_index)
+            })
+            .and_then(|token_index| context.semantic_tokens.get(token_index))
+            .is_some_and(|token| token.token.ty == TokenType::CloseParenthesis)
+}
+
+/// Return whether one seam comment can bind to one separator before `)`.
+fn seam_supports_separator_comment(seam: &CommentSeamData) -> bool {
+    seam.comment_is_line
+        || (seam.comment_is_star && seam.has_leading_newline && seam.has_trailing_newline)
+}
+
+/// Attach one separator comment before `)` to its parameter or argument owner.
 fn try_attach_parameter_or_argument_separator_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
@@ -178,29 +203,12 @@ fn try_attach_parameter_or_argument_separator_comment(
     seam: &CommentSeamData,
     target_owner: Option<u32>,
 ) -> Option<CommentAttachment> {
-    let token_after_is_close_parenthesis = seam.token_after_is(TokenType::CloseParenthesis);
-    let has_following_separator_before_close_parenthesis = seam.token_after_is(TokenType::Comma)
-        && context
-            .token_after
-            .and_then(|token_index| {
-                next_non_trivia_token_index(context.semantic_tokens, token_index)
-            })
-            .and_then(|token_index| context.semantic_tokens.get(token_index))
-            .is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
-    if !token_after_is_close_parenthesis && !has_following_separator_before_close_parenthesis {
+    if !seam_has_separator_before_close_parenthesis(context, seam) {
         return None;
     }
 
     // separator seams include line comments and own-line block comments
-    let supports_separator_comment = seam.comment_is_line
-        || (seam.comment_is_star && seam.has_leading_newline && seam.has_trailing_newline);
-    if !supports_separator_comment {
-        return None;
-    }
-
-    // separator seams also include last-item comments before `)` with no explicit comma
-    let has_last_item_close_parenthesis_seam = token_after_is_close_parenthesis;
-    if !has_last_item_close_parenthesis_seam && !has_following_separator_before_close_parenthesis {
+    if !seam_supports_separator_comment(seam) {
         return None;
     }
 
@@ -451,6 +459,637 @@ fn control_head_comment_target(
     control_head_comment_attachment_for_expression(tree, control_expression)
 }
 
+/// Resolve own-line comments between decorators and decorated items.
+fn try_attach_decorator_own_line_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    // own-line comments that start on a new line after the preceding token are decorator seams
+    let comment_starts_after_token_before_newline =
+        context.token_before_span.is_some_and(|token| {
+            context
+                .file
+                .is_same_line(token.span.end.saturating_sub(1), context.trivia.span.start)
+        });
+
+    if !seam.comment_is_line || comment_starts_after_token_before_newline {
+        return None;
+    }
+
+    if !seam_follows_decorator_head(context) {
+        return None;
+    }
+
+    // decorated items can be parameter, member, property, or declaration owners
+    let target_owner = following_owner
+        .or_else(|| {
+            context
+                .token_after_span
+                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+        })
+        .and_then(|owner| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Parameter)
+                .or_else(|| {
+                    promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
+                })
+                .or_else(|| {
+                    promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Property)
+                })
+                .or_else(|| {
+                    promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Declaration)
+                })
+        })?;
+
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+    Some((Some(target_owner), AnnotationPosition::BlockPrefix))
+}
+
+/// Resolve own-line separator comments before `)`.
+fn try_attach_separator_own_line_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if !seam.has_leading_newline {
+        return None;
+    }
+
+    let separator_owner = separator_preceding_owner(tree, context, seam, preceding_owner);
+    try_attach_parameter_or_argument_separator_comment(
+        tree,
+        parents,
+        context,
+        seam,
+        separator_owner,
+    )
+}
+
+/// Resolve comments before empty-statement body semicolons.
+fn try_attach_empty_statement_semicolon_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if !seam.token_after_is(TokenType::Semicolon) {
+        return None;
+    }
+
+    try_attach_comment_before_empty_statement_semicolon(
+        tree,
+        parents,
+        context,
+        seam,
+        preceding_owner,
+        following_owner,
+    )
+}
+
+/// Resolve own-line comments between `else` and its body.
+fn try_attach_else_body_own_line_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if !seam.has_leading_newline || !seam.token_before_is_keyword(CommentSeamKeyword::Else) {
+        return None;
+    }
+
+    let target_owner = else_body_comment_target_owner(tree, parents, following_owner)?;
+    let position = if tree.get_node_type(target_owner) == NodeType::Block {
+        AnnotationPosition::BlockPrefix
+    } else {
+        AnnotationPosition::LinePrefix
+    };
+
+    Some((Some(target_owner), position))
+}
+
+/// Resolve own-line comments after control heads.
+fn try_attach_control_head_own_line_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if !seam.has_leading_newline {
+        return None;
+    }
+
+    if !seam.token_before_is(TokenType::CloseParenthesis) || seam.token_after_is_case_or_default() {
+        return None;
+    }
+
+    let supports_control_head_seam = seam.comment_is_line
+        || seam.token_after_is(TokenType::Semicolon)
+        || !seam.token_after_is(TokenType::OpenBrace);
+    if !supports_control_head_seam {
+        return None;
+    }
+
+    control_head_comment_target_from_token(tree, parents, context.token_before_span)
+        .or_else(|| control_head_comment_target(tree, parents, preceding_owner, following_owner))
+}
+
+/// Resolve own-line comments after switch labels before case bodies.
+fn try_attach_switch_label_body_own_line_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if !seam.has_leading_newline
+        || !seam.token_before_is(TokenType::Colon)
+        || seam.token_after_is_case_or_default()
+    {
+        return None;
+    }
+
+    let match_case_owner = switch_label_comment_match_case_owner(
+        tree,
+        parents,
+        context,
+        preceding_owner,
+        following_owner,
+    )?;
+
+    if let Some(attachment) = switch_label_explicit_block_attachment(tree, match_case_owner, seam) {
+        return Some(attachment);
+    }
+
+    let following_match_case_owner = owner_match_case_ancestor(tree, parents, following_owner);
+    if following_match_case_owner == Some(match_case_owner)
+        && let Some(target_owner) = following_owner
+    {
+        let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+        let position = if seam.comment_is_line {
+            AnnotationPosition::LinePrefix
+        } else {
+            AnnotationPosition::BlockPrefix
+        };
+        return Some((Some(target_owner), position));
+    }
+
+    let target_owner = normalize_formatter_trivia_target_owner(tree, match_case_owner);
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+}
+
+/// Resolve own-line comments between switch labels.
+fn try_attach_switch_label_next_case_own_line_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> Option<CommentAttachment> {
+    if !seam.has_leading_newline
+        || !seam.token_before_is(TokenType::Colon)
+        || !seam.token_after_is_case_or_default()
+    {
+        return None;
+    }
+
+    let target_owner = context
+        .token_after_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+        .and_then(|owner_id| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::MatchCase)
+                .or(Some(owner_id))
+        })
+        .map(|owner_id| normalize_formatter_trivia_target_owner(tree, owner_id))?;
+
+    Some((Some(target_owner), AnnotationPosition::BlockPrefix))
+}
+
+/// Resolve own-line comments before switch `case` and `default` labels.
+fn try_attach_switch_case_prefix_own_line_comment(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    enclosing_owner_cache: &mut CommentEnclosingOwnerCache,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if !seam.has_leading_newline || !seam.token_after_is_case_or_default() {
+        return None;
+    }
+
+    case_or_default_prefix_target(tree, context, enclosing_owner_cache, following_owner)
+}
+
+/// Resolve inline line comments between `else` and its body.
+fn try_attach_else_body_inline_line_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline
+        || !seam.comment_is_line
+        || !seam.token_before_is_keyword(CommentSeamKeyword::Else)
+    {
+        return None;
+    }
+
+    let target_owner = else_body_comment_target_owner(tree, parents, following_owner)?;
+    let position = if tree.get_node_type(target_owner) == NodeType::Block {
+        AnnotationPosition::BlockPrefix
+    } else {
+        AnnotationPosition::LinePrefix
+    };
+    Some((Some(target_owner), position))
+}
+
+/// Resolve inline star comments between `else` and its body.
+fn try_attach_else_body_inline_star_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline
+        || !seam.comment_is_star
+        || !seam.token_before_is_keyword(CommentSeamKeyword::Else)
+    {
+        return None;
+    }
+
+    let token_after_is_comment = matches!(
+        seam.token_after_type,
+        Some(
+            TokenType::LineComment
+                | TokenType::BlockComment
+                | TokenType::DocLineComment
+                | TokenType::DocBlockComment
+        )
+    );
+    if token_after_is_comment {
+        return None;
+    }
+
+    let target_owner = else_body_comment_target_owner(tree, parents, following_owner)?;
+    if tree.get_node_type(target_owner) == NodeType::Block {
+        return Some((Some(target_owner), AnnotationPosition::LinePrefix));
+    }
+
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+    Some((Some(target_owner), AnnotationPosition::LinePrefix))
+}
+
+/// Resolve same-line comments after control heads.
+fn try_attach_control_head_inline_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline {
+        return None;
+    }
+
+    if !seam.token_before_is(TokenType::CloseParenthesis) || seam.token_after_is_case_or_default() {
+        return None;
+    }
+
+    let supports_control_head_seam = seam.comment_is_line
+        || seam.token_after_is(TokenType::Semicolon)
+        || !seam.token_after_is(TokenType::OpenBrace);
+    if !supports_control_head_seam {
+        return None;
+    }
+
+    let attachment =
+        control_head_comment_target_from_token(tree, parents, context.token_before_span).or_else(
+            || control_head_comment_target(tree, parents, preceding_owner, following_owner),
+        )?;
+
+    // inline star comments before non-block control bodies become line prefixes
+    if seam.comment_is_star
+        && !seam.has_trailing_newline
+        && !seam.token_after_is(TokenType::Semicolon)
+        && let Some(target_owner) = attachment.0
+        && tree.get_node_type(target_owner) != NodeType::Block
+    {
+        return Some((Some(target_owner), AnnotationPosition::LinePrefix));
+    }
+
+    Some(attachment)
+}
+
+/// Resolve trailing line comments after `switch (...) {`.
+fn try_attach_switch_header_trailing_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline
+        || !seam.has_trailing_newline
+        || !seam.comment_is_line
+        || !(seam.token_before_is(TokenType::OpenBrace)
+            || seam.token_before_is(TokenType::CloseParenthesis))
+        || !seam.token_after_is_case_or_default()
+    {
+        return None;
+    }
+
+    let target_owner = following_owner.or_else(|| {
+        let preceding_owner = preceding_owner?;
+        if tree.get_node_type(preceding_owner) != NodeType::Expression {
+            return None;
+        }
+
+        let expression_id = LocalNodeId::<Expression>::new(preceding_owner);
+        let Expression::Match { cases, .. } = tree.get(expression_id) else {
+            return None;
+        };
+
+        cases.first().map(|case_id| case_id.id)
+    })?;
+    let target_owner =
+        promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::MatchCase)
+            .unwrap_or(target_owner);
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+    Some((Some(target_owner), AnnotationPosition::BlockPrefix))
+}
+
+/// Resolve trailing comments after switch labels.
+fn try_attach_switch_label_trailing_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline
+        || !seam.has_trailing_newline
+        || !(seam.comment_is_line || seam.comment_is_star)
+        || !seam.token_before_is(TokenType::Colon)
+        || seam.token_after_is_case_or_default()
+    {
+        return None;
+    }
+
+    let match_case_owner = switch_label_comment_match_case_owner(
+        tree,
+        parents,
+        context,
+        preceding_owner,
+        following_owner,
+    )?;
+
+    // non-default labels keep trailing line comments with the following statement seam
+    if !match_case_owner_is_default(tree, match_case_owner) {
+        if !seam.comment_is_line {
+            return None;
+        }
+
+        let target_owner = following_owner
+            .or(preceding_owner)
+            .map(|owner| normalize_formatter_trivia_target_owner(tree, owner))?;
+        return Some((Some(target_owner), AnnotationPosition::LinePrefix));
+    }
+
+    // default line comments before explicit block consequents become block-leading comments
+    if seam.comment_is_line
+        && let Some(attachment) =
+            switch_label_explicit_block_attachment(tree, match_case_owner, seam)
+    {
+        return Some(attachment);
+    }
+
+    let target_owner = normalize_formatter_trivia_target_owner(tree, match_case_owner);
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+}
+
+/// Resolve trailing parameter or argument separator comments before `)`.
+fn try_attach_parameter_or_argument_trailing_separator_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline || !seam.has_trailing_newline {
+        return None;
+    }
+
+    let separator_owner = separator_preceding_owner(tree, context, seam, preceding_owner);
+    try_attach_parameter_or_argument_separator_comment(
+        tree,
+        parents,
+        context,
+        seam,
+        separator_owner,
+    )
+}
+
+/// Resolve trailing callback argument comments after `,`.
+fn try_attach_callback_argument_trailing_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline
+        || !seam.has_trailing_newline
+        || !seam.comment_is_line
+        || !seam.token_before_is(TokenType::Comma)
+        || seam.token_after_is(TokenType::CloseParenthesis)
+    {
+        return None;
+    }
+
+    let target_owner = preceding_owner?;
+    if promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Argument)
+        .is_none()
+    {
+        return None;
+    }
+
+    let target_owner = normalize_argument_owner(tree, parents, target_owner);
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+}
+
+/// Resolve statement-prefix seam comment rules.
+struct StatementPrefixDispatchContext<'a, 'cache> {
+    /// The syntax tree.
+    tree: &'a NodeTree,
+    /// Parent links for owner promotion.
+    parents: &'a NodeParentIndex,
+    /// The seam context.
+    seam_ctx: &'a CommentSeamContext<'a>,
+    /// The seam facts.
+    seam: &'a CommentSeamData,
+    /// Mutable enclosing owner cache.
+    enclosing_owner_cache: &'cache mut CommentEnclosingOwnerCache,
+    /// Neighbor owner candidates.
+    owners: CommentAttachmentNeighbors,
+}
+
+/// One statement-prefix attachment handler in priority order.
+type StatementPrefixHandler =
+    fn(&mut StatementPrefixDispatchContext<'_, '_>) -> Option<CommentAttachment>;
+
+/// Run ordered statement-prefix attachment handlers.
+fn run_statement_prefix_handlers(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+    handlers: &[StatementPrefixHandler],
+) -> Option<CommentAttachment> {
+    for handler in handlers {
+        if let Some(attachment) = handler(ctx) {
+            return Some(attachment);
+        }
+    }
+
+    None
+}
+
+/// Attach decorator own-line statement-prefix comments.
+fn attach_statement_prefix_decorator_own_line(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_decorator_own_line_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners.following,
+    )
+}
+
+/// Attach separator own-line statement-prefix comments.
+fn attach_statement_prefix_separator_own_line(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_separator_own_line_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners.preceding,
+    )
+}
+
+/// Attach empty-statement semicolon statement-prefix comments.
+fn attach_statement_prefix_empty_statement_semicolon(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_empty_statement_semicolon_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners.preceding,
+        ctx.owners.following,
+    )
+}
+
+/// Attach else-body own-line statement-prefix comments.
+fn attach_statement_prefix_else_body_own_line(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_else_body_own_line_comment(ctx.tree, ctx.parents, ctx.seam, ctx.owners.following)
+}
+
+/// Attach control-head own-line statement-prefix comments.
+fn attach_statement_prefix_control_head_own_line(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_control_head_own_line_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners.preceding,
+        ctx.owners.following,
+    )
+}
+
+/// Attach semicolon-guard own-line statement-prefix comments.
+fn attach_statement_prefix_semicolon_guard_own_line(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    if !ctx.seam.token_after_is(TokenType::Semicolon) {
+        return None;
+    }
+
+    attach_semicolon_guard_own_line_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners,
+    )
+}
+
+/// Attach switch-label body own-line statement-prefix comments.
+fn attach_statement_prefix_switch_label_body_own_line(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_switch_label_body_own_line_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners.preceding,
+        ctx.owners.following,
+    )
+}
+
+/// Attach switch-label next-case own-line statement-prefix comments.
+fn attach_statement_prefix_switch_label_next_case_own_line(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_switch_label_next_case_own_line_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+    )
+}
+
+/// Attach switch-case prefix own-line statement-prefix comments.
+fn attach_statement_prefix_switch_case_prefix_own_line(
+    ctx: &mut StatementPrefixDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_switch_case_prefix_own_line_comment(
+        ctx.tree,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.enclosing_owner_cache,
+        ctx.owners.following,
+    )
+}
+
+/// Ordered statement-prefix seam handlers.
+const STATEMENT_PREFIX_HANDLERS: &[StatementPrefixHandler] = &[
+    attach_statement_prefix_decorator_own_line,
+    attach_statement_prefix_separator_own_line,
+    attach_statement_prefix_empty_statement_semicolon,
+    attach_statement_prefix_else_body_own_line,
+    attach_statement_prefix_control_head_own_line,
+    attach_statement_prefix_semicolon_guard_own_line,
+    attach_statement_prefix_switch_label_body_own_line,
+    attach_statement_prefix_switch_label_next_case_own_line,
+    attach_statement_prefix_switch_case_prefix_own_line,
+];
+
 /// Resolve statement-prefix seam comment rules.
 pub(crate) fn try_attach_comment_statement_prefix(
     tree: &NodeTree,
@@ -460,187 +1099,146 @@ pub(crate) fn try_attach_comment_statement_prefix(
     enclosing_owner_cache: &mut CommentEnclosingOwnerCache,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    let preceding_owner = owners.preceding;
-    let following_owner = owners.following;
+    let mut ctx = StatementPrefixDispatchContext {
+        tree,
+        parents,
+        seam_ctx: context,
+        seam,
+        enclosing_owner_cache,
+        owners,
+    };
 
-    // own-line comments between decorators and decorated items stay with the decorated owner
-    let comment_starts_after_token_before_newline =
-        context.token_before_span.is_some_and(|token| {
-            context
-                .file
-                .is_same_line(token.span.end.saturating_sub(1), context.trivia.span.start)
-        });
-    if seam.comment_is_line
-        && !comment_starts_after_token_before_newline
-        && seam_follows_decorator_head(context)
-    {
-        let target_owner = following_owner
-            .or_else(|| {
-                context
-                    .token_after_span
-                    .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-            })
-            .and_then(|owner| {
-                promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Parameter)
-                    .or_else(|| {
-                        promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
-                    })
-                    .or_else(|| {
-                        promote_owner_to_node_type_ancestor(
-                            tree,
-                            parents,
-                            owner,
-                            NodeType::Property,
-                        )
-                    })
-                    .or_else(|| {
-                        promote_owner_to_node_type_ancestor(
-                            tree,
-                            parents,
-                            owner,
-                            NodeType::Declaration,
-                        )
-                    })
-            });
-        if let Some(target_owner) = target_owner {
-            let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-            return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
+    run_statement_prefix_handlers(&mut ctx, STATEMENT_PREFIX_HANDLERS)
+}
+
+struct StatementSuffixDispatchContext<'a> {
+    /// The syntax tree.
+    tree: &'a NodeTree,
+    /// Parent links for owner promotion.
+    parents: &'a NodeParentIndex,
+    /// The seam context.
+    seam_ctx: &'a CommentSeamContext<'a>,
+    /// The seam facts.
+    seam: &'a CommentSeamData,
+    /// Neighbor owner candidates.
+    owners: CommentAttachmentNeighbors,
+}
+
+/// One statement-suffix attachment handler in priority order.
+type StatementSuffixHandler = fn(&StatementSuffixDispatchContext<'_>) -> Option<CommentAttachment>;
+
+/// Run ordered statement-suffix attachment handlers.
+fn run_statement_suffix_handlers(
+    ctx: &StatementSuffixDispatchContext<'_>,
+    handlers: &[StatementSuffixHandler],
+) -> Option<CommentAttachment> {
+    for handler in handlers {
+        if let Some(attachment) = handler(ctx) {
+            return Some(attachment);
         }
-    }
-
-    // own line trailing separator comments before `)` should stay on the container item
-    let separator_preceding_owner = separator_preceding_owner(tree, context, seam, preceding_owner);
-    if seam.has_leading_newline
-        && let Some(attachment) = try_attach_parameter_or_argument_separator_comment(
-            tree,
-            parents,
-            context,
-            seam,
-            separator_preceding_owner,
-        )
-    {
-        return Some(attachment);
-    }
-
-    // comments before empty-statement body semicolons stay on the control-statement boundary
-    if seam.token_after_is(TokenType::Semicolon)
-        && let Some(attachment) = try_attach_comment_before_empty_statement_semicolon(
-            tree,
-            parents,
-            context,
-            seam,
-            preceding_owner,
-            following_owner,
-        )
-    {
-        return Some(attachment);
-    }
-
-    // own line comments between `else` and its body should stay with the else body
-    if seam.has_leading_newline
-        && seam.token_before_is_keyword(CommentSeamKeyword::Else)
-        && let Some(target_owner) = else_body_comment_target_owner(tree, parents, following_owner)
-    {
-        let position = if tree.get_node_type(target_owner) == NodeType::Block {
-            AnnotationPosition::BlockPrefix
-        } else {
-            AnnotationPosition::LinePrefix
-        };
-        return Some((Some(target_owner), position));
-    }
-
-    // own line comments after control heads should stay before the body statement
-    if seam.has_leading_newline
-        && seam.token_before_is(TokenType::CloseParenthesis)
-        && !seam.token_after_is_case_or_default()
-        && (seam.comment_is_line
-            || seam.token_after_is(TokenType::Semicolon)
-            || !seam.token_after_is(TokenType::OpenBrace))
-        && let Some(attachment) =
-            control_head_comment_target_from_token(tree, parents, context.token_before_span)
-                .or_else(|| {
-                    control_head_comment_target(tree, parents, preceding_owner, following_owner)
-                })
-    {
-        return Some(attachment);
-    }
-
-    // own line comments before semicolon guards stay with the guarded following expression
-    if seam.token_after_is(TokenType::Semicolon)
-        && let Some(attachment) =
-            attach_semicolon_guard_own_line_comment(tree, parents, context, seam, owners)
-    {
-        return Some(attachment);
-    }
-
-    // own-line comments after switch labels should stay with the case body or label seam
-    if seam.has_leading_newline
-        && seam.token_before_is(TokenType::Colon)
-        && !seam.token_after_is_case_or_default()
-    {
-        let match_case_owner = switch_label_comment_match_case_owner(
-            tree,
-            parents,
-            context,
-            preceding_owner,
-            following_owner,
-        );
-        if let Some(match_case_owner) = match_case_owner {
-            if let Some(attachment) =
-                switch_label_explicit_block_attachment(tree, match_case_owner, seam)
-            {
-                return Some(attachment);
-            }
-
-            let following_match_case_owner =
-                owner_match_case_ancestor(tree, parents, following_owner);
-            if following_match_case_owner == Some(match_case_owner)
-                && let Some(target_owner) = following_owner
-            {
-                let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-                let position = if seam.comment_is_line {
-                    AnnotationPosition::LinePrefix
-                } else {
-                    AnnotationPosition::BlockPrefix
-                };
-                return Some((Some(target_owner), position));
-            }
-
-            let target_owner = normalize_formatter_trivia_target_owner(tree, match_case_owner);
-            return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
-        }
-    }
-
-    // own line comments between switch labels should stay with the following label
-    if seam.has_leading_newline
-        && seam.token_before_is(TokenType::Colon)
-        && seam.token_after_is_case_or_default()
-    {
-        let target_owner = context
-            .token_after_span
-            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-            .and_then(|owner_id| {
-                promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::MatchCase)
-                    .or(Some(owner_id))
-            })
-            .map(|owner_id| normalize_formatter_trivia_target_owner(tree, owner_id));
-
-        if let Some(target_owner) = target_owner {
-            return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
-        }
-    }
-
-    // own line comments before switch case labels should attach to the first case expression
-    if seam.has_leading_newline
-        && seam.token_after_is_case_or_default()
-        && let Some(attachment) =
-            case_or_default_prefix_target(tree, context, enclosing_owner_cache, following_owner)
-    {
-        return Some(attachment);
     }
 
     None
 }
+
+/// Attach else-body inline-line statement-suffix comments.
+fn attach_statement_suffix_else_body_inline_line(
+    ctx: &StatementSuffixDispatchContext<'_>,
+) -> Option<CommentAttachment> {
+    try_attach_else_body_inline_line_comment(ctx.tree, ctx.parents, ctx.seam, ctx.owners.following)
+}
+
+/// Attach else-body inline-star statement-suffix comments.
+fn attach_statement_suffix_else_body_inline_star(
+    ctx: &StatementSuffixDispatchContext<'_>,
+) -> Option<CommentAttachment> {
+    try_attach_else_body_inline_star_comment(ctx.tree, ctx.parents, ctx.seam, ctx.owners.following)
+}
+
+/// Attach control-head inline statement-suffix comments.
+fn attach_statement_suffix_control_head_inline(
+    ctx: &StatementSuffixDispatchContext<'_>,
+) -> Option<CommentAttachment> {
+    try_attach_control_head_inline_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners.preceding,
+        ctx.owners.following,
+    )
+}
+
+/// Attach switch-header trailing statement-suffix comments.
+fn attach_statement_suffix_switch_header_trailing(
+    ctx: &StatementSuffixDispatchContext<'_>,
+) -> Option<CommentAttachment> {
+    try_attach_switch_header_trailing_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.owners.preceding,
+        ctx.owners.following,
+    )
+}
+
+/// Attach switch-label trailing statement-suffix comments.
+fn attach_statement_suffix_switch_label_trailing(
+    ctx: &StatementSuffixDispatchContext<'_>,
+) -> Option<CommentAttachment> {
+    try_attach_switch_label_trailing_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners.preceding,
+        ctx.owners.following,
+    )
+}
+
+/// Attach declaration return-type seam statement-suffix comments.
+fn attach_statement_suffix_declaration_return_type(
+    ctx: &StatementSuffixDispatchContext<'_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_declaration_return_type_seam(ctx.tree, ctx.seam, ctx.owners)
+}
+
+/// Attach parameter or argument trailing separator statement-suffix comments.
+fn attach_statement_suffix_parameter_or_argument_trailing_separator(
+    ctx: &StatementSuffixDispatchContext<'_>,
+) -> Option<CommentAttachment> {
+    try_attach_parameter_or_argument_trailing_separator_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam_ctx,
+        ctx.seam,
+        ctx.owners.preceding,
+    )
+}
+
+/// Attach callback argument trailing statement-suffix comments.
+fn attach_statement_suffix_callback_argument_trailing(
+    ctx: &StatementSuffixDispatchContext<'_>,
+) -> Option<CommentAttachment> {
+    try_attach_callback_argument_trailing_comment(
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.owners.preceding,
+    )
+}
+
+/// Ordered statement-suffix seam handlers.
+const STATEMENT_SUFFIX_HANDLERS: &[StatementSuffixHandler] = &[
+    attach_statement_suffix_else_body_inline_line,
+    attach_statement_suffix_else_body_inline_star,
+    attach_statement_suffix_control_head_inline,
+    attach_statement_suffix_switch_header_trailing,
+    attach_statement_suffix_switch_label_trailing,
+    attach_statement_suffix_declaration_return_type,
+    attach_statement_suffix_parameter_or_argument_trailing_separator,
+    attach_statement_suffix_callback_argument_trailing,
+];
 
 /// Resolve statement-suffix seam comment rules.
 pub(crate) fn try_attach_comment_statement_suffix(
@@ -650,185 +1248,15 @@ pub(crate) fn try_attach_comment_statement_suffix(
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    let preceding_owner = owners.preceding;
-    let following_owner = owners.following;
-    let separator_preceding_owner = separator_preceding_owner(tree, context, seam, preceding_owner);
+    let ctx = StatementSuffixDispatchContext {
+        tree,
+        parents,
+        seam_ctx: context,
+        seam,
+        owners,
+    };
 
-    // inline line comments between `else` and its body stay with the else body
-    if !seam.has_leading_newline
-        && seam.comment_is_line
-        && seam.token_before_is_keyword(CommentSeamKeyword::Else)
-        && let Some(target_owner) = else_body_comment_target_owner(tree, parents, following_owner)
-    {
-        let position = if tree.get_node_type(target_owner) == NodeType::Block {
-            AnnotationPosition::BlockPrefix
-        } else {
-            AnnotationPosition::LinePrefix
-        };
-        return Some((Some(target_owner), position));
-    }
-
-    // inline block comments between `else` and its body stay with the else body
-    if !seam.has_leading_newline
-        && seam.comment_is_star
-        && seam.token_before_is_keyword(CommentSeamKeyword::Else)
-        && !matches!(
-            seam.token_after_type,
-            Some(
-                TokenType::LineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocLineComment
-                    | TokenType::DocBlockComment
-            )
-        )
-        && let Some(target_owner) = else_body_comment_target_owner(tree, parents, following_owner)
-    {
-        if tree.get_node_type(target_owner) == NodeType::Block {
-            return Some((Some(target_owner), AnnotationPosition::LinePrefix));
-        }
-
-        let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-        return Some((Some(target_owner), AnnotationPosition::LinePrefix));
-    }
-
-    // same-line comments after control heads should stay before the body statement
-    if !seam.has_leading_newline
-        && seam.token_before_is(TokenType::CloseParenthesis)
-        && !seam.token_after_is_case_or_default()
-        && (seam.comment_is_line
-            || seam.token_after_is(TokenType::Semicolon)
-            || !seam.token_after_is(TokenType::OpenBrace))
-        && let Some(attachment) =
-            control_head_comment_target_from_token(tree, parents, context.token_before_span)
-                .or_else(|| {
-                    control_head_comment_target(tree, parents, preceding_owner, following_owner)
-                })
-    {
-        if seam.comment_is_star
-            && !seam.has_trailing_newline
-            && !seam.token_after_is(TokenType::Semicolon)
-            && let Some(target_owner) = attachment.0
-            && tree.get_node_type(target_owner) != NodeType::Block
-        {
-            return Some((Some(target_owner), AnnotationPosition::LinePrefix));
-        }
-
-        return Some(attachment);
-    }
-
-    // trailing line comments after `switch (...) {` should stay on the following case label seam
-    if !seam.has_leading_newline
-        && seam.has_trailing_newline
-        && seam.comment_is_line
-        && (seam.token_before_is(TokenType::OpenBrace)
-            || seam.token_before_is(TokenType::CloseParenthesis))
-        && seam.token_after_is_case_or_default()
-    {
-        let target_owner = following_owner.or_else(|| {
-            let preceding_owner = preceding_owner?;
-            if tree.get_node_type(preceding_owner) != NodeType::Expression {
-                return None;
-            }
-
-            let expression_id = LocalNodeId::<Expression>::new(preceding_owner);
-            let Expression::Match { cases, .. } = tree.get(expression_id) else {
-                return None;
-            };
-
-            cases.first().map(|case_id| case_id.id)
-        });
-
-        if let Some(target_owner) = target_owner {
-            let target_owner = promote_owner_to_node_type_ancestor(
-                tree,
-                parents,
-                target_owner,
-                NodeType::MatchCase,
-            )
-            .unwrap_or(target_owner);
-            let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-            return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
-        }
-    }
-
-    // trailing line comments after switch labels should stay on the switch-label seam
-    if !seam.has_leading_newline
-        && seam.has_trailing_newline
-        && (seam.comment_is_line || seam.comment_is_star)
-        && seam.token_before_is(TokenType::Colon)
-        && !seam.token_after_is_case_or_default()
-    {
-        let match_case_owner = switch_label_comment_match_case_owner(
-            tree,
-            parents,
-            context,
-            preceding_owner,
-            following_owner,
-        );
-        if let Some(match_case_owner) = match_case_owner {
-            if !match_case_owner_is_default(tree, match_case_owner) {
-                if !seam.comment_is_line {
-                    return None;
-                }
-
-                let target_owner = following_owner
-                    .or(preceding_owner)
-                    .map(|owner| normalize_formatter_trivia_target_owner(tree, owner));
-                if let Some(target_owner) = target_owner {
-                    return Some((Some(target_owner), AnnotationPosition::LinePrefix));
-                }
-
-                return None;
-            }
-
-            // default line comments before explicit block consequents become block-leading comments
-            if seam.comment_is_line
-                && let Some(attachment) =
-                    switch_label_explicit_block_attachment(tree, match_case_owner, seam)
-            {
-                return Some(attachment);
-            }
-
-            let target_owner = normalize_formatter_trivia_target_owner(tree, match_case_owner);
-            return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
-        }
-    }
-
-    // return type seam comments should stay between `:` and the return type
-    if let Some(attachment) = try_attach_comment_declaration_return_type_seam(tree, seam, owners) {
-        return Some(attachment);
-    }
-
-    // parameter and argument trailing comments before `)` should stay on the container item
-    if !seam.has_leading_newline
-        && seam.has_trailing_newline
-        && let Some(attachment) = try_attach_parameter_or_argument_separator_comment(
-            tree,
-            parents,
-            context,
-            seam,
-            separator_preceding_owner,
-        )
-    {
-        return Some(attachment);
-    }
-
-    // trailing comments after callback arguments should stay with the callback argument
-    if !seam.has_leading_newline
-        && seam.has_trailing_newline
-        && seam.comment_is_line
-        && seam.token_before_is(TokenType::Comma)
-        && !seam.token_after_is(TokenType::CloseParenthesis)
-        && let Some(target_owner) = preceding_owner
-        && promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Argument)
-            .is_some()
-    {
-        let target_owner = normalize_argument_owner(tree, parents, target_owner);
-        let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-        return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
-    }
-
-    None
+    run_statement_suffix_handlers(&ctx, STATEMENT_SUFFIX_HANDLERS)
 }
 
 /// Resolve block body seam comment rules.
