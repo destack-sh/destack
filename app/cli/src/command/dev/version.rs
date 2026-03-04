@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
@@ -59,6 +60,8 @@ pub enum VersionCommands {
     Minor,
     /// Bump patch version (x.y.Z).
     Patch,
+    /// Check tracked files for version drift.
+    Check,
     /// Show current version.
     Show,
 }
@@ -141,7 +144,7 @@ pub fn bump(kind: &VersionCommands) -> i32 {
         VersionCommands::Major => current.bump_major(),
         VersionCommands::Minor => current.bump_minor(),
         VersionCommands::Patch => current.bump_patch(),
-        VersionCommands::Show => unreachable!(),
+        VersionCommands::Check | VersionCommands::Show => unreachable!(),
     };
 
     let current_version = current.to_string();
@@ -150,35 +153,34 @@ pub fn bump(kind: &VersionCommands) -> i32 {
     console::print(&format!("Version: {current_version} -> {new_version}"));
     console::print(&"=".repeat(80));
 
+    // collect all version tracked files
+    let tracked_paths = match collect_tracked_paths() {
+        Ok(paths) => paths,
+        Err(error) => {
+            console::error(&format!("error: {error}"));
+            return 1;
+        }
+    };
+
     // read and validate all files before making changes
     let mut files: Vec<(PathBuf, String)> = Vec::new();
-    for glob_path in FILE_GLOBS_TO_UPDATE {
-        let paths = if glob_path.contains('*') {
-            glob(glob_path)
-        } else {
-            vec![PathBuf::from(glob_path)]
-        };
-        for path in paths {
-            if should_ignore_path(&path) {
-                continue;
+    for path in tracked_paths {
+        console::print(&format!("  {}", path.display()));
+        match fs::read_to_string(&path) {
+            Ok(text) => {
+                let updated =
+                    match update_file_version(&path, &text, &current_version, &new_version) {
+                        Ok(updated) => updated,
+                        Err(e) => {
+                            console::error(&format!("error: {e} in {path:?}"));
+                            return 1;
+                        }
+                    };
+                files.push((path, updated));
             }
-            console::print(&format!("  {}", path.display()));
-            match fs::read_to_string(&path) {
-                Ok(text) => {
-                    let updated =
-                        match update_file_version(&path, &text, &current_version, &new_version) {
-                            Ok(updated) => updated,
-                            Err(e) => {
-                                console::error(&format!("error: {e} in {path:?}"));
-                                return 1;
-                            }
-                        };
-                    files.push((path, updated));
-                }
-                Err(e) => {
-                    console::error(&format!("error: {path:?} not found ({e})"));
-                    return 1;
-                }
+            Err(e) => {
+                console::error(&format!("error: {path:?} not found ({e})"));
+                return 1;
             }
         }
     }
@@ -194,11 +196,105 @@ pub fn bump(kind: &VersionCommands) -> i32 {
     0
 }
 
+/// Check tracked files for version drift.
+pub fn check() -> i32 {
+    let current_version =
+        read_current_version().unwrap_or_else(|| panic!("version file not found"));
+    SemVer::parse(&current_version)
+        .unwrap_or_else(|| panic!("invalid version format: {current_version} (expected X.Y.Z)"));
+
+    console::print(&format!("Version check: {current_version}"));
+    console::print(&"=".repeat(80));
+
+    // collect all version tracked files
+    let tracked_paths = match collect_tracked_paths() {
+        Ok(paths) => paths,
+        Err(error) => {
+            console::error(&format!("error: {error}"));
+            return 1;
+        }
+    };
+
+    // collect every mismatch to avoid multiple ci reruns
+    let mut mismatch_count = 0;
+    for path in tracked_paths {
+        console::print(&format!("  {}", path.display()));
+
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                console::error(&format!("error: {path:?} not found ({error})"));
+                mismatch_count += 1;
+                continue;
+            }
+        };
+
+        match update_file_version(&path, &text, &current_version, &current_version) {
+            Ok(updated) => {
+                if updated != text {
+                    console::error(&format!(
+                        "error: {} has version drift from {}",
+                        path.display(),
+                        current_version
+                    ));
+                    mismatch_count += 1;
+                }
+            }
+            Err(error) => {
+                console::error(&format!("error: {error} in {path:?}"));
+                mismatch_count += 1;
+            }
+        }
+    }
+
+    if mismatch_count > 0 {
+        console::error(&format!("found {mismatch_count} version drift errors"));
+        return 1;
+    }
+
+    console::print("Version check passed");
+    0
+}
+
 /// Return whether a path should be excluded from bulk version updates.
 fn should_ignore_path(path: &Path) -> bool {
     FILE_GLOBS_TO_IGNORE
         .iter()
         .any(|ignore| path.to_string_lossy().contains(ignore))
+}
+
+/// Collect tracked version file paths without duplicates.
+fn collect_tracked_paths() -> Result<Vec<PathBuf>, String> {
+    let mut tracked_paths: Vec<PathBuf> = Vec::new();
+    let mut seen_paths: HashSet<String> = HashSet::new();
+
+    // resolve each configured glob and keep first match ordering
+    for glob_path in FILE_GLOBS_TO_UPDATE {
+        let resolved_paths = if glob_path.contains('*') {
+            glob(glob_path)
+        } else {
+            vec![PathBuf::from(glob_path)]
+        };
+
+        for path in resolved_paths {
+            if should_ignore_path(&path) {
+                continue;
+            }
+
+            let path_key = path.to_string_lossy().to_string();
+            if !seen_paths.insert(path_key) {
+                continue;
+            }
+
+            tracked_paths.push(path);
+        }
+    }
+
+    if tracked_paths.is_empty() {
+        return Err("no tracked files resolved from FILE_GLOBS_TO_UPDATE".to_string());
+    }
+
+    Ok(tracked_paths)
 }
 
 /// Update a file with the new version.
@@ -337,6 +433,25 @@ mod tests {
         let error = update_file_version(path, source, "0.55.2", "0.55.3").unwrap_err();
 
         assert_eq!(error, "0.55.2 not found");
+    }
+
+    #[test]
+    fn test_update_file_version_check_mode_keeps_matching_text() {
+        let path = Path::new("Cargo.toml");
+        let source = "version = \"0.55.3\"";
+        let updated = update_file_version(path, source, "0.55.3", "0.55.3").unwrap();
+
+        assert_eq!(updated, source);
+    }
+
+    #[test]
+    fn test_update_file_version_check_mode_detects_readme_badge_drift() {
+        let path = Path::new("README.md");
+        let source =
+            "<img src=\"https://img.shields.io/badge/version-0.55.1-2ea44f\" alt=\"Version\">";
+        let updated = update_file_version(path, source, "0.55.3", "0.55.3").unwrap();
+
+        assert_ne!(updated, source);
     }
 
     #[test]

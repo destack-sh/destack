@@ -302,7 +302,26 @@ version:
 
 # bump version: major, minor, or patch
 bump kind:
-    cargo run --release -p destack_cli -- version {{ kind }}
+    cargo run --release -p destack_cli -- dev version {{ kind }}
+
+# generate or refresh the changelog entry for VERSION.txt
+release-changelog:
+    bash scripts/ci/update-changelog.sh "$(cat VERSION.txt)"
+
+# validate release version, tracked file versions, and changelog entry
+release-validate tag="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    version="$(cat VERSION.txt)"
+    release_tag="{{tag}}"
+    if [ -z "${release_tag}" ]; then
+        release_tag="v${version}"
+    fi
+
+    bash scripts/ci/validate-release-tag-version.sh "${release_tag}"
+    cargo run --release -p destack_cli -- dev version check
+    bash scripts/ci/validate-release-changelog.sh "${version}"
 
 # publish all packages (dry-run by default)
 publish dry="--dry-run":
@@ -371,18 +390,9 @@ release kind message:
 
     # bump version
     just bump {{ kind }}
+    just release-changelog
     VERSION=$(cat VERSION.txt)
-
-    # check if changelog has entry for this version
-    if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then
-        echo "Warning: No changelog entry found for version ${VERSION}"
-        read -p "Continue anyway? [y/N] " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Aborting release."
-            exit 1
-        fi
-    fi
+    just release-validate "v${VERSION}"
 
     # stage and commit
     git add -A

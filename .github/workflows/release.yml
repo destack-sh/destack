@@ -4,18 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      publish_packages:
-        description: "Publish workspace packages after verification"
-        required: false
-        default: false
-        type: boolean
-      publish_zed:
-        description: "Create or update the zed-industries/extensions PR"
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -38,6 +26,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate release tag matches VERSION.txt
+        run: bash scripts/ci/validate-release-tag-version.sh "${GITHUB_REF_NAME}"
+
       - name: Validate zed grammar pins
         run: python3 bridge/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
 
@@ -46,6 +37,12 @@ jobs:
         with:
           rust_components: rustfmt clippy
           install_js_dependencies: "true"
+
+      - name: Validate tracked version files
+        run: cargo run -p destack_cli --release -- dev version check
+
+      - name: Validate changelog entry for release version
+        run: bash scripts/ci/validate-release-changelog.sh "$(cat VERSION.txt)"
 
       - name: Run language format gate
         run: just language/ci-format
@@ -507,7 +504,7 @@ jobs:
       - build-artifacts
       - package-cli-artifacts
       - smoke-install-windows
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_packages == true
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     environment: release
     permissions:
       contents: read
@@ -517,6 +514,9 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
+
+      - name: Validate release tag matches VERSION.txt
+        run: bash scripts/ci/validate-release-tag-version.sh "${GITHUB_REF_NAME}"
 
       - name: Setup Rust Bun and just
         uses: ./.github/actions/setup-rust-bun-just
@@ -649,7 +649,7 @@ jobs:
           RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
           PUB_DEV_CREDENTIALS_JSON: ${{ secrets.PUB_DEV_CREDENTIALS_JSON }}
-          PUBLISH_ZED: ${{ inputs.publish_zed }}
+          PUBLISH_ZED: ${{ vars.RELEASE_PUBLISH_ZED }}
           ZED_GITHUB_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}
           ZED_REGISTRY_PUSH_TO: ${{ vars.ZED_REGISTRY_PUSH_TO }}
 
@@ -750,7 +750,7 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish zed registry PR
-        if: inputs.publish_zed == true
+        if: vars.RELEASE_PUBLISH_ZED == 'true'
         run: just bridge/publish-zed "" "$(cat VERSION.txt)"
         env:
           GH_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}

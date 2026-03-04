@@ -52,6 +52,33 @@ if rg -n "just bridge/toolchain-install" "${ci_file}" "${nightly_file}" "${relea
 	exit 1
 fi
 
+# release workflow should be tag driven for immutable releases
+if ! rg -n '^\s+- "v\*"$' "${release_file}" >/dev/null; then
+	echo "release workflow must trigger from v* tags" >&2
+	exit 1
+fi
+
+if rg -n '^  workflow_dispatch:' "${release_file}" >/dev/null; then
+	echo "release workflow must not use workflow_dispatch for publish lanes" >&2
+	exit 1
+fi
+
+# release workflow should enforce tag/version and tracked version consistency
+if ! rg -n "validate-release-tag-version.sh" "${release_file}" >/dev/null; then
+	echo "release workflow must validate tag and VERSION.txt consistency" >&2
+	exit 1
+fi
+
+if ! rg -n "dev version check" "${release_file}" >/dev/null; then
+	echo "release workflow must run tracked version file checks" >&2
+	exit 1
+fi
+
+if ! rg -n "validate-release-changelog.sh" "${release_file}" >/dev/null; then
+	echo "release workflow must validate changelog entry for the release version" >&2
+	exit 1
+fi
+
 # workflows should route through shared setup actions
 if rg -n "rustup toolchain install|oven-sh/setup-bun@|mlugg/setup-zig@" "${workflow_files[@]}"; then
 	echo "workflows must use shared setup actions under .github/actions" >&2
