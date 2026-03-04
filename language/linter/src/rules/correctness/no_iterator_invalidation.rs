@@ -1,7 +1,9 @@
+use std::collections::HashSet;
+
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_target_symbol;
+use crate::rules::common::{collect_pattern_value_binding_symbols, expression_target_symbol};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 /// Method names that mutate collections.
@@ -59,8 +61,8 @@ struct IteratorInvalidationVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// Stack of iterated collection symbols.
-    iterated_symbols: Vec<dir::GlobalSymbolId>,
+    /// Stack of iterated collection alias scopes.
+    iterated_symbol_scopes: Vec<HashSet<dir::GlobalSymbolId>>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -71,7 +73,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         Self {
             ctx,
             meta,
-            iterated_symbols: Vec::new(),
+            iterated_symbol_scopes: Vec::new(),
             options: NodeVisitorOptions::default(),
         }
     }
@@ -94,7 +96,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         left: dir::LocalNodeId<dir::Expression>,
     ) {
         // nothing to check if we're not iterating
-        if self.iterated_symbols.is_empty() {
+        if self.iterated_symbol_scopes.is_empty() {
             return;
         }
 
@@ -122,7 +124,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         let Some(receiver_symbol) = expression_target_symbol(self.ctx.tree, *receiver) else {
             return;
         };
-        if !self.iterated_symbols.contains(&receiver_symbol) {
+        if !self.is_iterated_symbol(receiver_symbol) {
             return;
         }
 
@@ -147,6 +149,52 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
             .with_label("modifying a collection while iterating can cause bugs"),
         );
     }
+
+    /// Return true when one symbol belongs to any active iterated scope.
+    fn is_iterated_symbol(&self, symbol_id: dir::GlobalSymbolId) -> bool {
+        self.iterated_symbol_scopes
+            .iter()
+            .rev()
+            .any(|symbols| symbols.contains(&symbol_id))
+    }
+
+    /// Register local aliases for active iterated symbols from one declarator.
+    fn register_iterated_aliases_from_declarator(
+        &mut self,
+        declarator_id: dir::LocalNodeId<dir::Declarator>,
+    ) {
+        // require an active iterated scope and value initializer
+        let Some(active_symbols) = self.iterated_symbol_scopes.last_mut() else {
+            return;
+        };
+
+        let declarator = self.ctx.tree.get(declarator_id);
+        let Some(value_id) = declarator.value else {
+            return;
+        };
+
+        // require initializer to reference an iterated symbol
+        let Some(source_symbol) = expression_target_symbol(self.ctx.tree, value_id) else {
+            return;
+        };
+        if !active_symbols.contains(&source_symbol) {
+            return;
+        }
+
+        // collect all bound symbols from the declarator pattern
+        let mut local_symbols = HashSet::new();
+        collect_pattern_value_binding_symbols(
+            self.ctx.tree,
+            self.ctx.symbols,
+            declarator.pattern,
+            &mut local_symbols,
+        );
+
+        // register aliases in the current iterated scope
+        for local_symbol in local_symbols {
+            active_symbols.insert(local_symbol.into_global(self.ctx.module.id));
+        }
+    }
 }
 
 impl NodeVisitor for IteratorInvalidationVisitor<'_, '_> {
@@ -170,8 +218,9 @@ impl NodeVisitor for IteratorInvalidationVisitor<'_, '_> {
         {
             // get the iterated collection's symbol
             if let Some(symbol) = expression_target_symbol(tree, *iterator) {
-                // push onto stack and walk body
-                self.iterated_symbols.push(symbol);
+                // push one scope for this loop and walk body
+                self.iterated_symbol_scopes
+                    .push(HashSet::from([symbol]));
 
                 // walk the body
                 let body_block = tree.get(*body);
@@ -181,8 +230,17 @@ impl NodeVisitor for IteratorInvalidationVisitor<'_, '_> {
                 }
 
                 // pop from stack
-                self.iterated_symbols.pop();
+                self.iterated_symbol_scopes.pop();
                 return; // don't walk children again
+            }
+        }
+
+        // collect aliases declared inside active loop scopes
+        if let dir::Expression::Let { declarators, .. }
+        | dir::Expression::Using { declarators, .. } = expression
+        {
+            for declarator_id in declarators {
+                self.register_iterated_aliases_from_declarator(*declarator_id);
             }
         }
 
@@ -297,6 +355,42 @@ for (const x of arr) {
     let y = x;
 }
 arr.push(4);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-iterator-invalidation");
+    }
+
+    /// Flag mutation through one simple loop alias.
+    #[test]
+    fn test_flags_alias_mutation_in_for_of() {
+        let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
+        let result = test.lint_dir(
+            "no_iterator_invalidation/test_flags_alias_mutation_in_for_of.ds",
+            r#"
+let arr = [1, 2, 3];
+for (const x of arr) {
+    let alias = arr;
+    alias.push(x);
+}
+"#,
+        );
+        test.result(result).assert_lint("no-iterator-invalidation");
+    }
+
+    /// Allow mutation through non-iterated aliases.
+    #[test]
+    fn test_allows_non_iterated_alias_mutation() {
+        let test = TestProgram::for_rule_with_prelude(NoIteratorInvalidation);
+        let result = test.lint_dir(
+            "no_iterator_invalidation/test_allows_non_iterated_alias_mutation.ds",
+            r#"
+let source = [1, 2, 3];
+let destination = [4, 5, 6];
+for (const x of source) {
+    let alias = destination;
+    alias.push(x);
+}
 "#,
         );
         test.result(result)
