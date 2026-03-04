@@ -1,11 +1,16 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
 use destack_vm as vm;
+#[cfg(windows)]
+use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, VmSlice, display, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+pub(crate) use crate::tests::platform::{
+    error_code_from_runtime_error as error_code, is_not_supported_code,
+    result_or_skip_not_supported,
+};
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
@@ -113,9 +118,24 @@ pub(crate) fn with_harness_context<F>(mut callback: F)
 where
     F: for<'call> FnMut(DisplayHarnessContext<'call>) -> RuntimeResult<()>,
 {
+    #[cfg(windows)]
+    let _guard = {
+        let global_lock = windows_display_test_lock();
+        global_lock
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+    };
+
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+#[cfg(windows)]
+/// Return one process-global serialization lock for Win32 display tests.
+fn windows_display_test_lock() -> &'static Mutex<()> {
+    static WINDOWS_DISPLAY_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    WINDOWS_DISPLAY_TEST_LOCK.get_or_init(|| Mutex::new(()))
 }
 
 /// Build one harness string payload for native and VM binding calls.
@@ -531,7 +551,6 @@ pub(crate) fn window_event_open_options(
 }
 
 /// Build one monitor-event open options payload with one explicit kind-mask filter.
-#[cfg(windows)]
 pub(crate) fn monitor_event_open_options_with_kind_mask(
     context: &DisplayHarnessContext<'_>,
     queue_capacity: u32,
@@ -569,7 +588,6 @@ pub(crate) fn monitor_event_open_options_with_kind_mask(
 }
 
 /// Build one window-event open options payload with explicit filter restrictions.
-#[cfg(windows)]
 pub(crate) fn window_event_open_options_with_filter(
     context: &DisplayHarnessContext<'_>,
     queue_capacity: u32,
@@ -798,9 +816,12 @@ pub(crate) fn harness_window_mode_options(
     }
 }
 
-/// Extract one platform error code from one runtime error.
-pub(crate) fn error_code(error: &RuntimeError) -> Option<PlatformErrorCode> {
-    error.platform_error().map(|platform| platform.code)
+/// Open one window and map not-supported errors to none.
+pub(crate) fn open_window_or_skip_not_supported(
+    context: &mut DisplayHarnessContext<'_>,
+    options: HarnessValue<display::WindowOptions, display::WindowOptionsVm>,
+) -> RuntimeResult<Option<resource::WindowHandle>> {
+    result_or_skip_not_supported(context.destack_display_window_open(options))
 }
 
 /// Decode one harness value where native and vm payloads share one ABI shape.

@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayDescriptor, DisplayMode, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
-    unsupported,
+    DisplayColorState, DisplayDescriptor, DisplayGammaRamp, DisplayHdrMode, DisplayMode,
+    DisplayMonitorListRequest, DisplayMonitorOpenOptions, unsupported,
 };
 use crate::platform::resource;
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
@@ -95,4 +95,49 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_set_mode(
     mode: DisplayMode,
 ) -> RuntimeResult<()> {
     unsafe { unsupported::destack_display_monitor_set_mode(context, handle, mode) }
+}
+
+/// Read display color state.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_color_state(
+    context: &BindingCallContext,
+    out: *mut DisplayColorState,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_monitor_color_state(context, out, handle) }
+}
+
+/// Read display HDR mode.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_hdr_mode(
+    context: &BindingCallContext,
+    out: *mut DisplayHdrMode,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_monitor_hdr_mode(context, out, handle) }
+}
+
+/// Set display HDR mode.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_set_hdr_mode(
+    context: &BindingCallContext,
+    handle: resource::DisplayHandle,
+    mode: DisplayHdrMode,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_monitor_set_hdr_mode(context, handle, mode) }
+}
+
+/// Read display gamma ramp.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_gamma_ramp(
+    context: &BindingCallContext,
+    out: *mut DisplayGammaRamp,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_monitor_gamma_ramp(context, out, handle) }
+}
+
+/// Set display gamma ramp.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_set_gamma_ramp(
+    context: &BindingCallContext,
+    handle: resource::DisplayHandle,
+    ramp: DisplayGammaRamp,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_monitor_set_gamma_ramp(context, handle, ramp) }
 }

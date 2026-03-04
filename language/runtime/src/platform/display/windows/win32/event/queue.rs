@@ -16,6 +16,7 @@ pub(super) fn ensure_window_event_thread(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let current = current_thread_id();
+    // evaluate this condition
     if current == binding.owner_thread_id {
         return Ok(());
     }
@@ -34,6 +35,7 @@ pub(super) fn consume_overflow_error<Record, State: EventQueueState<Record>>(
     state: &mut State,
     operation: &'static str,
 ) -> RuntimeResult<()> {
+    // evaluate this condition
     if *state.overflow_error_pending() {
         *state.overflow_error_pending() = false;
         return Err(core_platform::io_busy(operation, "event queue overflowed"));
@@ -71,6 +73,7 @@ pub(super) fn pop_pending_batch<Record, State: EventQueueState<Record>>(
     consume_overflow_error(state, operation)?;
 
     let pending = state.pending();
+    // evaluate this condition
     if pending.is_empty() {
         return Err(core_platform::io_would_block(
             operation,
@@ -80,7 +83,9 @@ pub(super) fn pop_pending_batch<Record, State: EventQueueState<Record>>(
 
     let take = max_events.min(pending.len());
     let mut records = Vec::with_capacity(take);
+    // iterate this sequence
     for _ in 0..take {
+        // evaluate this condition
         if let Some(record) = pending.pop_front() {
             records.push(record);
         }
@@ -128,7 +133,9 @@ where
     Record: EventRecordMetadata,
     State: EventQueueState<Record>,
 {
+    // iterate while this condition holds
     while state.pending().len() >= state.queue_capacity() {
+        // resolve this variant
         match state.overflow_policy() {
             DisplayEventOverflowPolicy::DropOldest => {
                 let _ = state.pending().pop_front();
@@ -212,7 +219,9 @@ pub(super) fn publish_monitor_event(
         collect_live_subscribers(&mut registry)
     };
 
+    // iterate this sequence
     for binding in subscribers {
+        // evaluate this condition
         if !binding.filter.matches(&record) {
             continue;
         }
@@ -240,7 +249,9 @@ pub(super) fn publish_window_event(
         collect_live_subscribers(&mut registry)
     };
 
+    // iterate this sequence
     for binding in subscribers {
+        // evaluate this condition
         if !binding.filter.matches(&record) {
             continue;
         }

@@ -31,6 +31,7 @@ pub(crate) unsafe fn window_request_attention(
 
     // request host-level taskbar flash
     let status = unsafe { FlashWindowEx(&info) };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.requestAttention",
@@ -83,6 +84,7 @@ pub(crate) unsafe fn window_focus(
         ShowWindow(binding.hwnd, SW_SHOW);
     }
     let status = unsafe { SetForegroundWindow(binding.hwnd) };
+    // evaluate this condition
     if status == 0 && unsafe { GetForegroundWindow() } != binding.hwnd {
         return Err(core::io_error(
             "destack.display.window.focus",
@@ -128,6 +130,7 @@ pub(crate) unsafe fn window_raise(
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         )
     };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.raise",
@@ -168,6 +171,7 @@ pub(crate) unsafe fn window_begin_move_drag(
 
     // post host drag begin message
     let status = unsafe { PostMessageW(binding.hwnd, WM_NCLBUTTONDOWN, HTCAPTION as usize, 0) };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.beginMoveDrag",
@@ -201,6 +205,7 @@ pub(crate) unsafe fn window_begin_resize_drag(
 
     // post host resize begin message
     let status = unsafe { PostMessageW(binding.hwnd, WM_NCLBUTTONDOWN, resize_hit_test(edge), 0) };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.beginResizeDrag",

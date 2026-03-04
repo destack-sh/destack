@@ -32,7 +32,7 @@ use crate::platform::display::{
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
-use super::model::{DisplayDescriptorOwned, MonitorSnapshot};
+use super::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
 use super::{core, event, resource as display_resource};
 
 /// One advanced-color flag bit indicating support.
@@ -61,12 +61,14 @@ unsafe extern "system" fn enumerate_monitor_rows_callback(
     // load monitor information for this callback row
     let mut info = unsafe { std::mem::zeroed::<MONITORINFOEXW>() };
     info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
+    // evaluate this condition
     if unsafe { GetMonitorInfoW(monitor, &mut info.monitorInfo) } == 0 {
         return 1;
     }
 
     // skip rows without one concrete device id
     let device_id = core::utf16_buffer_to_string(&info.szDevice);
+    // evaluate this condition
     if device_id.is_empty() {
         return 1;
     }
@@ -111,6 +113,7 @@ fn query_raw_devmode(device_id: &str, mode_index: u32) -> RuntimeResult<Option<D
     dev_mode.dmSize = std::mem::size_of::<DEVMODEW>() as u16;
     let status =
         unsafe { EnumDisplaySettingsExW(device_wide.as_ptr(), mode_index, &mut dev_mode, 0) };
+    // evaluate this condition
     if status == 0 {
         return Ok(None);
     }
@@ -122,6 +125,7 @@ fn query_raw_devmode(device_id: &str, mode_index: u32) -> RuntimeResult<Option<D
 fn orientation_from_devmode(value: &DEVMODEW) -> DisplayOrientation {
     // infer orientation from dimensions when the flag is absent
     let has_orientation = (value.dmFields & DM_DISPLAYORIENTATION) != 0;
+    // evaluate this condition
     if !has_orientation {
         return if value.dmPelsWidth >= value.dmPelsHeight {
             DisplayOrientation::Landscape
@@ -132,6 +136,7 @@ fn orientation_from_devmode(value: &DEVMODEW) -> DisplayOrientation {
 
     // map explicit win32 orientation values
     let orientation = unsafe { value.Anonymous1.Anonymous2.dmDisplayOrientation };
+    // evaluate this condition
     if orientation == DMDO_DEFAULT {
         return if value.dmPelsWidth >= value.dmPelsHeight {
             DisplayOrientation::Landscape
@@ -140,14 +145,17 @@ fn orientation_from_devmode(value: &DEVMODEW) -> DisplayOrientation {
         };
     }
 
+    // evaluate this condition
     if orientation == DMDO_90 {
         return DisplayOrientation::Portrait;
     }
 
+    // evaluate this condition
     if orientation == DMDO_180 {
         return DisplayOrientation::LandscapeFlipped;
     }
 
+    // evaluate this condition
     if orientation == DMDO_270 {
         return DisplayOrientation::PortraitFlipped;
     }
@@ -184,9 +192,11 @@ fn enumerate_display_modes(device_id: &str) -> RuntimeResult<Vec<DisplayMode>> {
     let mut modes = Vec::new();
     let mut mode_index = 0u32;
 
+    // iterate while this condition holds
     while let Some(mode) = query_display_mode(device_id, mode_index)? {
         mode_index = mode_index.saturating_add(1);
 
+        // evaluate this condition
         if modes.contains(&mode) {
             continue;
         }
@@ -219,6 +229,7 @@ fn display_name_for_device(device_id: &str) -> RuntimeResult<Option<String>> {
 
     // normalize empty names to none
     let value = core::utf16_buffer_to_string(&display_device.DeviceString);
+    // evaluate this condition
     if value.is_empty() {
         return Ok(None);
     }
@@ -231,11 +242,13 @@ fn display_is_builtin(device_id: &str) -> RuntimeResult<bool> {
     // iterate display devices attached to one monitor row
     let device_wide = core_platform::wide_from_str("id", device_id)?;
     let mut index = 0u32;
+    // loop until one branch exits
     loop {
         let mut display_device = unsafe { std::mem::zeroed::<DISPLAY_DEVICEW>() };
         display_device.cb = std::mem::size_of::<DISPLAY_DEVICEW>() as u32;
         let status =
             unsafe { EnumDisplayDevicesW(device_wide.as_ptr(), index, &mut display_device, 0) };
+        // evaluate this condition
         if status == 0 {
             break;
         }
@@ -246,12 +259,14 @@ fn display_is_builtin(device_id: &str) -> RuntimeResult<bool> {
             continue;
         }
 
+        // evaluate this condition
         if (display_device.StateFlags & DISPLAY_DEVICE_REMOVABLE) != 0 {
             continue;
         }
 
         // match common integrated panel identifiers
         let identifier = core::utf16_buffer_to_string(&display_device.DeviceID).to_uppercase();
+        // evaluate this condition
         if identifier.contains("INTERNAL")
             || identifier.contains("EDP")
             || identifier.contains("LVDS")
@@ -321,6 +336,7 @@ fn source_name_for_path(path: &DISPLAYCONFIG_PATH_INFO) -> Option<String> {
 
     // normalize empty source names to none
     let value = core::utf16_buffer_to_string(&source_name.viewGdiDeviceName);
+    // evaluate this condition
     if value.is_empty() {
         return None;
     }
@@ -352,6 +368,7 @@ fn display_hdr_support_map() -> HashMap<String, bool> {
     // query active display config path table with one resize retry
     let mut supports_hdr_by_device_id = HashMap::new();
     let mut attempt_count = 0u8;
+    // loop until one branch exits
     loop {
         let mut path_count = 0u32;
         let mut mode_count = 0u32;
@@ -416,6 +433,7 @@ fn display_hdr_support_map() -> HashMap<String, bool> {
 fn active_display_paths() -> Option<Vec<DISPLAYCONFIG_PATH_INFO>> {
     // query active path table with one resize retry
     let mut attempt_count = 0u8;
+    // loop until one branch exits
     loop {
         let mut path_count = 0u32;
         let mut mode_count = 0u32;
@@ -469,10 +487,12 @@ fn advanced_color_target_for_device(
     let paths = active_display_paths()?;
     let target_id = device_id.to_uppercase();
 
+    // iterate this sequence
     for path in &paths {
         let Some(source_name) = source_name_for_path(path) else {
             continue;
         };
+        // evaluate this condition
         if source_name.to_uppercase() != target_id {
             continue;
         }
@@ -483,6 +503,7 @@ fn advanced_color_target_for_device(
         hdr_info.header.adapterId = path.targetInfo.adapterId;
         hdr_info.header.id = path.targetInfo.id;
         let status = unsafe { DisplayConfigGetDeviceInfo(&mut hdr_info.header) };
+        // evaluate this condition
         if status != ERROR_SUCCESS as i32 {
             return None;
         }
@@ -498,10 +519,12 @@ fn color_space_from_advanced_info(
     info: &DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO,
     hdr_enabled: bool,
 ) -> DisplayColorSpace {
+    // evaluate this condition
     if hdr_enabled {
         return DisplayColorSpace::Hdr10;
     }
 
+    // evaluate this condition
     if info.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING_RGB {
         return DisplayColorSpace::Srgb;
     }
@@ -554,12 +577,14 @@ fn set_monitor_hdr_enabled_by_id(
 
     let flags = unsafe { info.Anonymous.value };
     let hdr_supported = (flags & ADVANCED_COLOR_SUPPORTED_BIT) != 0;
+    // evaluate this condition
     if enabled && !hdr_supported {
         return Err(core_platform::invalid_argument(
             "mode",
             "display does not report HDR support",
         ));
     }
+    // evaluate this condition
     if !hdr_supported {
         return Ok(());
     }
@@ -576,6 +601,7 @@ fn set_monitor_hdr_enabled_by_id(
     };
 
     let status = unsafe { DisplayConfigSetDeviceInfo(&state.header) };
+    // evaluate this condition
     if status == ERROR_SUCCESS as i32 {
         return Ok(());
     }
@@ -602,6 +628,7 @@ fn read_monitor_gamma_ramp_by_id(
             std::ptr::null(),
         )
     };
+    // evaluate this condition
     if hdc == 0 {
         return Err(core::io_error(
             operation,
@@ -615,11 +642,13 @@ fn read_monitor_gamma_ramp_by_id(
     unsafe {
         DeleteDC(hdc);
     }
+    // evaluate this condition
     if status != 0 {
         return Ok(gamma);
     }
 
     let code = core_platform::last_error_code() as u32;
+    // evaluate this condition
     if code == 0 {
         return Err(core_platform::not_supported(operation));
     }
@@ -647,6 +676,7 @@ fn write_monitor_gamma_ramp_by_id(
             std::ptr::null(),
         )
     };
+    // evaluate this condition
     if hdc == 0 {
         return Err(core::io_error(
             operation,
@@ -659,11 +689,13 @@ fn write_monitor_gamma_ramp_by_id(
     unsafe {
         DeleteDC(hdc);
     }
+    // evaluate this condition
     if status != 0 {
         return Ok(());
     }
 
     let code = core_platform::last_error_code() as u32;
+    // evaluate this condition
     if code == 0 {
         return Err(core_platform::not_supported(operation));
     }
@@ -688,6 +720,7 @@ fn enumerate_monitor_rows() -> RuntimeResult<Vec<MonitorRow>> {
             &mut rows as *mut _ as LPARAM,
         )
     };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.monitor.list",
@@ -714,6 +747,7 @@ pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
         let orientation = query_raw_devmode(&device_id, ENUM_CURRENT_SETTINGS)?
             .map(|mode| orientation_from_devmode(&mode))
             .unwrap_or_else(|| {
+                // evaluate this condition
                 if current_mode.width >= current_mode.height {
                     DisplayOrientation::Landscape
                 } else {
@@ -723,9 +757,11 @@ pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
         let desktop_mode =
             query_display_mode(&device_id, ENUM_REGISTRY_SETTINGS)?.unwrap_or(current_mode);
         let mut modes = enumerate_display_modes(&device_id)?;
+        // evaluate this condition
         if !modes.contains(&current_mode) {
             modes.push(current_mode);
         }
+        // evaluate this condition
         if !modes.contains(&desktop_mode) {
             modes.push(desktop_mode);
         }
@@ -744,7 +780,7 @@ pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
             .copied()
             .unwrap_or(false);
         // materialize descriptor payload
-        let descriptor = DisplayDescriptorOwned {
+        let descriptor = DisplayDescriptorSnapshot {
             backend: DisplayBackend::Win32,
             id: device_id,
             name,
@@ -800,7 +836,7 @@ pub(super) fn monitor_snapshot_by_id(id: &str) -> RuntimeResult<Option<MonitorSn
 /// Convert one owned descriptor payload into one ABI descriptor payload.
 pub(super) fn descriptor_from_owned(
     context: &BindingCallContext,
-    value: &DisplayDescriptorOwned,
+    value: &DisplayDescriptorSnapshot,
 ) -> DisplayDescriptor {
     DisplayDescriptor {
         backend: value.backend,
@@ -847,6 +883,7 @@ pub(super) fn apply_monitor_mode_by_id(
     mode: DisplayMode,
     operation: &'static str,
 ) -> RuntimeResult<()> {
+    // evaluate this condition
     if mode.width == 0 || mode.height == 0 {
         return Err(core_platform::invalid_argument(
             "mode",
@@ -884,10 +921,12 @@ pub(super) fn apply_monitor_mode_by_id(
         )
     };
 
+    // evaluate this condition
     if result == DISP_CHANGE_SUCCESSFUL {
         return Ok(());
     }
 
+    // evaluate this condition
     if result == DISP_CHANGE_BADMODE {
         return Err(core_platform::invalid_argument(
             "mode",
@@ -895,6 +934,7 @@ pub(super) fn apply_monitor_mode_by_id(
         ));
     }
 
+    // evaluate this condition
     if result == DISP_CHANGE_BADPARAM || result == DISP_CHANGE_BADFLAGS {
         return Err(core_platform::invalid_argument(
             "mode",
@@ -929,12 +969,14 @@ pub(super) fn mode_target_rect(
         && display.is_none()
     {
         let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
+        // evaluate this condition
         if monitor == 0 {
             return Ok(None);
         }
 
         let mut info = unsafe { std::mem::zeroed::<MONITORINFOEXW>() };
         info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
+        // evaluate this condition
         if unsafe { GetMonitorInfoW(monitor, &mut info.monitorInfo) } == 0 {
             return Err(core::io_error(
                 operation,
@@ -1034,6 +1076,7 @@ pub(crate) unsafe fn monitor_close(
         .resources
         .remove(handle.0, Some(context.engine()))
         .is_some();
+    // evaluate this condition
     if !removed {
         return Err(core_platform::io_not_found(
             "destack.display.monitor.close",
@@ -1122,6 +1165,7 @@ pub(crate) unsafe fn monitor_closest_mode(
 
     let snapshot =
         monitor_snapshot_for_handle(context, handle, "destack.display.monitor.closestMode")?;
+    // evaluate this condition
     if snapshot.modes.is_empty() {
         return Err(core_platform::io_not_found(
             "destack.display.monitor.closestMode",
@@ -1131,6 +1175,7 @@ pub(crate) unsafe fn monitor_closest_mode(
 
     let mut best = snapshot.modes[0];
     let mut best_score = u64::MAX;
+    // iterate this sequence
     for mode in snapshot.modes {
         let width_delta = mode.width.abs_diff(requested.width) as u64;
         let height_delta = mode.height.abs_diff(requested.height) as u64;
@@ -1142,6 +1187,7 @@ pub(crate) unsafe fn monitor_closest_mode(
             .saturating_add(refresh_delta.saturating_mul(1000))
             .saturating_add(bit_depth_delta);
 
+        // evaluate this condition
         if score < best_score {
             best = mode;
             best_score = score;
@@ -1187,6 +1233,7 @@ pub(crate) unsafe fn monitor_set_mode(
         display_resource::resolve_display_id(context, handle, "destack.display.monitor.setMode")?;
 
     apply_monitor_mode_by_id(&id, mode, "destack.display.monitor.setMode")?;
+    // evaluate this condition
     if let Some(snapshot) = monitor_snapshot_by_id(&id)? {
         event::publish_mode_changed_event(context, &id, snapshot.current_mode);
         event::publish_descriptor_changed_event(
@@ -1256,12 +1303,14 @@ pub(crate) unsafe fn monitor_set_hdr_mode(
         "destack.display.monitor.setHdrMode",
     )?;
 
+    // evaluate this condition
     if mode == DisplayHdrMode::Unknown {
         return Err(core_platform::invalid_argument(
             "mode",
             "hdr mode must be one concrete mode",
         ));
     }
+    // evaluate this condition
     if mode == DisplayHdrMode::System {
         return Ok(());
     }
@@ -1310,6 +1359,7 @@ pub(crate) unsafe fn monitor_set_gamma_ramp(
     let red = unsafe { ramp.red.as_slice()? };
     let green = unsafe { ramp.green.as_slice()? };
     let blue = unsafe { ramp.blue.as_slice()? };
+    // evaluate this condition
     if red.len() != GAMMA_RAMP_CHANNEL_ENTRIES
         || green.len() != GAMMA_RAMP_CHANNEL_ENTRIES
         || blue.len() != GAMMA_RAMP_CHANNEL_ENTRIES

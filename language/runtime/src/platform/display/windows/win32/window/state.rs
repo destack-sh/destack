@@ -86,11 +86,7 @@ pub(crate) unsafe fn window_state(
         visibility: binding.visibility,
         display: binding.display,
         focused: binding.focused,
-        occlusion: if binding.occluded {
-            WindowOcclusionState::Occluded
-        } else {
-            WindowOcclusionState::Unoccluded
-        },
+        occlusion: WindowOcclusionState::Unknown,
         safe_area_insets: binding.safe_area_insets,
         theme: binding.theme,
         chrome: binding.chrome,

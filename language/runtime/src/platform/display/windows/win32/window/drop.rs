@@ -22,8 +22,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::WindowPosition;
 use crate::platform::{PlatformError, core as core_platform, resource};
 
-use super::super::model::Win32WindowBinding;
-use super::event;
+use super::super::super::event;
+use super::super::super::model::Win32WindowBinding;
 
 /// COM interface identifier for `IDropTarget`.
 const IID_IDROPTARGET: GUID = GUID::from_u128(0x00000122_0000_0000_c000_000000000046);
@@ -203,6 +203,7 @@ fn resolved_drop_effect(source_effect: u32, accepts_payload: bool) -> u32 {
 
     // mask source capabilities to supported win32 effects
     let source_effect = source_effect & ALLOWED_DROP_EFFECTS;
+    // evaluate this condition
     if source_effect == 0 {
         return DROPEFFECT_NONE;
     }
@@ -212,6 +213,7 @@ fn resolved_drop_effect(source_effect: u32, accepts_payload: bool) -> u32 {
         return DROPEFFECT_COPY;
     }
 
+    // evaluate this condition
     if (source_effect & DROPEFFECT_MOVE) != 0 {
         return DROPEFFECT_MOVE;
     }
@@ -240,11 +242,13 @@ unsafe fn data_object_get_data(
     format: &FORMATETC,
     medium: &mut STGMEDIUM,
 ) -> HRESULT {
+    // evaluate this condition
     if data_object.is_null() {
         return E_POINTER;
     }
 
     let vtable = unsafe { *(data_object as *mut *const DataObjectVTablePrefix) };
+    // evaluate this condition
     if vtable.is_null() {
         return E_POINTER;
     }
@@ -264,6 +268,7 @@ fn drop_file_paths(data_object: IDataObject) -> Option<Vec<Vec<u16>>> {
     let format = format_for_clipboard(CF_HDROP);
     let mut medium = unsafe { std::mem::zeroed::<STGMEDIUM>() };
     let status = unsafe { data_object_get_data(data_object, &format, &mut medium) };
+    // evaluate this condition
     if !hresult_succeeded(status) {
         return None;
     }
@@ -273,6 +278,7 @@ fn drop_file_paths(data_object: IDataObject) -> Option<Vec<Vec<u16>>> {
         None
     } else {
         let hglobal = unsafe { medium.u.hGlobal };
+        // evaluate this condition
         if hglobal.is_null() {
             None
         } else {
@@ -283,6 +289,7 @@ fn drop_file_paths(data_object: IDataObject) -> Option<Vec<Vec<u16>>> {
             // read each dropped path as utf16 payload
             for index in 0..count {
                 let length = unsafe { DragQueryFileW(hdrop, index, std::ptr::null_mut(), 0) };
+                // evaluate this condition
                 if length == 0 {
                     continue;
                 }
@@ -290,6 +297,7 @@ fn drop_file_paths(data_object: IDataObject) -> Option<Vec<Vec<u16>>> {
                 let mut wide = vec![0u16; length as usize + 1];
                 let actual =
                     unsafe { DragQueryFileW(hdrop, index, wide.as_mut_ptr(), wide.len() as u32) };
+                // evaluate this condition
                 if actual == 0 {
                     continue;
                 }
@@ -316,6 +324,7 @@ fn drop_text(data_object: IDataObject) -> Option<String> {
     let format = format_for_clipboard(CF_UNICODETEXT);
     let mut medium = unsafe { std::mem::zeroed::<STGMEDIUM>() };
     let status = unsafe { data_object_get_data(data_object, &format, &mut medium) };
+    // evaluate this condition
     if !hresult_succeeded(status) {
         return None;
     }
@@ -325,10 +334,12 @@ fn drop_text(data_object: IDataObject) -> Option<String> {
         None
     } else {
         let hglobal = unsafe { medium.u.hGlobal };
+        // evaluate this condition
         if hglobal.is_null() {
             None
         } else {
             let pointer = unsafe { GlobalLock(hglobal) } as *const u16;
+            // evaluate this condition
             if pointer.is_null() {
                 None
             } else {
@@ -359,6 +370,7 @@ fn drop_text(data_object: IDataObject) -> Option<String> {
 
 /// Publish one drop-started event when this session has not started yet.
 fn publish_drop_started(callback: &WindowDropTargetCallback, state: &mut DropSessionState) {
+    // evaluate this condition
     if state.is_active {
         return;
     }
@@ -389,12 +401,14 @@ unsafe extern "system" fn drop_target_drag_enter(
     publish_drop_started(callback, &mut session_state);
     session_state.accepts_payload = accepts_payload;
 
+    // evaluate this condition
     if let Some(path_utf16) = first_path {
         let should_emit = session_state.last_hover_path_utf16.as_ref() != Some(&path_utf16)
             || session_state.last_hover_position != position;
         session_state.last_hover_path_utf16 = Some(path_utf16.clone());
         session_state.last_hover_position = position;
 
+        // evaluate this condition
         if should_emit {
             event::publish_window_file_hovered_event(
                 &callback.event_runtime_state,
@@ -433,6 +447,7 @@ unsafe extern "system" fn drop_target_drag_over(
     session_state.last_hover_position = position;
     drop(session_state);
 
+    // evaluate this condition
     if should_emit_hover {
         event::publish_window_file_hovered_event(
             &callback.event_runtime_state,
@@ -455,6 +470,7 @@ unsafe extern "system" fn drop_target_drag_leave(this: *mut c_void) -> HRESULT {
         .session_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
+    // evaluate this condition
     if !session_state.is_active {
         return S_OK;
     }
@@ -505,6 +521,7 @@ unsafe extern "system" fn drop_target_drop_data(
     *session_state = DropSessionState::default();
     drop(session_state);
 
+    // evaluate this condition
     if previous_path.is_some() || previous_position.is_some() {
         event::publish_window_file_hover_left_event(
             &callback.event_runtime_state,
@@ -514,12 +531,14 @@ unsafe extern "system" fn drop_target_drop_data(
         );
     }
 
+    // evaluate this condition
     if !accepts_payload {
         event::publish_window_drop_cancelled_event(&callback.event_runtime_state, callback.window);
         set_drop_effect(effect, false);
         return S_OK;
     }
 
+    // iterate this sequence
     for path_utf16 in file_paths {
         event::publish_window_file_dropped_event(
             &callback.event_runtime_state,
@@ -529,6 +548,7 @@ unsafe extern "system" fn drop_target_drop_data(
         );
     }
 
+    // evaluate this condition
     if let Some(text) = text_payload {
         event::publish_window_text_dropped_event(
             &callback.event_runtime_state,
@@ -550,6 +570,7 @@ pub(super) fn register_window_drop_target(
     event_runtime_state: &Arc<event::DisplayEventRuntimeState>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
+    // evaluate this condition
     if binding.drop_target_callback != 0 {
         return Ok(());
     }
@@ -571,13 +592,16 @@ pub(super) fn register_window_drop_target(
     let callback_pointer = create_drop_target_callback(window, Arc::clone(event_runtime_state));
     let mut register_status =
         unsafe { RegisterDragDrop(binding.hwnd, callback_pointer as IDropTarget) };
+    // evaluate this condition
     if register_status == DRAGDROP_E_ALREADYREGISTERED {
         let _ = unsafe { RevokeDragDrop(binding.hwnd) };
         register_status =
             unsafe { RegisterDragDrop(binding.hwnd, callback_pointer as IDropTarget) };
     }
+    // evaluate this condition
     if !hresult_succeeded(register_status) {
         release_drop_target_callback(callback_pointer);
+        // evaluate this condition
         if ole_initialized {
             unsafe {
                 OleUninitialize();
@@ -603,8 +627,10 @@ pub(super) fn unregister_window_drop_target(binding: &mut Win32WindowBinding) {
     binding.drop_target_callback = 0;
     binding.drop_target_ole_initialized = false;
 
+    // evaluate this condition
     if !callback_pointer.is_null() {
         let revoke_status = unsafe { RevokeDragDrop(binding.hwnd) };
+        // evaluate this condition
         if revoke_status != DRAGDROP_E_NOTREGISTERED && !hresult_succeeded(revoke_status) {
             // ignore teardown errors during best effort cleanup
         }
@@ -612,6 +638,7 @@ pub(super) fn unregister_window_drop_target(binding: &mut Win32WindowBinding) {
         release_drop_target_callback(callback_pointer);
     }
 
+    // evaluate this condition
     if ole_initialized {
         unsafe {
             OleUninitialize();

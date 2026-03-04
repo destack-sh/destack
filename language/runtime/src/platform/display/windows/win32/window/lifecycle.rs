@@ -51,6 +51,7 @@ pub(crate) unsafe fn window_open(
     // validate relationship and opacity constraints
     let opacity = normalize_opacity(options.opacity.unwrap_or(1.0), "options.opacity")?;
     let modal = options.modal.unwrap_or(false);
+    // evaluate this condition
     if modal && options.parent.is_none() && options.transient_for.is_none() {
         return Err(core_platform::invalid_argument(
             "options.modal",
@@ -94,7 +95,6 @@ pub(crate) unsafe fn window_open(
         size_physical,
         scale_factor_milli,
         focused: options.focus_on_show,
-        occluded: false,
         safe_area_insets: None,
         theme: current_window_theme(),
         exclusive_restore: None,
@@ -134,6 +134,7 @@ pub(crate) unsafe fn window_open(
             std::ptr::null(),
         )
     };
+    // evaluate this condition
     if hwnd == 0 {
         return Err(core::io_error(
             "destack.display.window.open",
@@ -144,6 +145,7 @@ pub(crate) unsafe fn window_open(
 
     // apply initial mode and owner state with rollback on failure
     provisional_binding.hwnd = hwnd;
+    // evaluate this condition
     if let Err(error) = apply_mode_options(
         context,
         &mut provisional_binding,
@@ -159,6 +161,7 @@ pub(crate) unsafe fn window_open(
         return Err(error);
     }
 
+    // evaluate this condition
     if let Err(error) =
         apply_owner_relationship(context, &provisional_binding, "destack.display.window.open")
     {
@@ -169,6 +172,7 @@ pub(crate) unsafe fn window_open(
         rollback_result?;
         return Err(error);
     }
+    // evaluate this condition
     if let Err(error) = apply_modal_owner_transition(
         context,
         None,
@@ -202,6 +206,7 @@ pub(crate) unsafe fn window_open(
         let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
         upsert_cursor_policy(&window_runtime_state, handle, &binding);
     }
+    // evaluate this condition
     if let Err(error) = refresh_cursor_policy(&window_runtime_state) {
         remove_cursor_policy(&window_runtime_state, handle);
         let _ = context
@@ -216,6 +221,7 @@ pub(crate) unsafe fn window_open(
 
     event::refresh_monitor_topology_cache(context)?;
     let event_runtime_state = event::display_event_runtime_state(context);
+    // evaluate this condition
     if let Err(error) = register_runtime_window(
         hwnd,
         WindowRuntimeEntry {
@@ -292,6 +298,7 @@ pub(crate) unsafe fn window_open(
     // force foreground when explicitly requested
     if options.focus_on_show && options.visibility == WindowVisibility::Visible {
         let status = unsafe { SetForegroundWindow(hwnd) };
+        // evaluate this condition
         if status == 0 && unsafe { GetForegroundWindow() } != hwnd {
             context.warn(
                 "display",
@@ -318,13 +325,13 @@ pub(crate) unsafe fn window_open(
         refresh_window_snapshot(&mut binding);
         binding.clone()
     };
+    // evaluate this condition
     if previous.visibility != next.visibility
         || previous.position != next.position
         || previous.size_logical != next.size_logical
         || previous.size_physical != next.size_physical
         || previous.scale_factor_milli != next.scale_factor_milli
         || previous.focused != next.focused
-        || previous.occluded != next.occluded
         || previous.theme != next.theme
     {
         event::publish_state_deltas(&event_runtime_state, handle, &previous, &next);
@@ -370,6 +377,7 @@ pub(crate) unsafe fn window_close(
 
     // compute lifecycle event emission state
     let should_emit_close_requested = !binding.close_requested_emitted;
+    // evaluate this condition
     if should_emit_close_requested {
         binding.close_requested_emitted = true;
     }
@@ -391,6 +399,7 @@ pub(crate) unsafe fn window_close(
     // destroy host window and pump pending messages
     if unsafe { windows_sys::Win32::UI::WindowsAndMessaging::IsWindow(hwnd) } != 0 {
         let status = unsafe { DestroyWindow(hwnd) };
+        // evaluate this condition
         if status == 0 {
             return Err(core::io_error(
                 "destack.display.window.close",
@@ -405,6 +414,7 @@ pub(crate) unsafe fn window_close(
     let binding =
         display_resource::resolve_window_binding(context, window, "destack.display.window.close")?;
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    // evaluate this condition
     if !binding.destroyed_emitted {
         binding.destroyed_emitted = true;
         drop(binding);
@@ -419,6 +429,7 @@ pub(crate) unsafe fn window_close(
         .runtime()
         .resources
         .remove_and_finalize(window.0, Some(context.engine()));
+    // evaluate this condition
     if !removed {
         return Err(core_platform::io_not_found(
             "destack.display.window.close",

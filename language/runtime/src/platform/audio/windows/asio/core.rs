@@ -331,6 +331,8 @@ impl Drop for AsioHostStreamOps {
 }
 
 /// One global callback runtime slot required by ASIO callback ABI without user-data pointers.
+/// NOTE #Architecture: ASIO callback entry points do not carry user-data context, so callback
+///  routing cannot recover a per-agent runtime state handle; this slot remains process-global (:c?).
 static ACTIVE_ASIO_RUNTIME: OnceLock<Mutex<Option<Weak<AsioStreamRuntime>>>> = OnceLock::new();
 
 /// Return one callback-runtime slot for ASIO callbacks.

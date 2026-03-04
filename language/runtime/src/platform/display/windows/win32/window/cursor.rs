@@ -41,6 +41,7 @@ pub(crate) unsafe fn window_set_cursor_icon(
 
     // load the requested cursor icon from system resources
     let cursor = unsafe { LoadCursorW(0, cursor_name(icon)) };
+    // evaluate this condition
     if cursor == 0 {
         return Err(core::io_error(
             "destack.display.window.setCursorIcon",
@@ -78,6 +79,7 @@ pub(crate) unsafe fn window_set_cursor_position(
         x: position.x,
         y: position.y,
     };
+    // evaluate this condition
     if unsafe { ClientToScreen(binding.hwnd, &mut point) } == 0 {
         return Err(core::io_error(
             "destack.display.window.setCursorPosition",
@@ -88,6 +90,7 @@ pub(crate) unsafe fn window_set_cursor_position(
 
     // move the host cursor
     let status = unsafe { SetCursorPos(point.x, point.y) };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.setCursorPosition",
@@ -119,6 +122,7 @@ pub(crate) unsafe fn window_set_cursor_mode(
 
     // keep global visibility in sync for hidden and normal modes
     let runtime_state = window_runtime_state(context);
+    // evaluate this condition
     if mode == WindowCursorMode::Hidden {
         set_cursor_visibility(&runtime_state, false);
         binding.cursor_visible = false;

@@ -3,11 +3,11 @@ use super::HarnessWindowMode;
 #[cfg(windows)]
 use super::harness_window_mode_options;
 use super::{
-    default_monitor_event_open_options, default_window_options, error_code,
-    monitor_event_open_options, window_event_open_options, with_harness_context,
+    default_monitor_event_open_options, default_window_event_open_options, default_window_options,
+    error_code, monitor_event_open_options, monitor_event_open_options_with_kind_mask,
+    open_window_or_skip_not_supported, result_or_skip_not_supported, window_event_open_options,
+    window_event_open_options_with_filter, with_harness_context,
 };
-#[cfg(windows)]
-use super::{monitor_event_open_options_with_kind_mask, window_event_open_options_with_filter};
 #[cfg(windows)]
 use crate::diagnostic::RuntimeError;
 #[cfg(windows)]
@@ -21,17 +21,12 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_CLOSE, WM_DIS
 #[test]
 fn test_monitor_event_stream_is_seeded() {
     with_harness_context(|mut context| {
-        let stream = match context
-            .destack_display_monitor_event_open(default_monitor_event_open_options(&context))
-        {
-            Ok(stream) => stream,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(stream) = result_or_skip_not_supported(
+            context
+                .destack_display_monitor_event_open(default_monitor_event_open_options(&context)),
+        )?
+        else {
+            return Ok(());
         };
 
         let event = context.destack_display_monitor_event_read(stream, 100_000_000)?;
@@ -89,17 +84,12 @@ fn test_monitor_event_kind_filter_restricts_seeded_events() {
 #[test]
 fn test_monitor_event_batch_rejects_zero_maxevents() {
     with_harness_context(|mut context| {
-        let stream = match context
-            .destack_display_monitor_event_open(default_monitor_event_open_options(&context))
-        {
-            Ok(stream) => stream,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(stream) = result_or_skip_not_supported(
+            context
+                .destack_display_monitor_event_open(default_monitor_event_open_options(&context)),
+        )?
+        else {
+            return Ok(());
         };
 
         let result = context.destack_display_monitor_event_read_batch(stream, 0, 100_000_000);
@@ -120,18 +110,168 @@ fn test_monitor_event_batch_rejects_zero_maxevents() {
 
 #[cfg(any(unix, windows))]
 #[test]
+fn test_monitor_event_filter_rejects_invalid_kind_mask() {
+    with_harness_context(|mut context| {
+        let Some(stream) = result_or_skip_not_supported(
+            context
+                .destack_display_monitor_event_open(default_monitor_event_open_options(&context)),
+        )?
+        else {
+            return Ok(());
+        };
+        context.destack_display_monitor_event_close(stream)?;
+
+        let result =
+            context.destack_display_monitor_event_open(monitor_event_open_options_with_kind_mask(
+                &context,
+                64,
+                DisplayEventOverflowPolicy::DropOldest,
+                0x8000_0000,
+            ));
+        let error = result.expect_err("unsupported monitor kind mask should fail");
+        assert!(matches!(
+            error_code(&error),
+            Some(PlatformErrorCode::InvalidArgument)
+                | Some(PlatformErrorCode::InvalidArgumentValue)
+        ));
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_event_filter_rejects_invalid_kind_mask() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "window-filter-invalid-mask")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let stream = context
+            .destack_display_window_event_open(default_window_event_open_options(&context))?;
+        context.destack_display_window_event_close(stream)?;
+
+        let result =
+            context.destack_display_window_event_open(window_event_open_options_with_filter(
+                &context,
+                64,
+                DisplayEventOverflowPolicy::DropOldest,
+                None,
+                Some(0x8000_0000_0000_0000),
+            ));
+        let error = result.expect_err("unsupported window kind mask should fail");
+        assert!(matches!(
+            error_code(&error),
+            Some(PlatformErrorCode::InvalidArgument)
+                | Some(PlatformErrorCode::InvalidArgumentValue)
+        ));
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_monitor_event_stream_double_close_reports_not_found() {
+    with_harness_context(|mut context| {
+        let Some(stream) = result_or_skip_not_supported(
+            context
+                .destack_display_monitor_event_open(default_monitor_event_open_options(&context)),
+        )?
+        else {
+            return Ok(());
+        };
+
+        context.destack_display_monitor_event_close(stream)?;
+
+        let second_close = context.destack_display_monitor_event_close(stream);
+        let error = second_close.expect_err("second monitor event close should fail");
+        assert_eq!(error_code(&error), Some(PlatformErrorCode::IoNotFound));
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_event_stream_double_close_reports_not_found() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "window-event-double-close")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let stream = context
+            .destack_display_window_event_open(default_window_event_open_options(&context))?;
+        context.destack_display_window_event_close(stream)?;
+
+        let second_close = context.destack_display_window_event_close(stream);
+        let error = second_close.expect_err("second window event close should fail");
+        assert_eq!(error_code(&error), Some(PlatformErrorCode::IoNotFound));
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_monitor_event_read_after_stream_close_reports_not_found() {
+    with_harness_context(|mut context| {
+        let Some(stream) = result_or_skip_not_supported(
+            context
+                .destack_display_monitor_event_open(default_monitor_event_open_options(&context)),
+        )?
+        else {
+            return Ok(());
+        };
+        context.destack_display_monitor_event_close(stream)?;
+
+        let read = context.destack_display_monitor_event_try_read(stream);
+        let error = match read {
+            Ok(_) => panic!("closed monitor event stream should reject reads"),
+            Err(error) => error,
+        };
+        assert_eq!(error_code(&error), Some(PlatformErrorCode::IoNotFound));
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_event_read_after_stream_close_reports_not_found() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "window-event-stale-read")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let stream = context
+            .destack_display_window_event_open(default_window_event_open_options(&context))?;
+        context.destack_display_window_event_close(stream)?;
+
+        let read = context.destack_display_window_event_try_read(stream);
+        let error = match read {
+            Ok(_) => panic!("closed window event stream should reject reads"),
+            Err(error) => error,
+        };
+        assert_eq!(error_code(&error), Some(PlatformErrorCode::IoNotFound));
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
 fn test_window_event_stream_reports_would_block_after_drain() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-event-drain")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let stream = context.destack_display_window_event_open(window_event_open_options(
@@ -177,7 +317,10 @@ fn test_window_event_stream_reports_would_block_after_drain() {
 fn test_window_event_filter_restricts_window_and_kind() {
     with_harness_context(|mut context| {
         let first_options = default_window_options(&mut context, "window-filter-target")?;
-        let first_window = context.destack_display_window_open(first_options)?;
+        let Some(first_window) = open_window_or_skip_not_supported(&mut context, first_options)?
+        else {
+            return Ok(());
+        };
         let second_options = default_window_options(&mut context, "window-filter-other")?;
         let second_window = context.destack_display_window_open(second_options)?;
 
@@ -233,15 +376,8 @@ fn test_window_event_filter_restricts_window_and_kind() {
 fn test_window_event_overflow_error_policy_reports_busy() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-overflow")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let stream = context.destack_display_window_event_open(window_event_open_options(
@@ -284,19 +420,12 @@ fn test_window_event_overflow_error_policy_reports_busy() {
 #[test]
 fn test_monitor_event_overflow_error_policy_reports_busy() {
     with_harness_context(|mut context| {
-        let stream = match context.destack_display_monitor_event_open(monitor_event_open_options(
-            &context,
-            1,
-            DisplayEventOverflowPolicy::Error,
-        )) {
-            Ok(stream) => stream,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(stream) =
+            result_or_skip_not_supported(context.destack_display_monitor_event_open(
+                monitor_event_open_options(&context, 1, DisplayEventOverflowPolicy::Error),
+            ))?
+        else {
+            return Ok(());
         };
 
         let overflow = context.destack_display_monitor_event_try_read(stream);
@@ -316,15 +445,8 @@ fn test_monitor_event_overflow_error_policy_reports_busy() {
 fn test_window_event_stream_receives_host_close_message() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-host-close")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let stream = context.destack_display_window_event_open(window_event_open_options(
@@ -372,15 +494,8 @@ fn test_window_event_stream_receives_host_close_message() {
 fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-close-lifecycle")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let stream = context.destack_display_window_event_open(window_event_open_options(
@@ -453,15 +568,8 @@ fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
 fn test_window_state_read_does_not_synthesize_window_events() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-state-no-events")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let stream = context.destack_display_window_event_open(window_event_open_options(
@@ -513,15 +621,8 @@ fn test_window_state_read_does_not_synthesize_window_events() {
 fn test_window_set_mode_noop_does_not_emit_mode_event() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "window-mode-noop")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let stream = context.destack_display_window_event_open(window_event_open_options(
@@ -570,21 +671,19 @@ fn test_window_set_mode_noop_does_not_emit_mode_event() {
 #[test]
 fn test_monitor_event_stream_ignores_noop_displaychange_message() {
     with_harness_context(|mut context| {
-        let stream = match context
-            .destack_display_monitor_event_open(default_monitor_event_open_options(&context))
-        {
-            Ok(stream) => stream,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(stream) = result_or_skip_not_supported(
+            context
+                .destack_display_monitor_event_open(default_monitor_event_open_options(&context)),
+        )?
+        else {
+            return Ok(());
         };
 
         let options = default_window_options(&mut context, "monitor-event-noop-displaychange")?;
-        let window = context.destack_display_window_open(options)?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            context.destack_display_monitor_event_close(stream)?;
+            return Ok(());
+        };
 
         loop {
             let event = context.destack_display_monitor_event_try_read(stream);

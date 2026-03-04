@@ -21,6 +21,8 @@ use crate::runtime::BindingCallContext;
 pub(crate) use event::*;
 pub(crate) use monitor::*;
 pub(crate) use window::*;
+#[cfg(target_os = "linux")]
+pub(crate) use x11::X11RuntimeState;
 
 /// List unix display backend descriptors for the active host.
 pub(super) fn display_backend_descriptors(

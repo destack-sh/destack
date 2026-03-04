@@ -1,47 +1,28 @@
-use super::*;
+use std::collections::HashMap;
+
 use crate::platform::abi::NativeAbi;
-use crate::platform::fs::{self as platform_fs, PathUtf16Abi, core as core_fs};
+use crate::platform::core as core_platform;
+use crate::platform::display::{
+    DisplayAddedEvent, DisplayAddedPayload, DisplayBackend, DisplayDescriptorChangedEvent,
+    DisplayDescriptorChangedPayload, DisplayMetricChangedMask, DisplayModeChangedEvent,
+    DisplayModeChangedPayload, DisplayMonitorEvent, DisplayMonitorEventMetadata,
+    DisplayPrimaryChangedEvent, DisplayPrimaryPayload, DisplayRemovedEvent, DisplayRemovedPayload,
+    WindowCloseRequestedEvent, WindowCreatedEvent, WindowDestroyedEvent, WindowDropCancelledEvent,
+    WindowDropCompletedEvent, WindowDropFilePayload, WindowDropHoverLeavePayload,
+    WindowDropHoverPayload, WindowDropStartedEvent, WindowDropTextPayload, WindowEvent,
+    WindowEventMetadata, WindowFileDroppedEvent, WindowFileHoverLeftEvent, WindowFileHoveredEvent,
+    WindowFocusChangedEvent, WindowFocusPayload, WindowModeChangedEvent, WindowModePayload,
+    WindowPositionChangedEvent, WindowPositionPayload, WindowRefreshRequestedEvent,
+    WindowSizeChangedEvent, WindowSizePayload, WindowTextDroppedEvent,
+    WindowVisibilityChangedEvent, WindowVisibilityPayload,
+};
+use crate::platform::fs::{self as platform_fs, PathBytesAbi, core as core_fs};
+use crate::runtime::BindingCallContext;
 
-/// Build one monitor-event metadata payload.
-fn display_event_metadata(
-    context: &BindingCallContext,
-    display_id: Option<&str>,
-    timestamp_ns: u64,
-    sequence: u64,
-    dropped_count: u64,
-) -> DisplayMonitorEventMetadata {
-    DisplayMonitorEventMetadata {
-        backend: DisplayBackend::Win32,
-        display_id: display_id.map(|value| context.store_string(value)),
-        timestamp_ns,
-        sequence,
-        dropped_count,
-    }
-}
+use super::super::super::monitor;
+use super::*;
 
-/// Build one window-event metadata payload.
-fn window_event_metadata(
-    window: resource::WindowHandle,
-    timestamp_ns: u64,
-    sequence: u64,
-    dropped_count: u64,
-) -> WindowEventMetadata {
-    WindowEventMetadata {
-        backend: DisplayBackend::Win32,
-        window,
-        timestamp_ns,
-        sequence,
-        dropped_count,
-    }
-}
-
-/// Build one `OsPath` payload from one UTF-16 path.
-fn os_path_from_utf16_units(context: &BindingCallContext, units: &[u16]) -> platform_fs::OsPath {
-    let utf16 = PathUtf16Abi::<NativeAbi>(context.store_array(units.to_vec()));
-    core_fs::path_ref_from_utf16(utf16)
-}
-
-/// Resolve one primary monitor identifier from one snapshot list.
+/// Return the primary display identifier from one monitor snapshot list.
 fn primary_display_id(snapshots: &[MonitorSnapshot]) -> Option<String> {
     snapshots
         .iter()
@@ -50,16 +31,28 @@ fn primary_display_id(snapshots: &[MonitorSnapshot]) -> Option<String> {
 }
 
 /// Resolve descriptor changed-mask flags for one descriptor transition.
-fn descriptor_changed_mask(
-    previous: &DisplayDescriptorOwned,
-    next: &DisplayDescriptorOwned,
+pub(super) fn descriptor_changed_mask(
+    previous: &DisplayDescriptorSnapshot,
+    next: &DisplayDescriptorSnapshot,
 ) -> u32 {
     let mut changed_mask = 0u32;
+
+    let name_changed = previous.name != next.name;
+    // evaluate this condition
+    if name_changed {
+        changed_mask |= core::DISPLAY_CHANGED_MASK_NAME;
+    }
+
+    // evaluate this condition
+    if previous.primary != next.primary {
+        changed_mask |= core::DISPLAY_CHANGED_MASK_PRIMARY;
+    }
 
     let bounds_changed = previous.x != next.x
         || previous.y != next.y
         || previous.width_px != next.width_px
         || previous.height_px != next.height_px;
+    // evaluate this condition
     if bounds_changed {
         changed_mask |= core::DISPLAY_CHANGED_MASK_BOUNDS;
     }
@@ -68,14 +61,17 @@ fn descriptor_changed_mask(
         || previous.work_area_y != next.work_area_y
         || previous.work_area_width_px != next.work_area_width_px
         || previous.work_area_height_px != next.work_area_height_px;
+    // evaluate this condition
     if work_area_changed {
         changed_mask |= core::DISPLAY_CHANGED_MASK_WORKAREA;
     }
 
+    // evaluate this condition
     if previous.scale_factor_milli != next.scale_factor_milli {
         changed_mask |= core::DISPLAY_CHANGED_MASK_SCALE;
     }
 
+    // evaluate this condition
     if previous.orientation != next.orientation {
         changed_mask |= core::DISPLAY_CHANGED_MASK_ORIENTATION;
     }
@@ -100,7 +96,9 @@ pub(super) fn monitor_topology_records(
         .map(|snapshot| (snapshot.descriptor.id.as_str(), snapshot))
         .collect::<HashMap<_, _>>();
 
+    // iterate this sequence
     for snapshot in previous {
+        // evaluate this condition
         if next_by_id.contains_key(snapshot.descriptor.id.as_str()) {
             continue;
         }
@@ -116,6 +114,7 @@ pub(super) fn monitor_topology_records(
         });
     }
 
+    // iterate this sequence
     for snapshot in next {
         let id = snapshot.descriptor.id.as_str();
         let Some(previous_snapshot) = previous_by_id.get(id) else {
@@ -140,6 +139,7 @@ pub(super) fn monitor_topology_records(
             continue;
         };
 
+        // evaluate this condition
         if previous_snapshot.current_mode != snapshot.current_mode {
             records.push(DisplayEventRecord {
                 timestamp_ns,
@@ -153,6 +153,7 @@ pub(super) fn monitor_topology_records(
             });
         }
 
+        // evaluate this condition
         if previous_snapshot.descriptor != snapshot.descriptor {
             let changed_mask =
                 descriptor_changed_mask(&previous_snapshot.descriptor, &snapshot.descriptor);
@@ -169,6 +170,7 @@ pub(super) fn monitor_topology_records(
         }
     }
 
+    // evaluate this condition
     if primary_display_id(previous) != primary_display_id(next) {
         let previous_id = primary_display_id(previous);
         let current_id = primary_display_id(next);
@@ -186,11 +188,51 @@ pub(super) fn monitor_topology_records(
     records
 }
 
+/// Build one monitor-event metadata payload.
+fn display_event_metadata(
+    context: &BindingCallContext,
+    display_id: Option<&str>,
+    timestamp_ns: u64,
+    sequence: u64,
+    dropped_count: u64,
+) -> DisplayMonitorEventMetadata {
+    DisplayMonitorEventMetadata {
+        backend: DisplayBackend::X11,
+        display_id: display_id.map(|value| context.store_string(value)),
+        timestamp_ns,
+        sequence,
+        dropped_count,
+    }
+}
+
+/// Build one window-event metadata payload.
+fn window_event_metadata(
+    window: resource::WindowHandle,
+    timestamp_ns: u64,
+    sequence: u64,
+    dropped_count: u64,
+) -> WindowEventMetadata {
+    WindowEventMetadata {
+        backend: DisplayBackend::X11,
+        window,
+        timestamp_ns,
+        sequence,
+        dropped_count,
+    }
+}
+
+/// Build one `OsPath` payload from one UTF-8 string path.
+fn os_path_from_utf8(context: &BindingCallContext, value: &str) -> platform_fs::OsPath {
+    let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.as_bytes().to_vec()));
+    core_fs::path_ref_from_bytes(bytes)
+}
+
 /// Convert one stored monitor-event record into one ABI event payload.
 pub(super) fn display_event_from_record(
     context: &BindingCallContext,
     value: DisplayEventRecord,
 ) -> DisplayMonitorEvent {
+    // resolve this variant
     match value.kind {
         DisplayEventRecordKind::Added { descriptor } => {
             DisplayMonitorEvent::DisplayAddedEvent(DisplayAddedEvent {
@@ -283,9 +325,10 @@ pub(super) fn display_event_from_record(
 
 /// Convert one stored window-event record into one ABI event payload.
 pub(super) fn window_event_from_record(
-    value: WindowEventRecord,
     context: &BindingCallContext,
+    value: WindowEventRecord,
 ) -> WindowEvent {
+    // resolve this variant
     match value.kind {
         WindowEventRecordKind::Created { window } => {
             WindowEvent::WindowCreatedEvent(WindowCreatedEvent {
@@ -320,23 +363,17 @@ pub(super) fn window_event_from_record(
                 ),
             })
         }
-        WindowEventRecordKind::FocusChanged {
-            window,
-            previous_focused,
-            current_focused,
-        } => WindowEvent::WindowFocusChangedEvent(WindowFocusChangedEvent {
-            kind: context.store_string("focusChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowFocusPayload {
-                previous_focused,
-                current_focused,
-            },
-        }),
+        WindowEventRecordKind::RefreshRequested { window } => {
+            WindowEvent::WindowRefreshRequestedEvent(WindowRefreshRequestedEvent {
+                kind: context.store_string("refreshRequested"),
+                metadata: window_event_metadata(
+                    window,
+                    value.timestamp_ns,
+                    value.sequence,
+                    value.dropped_count,
+                ),
+            })
+        }
         WindowEventRecordKind::VisibilityChanged {
             window,
             previous_visibility,
@@ -352,23 +389,6 @@ pub(super) fn window_event_from_record(
             payload: WindowVisibilityPayload {
                 previous_visibility,
                 current_visibility,
-            },
-        }),
-        WindowEventRecordKind::OcclusionChanged {
-            window,
-            previous_occlusion,
-            current_occlusion,
-        } => WindowEvent::WindowOcclusionChangedEvent(WindowOcclusionChangedEvent {
-            kind: context.store_string("occlusionChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowOcclusionPayload {
-                previous_occlusion,
-                current_occlusion,
             },
         }),
         WindowEventRecordKind::PositionChanged {
@@ -409,34 +429,23 @@ pub(super) fn window_event_from_record(
                 current_size_physical,
             },
         }),
-        WindowEventRecordKind::ScaleFactorChanged {
+        WindowEventRecordKind::FocusChanged {
             window,
-            previous_scale_factor_milli,
-            current_scale_factor_milli,
-        } => WindowEvent::WindowScaleFactorChangedEvent(WindowScaleFactorChangedEvent {
-            kind: context.store_string("scaleFactorChanged"),
+            previous_focused,
+            current_focused,
+        } => WindowEvent::WindowFocusChangedEvent(WindowFocusChangedEvent {
+            kind: context.store_string("focusChanged"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
                 value.sequence,
                 value.dropped_count,
             ),
-            payload: WindowScaleFactorPayload {
-                previous_scale_factor_milli,
-                current_scale_factor_milli,
+            payload: WindowFocusPayload {
+                previous_focused,
+                current_focused,
             },
         }),
-        WindowEventRecordKind::RefreshRequested { window } => {
-            WindowEvent::WindowRefreshRequestedEvent(WindowRefreshRequestedEvent {
-                kind: context.store_string("refreshRequested"),
-                metadata: window_event_metadata(
-                    window,
-                    value.timestamp_ns,
-                    value.sequence,
-                    value.dropped_count,
-                ),
-            })
-        }
         WindowEventRecordKind::ModeChanged {
             window,
             previous_mode,
@@ -454,178 +463,6 @@ pub(super) fn window_event_from_record(
                 current_mode,
             },
         }),
-        WindowEventRecordKind::DisplayChanged {
-            window,
-            previous_display,
-            current_display,
-        } => WindowEvent::WindowDisplayChangedEvent(WindowDisplayChangedEvent {
-            kind: context.store_string("displayChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowDisplayPayload {
-                previous_display,
-                current_display,
-            },
-        }),
-        WindowEventRecordKind::ThemeChanged {
-            window,
-            previous_theme,
-            current_theme,
-        } => WindowEvent::WindowThemeChangedEvent(WindowThemeChangedEvent {
-            kind: context.store_string("themeChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowThemePayload {
-                previous_theme,
-                current_theme,
-            },
-        }),
-        WindowEventRecordKind::ChromeChanged {
-            window,
-            previous_chrome,
-            current_chrome,
-        } => WindowEvent::WindowChromeChangedEvent(WindowChromeChangedEvent {
-            kind: context.store_string("chromeChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowChromePayload {
-                previous_chrome,
-                current_chrome,
-            },
-        }),
-        WindowEventRecordKind::TaskbarVisibilityChanged {
-            window,
-            previous_taskbar_visible,
-            current_taskbar_visible,
-        } => {
-            WindowEvent::WindowTaskbarVisibilityChangedEvent(WindowTaskbarVisibilityChangedEvent {
-                kind: context.store_string("taskbarVisibilityChanged"),
-                metadata: window_event_metadata(
-                    window,
-                    value.timestamp_ns,
-                    value.sequence,
-                    value.dropped_count,
-                ),
-                payload: WindowTaskbarVisibilityPayload {
-                    previous_taskbar_visible,
-                    current_taskbar_visible,
-                },
-            })
-        }
-        WindowEventRecordKind::OpacityChanged {
-            window,
-            previous_opacity,
-            current_opacity,
-        } => WindowEvent::WindowOpacityChangedEvent(WindowOpacityChangedEvent {
-            kind: context.store_string("opacityChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowOpacityPayload {
-                previous_opacity,
-                current_opacity,
-            },
-        }),
-        WindowEventRecordKind::ParentChanged {
-            window,
-            previous_parent,
-            current_parent,
-        } => WindowEvent::WindowParentChangedEvent(WindowParentChangedEvent {
-            kind: context.store_string("parentChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowParentPayload {
-                previous_parent,
-                current_parent,
-            },
-        }),
-        WindowEventRecordKind::TransientChanged {
-            window,
-            previous_transient_for,
-            current_transient_for,
-        } => WindowEvent::WindowTransientChangedEvent(WindowTransientChangedEvent {
-            kind: context.store_string("transientChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowTransientPayload {
-                previous_transient_for,
-                current_transient_for,
-            },
-        }),
-        WindowEventRecordKind::ModalChanged {
-            window,
-            previous_modal,
-            current_modal,
-        } => WindowEvent::WindowModalChangedEvent(WindowModalChangedEvent {
-            kind: context.store_string("modalChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowModalPayload {
-                previous_modal,
-                current_modal,
-            },
-        }),
-        WindowEventRecordKind::MousePassthroughChanged {
-            window,
-            previous_mouse_passthrough,
-            current_mouse_passthrough,
-        } => WindowEvent::WindowMousePassthroughChangedEvent(WindowMousePassthroughChangedEvent {
-            kind: context.store_string("mousePassthroughChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowMousePassthroughPayload {
-                previous_mouse_passthrough,
-                current_mouse_passthrough,
-            },
-        }),
-        WindowEventRecordKind::AspectRatioChanged {
-            window,
-            previous_aspect_ratio,
-            current_aspect_ratio,
-        } => WindowEvent::WindowAspectRatioChangedEvent(WindowAspectRatioChangedEvent {
-            kind: context.store_string("aspectRatioChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowAspectRatioPayload {
-                previous_aspect_ratio,
-                current_aspect_ratio,
-            },
-        }),
         WindowEventRecordKind::DropStarted { window } => {
             WindowEvent::WindowDropStartedEvent(WindowDropStartedEvent {
                 kind: context.store_string("dropStarted"),
@@ -639,7 +476,7 @@ pub(super) fn window_event_from_record(
         }
         WindowEventRecordKind::FileHovered {
             window,
-            path_utf16,
+            path,
             position,
         } => WindowEvent::WindowFileHoveredEvent(WindowFileHoveredEvent {
             kind: context.store_string("fileHovered"),
@@ -650,9 +487,7 @@ pub(super) fn window_event_from_record(
                 value.dropped_count,
             ),
             payload: WindowDropHoverPayload {
-                path: path_utf16
-                    .as_ref()
-                    .map(|units| os_path_from_utf16_units(context, units)),
+                path: path.as_ref().map(|value| os_path_from_utf8(context, value)),
                 position,
             },
         }),
@@ -680,7 +515,7 @@ pub(super) fn window_event_from_record(
         }
         WindowEventRecordKind::FileHoverLeft {
             window,
-            previous_path_utf16,
+            previous_path,
             position,
         } => WindowEvent::WindowFileHoverLeftEvent(WindowFileHoverLeftEvent {
             kind: context.store_string("fileHoverLeft"),
@@ -691,15 +526,15 @@ pub(super) fn window_event_from_record(
                 value.dropped_count,
             ),
             payload: WindowDropHoverLeavePayload {
-                previous_path: previous_path_utf16
+                previous_path: previous_path
                     .as_ref()
-                    .map(|units| os_path_from_utf16_units(context, units)),
+                    .map(|value| os_path_from_utf8(context, value)),
                 position,
             },
         }),
         WindowEventRecordKind::FileDropped {
             window,
-            path_utf16,
+            path,
             position,
         } => WindowEvent::WindowFileDroppedEvent(WindowFileDroppedEvent {
             kind: context.store_string("fileDropped"),
@@ -710,9 +545,7 @@ pub(super) fn window_event_from_record(
                 value.dropped_count,
             ),
             payload: WindowDropFilePayload {
-                path: path_utf16
-                    .as_ref()
-                    .map(|units| os_path_from_utf16_units(context, units)),
+                path: path.as_ref().map(|value| os_path_from_utf8(context, value)),
                 position,
             },
         }),

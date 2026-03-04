@@ -1,13 +1,15 @@
+#[cfg(target_os = "linux")]
+use super::x11;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
     DisplayBackendSelectionPolicy,
 };
-use crate::platform::{PlatformError, display as display_platform};
 use crate::runtime::BindingCallContext;
 
 #[cfg(target_os = "linux")]
-const UNIX_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::Wayland, DisplayBackend::X11];
+const UNIX_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::X11, DisplayBackend::Wayland];
 #[cfg(target_os = "macos")]
 const UNIX_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::AppKit];
 #[cfg(target_os = "android")]
@@ -47,7 +49,7 @@ pub(crate) fn backend_name(backend: DisplayBackend) -> &'static str {
 /// Return whether one backend is valid for the active unix target.
 pub(crate) fn backend_supported(backend: DisplayBackend) -> bool {
     #[cfg(target_os = "linux")]
-    if matches!(backend, DisplayBackend::Wayland | DisplayBackend::X11) {
+    if backend == DisplayBackend::X11 {
         return true;
     }
 
@@ -77,11 +79,6 @@ pub(crate) fn backend_available(backend: DisplayBackend) -> bool {
     }
 
     #[cfg(target_os = "linux")]
-    if backend == DisplayBackend::Wayland {
-        return std::env::var_os("WAYLAND_DISPLAY").is_some();
-    }
-
-    #[cfg(target_os = "linux")]
     if backend == DisplayBackend::X11 {
         return std::env::var_os("DISPLAY").is_some();
     }
@@ -90,22 +87,22 @@ pub(crate) fn backend_available(backend: DisplayBackend) -> bool {
 }
 
 /// Return one backend capability mask for one unix backend.
-pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCapabilityFlags {
+pub(crate) fn backend_capabilities(
+    context: &BindingCallContext,
+    backend: DisplayBackend,
+) -> DisplayBackendCapabilityFlags {
     if !backend_supported(backend) {
         return DisplayBackendCapabilityFlags(0);
     }
 
-    DisplayBackendCapabilityFlags(
-        display_platform::DISPLAY_BACKEND_CAP_WINDOW.0
-            | display_platform::DISPLAY_BACKEND_CAP_MONITOR.0
-            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
-            | display_platform::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
-            | display_platform::DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN.0
-            | display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
-            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_LOCK.0
-            | display_platform::DISPLAY_BACKEND_CAP_CURSOR_CONFINE.0
-            | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0,
-    )
+    #[cfg(target_os = "linux")]
+    if backend == DisplayBackend::X11 {
+        return x11::backend_descriptor_state(context).1;
+    }
+
+    let _ = context;
+    let _ = backend;
+    DisplayBackendCapabilityFlags(0)
 }
 
 /// Build one not-supported error for one unix display backend operation.
@@ -125,13 +122,31 @@ pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBa
     let mut descriptors = Vec::with_capacity(preferred_host_backends().len());
 
     for (index, backend) in preferred_host_backends().iter().copied().enumerate() {
+        if !backend_supported(backend) {
+            continue;
+        }
+
+        #[cfg(target_os = "linux")]
+        let (available, capability_flags) = if backend == DisplayBackend::X11 {
+            x11::backend_descriptor_state(context)
+        } else {
+            (
+                backend_available(backend),
+                backend_capabilities(context, backend),
+            )
+        };
+        #[cfg(not(target_os = "linux"))]
+        let available = backend_available(backend);
+        #[cfg(not(target_os = "linux"))]
+        let capability_flags = backend_capabilities(context, backend);
+
         let priority = u16::MAX.saturating_sub(index as u16);
         descriptors.push(DisplayBackendDescriptor {
             backend,
             name: context.store_string(backend_name(backend)),
-            available: backend_available(backend),
+            available,
             priority,
-            capability_flags: backend_capabilities(backend),
+            capability_flags,
         });
     }
 

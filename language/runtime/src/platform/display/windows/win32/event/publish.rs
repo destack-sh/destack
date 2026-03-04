@@ -1,7 +1,7 @@
 use super::*;
 
 /// Publish one mode-changed monitor event.
-pub(in super::super) fn publish_mode_changed_event(
+pub(in super::super::super) fn publish_mode_changed_event(
     context: &BindingCallContext,
     display_id: &str,
     mode: DisplayMode,
@@ -17,9 +17,9 @@ pub(in super::super) fn publish_mode_changed_event(
 }
 
 /// Publish one descriptor-changed monitor event.
-pub(in super::super) fn publish_descriptor_changed_event(
+pub(in super::super::super) fn publish_descriptor_changed_event(
     context: &BindingCallContext,
-    descriptor: &DisplayDescriptorOwned,
+    descriptor: &DisplayDescriptorSnapshot,
     changed_mask: u32,
 ) {
     let record = display_event_record(DisplayEventRecordKind::DescriptorChanged {
@@ -33,7 +33,7 @@ pub(in super::super) fn publish_descriptor_changed_event(
 }
 
 /// Refresh the cached monitor topology snapshot from the current host state.
-pub(in super::super) fn refresh_monitor_topology_cache(
+pub(in super::super::super) fn refresh_monitor_topology_cache(
     context: &BindingCallContext,
 ) -> RuntimeResult<()> {
     // refresh monitor snapshots from host state
@@ -51,7 +51,7 @@ pub(in super::super) fn refresh_monitor_topology_cache(
 }
 
 /// Publish monitor topology events observed since the last cached snapshot.
-pub(in super::super) fn publish_monitor_topology_deltas(
+pub(in super::super::super) fn publish_monitor_topology_deltas(
     runtime_state: &Arc<DisplayEventRuntimeState>,
 ) -> RuntimeResult<()> {
     let next_snapshots = monitor::enumerate_monitor_snapshots()?;
@@ -72,6 +72,7 @@ pub(in super::super) fn publish_monitor_topology_deltas(
         records
     };
 
+    // iterate this sequence
     for record in records {
         publish_monitor_event(runtime_state, record);
     }
@@ -87,7 +88,9 @@ pub(in super::super) fn seed_monitor_event_stream(
     let snapshots = monitor::enumerate_monitor_snapshots()?;
     let mut primary_id = None;
 
+    // iterate this sequence
     for snapshot in &snapshots {
+        // evaluate this condition
         if snapshot.descriptor.primary {
             primary_id = Some(snapshot.descriptor.id.clone());
         }
@@ -95,6 +98,7 @@ pub(in super::super) fn seed_monitor_event_stream(
         let added = display_event_record(DisplayEventRecordKind::Added {
             descriptor: snapshot.descriptor.clone(),
         });
+        // evaluate this condition
         if filter.matches(&added) {
             push_monitor_event(state, added);
         }
@@ -104,6 +108,7 @@ pub(in super::super) fn seed_monitor_event_stream(
             previous: None,
             current: snapshot.current_mode,
         });
+        // evaluate this condition
         if filter.matches(&mode_changed) {
             push_monitor_event(state, mode_changed);
         }
@@ -113,6 +118,7 @@ pub(in super::super) fn seed_monitor_event_stream(
         previous_id: None,
         current_id: primary_id,
     });
+    // evaluate this condition
     if filter.matches(&primary_changed) {
         push_monitor_event(state, primary_changed);
     }
@@ -120,17 +126,8 @@ pub(in super::super) fn seed_monitor_event_stream(
     Ok(snapshots)
 }
 
-/// Convert one boolean occlusion marker into one ABI occlusion state.
-fn occlusion_state(value: bool) -> WindowOcclusionState {
-    if value {
-        WindowOcclusionState::Occluded
-    } else {
-        WindowOcclusionState::Unoccluded
-    }
-}
-
 /// Publish one created window event.
-pub(in super::super) fn publish_window_created_event(
+pub(in super::super::super) fn publish_window_created_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -141,7 +138,7 @@ pub(in super::super) fn publish_window_created_event(
 }
 
 /// Publish one destroyed window event.
-pub(in super::super) fn publish_window_destroyed_event(
+pub(in super::super::super) fn publish_window_destroyed_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -152,7 +149,7 @@ pub(in super::super) fn publish_window_destroyed_event(
 }
 
 /// Publish one close-requested window event.
-pub(in super::super) fn publish_window_close_requested_event(
+pub(in super::super::super) fn publish_window_close_requested_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -163,7 +160,7 @@ pub(in super::super) fn publish_window_close_requested_event(
 }
 
 /// Publish one refresh-requested window event.
-pub(in super::super) fn publish_window_refresh_event(
+pub(in super::super::super) fn publish_window_refresh_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -266,7 +263,7 @@ fn publish_window_scale_event(
 }
 
 /// Publish one mode-changed window event.
-pub(in super::super) fn publish_window_mode_event(
+pub(in super::super::super) fn publish_window_mode_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous_mode: WindowModeOptions,
@@ -288,7 +285,7 @@ pub(in super::super) fn publish_window_mode_event(
 }
 
 /// Publish one display-changed window event.
-pub(in super::super) fn publish_window_display_event(
+pub(in super::super::super) fn publish_window_display_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous_display: Option<resource::DisplayHandle>,
@@ -326,28 +323,6 @@ fn publish_window_focus_event(
                 window,
                 previous_focused,
                 current_focused,
-            },
-        },
-    );
-}
-
-/// Publish one occlusion-changed window event.
-fn publish_window_occlusion_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    previous_occlusion: WindowOcclusionState,
-    current_occlusion: WindowOcclusionState,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core_platform::monotonic_now_ns(),
-            sequence: 0,
-            dropped_count: 0,
-            kind: WindowEventRecordKind::OcclusionChanged {
-                window,
-                previous_occlusion,
-                current_occlusion,
             },
         },
     );
@@ -552,7 +527,7 @@ fn publish_window_aspect_ratio_event(
 }
 
 /// Publish one drop-started window event.
-pub(in super::super) fn publish_window_drop_started_event(
+pub(in super::super::super) fn publish_window_drop_started_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -568,7 +543,7 @@ pub(in super::super) fn publish_window_drop_started_event(
 }
 
 /// Publish one file-hovered window event.
-pub(in super::super) fn publish_window_file_hovered_event(
+pub(in super::super::super) fn publish_window_file_hovered_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     path_utf16: Option<Vec<u16>>,
@@ -590,7 +565,7 @@ pub(in super::super) fn publish_window_file_hovered_event(
 }
 
 /// Publish one drop-cancelled window event.
-pub(in super::super) fn publish_window_drop_cancelled_event(
+pub(in super::super::super) fn publish_window_drop_cancelled_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -606,7 +581,7 @@ pub(in super::super) fn publish_window_drop_cancelled_event(
 }
 
 /// Publish one drop-completed window event.
-pub(in super::super) fn publish_window_drop_completed_event(
+pub(in super::super::super) fn publish_window_drop_completed_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
 ) {
@@ -622,7 +597,7 @@ pub(in super::super) fn publish_window_drop_completed_event(
 }
 
 /// Publish one file-hover-left window event.
-pub(in super::super) fn publish_window_file_hover_left_event(
+pub(in super::super::super) fn publish_window_file_hover_left_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous_path_utf16: Option<Vec<u16>>,
@@ -644,7 +619,7 @@ pub(in super::super) fn publish_window_file_hover_left_event(
 }
 
 /// Publish one file-dropped window event.
-pub(in super::super) fn publish_window_file_dropped_event(
+pub(in super::super::super) fn publish_window_file_dropped_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     path_utf16: Option<Vec<u16>>,
@@ -666,7 +641,7 @@ pub(in super::super) fn publish_window_file_dropped_event(
 }
 
 /// Publish one text-dropped window event.
-pub(in super::super) fn publish_window_text_dropped_event(
+pub(in super::super::super) fn publish_window_text_dropped_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     text: String,
@@ -688,12 +663,13 @@ pub(in super::super) fn publish_window_text_dropped_event(
 }
 
 /// Publish all state transitions observed between two window snapshots.
-pub(in super::super) fn publish_state_deltas(
+pub(in super::super::super) fn publish_state_deltas(
     runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous: &Win32WindowBinding,
     next: &Win32WindowBinding,
 ) {
+    // evaluate this condition
     if previous.visibility != next.visibility {
         publish_window_visibility_event(
             runtime_state,
@@ -703,10 +679,12 @@ pub(in super::super) fn publish_state_deltas(
         );
     }
 
+    // evaluate this condition
     if previous.position != next.position {
         publish_window_position_event(runtime_state, window, previous.position, next.position);
     }
 
+    // evaluate this condition
     if previous.size_logical != next.size_logical || previous.size_physical != next.size_physical {
         publish_window_size_event(
             runtime_state,
@@ -718,6 +696,7 @@ pub(in super::super) fn publish_state_deltas(
         );
     }
 
+    // evaluate this condition
     if previous.scale_factor_milli != next.scale_factor_milli {
         publish_window_scale_event(
             runtime_state,
@@ -727,27 +706,22 @@ pub(in super::super) fn publish_state_deltas(
         );
     }
 
+    // evaluate this condition
     if previous.focused != next.focused {
         publish_window_focus_event(runtime_state, window, previous.focused, next.focused);
     }
 
-    if previous.occluded != next.occluded {
-        publish_window_occlusion_event(
-            runtime_state,
-            window,
-            occlusion_state(previous.occluded),
-            occlusion_state(next.occluded),
-        );
-    }
-
+    // evaluate this condition
     if previous.theme != next.theme {
         publish_window_theme_event(runtime_state, window, previous.theme, next.theme);
     }
 
+    // evaluate this condition
     if previous.chrome != next.chrome {
         publish_window_chrome_event(runtime_state, window, previous.chrome, next.chrome);
     }
 
+    // evaluate this condition
     if previous.taskbar_visible != next.taskbar_visible {
         publish_window_taskbar_visibility_event(
             runtime_state,
@@ -757,14 +731,17 @@ pub(in super::super) fn publish_state_deltas(
         );
     }
 
+    // evaluate this condition
     if previous.opacity != next.opacity {
         publish_window_opacity_event(runtime_state, window, previous.opacity, next.opacity);
     }
 
+    // evaluate this condition
     if previous.parent != next.parent {
         publish_window_parent_event(runtime_state, window, previous.parent, next.parent);
     }
 
+    // evaluate this condition
     if previous.transient_for != next.transient_for {
         publish_window_transient_event(
             runtime_state,
@@ -774,10 +751,12 @@ pub(in super::super) fn publish_state_deltas(
         );
     }
 
+    // evaluate this condition
     if previous.modal != next.modal {
         publish_window_modal_event(runtime_state, window, previous.modal, next.modal);
     }
 
+    // evaluate this condition
     if previous.mouse_passthrough != next.mouse_passthrough {
         publish_window_mouse_passthrough_event(
             runtime_state,
@@ -787,6 +766,7 @@ pub(in super::super) fn publish_state_deltas(
         );
     }
 
+    // evaluate this condition
     if previous.aspect_ratio != next.aspect_ratio {
         publish_window_aspect_ratio_event(
             runtime_state,

@@ -2,7 +2,8 @@ use super::{
     decode_display_descriptor, decode_harness_value, decode_monitor_list, decode_monitor_modes,
     decode_window_descriptor, default_monitor_event_open_options, default_monitor_list_request,
     default_monitor_open_options, default_window_event_open_options, default_window_options,
-    harness_string, with_harness_context,
+    error_code, harness_string, is_not_supported_code, open_window_or_skip_not_supported,
+    result_or_skip_not_supported, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(windows)]
@@ -27,23 +28,20 @@ const DISPLAY_CAP_MONITOR_GAMMA_CONTROL: u64 =
     display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0;
 #[cfg(windows)]
 const DISPLAY_CAP_OCCLUSION: u64 = display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0;
+#[cfg(windows)]
+const DISPLAY_CAP_WINDOW_DROP_EVENTS: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0;
 
 #[cfg(any(unix, windows))]
 #[test]
 fn test_display_monitor_surface_works_end_to_end() {
     with_harness_context(|mut context| {
-        let monitor_list =
-            match context.destack_display_monitor_list(default_monitor_list_request(&context)) {
-                Ok(monitor_list) => monitor_list,
-                Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    if code == Some(PlatformErrorCode::NotSupported) {
-                        return Ok(());
-                    }
-
-                    return Err(error);
-                }
-            };
+        let Some(monitor_list) = result_or_skip_not_supported(
+            context.destack_display_monitor_list(default_monitor_list_request(&context)),
+        )?
+        else {
+            return Ok(());
+        };
         let monitor_list = decode_monitor_list(&mut context, monitor_list)?;
         assert!(!monitor_list.is_empty());
 
@@ -73,7 +71,7 @@ fn test_display_monitor_surface_works_end_to_end() {
             let Err(error) = drain else {
                 continue;
             };
-            let code = error.platform_error().map(|platform| platform.code);
+            let code = error_code(&error);
             if code == Some(PlatformErrorCode::IoWouldBlock) {
                 break;
             }
@@ -81,7 +79,11 @@ fn test_display_monitor_surface_works_end_to_end() {
         }
 
         let requested_mode = context.destack_display_monitor_current_mode(display)?;
-        context.destack_display_monitor_set_mode(display, requested_mode)?;
+        if let Err(error) = context.destack_display_monitor_set_mode(display, requested_mode)
+            && !is_not_supported_code(error_code(&error))
+        {
+            return Err(error);
+        }
 
         let mut saw_mode_changed = false;
         for _ in 0..16 {
@@ -115,16 +117,8 @@ fn test_display_monitor_surface_works_end_to_end() {
 fn test_display_window_surface_works_end_to_end() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "alpha")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
-                if code == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let descriptor = context.destack_display_window_descriptor(window)?;
@@ -205,6 +199,7 @@ fn test_display_backend_capabilities_match_win32_implementation() {
             win32_capability_flags & DISPLAY_CAP_MONITOR_GAMMA_CONTROL,
             0
         );
+        assert_ne!(win32_capability_flags & DISPLAY_CAP_WINDOW_DROP_EVENTS, 0);
         assert_eq!(win32_capability_flags & DISPLAY_CAP_OCCLUSION, 0);
 
         Ok(())

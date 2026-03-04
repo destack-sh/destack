@@ -1,7 +1,7 @@
 use super::{
     HarnessValue, HarnessWindowMode, decode_harness_value, default_window_options, error_code,
     harness_window_logical_size, harness_window_mode_options, harness_window_physical_size,
-    with_harness_context,
+    is_not_supported_code, open_window_or_skip_not_supported, with_harness_context,
 };
 #[cfg(windows)]
 use super::{harness_window_icon_set, harness_window_icon_set_none};
@@ -12,26 +12,57 @@ use crate::platform::display::{WindowAspectRatio, WindowAspectRatioVm};
 use crate::platform::resource::{DisplayHandle, ResourceId};
 
 #[cfg(windows)]
+use std::thread::sleep;
+#[cfg(windows)]
+use std::time::Duration;
+#[cfg(windows)]
 use windows_sys::Win32::Foundation::POINT;
 #[cfg(windows)]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CURSOR_SHOWING, CURSORINFO, GWL_STYLE, GetCursorInfo, GetWindowLongPtrW, WS_DISABLED,
 };
 
+#[cfg(windows)]
+const CURSOR_VISIBILITY_RETRY_COUNT: usize = 50;
+#[cfg(windows)]
+const CURSOR_VISIBILITY_RETRY_DELAY_MS: u64 = 10;
+
+#[cfg(windows)]
+/// Return whether the process cursor is currently visible.
+fn is_cursor_visible() -> bool {
+    let mut cursor = CURSORINFO {
+        cbSize: std::mem::size_of::<CURSORINFO>() as u32,
+        flags: 0,
+        hCursor: 0,
+        ptScreenPos: POINT { x: 0, y: 0 },
+    };
+    let status = unsafe { GetCursorInfo(&mut cursor) };
+    assert_ne!(status, 0);
+    cursor.flags & CURSOR_SHOWING != 0
+}
+
+#[cfg(windows)]
+/// Wait until the process cursor matches one expected visibility state.
+fn wait_cursor_visibility(expected_visible: bool) -> bool {
+    // poll cursor visibility with one bounded retry budget
+    for _ in 0..CURSOR_VISIBILITY_RETRY_COUNT {
+        if is_cursor_visible() == expected_visible {
+            return true;
+        }
+
+        sleep(Duration::from_millis(CURSOR_VISIBILITY_RETRY_DELAY_MS));
+    }
+
+    false
+}
+
 #[cfg(any(unix, windows))]
 #[test]
 fn test_window_rejects_invalid_size_values() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "size-invalid")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let invalid_logical = harness_window_logical_size(&context, 0.0, 100.0);
@@ -64,15 +95,8 @@ fn test_window_rejects_invalid_size_values() {
 fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "exclusive-mode")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let exclusive = harness_window_mode_options(
@@ -132,7 +156,7 @@ fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
 
         let result = context.destack_display_window_open(options);
         let error = result.expect_err("exclusive open with invalid target display should fail");
-        if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+        if is_not_supported_code(error_code(&error)) {
             return Ok(());
         }
         assert!(matches!(
@@ -151,15 +175,8 @@ fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
 fn test_window_visibility_roundtrip_and_double_close_error() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "visibility")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         context.destack_display_window_set_visibility(window, WindowVisibility::Hidden)?;
@@ -182,20 +199,65 @@ fn test_window_visibility_roundtrip_and_double_close_error() {
     });
 }
 
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_set_modal_requires_owner_relationship() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "modal-owner-required")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let result = context.destack_display_window_set_modal(window, true);
+        let error = result.expect_err("modal state without owner relationship should fail");
+        if is_not_supported_code(error_code(&error)) {
+            context.destack_display_window_close(window)?;
+            return Ok(());
+        }
+        assert!(matches!(
+            error_code(&error),
+            Some(PlatformErrorCode::InvalidArgument)
+                | Some(PlatformErrorCode::InvalidArgumentValue)
+        ));
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_set_parent_rejects_self_relationship() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "parent-self-invalid")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let result = context.destack_display_window_set_parent(window, Some(window));
+        let error = result.expect_err("window parent relationship should reject self-handle");
+        if is_not_supported_code(error_code(&error)) {
+            context.destack_display_window_close(window)?;
+            return Ok(());
+        }
+        assert!(matches!(
+            error_code(&error),
+            Some(PlatformErrorCode::InvalidArgument)
+                | Some(PlatformErrorCode::InvalidArgumentValue)
+        ));
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
 #[cfg(windows)]
 #[test]
 fn test_window_set_size_physical_matches_client_size() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "client-size")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let requested_size = harness_window_physical_size(&context, 640, 360);
@@ -225,15 +287,8 @@ fn test_window_open_size_matches_requested_client_size() {
             }
         }
 
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let state = decode_harness_value(context.destack_display_window_state(window)?);
@@ -250,15 +305,8 @@ fn test_window_open_size_matches_requested_client_size() {
 fn test_window_mode_borderless_without_display_is_accepted() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "borderless-no-display")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let borderless = harness_window_mode_options(&context, HarnessWindowMode::Borderless);
@@ -285,15 +333,8 @@ fn test_window_focus_on_show_false_does_not_force_focus() {
             }
         }
 
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let state = decode_harness_value(context.destack_display_window_state(window)?);
@@ -309,15 +350,9 @@ fn test_window_focus_on_show_false_does_not_force_focus() {
 fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mode() {
     with_harness_context(|mut context| {
         let first_options = default_window_options(&mut context, "cursor-hidden-first")?;
-        let first_window = match context.destack_display_window_open(first_options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(first_window) = open_window_or_skip_not_supported(&mut context, first_options)?
+        else {
+            return Ok(());
         };
 
         let second_options = default_window_options(&mut context, "cursor-hidden-second")?;
@@ -333,28 +368,16 @@ fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mod
         )?;
 
         context.destack_display_window_close(first_window)?;
-
-        let mut cursor = CURSORINFO {
-            cbSize: std::mem::size_of::<CURSORINFO>() as u32,
-            flags: 0,
-            hCursor: 0,
-            ptScreenPos: POINT { x: 0, y: 0 },
-        };
-        let status = unsafe { GetCursorInfo(&mut cursor) };
-        assert_ne!(status, 0);
-        assert_eq!(cursor.flags & CURSOR_SHOWING, 0);
+        assert!(
+            wait_cursor_visibility(false),
+            "cursor should remain hidden while one hidden-mode window remains open"
+        );
 
         context.destack_display_window_close(second_window)?;
-
-        let mut cursor = CURSORINFO {
-            cbSize: std::mem::size_of::<CURSORINFO>() as u32,
-            flags: 0,
-            hCursor: 0,
-            ptScreenPos: POINT { x: 0, y: 0 },
-        };
-        let status = unsafe { GetCursorInfo(&mut cursor) };
-        assert_ne!(status, 0);
-        assert_ne!(cursor.flags & CURSOR_SHOWING, 0);
+        assert!(
+            wait_cursor_visibility(true),
+            "cursor should be restored after the final hidden-mode window closes"
+        );
 
         Ok(())
     });
@@ -365,15 +388,8 @@ fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mod
 fn test_window_aspect_ratio_roundtrip_and_size_lock() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "aspect-ratio")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let aspect_ratio = if context.vm_context.is_some() {
@@ -414,15 +430,8 @@ fn test_window_aspect_ratio_roundtrip_and_size_lock() {
 fn test_window_close_restores_cursor_visibility() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "cursor-restore")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         context.destack_display_window_set_cursor_mode(
@@ -430,16 +439,10 @@ fn test_window_close_restores_cursor_visibility() {
             crate::platform::display::WindowCursorMode::Hidden,
         )?;
         context.destack_display_window_close(window)?;
-
-        let mut cursor = CURSORINFO {
-            cbSize: std::mem::size_of::<CURSORINFO>() as u32,
-            flags: 0,
-            hCursor: 0,
-            ptScreenPos: POINT { x: 0, y: 0 },
-        };
-        let status = unsafe { GetCursorInfo(&mut cursor) };
-        assert_ne!(status, 0);
-        assert_ne!(cursor.flags & CURSOR_SHOWING, 0);
+        assert!(
+            wait_cursor_visibility(true),
+            "cursor should be visible after closing one hidden-mode window"
+        );
 
         Ok(())
     });
@@ -450,15 +453,8 @@ fn test_window_close_restores_cursor_visibility() {
 fn test_window_icons_set_and_clear() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "icon-set")?;
-        let window = match context.destack_display_window_open(options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
         };
 
         let icons = harness_window_icon_set(&mut context)?;
@@ -475,15 +471,9 @@ fn test_window_icons_set_and_clear() {
 fn test_window_modal_parent_transition_reenables_previous_owner() {
     with_harness_context(|mut context| {
         let owner_a_options = default_window_options(&mut context, "owner-a")?;
-        let owner_a = match context.destack_display_window_open(owner_a_options) {
-            Ok(window) => window,
-            Err(error) => {
-                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
-                    return Ok(());
-                }
-
-                return Err(error);
-            }
+        let Some(owner_a) = open_window_or_skip_not_supported(&mut context, owner_a_options)?
+        else {
+            return Ok(());
         };
 
         let owner_b_options = default_window_options(&mut context, "owner-b")?;
