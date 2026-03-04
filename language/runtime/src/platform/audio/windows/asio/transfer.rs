@@ -2,12 +2,13 @@ use std::ffi::c_void;
 use std::sync::Arc;
 
 use super::abi::asio_driver_output_ready;
+use super::callback::active_runtime;
 use super::constants::{
     ASE_NOT_PRESENT, ASE_OK, K_ASIO_ENGINE_VERSION, K_ASIO_LATENCIES_CHANGED, K_ASIO_RESET_REQUEST,
     K_ASIO_RESYNC_REQUEST, K_ASIO_SELECTOR_SUPPORTED, K_ASIO_SUPPORTS_TIME_CODE,
     K_ASIO_SUPPORTS_TIME_INFO,
 };
-use super::core::{AsioBufferLane, AsioSampleEncoding, AsioStreamRuntime, active_runtime};
+use super::core::{AsioBufferLane, AsioSampleEncoding, AsioStreamRuntime};
 use crate::platform::audio::core as audio_core;
 
 /// Handle one ASIO buffer-switch callback.
