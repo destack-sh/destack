@@ -8,6 +8,13 @@ use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceId, TtyHandle};
 
+/// Convert one platform tty flag into `u64` for test bit arithmetic.
+#[cfg(unix)]
+#[allow(clippy::useless_conversion)]
+fn tty_flag_u64(flag: libc::tcflag_t) -> u64 {
+    flag.into()
+}
+
 /// Write all bytes to one unix descriptor.
 #[cfg(unix)]
 fn write_all(descriptor: libc::c_int, bytes: &[u8]) -> RuntimeResult<()> {
@@ -87,8 +94,8 @@ fn test_tty_io_roundtrip_through_pty_pair() {
         // set one raw-like mode to avoid canonical buffering and echo behavior
         let mode = context.destack_tty_get_mode(pair.worker)?;
         let mut mode = decode_harness_value(mode);
-        mode.local_flags &= !(libc::ICANON as u64);
-        mode.local_flags &= !(libc::ECHO as u64);
+        mode.local_flags &= !tty_flag_u64(libc::ICANON);
+        mode.local_flags &= !tty_flag_u64(libc::ECHO);
         let mode_value = context.tty_mode_value(mode);
         context.destack_tty_set_mode(pair.worker, mode_value)?;
 

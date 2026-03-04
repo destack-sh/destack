@@ -1,6 +1,8 @@
 use super::*;
 #[cfg(windows)]
 use crate::diagnostic::{RuntimeErrorId, RuntimeStatus};
+#[cfg(windows)]
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{NetInterface, NetInterfaceVm};
 
 #[path = "harness.generated.rs"]

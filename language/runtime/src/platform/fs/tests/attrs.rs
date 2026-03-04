@@ -2,7 +2,7 @@
 use super::{assert_platform_error_codes_with_privileged_policy, temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{AccessMode, AtFlags, FileMode, OpenFlags};
-use crate::tests::platform::is_privileged_test_mode;
+use crate::tests::platform::{assert_ok_or_expected_error, is_privileged_test_mode};
 use std::path::Path;
 
 /// Check write access behavior before and after chmod mode changes.
@@ -123,9 +123,12 @@ fn test_fs_accessat_roundtrip() {
         let handle = context.destack_fs_openat(dir_handle, file, flags, FileMode(0o644))?;
         context.destack_fs_close(handle)?;
 
-        // check existence through accessat
+        // check existence through accessat when the lane is implemented
         let file = context.path_bytes(file_name);
-        context.destack_fs_accessat(dir_handle, file, AccessMode(0), AtFlags(0))?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_fs_accessat(dir_handle, file, AccessMode(0), AtFlags(0)),
+            &[PlatformErrorCode::NotSupported],
+        )?;
 
         // cleanup
         let file = context.path_bytes(file_name);
