@@ -5,7 +5,9 @@ use crate::rules::common::{
     ExpressionDuplicateTracker, expression_numeric_value, match_case_selector,
     match_selector_expression_id,
 };
-use crate::{ConstValue, LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{
+    ConstValue, LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint,
+};
 
 declare_lint! {
     /// Disallow duplicate case labels in switch statements.
@@ -28,7 +30,7 @@ declare_lint! {
 }
 
 impl LintRule for NoDuplicateCase {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoDuplicateCase::meta()
     }
 

@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow loops that execute at most once.
@@ -41,7 +41,7 @@ declare_lint! {
 }
 
 impl LintRule for NoLoopSingleIteration {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoLoopSingleIteration::meta()
     }
 
