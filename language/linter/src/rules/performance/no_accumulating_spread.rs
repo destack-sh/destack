@@ -52,6 +52,8 @@ struct NoAccumulatingSpreadVisitor<'a, 'b> {
     array_symbol: dir::GlobalSymbolId,
     /// The string id for the reduce method name.
     reduce_name: StringId,
+    /// The string id for the reduceRight method name.
+    reduce_right_name: StringId,
     /// The accumulator symbol when inside a reduce callback.
     accumulator_symbol: Option<dir::GlobalSymbolId>,
     /// The visitor options.
@@ -63,12 +65,14 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let reduce_name = ctx.program.strings.intern("reduce");
+        let reduce_right_name = ctx.program.strings.intern("reduceRight");
 
         Self {
             ctx,
             meta,
             array_symbol,
             reduce_name,
+            reduce_right_name,
             accumulator_symbol: None,
             options: NodeVisitorOptions::default(),
         }
@@ -96,8 +100,10 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
             return;
         };
 
-        // check if this is reduce
-        if method_call.method_name != self.reduce_name {
+        // check if this is reduce or reduceRight
+        if method_call.method_name != self.reduce_name
+            && method_call.method_name != self.reduce_right_name
+        {
             return;
         }
 
@@ -250,6 +256,20 @@ mod tests {
             r#"
 let items = [1, 2, 3];
 let doubled = items.reduce((acc, x) => [...acc, x * 2], []);
+"#,
+        );
+        test.result(result).assert_lint("no-accumulating-spread");
+    }
+
+    /// Flag spread accumulator in reduceRight.
+    #[test]
+    fn test_flags_spread_in_reduce_right() {
+        let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
+        let result = test.lint_dir(
+            "no_accumulating_spread/test_flags_spread_in_reduce_right.ds",
+            r#"
+let items = [1, 2, 3];
+let doubled = items.reduceRight((acc, x) => [...acc, x * 2], []);
 "#,
         );
         test.result(result).assert_lint("no-accumulating-spread");

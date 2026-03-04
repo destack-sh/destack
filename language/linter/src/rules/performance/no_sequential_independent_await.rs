@@ -125,6 +125,25 @@ fn await_statement_from_expression(
         });
     }
 
+    // keep assignment await forms like: value = await fetch()
+    if let dir::Expression::Assign { left, right } = statement
+        && let Some(await_operand_expression_id) = await_operand_expression_id(ctx.tree.get(*right))
+    {
+        let mut bound_symbols = HashSet::new();
+
+        if let Some(target_symbol) = ctx.tree.get(*left).target_symbol()
+            && target_symbol.module_id == ctx.module_id()
+        {
+            bound_symbols.insert(target_symbol.local_id);
+        }
+
+        return Some(AwaitStatement {
+            statement_expression_id: expression_id,
+            await_operand_expression_id,
+            bound_symbols,
+        });
+    }
+
     // keep single declarator await bindings like: const x = await foo()
     let (declarators, descriptor_symbol) = match statement {
         dir::Expression::Let {
@@ -412,6 +431,46 @@ async function run() {
 async function run() {
     using token = await first();
     await second(token);
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-sequential-independent-await");
+    }
+
+    /// Flag independent sequential await assignments.
+    #[test]
+    fn test_flags_independent_sequential_await_assignments() {
+        let test = TestProgram::for_rule_without_prelude(NoSequentialIndependentAwait);
+        let result = test.lint_dir(
+            "no_sequential_independent_await/test_flags_independent_sequential_await_assignments.ds",
+            r#"
+async function run() {
+    let left;
+    let right;
+    left = await first();
+    right = await second();
+    return left + right;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-sequential-independent-await");
+    }
+
+    /// Allow dependent sequential await assignments.
+    #[test]
+    fn test_allows_dependent_sequential_await_assignments() {
+        let test = TestProgram::for_rule_without_prelude(NoSequentialIndependentAwait);
+        let result = test.lint_dir(
+            "no_sequential_independent_await/test_allows_dependent_sequential_await_assignments.ds",
+            r#"
+async function run() {
+    let token;
+    let value;
+    token = await first();
+    value = await second(token);
+    return value;
 }
 "#,
         );
