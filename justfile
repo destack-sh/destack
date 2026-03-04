@@ -7,6 +7,14 @@ _default:
 
 # --- setup ---
 
+# link this worktree .env.local to the primary repo .env.local
+env-link:
+    bash scripts/ci/link-worktree-env-local.sh here
+
+# link all worktree .env.local files to the primary repo .env.local
+env-link-all:
+    bash scripts/ci/link-worktree-env-local.sh all
+
 # install all dependencies
 install:
     bun install
