@@ -9,8 +9,11 @@ use destack_ast::{
     AnnotationPosition, Declaration, DeclarationDescriptor, Expression, LocalNodeId,
     NodeParentIndex, NodeType, TokenType,
 };
-use destack_source::{FileType, LanguageType};
-use destack_workspace::FormatterOptions;
+use destack_fir::format as fir_format;
+use destack_parser::Parser;
+use destack_source::{File, FileId, FileType, LanguageType, Uri};
+use destack_workspace::{FormatterOptions, QuoteStyle};
+use std::sync::Arc;
 
 /// Build a formatter context for annotation routing assertions.
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
@@ -50,6 +53,49 @@ fn javascript_xml_format_options() -> DestackFormatOptions {
         FormatterOptions::default(),
         LanguageType::JavaScriptXml,
     )
+}
+
+/// Format one program string with the same parse path as formatter conformance.
+fn format_program_conformance_style(source: &str, file_type: FileType) -> String {
+    let file = Arc::new(File::from_text(
+        FileId::new(0),
+        "<string>".to_string(),
+        Uri::from_string("<string>"),
+        None,
+        file_type,
+        source.to_string(),
+    ));
+    let language = LanguageType::from(file_type);
+    let mut parser = Parser::lex_file(file.clone(), language);
+    let expressions = parser.parse();
+    let (tokens, side_tokens) = parser.take_tokens();
+    let side_span = parser.compute_side_span();
+    let strings = parser.strings.clone().into_immutable();
+    let options = DestackFormatOptions::from_formatter_options(
+        FormatterOptions::default()
+            .with_indent_width(2)
+            .with_line_width(80)
+            .with_quote_style(QuoteStyle::Double),
+        language,
+    );
+    let context = DestackFormatContext::new(
+        options,
+        DestackFormatArtifacts {
+            file: &file,
+            tree: &parser.tree,
+            tokens: &tokens,
+            side_tokens: &side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+            parents: NodeParentIndex::from_tree(&parser.tree),
+        },
+    );
+    let formatted = fir_format!(context.clone(), [statement_list(&expressions)]).unwrap();
+    let mut output = formatted.print().unwrap().as_str().to_string();
+    if !output.is_empty() && !output.ends_with('\n') {
+        output.push('\n');
+    }
+    output
 }
 
 /// Find an annotation node by source marker text.
@@ -227,7 +273,6 @@ const fragmentAfterSlashBlock = <></ /* jsx-fragment-after-slash-block */
         TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
             .expect("parse jsx closing-tag seam source");
     let context = context_from_formatter(&formatter);
-
     for (marker, expected_position) in [
         (
             "jsx-before-slash-line",
@@ -3379,6 +3424,170 @@ if (true) {
     );
 }
 
+/// File-head line comments should preserve one source blank line before following statements.
+#[test]
+fn test_format_file_head_line_comment_roundtrip_keeps_statement_gap() {
+    let source = r#"// first line
+// second line
+
+import x from "module";
+"#;
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// File-head line comment gaps should attach one blank prefix annotation to the first statement.
+#[test]
+fn test_annotation_file_head_line_comment_gap_attaches_blank_prefix() {
+    let source = r#"// first line
+// second line
+
+import x from "module";
+"#;
+    let (formatter, expressions) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse file-head line-comment gap source");
+    let context = context_from_formatter(&formatter);
+    let first_expression_id = *expressions.first().expect("expected import expression");
+    let first_comment_annotation_id =
+        find_annotation_by_marker(&context, "first line").expect("expected first line comment");
+    let owner_node = find_annotation_target_owner_node(&context, first_comment_annotation_id)
+        .expect("expected owner for first line comment");
+    let owner_node_id = owner_node as u32;
+    assert_eq!(
+        context.tree.get_node_type(owner_node_id),
+        NodeType::Expression,
+        "expected file-head line comment owner to be an expression node",
+    );
+
+    let annotations = context
+        .formatter_annotation_ids_by_node_id
+        .get(owner_node)
+        .expect("expected annotation ids for comment owner node");
+    let has_blank_prefix = annotations.iter().copied().any(|annotation_id| {
+        matches!(
+            context.annotation(annotation_id),
+            Annotation::Blank {
+                position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                ..
+            }
+        )
+    });
+
+    assert!(
+        has_blank_prefix,
+        "expected one blank prefix annotation on file-head comment owner: owner={owner_node_id:?} owner_expression={:?} first_expression={:?} parse_expressions={:?}",
+        context
+            .tree
+            .get(LocalNodeId::<Expression>::new(owner_node_id)),
+        context.tree.get(first_expression_id),
+        expressions,
+    );
+}
+
+/// Class trailing template blank lines should not affect following statement spacing.
+#[test]
+fn test_format_statement_gap_after_class_with_multiline_template_is_idempotent() {
+    let source = r#"class MyElement extends LitElement {
+  render() {
+    return html`
+      <style
+
+
+      >
+                  .mood { color: green; }
+      </style>
+
+
+
+      >
+
+         Web            Components         are     <span
+
+
+      class="mood"      >${this.mood}</span
+
+           >!
+    `;
+  }
+}
+
+customElements.define("my-element", MyElement);
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Own-line comments after arrow declarations should keep source blank-line stability.
+#[test]
+fn test_format_arrow_comment_gap_is_idempotent() {
+    let source = r#"const fn1 = () => {
+  return;
+} /* foo */;
+
+const fn2 = () => {
+  return;
+};
+
+// foo
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        typescript_format_options(),
+    );
+}
+
+/// Mixed own-line block and slash comments in argument lists should keep stable blank lines.
+#[test]
+fn test_format_argument_list_mixed_comment_gap_is_idempotent() {
+    let source = r#"comments(
+  // Comment
+
+  /* Some comments */
+  short,
+
+  /* Another comment */
+
+  short2, // Even more comments
+);
+
+differentArgTypes(
+
+  () => {
+    return true;
+  },
+
+  isTrue ? doSomething() : 12,
+);
+
+doSomething(
+  { tomorrow: maybe, today: never[always] },
+
+
+  1337,
+
+  // This is important
+
+  /* Comment */
+
+  { helloWorld, someImportantStuff },
+);
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
 /// Statement boundary blank seams should not oscillate between passes.
 #[test]
 fn test_format_statement_boundary_blank_seams_are_idempotent() {
@@ -3553,6 +3762,181 @@ fn test_format_zero_argument_call_callee_comment_stays_on_callee_boundary() {
         FileType::JavaScript,
         javascript_format_options(),
     );
+}
+
+/// Webpack-style banner block comments around a parenthesized call should stay idempotent.
+#[test]
+fn test_format_webpack_banner_comments_around_parenthesized_call_are_idempotent() {
+    let source = r#"{
+    (function webpackUniversalModuleDefinition() {})(
+        this,
+        function (__WEBPACK_EXTERNAL_MODULE_85__, __WEBPACK_EXTERNAL_MODULE_115__) {
+            return (
+                /******/ /************************************************************************/
+                /******/ (function (modules) {
+                    // webpackBootstrap
+                    /******/
+                })([
+                    /* 0 */
+                    /***/ function (module, exports, __webpack_require__) {
+                        /***/
+                    },
+                    /* 1 */
+                    /***/ function (module, exports, __webpack_require__) {
+                        /***/
+                    },
+                    /* 2 */
+                    /***/ function (module, exports, __webpack_require__) {
+                        /***/
+                    },
+                    /******/
+                ])
+            );
+        }
+    );
+}"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Full last-argument-expansion edge-case fixture should remain idempotent across passes.
+#[test]
+fn test_format_last_argument_expansion_edge_case_is_idempotent() {
+    let source = r#"a(SomethingVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLong, [
+  {
+    SomethingVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLong: 1,
+  },
+]);
+
+exports.examples = [
+  {
+    render: withGraphQLQuery("node(1234567890){image{uri}}", function (container, data) {
+      return (
+        <div>
+          <InlineBlock>
+            <img
+              src={data[1234567890].image.uri}
+              style={{ position: "absolute", top: "0", left: "0", zIndex: "-1" }}
+            />
+          </InlineBlock>
+        </div>
+      );
+    }),
+  },
+];
+
+someReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReally.a([
+  [],
+  // comment
+  [],
+]);
+
+(function webpackUniversalModuleDefinition() {})(
+  this,
+  function (__WEBPACK_EXTERNAL_MODULE_85__, __WEBPACK_EXTERNAL_MODULE_115__) {
+    return /******/ (function (modules) {
+      // webpackBootstrap
+      /******/
+    })(
+      /************************************************************************/
+      /******/ [
+        /* 0 */
+        /***/ function (module, exports, __webpack_require__) {
+          /***/
+        },
+        /* 1 */
+        /***/ function (module, exports, __webpack_require__) {
+          /***/
+        },
+        /* 2 */
+        /***/ function (module, exports, __webpack_require__) {
+          /***/
+        },
+        /******/
+      ],
+    );
+  },
+);"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::from_formatter_options(
+            FormatterOptions::default()
+                .with_indent_width(2)
+                .with_line_width(80)
+                .with_quote_style(QuoteStyle::Double),
+            LanguageType::JavaScript,
+        ),
+    );
+}
+
+/// Conformance parse path should stay idempotent on this fixture.
+#[test]
+fn test_format_last_argument_expansion_edge_case_is_idempotent_conformance_parse_path() {
+    let source = r#"a(SomethingVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLong, [
+  {
+    SomethingVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLong: 1,
+  },
+]);
+
+exports.examples = [
+  {
+    render: withGraphQLQuery("node(1234567890){image{uri}}", function (container, data) {
+      return (
+        <div>
+          <InlineBlock>
+            <img
+              src={data[1234567890].image.uri}
+              style={{ position: "absolute", top: "0", left: "0", zIndex: "-1" }}
+            />
+          </InlineBlock>
+        </div>
+      );
+    }),
+  },
+];
+
+someReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReallyReally.a([
+  [],
+  // comment
+  [],
+]);
+
+(function webpackUniversalModuleDefinition() {})(
+  this,
+  function (__WEBPACK_EXTERNAL_MODULE_85__, __WEBPACK_EXTERNAL_MODULE_115__) {
+    return /******/ (function (modules) {
+      // webpackBootstrap
+      /******/
+    })(
+      /************************************************************************/
+      /******/ [
+        /* 0 */
+        /***/ function (module, exports, __webpack_require__) {
+          /***/
+        },
+        /* 1 */
+        /***/ function (module, exports, __webpack_require__) {
+          /***/
+        },
+        /* 2 */
+        /***/ function (module, exports, __webpack_require__) {
+          /***/
+        },
+        /******/
+      ],
+    );
+  },
+);"#;
+
+    let first = format_program_conformance_style(source, FileType::JavaScriptXml);
+    let second = format_program_conformance_style(&first, FileType::JavaScriptXml);
+    assert_format_output_eq(&first, &second);
 }
 
 /// Parenthesized callee seam comments should stay outside the callee parentheses.
@@ -4092,6 +4476,22 @@ type d= {
       // prettier-ignore
       C  |  D
   }
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Inline mapped-type ignore directives before object values should stay idempotent.
+#[test]
+fn test_format_typescript_mapped_type_inline_ignore_before_object_value_is_idempotent() {
+    let source = r#"
+type h = {
+    /* prettier-ignore */ [A in B]: C  |  D
+  };
 "#;
 
     assert_format_program_idempotent_with_file_type(

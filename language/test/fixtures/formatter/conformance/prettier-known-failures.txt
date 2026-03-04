@@ -1,10 +1,2 @@
 # known formatter idempotence bugs: oxfmt and fixture output are stable
-js/comments/return-statement.js
-js/explicit-resource-management/valid-await-using-comments.js
-js/last-argument-expansion/edge_case.js
-js/multiparser-html/lit-html.js
-js/preserve-line/argument-list.js
-js/ternaries/nested.js
-typescript/arrow/comments.ts
-typescript/prettier-ignore/mapped-types.ts
-typescript/union/consistent-with-flow/single-type.ts
+# (none)

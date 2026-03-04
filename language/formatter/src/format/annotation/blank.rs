@@ -411,6 +411,11 @@ struct BlankSeamCommentState {
     blank_before_first_comment_in_after_range: bool,
 }
 
+/// Return whether one file-head blank seam follows a leading comment cluster.
+fn blank_seam_follows_file_head_comment(comment_state: &BlankSeamCommentState) -> bool {
+    comment_state.seam_has_comment && !comment_state.blank_before_first_comment
+}
+
 /// Build one comment-shape snapshot for one blank seam.
 fn blank_seam_comment_state(
     semantic_tokens: &[TokenSpan],
@@ -708,12 +713,6 @@ fn try_attach_blank_specialized_handlers(
         return Some(attachment);
     }
 
-    if let Some(attachment) =
-        try_attach_semicolon_guard_blank_seam(tree, comment_state, facts.semicolon_guard_seam)
-    {
-        return Some(attachment);
-    }
-
     if let Some(attachment) = try_attach_statement_end_comment_blank_seam(
         tree,
         parents,
@@ -850,13 +849,22 @@ fn attach_blank_default_fallback(
     blank_infix_attachment()
 }
 
-/// Attach one if-specific or generic semicolon-guard blank seam.
-fn try_attach_semicolon_guard_blank_seam(
-    _tree: &NodeTree,
-    _comment_state: &BlankSeamCommentState,
-    _semicolon_guard_seam: SemicolonGuardCommentSeam,
-) -> Option<(Option<u32>, AnnotationPosition)> {
-    None
+/// Return one canonical preceding owner for statement-end blank routing.
+fn preceding_owner_for_statement_end_blank_seam(owner_state: &BlankSeamOwnerState) -> Option<u32> {
+    owner_state
+        .preceding_owner_before_semicolon
+        .or(owner_state.preceding_token_owner)
+        .or(owner_state.preceding_owner)
+}
+
+/// Return one canonical preceding owner for chain-continued blank routing.
+fn preceding_owner_for_chain_continuation_blank_seam(
+    owner_state: &BlankSeamOwnerState,
+) -> Option<u32> {
+    owner_state
+        .preceding_token_owner
+        .or(owner_state.preceding_owner_before_semicolon)
+        .or(owner_state.preceding_owner)
 }
 
 /// Attach one statement-end blank seam with comment-owned ownership.
@@ -871,25 +879,19 @@ fn try_attach_statement_end_comment_blank_seam(
     let seam_has_comment = comment_state.seam_has_comment;
     let seam_has_line_comment = comment_state.seam_has_line_comment;
     let blank_before_first_comment = comment_state.blank_before_first_comment;
-
-    let preceding_token_owner = owner_state.preceding_token_owner;
-    let preceding_owner = owner_state.preceding_owner;
-    let preceding_owner_before_semicolon = owner_state.preceding_owner_before_semicolon;
     let following_owner = owner_state.following_owner;
     let following_owner_after_comment = owner_state.following_owner_after_comment;
     let token_after_comment_continues_chain_or_index =
         owner_state.token_after_comment_continues_chain_or_index;
+    let preceding_statement_owner = preceding_owner_for_statement_end_blank_seam(owner_state);
+    let preceding_chain_owner = preceding_owner_for_chain_continuation_blank_seam(owner_state);
+    let seam_is_unblocked_statement_end =
+        token_before_is_statement_end && !semicolon_guard_seam.has_guard_shape();
 
     // statement-end seams with line comments
-    if seam_has_line_comment
-        && blank_before_first_comment
-        && token_before_is_statement_end
-        && !semicolon_guard_seam.has_guard_shape()
-    {
+    if seam_has_line_comment && blank_before_first_comment && seam_is_unblocked_statement_end {
         if token_after_comment_continues_chain_or_index
-            && let Some(target_node) = preceding_token_owner
-                .or(preceding_owner_before_semicolon)
-                .or(preceding_owner)
+            && let Some(target_node) = preceding_chain_owner
         {
             return Some(block_postfix_attachment(tree, target_node));
         }
@@ -900,10 +902,7 @@ fn try_attach_statement_end_comment_blank_seam(
             return Some(block_prefix_attachment(tree, target_node));
         }
 
-        if let Some(target_node) = preceding_owner_before_semicolon
-            .or(preceding_token_owner)
-            .or(preceding_owner)
-        {
+        if let Some(target_node) = preceding_statement_owner {
             return Some(block_postfix_attachment(tree, target_node));
         }
     }
@@ -912,11 +911,8 @@ fn try_attach_statement_end_comment_blank_seam(
     if seam_has_comment
         && !seam_has_line_comment
         && blank_before_first_comment
-        && token_before_is_statement_end
-        && !semicolon_guard_seam.has_guard_shape()
-        && let Some(target_node) = preceding_owner_before_semicolon
-            .or(preceding_token_owner)
-            .or(preceding_owner)
+        && seam_is_unblocked_statement_end
+        && let Some(target_node) = preceding_statement_owner
     {
         return Some(block_postfix_attachment(tree, target_node));
     }
@@ -942,14 +938,13 @@ fn try_attach_comment_shape_blank_seam(
     let blank_before_first_comment_in_after_range =
         comment_state.blank_before_first_comment_in_after_range;
 
-    let preceding_token_owner = owner_state.preceding_token_owner;
     let preceding_owner = owner_state.preceding_owner;
-    let preceding_owner_before_semicolon = owner_state.preceding_owner_before_semicolon;
     let following_owner = owner_state.following_owner;
     let shared_expression_owner = owner_state.shared_expression_owner;
     let preceding_match_case_owner = owner_state.preceding_match_case_owner;
     let token_after_comment_continues_chain_or_index =
         owner_state.token_after_comment_continues_chain_or_index;
+    let preceding_chain_owner = preceding_owner_for_chain_continuation_blank_seam(owner_state);
 
     // preserve blank seams between adjacent comments
     if seam_has_comment
@@ -966,9 +961,7 @@ fn try_attach_comment_shape_blank_seam(
         && token_before_is_statement_end
         && token_after_comment_continues_chain_or_index
         && !semicolon_guard_seam.has_guard_shape()
-        && let Some(target_node) = preceding_token_owner
-            .or(preceding_owner)
-            .or(preceding_owner_before_semicolon)
+        && let Some(target_node) = preceding_chain_owner
     {
         return Some(block_postfix_attachment(tree, target_node));
     }
@@ -1024,6 +1017,7 @@ fn try_attach_chain_delimiter_blank_seam(
     token_after_is_close_parenthesis: bool,
 ) -> Option<(Option<u32>, AnnotationPosition)> {
     let seam_has_comment = comment_state.seam_has_comment;
+    let seam_has_line_comment = comment_state.seam_has_line_comment;
     let blank_before_first_comment = comment_state.blank_before_first_comment;
     let blank_before_first_comment_in_after_range =
         comment_state.blank_before_first_comment_in_after_range;
@@ -1054,6 +1048,15 @@ fn try_attach_chain_delimiter_blank_seam(
         && blank_before_first_comment
         && token_before_is_semicolon
         && token_after_is_semicolon
+    {
+        return Some(blank_infix_attachment());
+    }
+
+    // comma line-comment seams before `)` are separator-comment spacing
+    if seam_has_line_comment
+        && (blank_before_first_comment || blank_before_first_comment_in_after_range)
+        && token_before_is_comma
+        && token_after_is_close_parenthesis
     {
         return Some(blank_infix_attachment());
     }
@@ -1201,6 +1204,13 @@ pub(crate) fn blank_trivia_attachment(
 
     // file start
     if token_before.is_none() {
+        // keep one blank seam after leading comments before the first statement
+        if blank_seam_follows_file_head_comment(&comment_state)
+            && let Some(target_node) = start_owner_at_token(owner_index, token_after)
+        {
+            return block_prefix_attachment(tree, target_node);
+        }
+
         return blank_infix_attachment();
     }
 

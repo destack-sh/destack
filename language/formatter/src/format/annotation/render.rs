@@ -307,7 +307,6 @@ fn inline_block_comment_allows_tight_separator(next_token_type: Option<TokenType
         next_token_type,
         TokenType::Comma
             | TokenType::Semicolon
-            | TokenType::LessThan
             | TokenType::CloseParenthesis
             | TokenType::CloseBracket
             | TokenType::CloseBrace
