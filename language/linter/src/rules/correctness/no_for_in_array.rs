@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::is_array_type;
+use crate::rules::common::is_array_like_iteration_type;
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -86,9 +86,13 @@ impl<'a, 'b> ForInArrayVisitor<'a, 'b> {
             return;
         };
 
-        // check if the iterator is an array type
-        let is_array = is_array_type(self.ctx.types, type_id, Some(self.array_symbol));
-        if !is_array {
+        // check if the iterator may be array-like
+        if !is_array_like_iteration_type(
+            self.ctx.types,
+            &self.ctx.program.strings,
+            type_id,
+            Some(self.array_symbol),
+        ) {
             return;
         }
 
@@ -334,6 +338,21 @@ for (const key of /* left */ /* right */ items) {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_flags_for_in_union_with_array_branch() {
+        let test = TestProgram::for_rule_without_prelude(NoForInArray);
+        let result = test.lint_dir(
+            "no_for_in_array/test_flags_for_in_union_with_array_branch.ds",
+            r#"
+let items: number[] | { a: int32 } = [1, 2, 3];
+for (const key in items) {
+}
+"#,
+        );
+        test.check_clean();
+        test.result(result).assert_lint("no-for-in-array");
     }
 
     #[test]

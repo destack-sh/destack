@@ -793,6 +793,111 @@ pub fn is_array_type(
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Array { array_symbol })
 }
 
+/// Return true when the type may behave as array-like in `for-in` iteration.
+///
+/// This returns true for direct arrays, tuples, and any union or intersection
+/// branch that resolves to an array-like structure.
+pub fn is_array_like_iteration_type(
+    types: &dir::TypeTable,
+    strings: &StringPool,
+    type_id: dir::LocalTypeId,
+    array_symbol: Option<dir::GlobalSymbolId>,
+) -> bool {
+    let mut visited_type_ids = HashSet::new();
+    is_array_like_iteration_type_inner(
+        types,
+        strings,
+        type_id,
+        array_symbol,
+        &mut visited_type_ids,
+    )
+}
+
+/// Evaluate array-like iteration compatibility recursively.
+fn is_array_like_iteration_type_inner(
+    types: &dir::TypeTable,
+    strings: &StringPool,
+    type_id: dir::LocalTypeId,
+    array_symbol: Option<dir::GlobalSymbolId>,
+    visited_type_ids: &mut HashSet<dir::LocalTypeId>,
+) -> bool {
+    if !visited_type_ids.insert(type_id) {
+        return false;
+    }
+
+    if is_array_type(types, type_id, array_symbol) {
+        return true;
+    }
+
+    let type_node = types.get_type(type_id);
+    match type_node {
+        dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
+            .iter()
+            .any(|element_type_id| {
+                is_array_like_iteration_type_inner(
+                    types,
+                    strings,
+                    *element_type_id,
+                    array_symbol,
+                    visited_type_ids,
+                )
+            }),
+        dir::Type::Value { value } => is_array_like_iteration_type_inner(
+            types,
+            strings,
+            *value,
+            array_symbol,
+            visited_type_ids,
+        ),
+        dir::Type::ValueOf { right, .. }
+        | dir::Type::ReferenceOf { right, .. }
+        | dir::Type::PointerOf { right, .. } => is_array_like_iteration_type_inner(
+            types,
+            strings,
+            *right,
+            array_symbol,
+            visited_type_ids,
+        ),
+        dir::Type::Object {
+            fields,
+            index_signatures,
+            ..
+        } => {
+            object_has_numeric_index_signature(types, index_signatures)
+                && object_has_array_like_length_field(types, strings, fields)
+        }
+        _ => false,
+    }
+}
+
+/// Return true when one object declares a numeric index signature.
+fn object_has_numeric_index_signature(
+    types: &dir::TypeTable,
+    index_signatures: &[dir::TypeIndexSignature],
+) -> bool {
+    index_signatures
+        .iter()
+        .any(|signature| is_numeric_property_key_type(types, signature.key_type))
+}
+
+/// Return true when one object has a numeric `length` field.
+fn object_has_array_like_length_field(
+    types: &dir::TypeTable,
+    strings: &StringPool,
+    fields: &[dir::TypeField],
+) -> bool {
+    fields.iter().any(|field| {
+        let Some(field_name_id) = field.key.name() else {
+            return false;
+        };
+        if strings.get(field_name_id).as_ref() != "length" {
+            return false;
+        }
+
+        is_numeric_property_key_type(types, field.ty)
+    })
+}
+
 /// Return true when the type is a string type.
 pub fn is_string_type(
     types: &dir::TypeTable,
