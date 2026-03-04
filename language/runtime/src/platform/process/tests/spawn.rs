@@ -11,7 +11,10 @@ use super::{
     with_harness_context,
 };
 #[cfg(unix)]
-use super::{assert_platform_error_code, assert_platform_error_codes, is_would_block};
+use super::{
+    assert_platform_error_code_with_privileged_policy,
+    assert_platform_error_codes_with_privileged_policy, is_would_block,
+};
 #[cfg(unix)]
 use super::{fork_child_sleep_then_exit, unique_temp_file_path};
 #[cfg(any(unix, windows))]
@@ -159,7 +162,7 @@ fn test_process_spawn_wait_handle_roundtrip() {
         assert_eq!(status.exit_code, Some(17));
 
         // consumed handles should not remain waitable
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_try_wait(handle),
             &[
                 PlatformErrorCode::ProcessNotFound,
@@ -209,7 +212,7 @@ fn test_process_fd_close_rejects_forged_process_handle() {
             context.spawn_options_value(&options)?,
         )?;
         let forged_handle = ProcessFdHandle(process_handle.0);
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_process_fd_close(forged_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
@@ -612,13 +615,13 @@ fn test_process_fd_validation_errors_are_specific() {
         let pid = context.destack_process_pid()?;
 
         // invalid flags and handles should be rejected with invalid-argument errors
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_process_fd_open(pid, ProcessFdFlags(1)),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
         let handle = context.destack_process_process_fd_open(pid, ProcessFdFlags(0))?;
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_process_fd_send_signal(
                 handle,
                 Signal(0),
@@ -629,15 +632,15 @@ fn test_process_fd_validation_errors_are_specific() {
         context.destack_process_process_fd_close(handle)?;
 
         let invalid_handle = ProcessFdHandle(ResourceId(0));
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_process_fd_try_wait(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_process_fd_close(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_process_fd_send_signal(
                 invalid_handle,
                 Signal(0),
@@ -647,7 +650,7 @@ fn test_process_fd_validation_errors_are_specific() {
         )?;
 
         // opening an unreachable pid should report one of the expected process errors
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_process_fd_open(ProcessId(i32::MAX as u32), ProcessFdFlags(0)),
             &[
                 PlatformErrorCode::ProcessNotFound,

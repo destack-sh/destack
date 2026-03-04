@@ -13,11 +13,17 @@ use crate::platform::io::{
     EventToken, PollBackend, PollEvent, PollEventVm, PollInterest, UringParameters,
     UringParametersVm,
 };
+#[cfg(target_os = "linux")]
+use crate::platform::resource::UringHandle;
 use crate::platform::resource::{
-    CompletionHandle, PollHandle, ResourceEntry, ResourceId, ResourceKind, UringHandle,
+    CompletionHandle, PollHandle, ResourceEntry, ResourceId, ResourceKind,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice};
 use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::tests::platform::error_code_from_runtime_error;
+pub(crate) use crate::tests::platform::{
+    assert_not_supported_result, assert_platform_error_code, is_not_supported_code,
+};
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
@@ -118,6 +124,7 @@ impl<'call> IoHarnessContext<'call> {
     }
 
     /// Build one resource id slice harness value for the active engine mode.
+    #[cfg(target_os = "linux")]
     pub(crate) fn resource_id_slice_value(
         &mut self,
         values: &[ResourceId],
@@ -132,6 +139,7 @@ impl<'call> IoHarnessContext<'call> {
     }
 
     /// Build one u32 slice harness value for the active engine mode.
+    #[cfg(target_os = "linux")]
     pub(crate) fn u32_slice_value(
         &mut self,
         values: &[u32],
@@ -182,9 +190,7 @@ impl<'call> IoHarnessContext<'call> {
         match self.destack_io_completion_open(entries) {
             Ok(handle) => Ok(Some(handle)),
             Err(error) => {
-                if error.platform_error().map(|platform| platform.code)
-                    == Some(PlatformErrorCode::NotSupported)
-                {
+                if is_not_supported_code(error_code_from_runtime_error(&error)) {
                     Ok(None)
                 } else {
                     Err(error)
@@ -206,6 +212,7 @@ impl<'call> IoHarnessContext<'call> {
     }
 
     /// Open one io_uring instance or return None when unsupported on this host.
+    #[cfg(target_os = "linux")]
     pub(crate) fn uring_open_or_skip(
         &mut self,
         parameters: UringParameters,
@@ -213,9 +220,7 @@ impl<'call> IoHarnessContext<'call> {
         match self.destack_io_uring_open(self.uring_parameters_value(parameters)) {
             Ok(handle) => Ok(Some(handle)),
             Err(error) => {
-                if error.platform_error().map(|platform| platform.code)
-                    == Some(PlatformErrorCode::NotSupported)
-                {
+                if is_not_supported_code(error_code_from_runtime_error(&error)) {
                     Ok(None)
                 } else {
                     Err(error)
@@ -483,23 +488,6 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
-}
-
-/// Assert one result failed with one exact platform error code.
-pub(crate) fn assert_platform_error_code<T>(
-    result: RuntimeResult<T>,
-    expected: PlatformErrorCode,
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert_eq!(platform.code, expected);
-
-    Ok(())
 }
 
 /// Insert one runtime resource that resolves to one host completion handle.
@@ -1325,14 +1313,10 @@ fn test_io_control_ioctl_rejects_unknown_target() {
 }
 
 /// Return io-not-found for fcntl when the target resource does not exist.
+#[cfg(not(windows))]
 #[test]
 fn test_io_control_fcntl_rejects_unknown_target() {
     with_harness_context(|mut context| {
-        #[cfg(windows)]
-        let expected_code = PlatformErrorCode::NotSupported;
-        #[cfg(not(windows))]
-        let expected_code = PlatformErrorCode::IoNotFound;
-
         assert_platform_error_code(
             context.destack_io_control_fcntl(
                 ResourceId(999_999),
@@ -1340,7 +1324,7 @@ fn test_io_control_fcntl_rejects_unknown_target() {
                 0,
                 DescriptorControlFlags(0),
             ),
-            expected_code,
+            PlatformErrorCode::IoNotFound,
         )?;
 
         Ok(())
@@ -1348,17 +1332,10 @@ fn test_io_control_fcntl_rejects_unknown_target() {
 }
 
 /// Reject descriptor control fcntl commands that cannot fit one host command lane.
+#[cfg(not(windows))]
 #[test]
 fn test_io_control_fcntl_rejects_command_width_overflow() {
     with_harness_context(|mut context| {
-        #[cfg(windows)]
-        let expected_code = PlatformErrorCode::NotSupported;
-        #[cfg(not(windows))]
-        let expected_code = PlatformErrorCode::InvalidArgumentValue;
-
-        #[cfg(windows)]
-        let target = ResourceId(999_999);
-        #[cfg(not(windows))]
         let target = insert_completion_target_with_host_handle(context.call_context);
 
         assert_platform_error_code(
@@ -1368,10 +1345,9 @@ fn test_io_control_fcntl_rejects_command_width_overflow() {
                 0,
                 DescriptorControlFlags(0),
             ),
-            expected_code,
+            PlatformErrorCode::InvalidArgumentValue,
         )?;
 
-        #[cfg(not(windows))]
         context
             .call_context
             .runtime()
@@ -1395,9 +1371,7 @@ fn test_io_uring_open_contract() {
         match result {
             Ok(handle) => context.destack_io_uring_close(handle)?,
             Err(error) => {
-                if error.platform_error().map(|platform| platform.code)
-                    != Some(PlatformErrorCode::NotSupported)
-                {
+                if !is_not_supported_code(error_code_from_runtime_error(&error)) {
                     return Err(error);
                 }
             }
@@ -1408,6 +1382,7 @@ fn test_io_uring_open_contract() {
 }
 
 /// Reject io_uring opens that request zero entries.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_open_rejects_zero_entries() {
     with_harness_context(|mut context| {
@@ -1418,18 +1393,14 @@ fn test_io_uring_open_rejects_zero_entries() {
         };
         let result = context.destack_io_uring_open(context.uring_parameters_value(parameters));
 
-        #[cfg(target_os = "linux")]
-        let expected = PlatformErrorCode::InvalidArgumentValue;
-        #[cfg(not(target_os = "linux"))]
-        let expected = PlatformErrorCode::NotSupported;
-
-        assert_platform_error_code(result, expected)?;
+        assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
 
         Ok(())
     });
 }
 
 /// Reject io_uring opens with unknown setup flags.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_open_rejects_unknown_flags() {
     with_harness_context(|mut context| {
@@ -1440,18 +1411,14 @@ fn test_io_uring_open_rejects_unknown_flags() {
         };
         let result = context.destack_io_uring_open(context.uring_parameters_value(parameters));
 
-        #[cfg(target_os = "linux")]
-        let expected = PlatformErrorCode::InvalidArgumentValue;
-        #[cfg(not(target_os = "linux"))]
-        let expected = PlatformErrorCode::NotSupported;
-
-        assert_platform_error_code(result, expected)?;
+        assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
 
         Ok(())
     });
 }
 
 /// Reject io_uring registration calls with mismatched address and length lanes.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_register_buffers_rejects_lane_mismatch() {
     with_harness_context(|mut context| {
@@ -1477,6 +1444,7 @@ fn test_io_uring_register_buffers_rejects_lane_mismatch() {
 }
 
 /// Reject io_uring register-files calls that include unknown resource ids.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_register_files_rejects_unknown_target() {
     with_harness_context(|mut context| {
@@ -1501,6 +1469,7 @@ fn test_io_uring_register_files_rejects_unknown_target() {
 }
 
 /// Query io_uring feature metadata for supported hosts.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_features_contract() {
     with_harness_context(|mut context| {
@@ -1530,6 +1499,7 @@ fn test_io_uring_features_contract() {
 }
 
 /// Allow idempotent io_uring unregister calls when nothing is registered.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_unregister_without_registration_is_idempotent() {
     with_harness_context(|mut context| {
@@ -1554,70 +1524,59 @@ fn test_io_uring_unregister_without_registration_is_idempotent() {
 }
 
 /// Reject io_uring features calls for unknown handles.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_features_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         let unknown = UringHandle(ResourceId(999_999));
-
-        #[cfg(target_os = "linux")]
-        let expected = PlatformErrorCode::IoNotFound;
-        #[cfg(not(target_os = "linux"))]
-        let expected = PlatformErrorCode::NotSupported;
-
-        assert_platform_error_code(context.destack_io_uring_features(unknown), expected)?;
+        assert_platform_error_code(
+            context.destack_io_uring_features(unknown),
+            PlatformErrorCode::IoNotFound,
+        )?;
 
         Ok(())
     });
 }
 
 /// Reject io_uring close calls for unknown handles.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_close_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         let unknown = UringHandle(ResourceId(999_999));
-
-        #[cfg(target_os = "linux")]
-        let expected = PlatformErrorCode::IoNotFound;
-        #[cfg(not(target_os = "linux"))]
-        let expected = PlatformErrorCode::NotSupported;
-
-        assert_platform_error_code(context.destack_io_uring_close(unknown), expected)?;
+        assert_platform_error_code(
+            context.destack_io_uring_close(unknown),
+            PlatformErrorCode::IoNotFound,
+        )?;
 
         Ok(())
     });
 }
 
 /// Reject io_uring unregister-files calls for unknown handles.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_unregister_files_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         let unknown = UringHandle(ResourceId(999_999));
-
-        #[cfg(target_os = "linux")]
-        let expected = PlatformErrorCode::IoNotFound;
-        #[cfg(not(target_os = "linux"))]
-        let expected = PlatformErrorCode::NotSupported;
-
-        assert_platform_error_code(context.destack_io_uring_unregister_files(unknown), expected)?;
+        assert_platform_error_code(
+            context.destack_io_uring_unregister_files(unknown),
+            PlatformErrorCode::IoNotFound,
+        )?;
 
         Ok(())
     });
 }
 
 /// Reject io_uring unregister-buffers calls for unknown handles.
+#[cfg(target_os = "linux")]
 #[test]
 fn test_io_uring_unregister_buffers_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         let unknown = UringHandle(ResourceId(999_999));
-
-        #[cfg(target_os = "linux")]
-        let expected = PlatformErrorCode::IoNotFound;
-        #[cfg(not(target_os = "linux"))]
-        let expected = PlatformErrorCode::NotSupported;
-
         assert_platform_error_code(
             context.destack_io_uring_unregister_buffers(unknown),
-            expected,
+            PlatformErrorCode::IoNotFound,
         )?;
 
         Ok(())

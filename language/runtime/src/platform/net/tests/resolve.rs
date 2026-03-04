@@ -1,4 +1,4 @@
-use super::{assert_platform_error_codes, with_harness_context};
+use super::{assert_platform_error_codes_with_privileged_policy, with_harness_context};
 use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -27,11 +27,12 @@ fn test_net_resolve_localhost() {
                 }
             }
             Err(error) => {
-                assert_platform_error_codes::<()>(
+                assert_platform_error_codes_with_privileged_policy::<()>(
                     Err(error),
                     &[
                         PlatformErrorCode::NotSupported,
                         PlatformErrorCode::InvalidArgumentValue,
+                        PlatformErrorCode::NetDnsFailed,
                     ],
                 )?;
             }
@@ -57,6 +58,10 @@ fn test_net_reverse_lookup_localhost() {
 
         let result = match resolved {
             Ok(addresses) => {
+                assert!(
+                    !addresses.is_empty(),
+                    "resolve should return at least one loopback address"
+                );
                 if let Some((host, port, family)) = addresses.first().cloned() {
                     context
                         .destack_net_reverse_lookup(
@@ -77,7 +82,7 @@ fn test_net_reverse_lookup_localhost() {
                 assert!(!names.is_empty(), "reverse lookup should return names");
             }
             Err(error) => {
-                assert_platform_error_codes::<()>(
+                assert_platform_error_codes_with_privileged_policy::<()>(
                     Err(error),
                     &[
                         PlatformErrorCode::NetDnsFailed,
@@ -115,11 +120,10 @@ fn test_net_reverse_lookup_numeric_host_and_service() {
                 assert_eq!(service, "80");
             }
             Err(error) => {
-                assert_platform_error_codes::<()>(
+                assert_platform_error_codes_with_privileged_policy::<()>(
                     Err(error),
                     &[
                         PlatformErrorCode::NotSupported,
-                        PlatformErrorCode::InvalidArgumentValue,
                         PlatformErrorCode::NetDnsFailed,
                     ],
                 )?;
@@ -139,15 +143,12 @@ fn test_net_reverse_lookup_rejects_unknown_flag_bits() {
         let address = context.socket_address_value_for_host_port("127.0.0.1", 80)?;
 
         // pass one undefined flag bit
-        assert_platform_error_codes::<()>(
+        assert_platform_error_codes_with_privileged_policy::<()>(
             context
                 .destack_net_reverse_lookup(address, ReverseLookupFlags(1 << 31))
                 .and_then(|value| context.reverse_lookup_names_from_value(value))
                 .map(|_| ()),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         Ok(())

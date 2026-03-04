@@ -2,7 +2,8 @@
 use super::InputKeyboardStateRecord;
 use super::{
     InputDeviceRecord, InputEventRecord, InputHarnessContext, InputMonitorEventRecord,
-    assert_ok_or_expected_error, assert_platform_error_code, with_harness_context,
+    assert_not_supported_result, assert_ok_or_expected_error, assert_platform_error_code,
+    error_code_from_runtime_error, is_not_supported_code, with_harness_context,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -24,6 +25,31 @@ use crate::platform::input::{
 use crate::platform::resource::{
     InputDeviceHandle, InputMonitorHandle, ResourceEntry, ResourceId, ResourceKind, WindowHandle,
 };
+
+const ERR_PERMISSION_OR_NOT_SUPPORTED: [PlatformErrorCode; 2] = [
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::NotSupported,
+];
+#[cfg(target_os = "linux")]
+const ERR_NOT_SUPPORTED: [PlatformErrorCode; 1] = [PlatformErrorCode::NotSupported];
+#[cfg(windows)]
+const ERR_WOULD_BLOCK_OR_NOT_SUPPORTED: [PlatformErrorCode; 2] = [
+    PlatformErrorCode::IoWouldBlock,
+    PlatformErrorCode::NotSupported,
+];
+#[cfg(windows)]
+const ERR_WOULD_BLOCK_PERMISSION_OR_NOT_SUPPORTED: [PlatformErrorCode; 3] = [
+    PlatformErrorCode::IoWouldBlock,
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::NotSupported,
+];
+#[cfg(windows)]
+const ERR_WOULD_BLOCK_PERMISSION_INVALID_DATA_OR_NOT_SUPPORTED: [PlatformErrorCode; 4] = [
+    PlatformErrorCode::IoWouldBlock,
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::IoInvalidData,
+    PlatformErrorCode::NotSupported,
+];
 
 /// Open the first listed input device when the host exposes one accessible endpoint.
 fn open_first_device_or_skip(
@@ -555,14 +581,16 @@ fn test_input_macos_pointer_state_and_relative_mode_surface_matches_capabilities
         let target = InputWindowTarget {
             window: WindowHandle(ResourceId(0)),
         };
-        assert_platform_error_code(
-            context.destack_input_pointer_capture(handle, context.window_target(target), true),
-            PlatformErrorCode::NotSupported,
-        )?;
-        assert_platform_error_code(
-            context.destack_input_pointer_capture(handle, context.window_target(target), false),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_input_pointer_capture(
+            handle,
+            context.window_target(target),
+            true,
+        ))?;
+        assert_not_supported_result(context.destack_input_pointer_capture(
+            handle,
+            context.window_target(target),
+            false,
+        ))?;
 
         let _ = assert_ok_or_expected_error(
             context.destack_input_pointer_warp(handle, context.window_target(target), 4.0, 4.0),
@@ -985,10 +1013,7 @@ fn test_input_set_grab_for_available_device() {
 
         assert_ok_or_expected_error(
             context.destack_input_set_exclusive_grab(handle, false),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoPermissionDenied,
-            ],
+            &ERR_PERMISSION_OR_NOT_SUPPORTED,
         )?;
 
         context.destack_input_close(handle)?;
@@ -1007,10 +1032,7 @@ fn test_input_set_grab_toggle_for_available_device() {
         for enable in [true, false] {
             assert_ok_or_expected_error(
                 context.destack_input_set_exclusive_grab(handle, enable),
-                &[
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::IoPermissionDenied,
-                ],
+                &ERR_PERMISSION_OR_NOT_SUPPORTED,
             )?;
         }
 
@@ -1042,10 +1064,7 @@ fn test_input_set_grab_rejects_windows_raw_handles() {
             else {
                 continue;
             };
-            assert_platform_error_code(
-                context.destack_input_set_exclusive_grab(handle, true),
-                PlatformErrorCode::NotSupported,
-            )?;
+            assert_not_supported_result(context.destack_input_set_exclusive_grab(handle, true))?;
             context.destack_input_close(handle)?;
         }
 
@@ -1059,10 +1078,7 @@ fn test_input_set_grab_rejects_windows_raw_handles() {
 fn test_input_set_grab_rejects_macos_session_handle() {
     with_harness_context(|mut context| {
         let handle = context.destack_input_open(context.string_value("macos:session"))?;
-        assert_platform_error_code(
-            context.destack_input_set_exclusive_grab(handle, true),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_input_set_exclusive_grab(handle, true))?;
         context.destack_input_close(handle)?;
 
         Ok(())
@@ -1232,7 +1248,7 @@ fn test_input_set_read_mode_matches_device_capabilities() {
                 );
             }
             Err(error) => {
-                let Some(code) = error.platform_error().map(|platform| platform.code) else {
+                let Some(code) = error_code_from_runtime_error(&error) else {
                     return Err(error);
                 };
 
@@ -1240,7 +1256,7 @@ fn test_input_set_read_mode_matches_device_capabilities() {
                     if code != PlatformErrorCode::IoPermissionDenied {
                         return Err(error);
                     }
-                } else if code != PlatformErrorCode::NotSupported {
+                } else if !is_not_supported_code(Some(code)) {
                     return Err(error);
                 }
             }
@@ -1255,7 +1271,7 @@ fn test_input_set_read_mode_matches_device_capabilities() {
                 );
             }
             Err(error) => {
-                let Some(code) = error.platform_error().map(|platform| platform.code) else {
+                let Some(code) = error_code_from_runtime_error(&error) else {
                     return Err(error);
                 };
 
@@ -1263,7 +1279,7 @@ fn test_input_set_read_mode_matches_device_capabilities() {
                     if code != PlatformErrorCode::IoPermissionDenied {
                         return Err(error);
                     }
-                } else if code != PlatformErrorCode::NotSupported {
+                } else if !is_not_supported_code(Some(code)) {
                     return Err(error);
                 }
             }
@@ -1609,10 +1625,7 @@ fn test_input_linux_pointer_state_and_relative_mode_surface_matches_capabilities
             "absolute pen pressure should be finite when available"
         );
 
-        assert_platform_error_code(
-            context.destack_input_pointer_relative_state(handle),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_input_pointer_relative_state(handle))?;
         assert_ok_or_expected_error(
             context.destack_input_pointer_set_relative_mode(handle, true),
             &[PlatformErrorCode::IoPermissionDenied],
@@ -1828,12 +1841,7 @@ fn test_input_windows_raw_gamepad_state_surface_matches_capabilities() {
 
         if let Some(state) = assert_ok_or_expected_error(
             context.destack_input_gamepad_state(handle),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_WOULD_BLOCK_PERMISSION_INVALID_DATA_OR_NOT_SUPPORTED,
         )? {
             let state = context.gamepad_state_from_value(state)?;
             assert!(
@@ -1934,25 +1942,15 @@ fn test_input_windows_raw_hid_surface_matches_capabilities() {
         let capabilities = context.destack_input_capabilities(handle)?;
         let capabilities = context.capabilities_from_value(capabilities)?;
         if !capabilities.supports_raw_hid {
-            assert_platform_error_code(
-                context.destack_input_raw_hid_try_read(handle, 64),
-                PlatformErrorCode::NotSupported,
-            )?;
-            assert_platform_error_code(
-                context.destack_input_raw_hid_get_feature(handle, 0, 64),
-                PlatformErrorCode::NotSupported,
-            )?;
+            assert_not_supported_result(context.destack_input_raw_hid_try_read(handle, 64))?;
+            assert_not_supported_result(context.destack_input_raw_hid_get_feature(handle, 0, 64))?;
 
             let payload = context.bytes_value(&[0])?;
-            assert_platform_error_code(
+            assert_not_supported_result(
                 context.destack_input_raw_hid_set_feature(handle, 0, payload),
-                PlatformErrorCode::NotSupported,
             )?;
             let payload = context.bytes_value(&[0])?;
-            assert_platform_error_code(
-                context.destack_input_raw_hid_write(handle, 0, payload),
-                PlatformErrorCode::NotSupported,
-            )?;
+            assert_not_supported_result(context.destack_input_raw_hid_write(handle, 0, payload))?;
 
             context.destack_input_close(handle)?;
             return Ok(());
@@ -1960,11 +1958,7 @@ fn test_input_windows_raw_hid_surface_matches_capabilities() {
 
         if let Some(report) = assert_ok_or_expected_error(
             context.destack_input_raw_hid_try_read(handle, 64),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_WOULD_BLOCK_PERMISSION_OR_NOT_SUPPORTED,
         )? {
             let report = context.raw_hid_report_from_value(report)?;
             assert!(
@@ -1979,11 +1973,7 @@ fn test_input_windows_raw_hid_surface_matches_capabilities() {
 
         if let Some(report) = assert_ok_or_expected_error(
             context.destack_input_raw_hid_read(handle, 64, 1_000_000),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_WOULD_BLOCK_PERMISSION_OR_NOT_SUPPORTED,
         )? {
             let report = context.raw_hid_report_from_value(report)?;
             assert!(
@@ -1994,12 +1984,7 @@ fn test_input_windows_raw_hid_surface_matches_capabilities() {
 
         if let Some(feature) = assert_ok_or_expected_error(
             context.destack_input_raw_hid_get_feature(handle, 0, 64),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_WOULD_BLOCK_PERMISSION_INVALID_DATA_OR_NOT_SUPPORTED,
         )? {
             let bytes = context.bytes_from_value(feature)?;
             assert!(
@@ -2011,23 +1996,13 @@ fn test_input_windows_raw_hid_surface_matches_capabilities() {
         let payload = context.bytes_value(&[0])?;
         assert_ok_or_expected_error(
             context.destack_input_raw_hid_set_feature(handle, 0, payload),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_WOULD_BLOCK_PERMISSION_INVALID_DATA_OR_NOT_SUPPORTED,
         )?;
 
         let payload = context.bytes_value(&[0])?;
         assert_ok_or_expected_error(
             context.destack_input_raw_hid_write(handle, 0, payload),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_WOULD_BLOCK_PERMISSION_INVALID_DATA_OR_NOT_SUPPORTED,
         )?;
 
         context.destack_input_close(handle)?;
@@ -2106,10 +2081,7 @@ fn test_input_windows_touch_state_surface_matches_capabilities() {
 
         if let Some(state) = assert_ok_or_expected_error(
             context.destack_input_touch_state(handle),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_WOULD_BLOCK_OR_NOT_SUPPORTED,
         )? {
             let state = context.touch_state_from_value(state)?;
             assert!(
@@ -2152,10 +2124,7 @@ fn test_input_windows_sensor_surface_matches_capabilities() {
         };
         if let Some(effective) = assert_ok_or_expected_error(
             context.destack_input_sensor_configure(handle, kind, context.sensor_config(config)),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoPermissionDenied,
-            ],
+            &ERR_PERMISSION_OR_NOT_SUPPORTED,
         )? {
             let effective = context.sensor_effective_config_from_value(effective);
             assert!(
@@ -2166,10 +2135,7 @@ fn test_input_windows_sensor_surface_matches_capabilities() {
 
         if let Some(sample) = assert_ok_or_expected_error(
             context.destack_input_sensor_try_read(handle, kind),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_WOULD_BLOCK_OR_NOT_SUPPORTED,
         )? {
             let sample = context.sensor_sample_from_value(sample);
             assert_eq!(
@@ -2198,7 +2164,7 @@ fn test_input_linux_sensor_surface_matches_capabilities() {
 
         let Some(sensors) = assert_ok_or_expected_error(
             context.destack_input_sensor_list(handle),
-            &[PlatformErrorCode::NotSupported],
+            &ERR_NOT_SUPPORTED,
         )?
         else {
             context.destack_input_close(handle)?;
@@ -2383,10 +2349,7 @@ fn test_input_windows_pointer_state_and_relative_mode_surface_matches_capabiliti
             "absolute pen pressure should be finite when available"
         );
 
-        assert_platform_error_code(
-            context.destack_input_pointer_relative_state(handle),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_input_pointer_relative_state(handle))?;
 
         assert_ok_or_expected_error(
             context.destack_input_pointer_set_relative_mode(handle, true),
@@ -2430,10 +2393,7 @@ fn test_input_windows_pointer_set_grab_mode_surface_matches_capabilities() {
                 context.window_target(default_input_target()),
                 InputPointerGrabMode::None,
             ),
-            &[
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_PERMISSION_OR_NOT_SUPPORTED,
         )?;
         assert_ok_or_expected_error(
             context.destack_input_pointer_set_grab_mode(
@@ -2441,19 +2401,13 @@ fn test_input_windows_pointer_set_grab_mode_surface_matches_capabilities() {
                 context.window_target(default_input_target()),
                 InputPointerGrabMode::Locked,
             ),
-            &[
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NotSupported,
-            ],
+            &ERR_PERMISSION_OR_NOT_SUPPORTED,
         )?;
-        assert_platform_error_code(
-            context.destack_input_pointer_set_grab_mode(
-                handle,
-                context.window_target(default_input_target()),
-                InputPointerGrabMode::Confined,
-            ),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_input_pointer_set_grab_mode(
+            handle,
+            context.window_target(default_input_target()),
+            InputPointerGrabMode::Confined,
+        ))?;
 
         context.destack_input_close(handle)?;
         Ok(())
@@ -2513,14 +2467,11 @@ fn test_input_windows_raw_pointer_capture_reports_not_supported() {
             "windows raw pointer capabilities should report pointer capture as unsupported"
         );
 
-        assert_platform_error_code(
-            context.destack_input_pointer_capture(
-                handle,
-                context.window_target(default_input_target()),
-                true,
-            ),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_input_pointer_capture(
+            handle,
+            context.window_target(default_input_target()),
+            true,
+        ))?;
 
         context.destack_input_close(handle)?;
         Ok(())

@@ -1,22 +1,13 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::diagnostic::RuntimeError;
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::ipc::{PipePair, PipePairVm, SharedMemoryMapping, SharedMemoryMappingVm};
+pub(super) use crate::tests::platform::assert_runtime_error_code;
 
 use super::HarnessValue;
 
 /// Monotonic suffix used for unique IPC object names.
 static IPC_NAME_SEQUENCE: AtomicU64 = AtomicU64::new(1);
-
-/// Assert one platform error code from one runtime error payload.
-pub(super) fn assert_platform_error_code(error: &RuntimeError, code: PlatformErrorCode) {
-    let platform_error = error
-        .platform_error()
-        .expect("expected one platform error payload");
-    assert_eq!(platform_error.code, code);
-}
 
 /// Build one unique IPC object name for one test case.
 pub(super) fn unique_ipc_name(prefix: &str) -> String {

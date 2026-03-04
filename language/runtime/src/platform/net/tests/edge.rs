@@ -1,5 +1,5 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{assert_platform_error_codes, with_harness_context};
+use super::{assert_platform_error_codes_with_privileged_policy, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::AcceptFlags;
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
@@ -9,21 +9,21 @@ use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 #[test]
 fn test_net_invalid_handles() {
     with_harness_context(|mut context| {
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_close(SocketHandle(ResourceId(9999))),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
                 PlatformErrorCode::Io,
             ],
         )?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_close_listener(ListenerHandle(ResourceId(9999))),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
                 PlatformErrorCode::Io,
             ],
         )?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_write(
                 SocketHandle(ResourceId(9999)),
                 context.bytes_slice_value(b"data")?,
@@ -35,7 +35,7 @@ fn test_net_invalid_handles() {
         )?;
 
         let buffer = context.zeroed_bytes_slice_value(8)?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_read(SocketHandle(ResourceId(9999)), buffer),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
@@ -61,7 +61,7 @@ fn test_net_accept_after_close() {
         // close the listener before accepting
         context.destack_net_close_listener(listener)?;
 
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_accept(listener, AcceptFlags(0)),
             &[
                 PlatformErrorCode::InvalidArgumentValue,

@@ -11,7 +11,7 @@ use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, Re
 use crate::platform::{PlatformError, resource};
 
 #[cfg(unix)]
-use super::core::assert_platform_error_code;
+use super::core::assert_runtime_error_code;
 #[cfg(unix)]
 use super::with_harness_context;
 
@@ -172,7 +172,7 @@ fn test_unix_ancillary_rejects_unknown_socket_handle() {
             Ok(_) => panic!("expected unixReceive to fail for unknown socket handle"),
             Err(error) => error,
         };
-        assert_platform_error_code(&receive_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&receive_error, PlatformErrorCode::InvalidArgumentValue);
 
         // send should fail with invalid-argument for unknown socket handles
         let payload = context.bytes_value(b"payload")?;
@@ -182,7 +182,7 @@ fn test_unix_ancillary_rejects_unknown_socket_handle() {
             Ok(_) => panic!("expected unixSend to fail for unknown socket handle"),
             Err(error) => error,
         };
-        assert_platform_error_code(&send_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&send_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });

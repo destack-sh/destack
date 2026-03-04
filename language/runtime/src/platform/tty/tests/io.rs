@@ -1,8 +1,5 @@
 #[cfg(unix)]
-use super::{
-    HarnessValue, assert_ok_or_expected_error, close_tty_worker_resource, decode_harness_value,
-    pty_descriptor,
-};
+use super::{HarnessValue, close_tty_worker_resource, decode_harness_value, pty_descriptor};
 use super::{assert_platform_error_codes, with_harness_context};
 #[cfg(unix)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -83,21 +80,15 @@ fn read_exact(descriptor: libc::c_int, length: usize) -> RuntimeResult<Vec<u8>> 
 #[test]
 fn test_tty_io_roundtrip_through_pty_pair() {
     with_harness_context(|mut context| {
-        // open one pty pair or skip when unsupported
-        let pair = assert_ok_or_expected_error(
-            context.destack_tty_pty_open(24, 80, 0),
-            &[PlatformErrorCode::NotSupported],
-        )?;
-        let Some(pair) = pair else {
-            return Ok(());
-        };
+        // open one pty pair
+        let pair = context.destack_tty_pty_open(24, 80, 0)?;
         let pair = decode_harness_value(pair);
 
         // set one raw-like mode to avoid canonical buffering and echo behavior
         let mode = context.destack_tty_get_mode(pair.worker)?;
         let mut mode = decode_harness_value(mode);
-        mode.local_flags &= !libc::ICANON;
-        mode.local_flags &= !libc::ECHO;
+        mode.local_flags &= !(libc::ICANON as u64);
+        mode.local_flags &= !(libc::ECHO as u64);
         let mode_value = context.tty_mode_value(mode);
         context.destack_tty_set_mode(pair.worker, mode_value)?;
 
@@ -150,22 +141,10 @@ fn test_tty_io_rejects_unknown_handle() {
         let mut read_buffer = [0u8; 8];
         let read_buffer = context.mutable_bytes_value(&mut read_buffer)?;
         let read_result = context.destack_tty_read(unknown, read_buffer);
-        assert_platform_error_codes(
-            read_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )?;
+        assert_platform_error_codes(read_result, &[PlatformErrorCode::InvalidArgumentValue])?;
 
         let write_buffer = context.bytes_value(b"destack")?;
         let write_result = context.destack_tty_write(unknown, write_buffer);
-        assert_platform_error_codes(
-            write_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )
+        assert_platform_error_codes(write_result, &[PlatformErrorCode::InvalidArgumentValue])
     });
 }

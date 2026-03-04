@@ -1,11 +1,7 @@
 use super::{temp_dir, with_harness_context};
 use crate::platform::fs::{AtFlags, FileMode, OpenFlags};
+use crate::tests::platform::is_privileged_test_mode;
 use std::path::Path;
-
-fn is_privileged_test_mode() -> bool {
-    let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
-    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
-}
 
 /// Change ownership with chown and fchown and verify the resulting stat ids.
 #[cfg(unix)]

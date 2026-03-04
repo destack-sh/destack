@@ -1,6 +1,6 @@
 use super::{
-    assert_platform_error_code, assert_platform_error_codes, wait_forever_timeout,
-    with_harness_context,
+    assert_platform_error_code, assert_platform_error_codes, result_or_skip_not_supported,
+    wait_forever_timeout, with_harness_context,
 };
 
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -92,15 +92,10 @@ fn test_thread_cond_var_roundtrip() {
 #[test]
 fn test_thread_semaphore_roundtrip() {
     with_harness_context(|mut context| {
-        let semaphore = match context.destack_thread_semaphore_create(0, 4, 0) {
-            Ok(semaphore) => semaphore,
-            Err(error) => {
-                assert_platform_error_code::<ThreadSemaphoreHandle>(
-                    Err(error),
-                    PlatformErrorCode::NotSupported,
-                )?;
-                return Ok(());
-            }
+        let Some(semaphore) =
+            result_or_skip_not_supported(context.destack_thread_semaphore_create(0, 4, 0))?
+        else {
+            return Ok(());
         };
 
         let wait_result = context.destack_thread_semaphore_wait(semaphore, 0);
@@ -118,15 +113,10 @@ fn test_thread_semaphore_roundtrip() {
 #[test]
 fn test_thread_barrier_roundtrip() {
     with_harness_context(|mut context| {
-        let barrier = match context.destack_thread_barrier_create(1, 0) {
-            Ok(barrier) => barrier,
-            Err(error) => {
-                assert_platform_error_code::<BarrierHandle>(
-                    Err(error),
-                    PlatformErrorCode::NotSupported,
-                )?;
-                return Ok(());
-            }
+        let Some(barrier) =
+            result_or_skip_not_supported(context.destack_thread_barrier_create(1, 0))?
+        else {
+            return Ok(());
         };
 
         let leader = context.destack_thread_barrier_wait(barrier, 0)?;
@@ -156,15 +146,12 @@ fn test_thread_address_wait_wake_roundtrip() {
         )?;
 
         let wake_one_result = context.destack_thread_address_wake_one(address);
-        if let Err(error) = wake_one_result {
-            assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+        if result_or_skip_not_supported(wake_one_result)?.is_none() {
             return Ok(());
         }
 
         let wake_all_result = context.destack_thread_address_wake_all(address);
-        if let Err(error) = wake_all_result {
-            assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
-        }
+        let _ = result_or_skip_not_supported(wake_all_result)?;
 
         Ok(())
     });
@@ -227,14 +214,15 @@ fn test_thread_sync_rejects_unknown_handles() {
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
-        let barrier_wait_result = context.destack_thread_barrier_wait(unknown_barrier, 0);
-        assert_platform_error_codes(
-            barrier_wait_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )?;
+        let barrier_support =
+            result_or_skip_not_supported(context.destack_thread_barrier_create(1, 0))?;
+        if barrier_support.is_some() {
+            let barrier_wait_result = context.destack_thread_barrier_wait(unknown_barrier, 0);
+            assert_platform_error_codes(
+                barrier_wait_result,
+                &[PlatformErrorCode::InvalidArgumentValue],
+            )?;
+        }
 
         Ok(())
     });

@@ -1,9 +1,14 @@
 use super::{
-    assert_platform_error_codes, syscall_getpgid, syscall_group_ids, syscall_groups,
-    syscall_user_ids, with_harness_context,
+    assert_platform_error_codes_with_privileged_policy, syscall_getpgid, syscall_group_ids,
+    syscall_groups, syscall_user_ids, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::process::{ProcessId, Signal};
+
+const IDENTITY_SETTER_ALLOWED_ERRORS: [PlatformErrorCode; 2] = [
+    PlatformErrorCode::ProcessPermissionDenied,
+    PlatformErrorCode::NotSupported,
+];
 
 /// Send signal zero to the current process without delivering a signal.
 #[cfg(unix)]
@@ -96,12 +101,9 @@ fn test_process_identity_setters_preserve_identity_state() {
         // setter outcomes: allowed values are success, permission denied, or not supported
         let set_uid = context.destack_process_set_uid(current_uid);
         if let Err(error) = set_uid {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::ProcessPermissionDenied,
-                    PlatformErrorCode::NotSupported,
-                ],
+                &IDENTITY_SETTER_ALLOWED_ERRORS,
             )?;
         }
 
@@ -111,12 +113,9 @@ fn test_process_identity_setters_preserve_identity_state() {
 
         let set_euid = context.destack_process_set_euid(current_user_ids.effective);
         if let Err(error) = set_euid {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::ProcessPermissionDenied,
-                    PlatformErrorCode::NotSupported,
-                ],
+                &IDENTITY_SETTER_ALLOWED_ERRORS,
             )?;
         }
 
@@ -126,12 +125,9 @@ fn test_process_identity_setters_preserve_identity_state() {
 
         let set_gid = context.destack_process_set_gid(current_gid);
         if let Err(error) = set_gid {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::ProcessPermissionDenied,
-                    PlatformErrorCode::NotSupported,
-                ],
+                &IDENTITY_SETTER_ALLOWED_ERRORS,
             )?;
         }
 
@@ -140,12 +136,9 @@ fn test_process_identity_setters_preserve_identity_state() {
 
         let set_egid = context.destack_process_set_egid(current_group_ids.effective);
         if let Err(error) = set_egid {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::ProcessPermissionDenied,
-                    PlatformErrorCode::NotSupported,
-                ],
+                &IDENTITY_SETTER_ALLOWED_ERRORS,
             )?;
         }
 
@@ -156,12 +149,9 @@ fn test_process_identity_setters_preserve_identity_state() {
         let set_user_ids =
             context.destack_process_set_user_ids(context.unified_value(current_user_ids));
         if let Err(error) = set_user_ids {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::ProcessPermissionDenied,
-                    PlatformErrorCode::NotSupported,
-                ],
+                &IDENTITY_SETTER_ALLOWED_ERRORS,
             )?;
         }
 
@@ -172,12 +162,9 @@ fn test_process_identity_setters_preserve_identity_state() {
         let set_group_ids =
             context.destack_process_set_group_ids(context.unified_value(current_group_ids));
         if let Err(error) = set_group_ids {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::ProcessPermissionDenied,
-                    PlatformErrorCode::NotSupported,
-                ],
+                &IDENTITY_SETTER_ALLOWED_ERRORS,
             )?;
         }
 
@@ -188,12 +175,9 @@ fn test_process_identity_setters_preserve_identity_state() {
         let set_groups =
             context.destack_process_set_groups(context.group_slice_value(&current_groups)?);
         if let Err(error) = set_groups {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::ProcessPermissionDenied,
-                    PlatformErrorCode::NotSupported,
-                ],
+                &IDENTITY_SETTER_ALLOWED_ERRORS,
             )?;
         }
 

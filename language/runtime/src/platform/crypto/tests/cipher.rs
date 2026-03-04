@@ -1,4 +1,6 @@
-use super::{KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, with_harness_context};
+use super::{
+    KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, assert_not_supported_platform_code, with_harness_context,
+};
 use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
     CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters,
@@ -413,7 +415,7 @@ fn test_cipher_streaming_host_secret_follows_lane_support() {
                     let platform = error
                         .platform_error()
                         .expect("key.generateSecret error should contain one platform error");
-                    assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                    assert_not_supported_platform_code(platform.code);
                     context.destack_crypto_store_close(store)?;
                     continue;
                 }
@@ -444,7 +446,7 @@ fn test_cipher_streaming_host_secret_follows_lane_support() {
                     let platform = error
                         .platform_error()
                         .expect("cipher.finish error should contain one platform error");
-                    assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                    assert_not_supported_platform_code(platform.code);
                     context.destack_crypto_cipher_close(encrypt_handle)?;
                     context.destack_crypto_key_delete(key)?;
                     context.destack_crypto_store_close(store)?;

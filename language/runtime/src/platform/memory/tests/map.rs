@@ -68,13 +68,7 @@ fn test_memory_map_rejects_misaligned_commit() {
             mapping.length,
             protection_read_write(),
         );
-        assert_platform_error_codes(
-            result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )?;
+        assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])?;
 
         context.destack_memory_release(mapping.address, mapping.length)?;
 

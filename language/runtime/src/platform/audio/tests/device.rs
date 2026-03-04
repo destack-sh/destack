@@ -18,7 +18,10 @@ use super::core::{
     device_direction_capability_rows, harness_device_options, harness_list_request, harness_string,
     string_from_harness_value,
 };
-use super::{assert_platform_error_code, with_harness_context};
+use super::{
+    assert_code_is_not_not_supported, assert_not_supported_result, assert_platform_error_code,
+    error_code_from_runtime_error, with_harness_context,
+};
 use crate::platform::diagnostic::PlatformErrorCode;
 
 #[cfg(any(unix, windows))]
@@ -250,7 +253,7 @@ fn test_audio_backend_disconnect_capability_matches_device_rows() {
                 let list = match context.destack_audio_device_list(list_request) {
                     Ok(list) => list,
                     Err(error) => {
-                        let code = error.platform_error().map(|platform| platform.code);
+                        let code = error_code_from_runtime_error(&error);
                         if code == Some(PlatformErrorCode::IoNotFound) {
                             continue;
                         }
@@ -300,7 +303,7 @@ fn test_audio_backend_share_mode_capabilities_match_device_open_behavior() {
             ) {
                 Ok(value) => string_from_harness_value(&mut context, value)?,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
+                    let code = error_code_from_runtime_error(&error);
                     if code == Some(PlatformErrorCode::IoNotFound) {
                         continue;
                     }
@@ -329,7 +332,7 @@ fn test_audio_backend_share_mode_capabilities_match_device_open_behavior() {
                 let result = context.destack_audio_device_open(device_id, options);
                 let mode_supported = (backend_capability_flags.0 & capability_bit) != 0;
                 if !mode_supported {
-                    assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+                    assert_not_supported_result(result)?;
                     continue;
                 }
 
@@ -338,12 +341,13 @@ fn test_audio_backend_share_mode_capabilities_match_device_open_behavior() {
                         context.destack_audio_device_close(device)?;
                     }
                     Err(error) => {
-                        let code = error.platform_error().map(|platform| platform.code);
-                        assert_ne!(
+                        let code = error_code_from_runtime_error(&error);
+                        assert_code_is_not_not_supported(
                             code,
-                            Some(PlatformErrorCode::NotSupported),
-                            "backend {backend:?} advertised share mode {share_mode:?} but device open returned notSupported",
-                        );
+                            &format!(
+                                "backend {backend:?} advertised share mode {share_mode:?} but device open returned notSupported"
+                            ),
+                        )?;
                     }
                 }
             }
@@ -375,12 +379,13 @@ fn test_audio_available_host_backends_allow_strict_device_listing() {
             let list_request = harness_list_request(&mut context, request);
             let result = context.destack_audio_device_list(list_request);
             if let Err(error) = result {
-                let code = error.platform_error().map(|platform| platform.code);
-                assert_ne!(
+                let code = error_code_from_runtime_error(&error);
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
-                    "available backend {backend:?} should not fail strict listing with notSupported"
-                );
+                    &format!(
+                        "available backend {backend:?} should not fail strict listing with notSupported"
+                    ),
+                )?;
             }
         }
 
@@ -457,7 +462,7 @@ fn test_audio_asio_device_default_uses_stable_prefix_when_available() {
         let playback = match playback {
             Ok(playback) => playback,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
                 return Ok(());
             }
@@ -493,7 +498,7 @@ fn test_audio_alsa_device_default_uses_stable_prefix_when_available() {
         let playback = match playback {
             Ok(playback) => playback,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
                 return Ok(());
             }
@@ -529,7 +534,7 @@ fn test_audio_pipewire_device_default_uses_stable_prefix_when_available() {
         let playback = match playback {
             Ok(playback) => playback,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
                 return Ok(());
             }
@@ -565,7 +570,7 @@ fn test_audio_pulseaudio_device_default_uses_stable_prefix_when_available() {
         let playback = match playback {
             Ok(playback) => playback,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
                 return Ok(());
             }
@@ -601,7 +606,7 @@ fn test_audio_jack_device_default_uses_stable_prefix_when_available() {
         let playback = match playback {
             Ok(playback) => playback,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
                 return Ok(());
             }
@@ -681,13 +686,10 @@ fn test_audio_device_rescan_rejects_unsupported_backend() {
             return Ok(());
         };
 
-        assert_platform_error_code(
-            context.destack_audio_device_rescan(
-                unsupported_backend,
-                AudioBackendSelectionPolicy::Strict,
-            ),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_device_rescan(
+            unsupported_backend,
+            AudioBackendSelectionPolicy::Strict,
+        ))?;
         Ok(())
     });
 }
@@ -709,7 +711,7 @@ fn test_audio_device_rescan_allows_backend_fallback() {
         if has_host_backend {
             result?;
         } else {
-            assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+            assert_not_supported_result(result)?;
         }
 
         Ok(())
@@ -730,10 +732,7 @@ fn test_audio_device_open_rejects_exclusive_mode() {
 
         let device_id = harness_string(&mut context, "audio:null:playback");
         let options = harness_device_options(&mut context, options);
-        assert_platform_error_code(
-            context.destack_audio_device_open(device_id, options),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_device_open(device_id, options))?;
 
         Ok(())
     });
@@ -753,10 +752,7 @@ fn test_audio_device_open_rejects_raw_flag_for_non_wasapi_backend() {
 
         let device_id = harness_string(&mut context, "audio:null:playback");
         let options = harness_device_options(&mut context, options);
-        assert_platform_error_code(
-            context.destack_audio_device_open(device_id, options),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_device_open(device_id, options))?;
 
         Ok(())
     });
@@ -782,7 +778,7 @@ fn test_audio_device_open_alsa_no_resample_matches_backend_support() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
                 return Ok(());
             }
@@ -803,12 +799,11 @@ fn test_audio_device_open_alsa_no_resample_matches_backend_support() {
                 context.destack_audio_device_close(device)?;
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
-                assert_ne!(
+                let code = error_code_from_runtime_error(&error);
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "alsa no-resample flag should not route through notSupported on ALSA",
-                );
+                )?;
             }
         }
 
@@ -836,7 +831,7 @@ fn test_audio_device_open_jack_no_autoconnect_matches_backend_support() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
                 return Ok(());
             }
@@ -857,12 +852,11 @@ fn test_audio_device_open_jack_no_autoconnect_matches_backend_support() {
                 context.destack_audio_device_close(device)?;
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
-                assert_ne!(
+                let code = error_code_from_runtime_error(&error);
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "jack no-autoconnect flag should not route through notSupported on JACK",
-                );
+                )?;
             }
         }
 
@@ -895,10 +889,7 @@ fn test_audio_device_open_require_hardware_timestamps_matches_backend_capability
 
                 let device_id = harness_string(&mut context, "audio:null:playback");
                 let options = harness_device_options(&mut context, options);
-                assert_platform_error_code(
-                    context.destack_audio_device_open(device_id, options),
-                    PlatformErrorCode::NotSupported,
-                )?;
+                assert_not_supported_result(context.destack_audio_device_open(device_id, options))?;
                 continue;
             }
 
@@ -909,7 +900,7 @@ fn test_audio_device_open_require_hardware_timestamps_matches_backend_capability
             ) {
                 Ok(value) => string_from_harness_value(&mut context, value)?,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
+                    let code = error_code_from_runtime_error(&error);
                     if code == Some(PlatformErrorCode::IoNotFound) {
                         continue;
                     }
@@ -941,12 +932,13 @@ fn test_audio_device_open_require_hardware_timestamps_matches_backend_capability
                     context.destack_audio_device_close(device)?;
                 }
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    assert_ne!(
+                    let code = error_code_from_runtime_error(&error);
+                    assert_code_is_not_not_supported(
                         code,
-                        Some(PlatformErrorCode::NotSupported),
-                        "backend {backend:?} advertises device clock but requireHardwareTimestamps returned notSupported",
-                    );
+                        &format!(
+                            "backend {backend:?} advertises device clock but requireHardwareTimestamps returned notSupported"
+                        ),
+                    )?;
                 }
             }
         }
@@ -1048,7 +1040,7 @@ fn test_audio_device_open_require_loopback_matches_backend_capability() {
                 ) {
                     Ok(value) => string_from_harness_value(&mut context, value)?,
                     Err(error) => {
-                        let code = error.platform_error().map(|platform| platform.code);
+                        let code = error_code_from_runtime_error(&error);
                         if code == Some(PlatformErrorCode::IoNotFound) {
                             continue;
                         }
@@ -1072,12 +1064,13 @@ fn test_audio_device_open_require_loopback_matches_backend_capability() {
                         context.destack_audio_device_close(device)?;
                     }
                     Err(error) => {
-                        let code = error.platform_error().map(|platform| platform.code);
-                        assert_ne!(
+                        let code = error_code_from_runtime_error(&error);
+                        assert_code_is_not_not_supported(
                             code,
-                            Some(PlatformErrorCode::NotSupported),
-                            "backend {backend:?} advertises loopback but requireLoopback returned notSupported",
-                        );
+                            &format!(
+                                "backend {backend:?} advertises loopback but requireLoopback returned notSupported"
+                            ),
+                        )?;
                     }
                 }
 
@@ -1094,10 +1087,7 @@ fn test_audio_device_open_require_loopback_matches_backend_capability() {
 
             let device_id = harness_string(&mut context, "audio:null:playback");
             let options = harness_device_options(&mut context, options);
-            assert_platform_error_code(
-                context.destack_audio_device_open(device_id, options),
-                PlatformErrorCode::NotSupported,
-            )?;
+            assert_not_supported_result(context.destack_audio_device_open(device_id, options))?;
         }
 
         Ok(())
@@ -1118,10 +1108,7 @@ fn test_audio_device_open_rejects_loopback_direction_without_loopback_capability
 
         let device_id = harness_string(&mut context, "audio:null:duplex");
         let options = harness_device_options(&mut context, options);
-        assert_platform_error_code(
-            context.destack_audio_device_open(device_id, options),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_device_open(device_id, options))?;
 
         Ok(())
     });

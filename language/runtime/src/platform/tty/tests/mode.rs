@@ -1,6 +1,6 @@
 use super::{
     assert_ok_or_expected_error, assert_platform_error_codes, close_tty_worker_resource,
-    decode_harness_value, with_harness_context,
+    open_pty_or_skip_not_supported, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceId, TtyHandle};
@@ -12,18 +12,14 @@ use crate::platform::tty::TtyMode;
 fn test_tty_mode_roundtrip_or_not_supported() {
     with_harness_context(|mut context| {
         // open one pty pair or skip when unsupported
-        let pair = assert_ok_or_expected_error(
-            context.destack_tty_pty_open(24, 80, 0),
-            &[PlatformErrorCode::NotSupported],
-        )?;
+        let pair = open_pty_or_skip_not_supported(&mut context, 24, 80, 0)?;
         let Some(pair) = pair else {
             return Ok(());
         };
-        let pair = decode_harness_value(pair);
 
         // read one mode snapshot and reapply it
         let mode = context.destack_tty_get_mode(pair.worker)?;
-        let mode = decode_harness_value(mode);
+        let mode = super::decode_harness_value(mode);
         let mode_value = context.tty_mode_value(mode);
         context.destack_tty_set_mode(pair.worker, mode_value)?;
 
@@ -43,13 +39,7 @@ fn test_tty_mode_rejects_unknown_handle() {
         let unknown = TtyHandle(ResourceId(0));
 
         let get_result = context.destack_tty_get_mode(unknown);
-        assert_platform_error_codes(
-            get_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )?;
+        assert_platform_error_codes(get_result, &[PlatformErrorCode::InvalidArgumentValue])?;
 
         let mode = TtyMode {
             input_flags: 0,
@@ -59,13 +49,7 @@ fn test_tty_mode_rejects_unknown_handle() {
         };
         let mode_value = context.tty_mode_value(mode);
         let set_result = context.destack_tty_set_mode(unknown, mode_value);
-        assert_platform_error_codes(
-            set_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )
+        assert_platform_error_codes(set_result, &[PlatformErrorCode::InvalidArgumentValue])
     });
 }
 
@@ -74,14 +58,10 @@ fn test_tty_mode_rejects_unknown_handle() {
 #[test]
 fn test_tty_mode_rejects_non_local_fields_on_windows() {
     with_harness_context(|mut context| {
-        let pair = assert_ok_or_expected_error(
-            context.destack_tty_pty_open(24, 80, 0),
-            &[PlatformErrorCode::NotSupported],
-        )?;
+        let pair = open_pty_or_skip_not_supported(&mut context, 24, 80, 0)?;
         let Some(pair) = pair else {
             return Ok(());
         };
-        let pair = decode_harness_value(pair);
 
         let unsupported = TtyMode {
             input_flags: 1,
@@ -105,14 +85,10 @@ fn test_tty_mode_rejects_non_local_fields_on_windows() {
 #[test]
 fn test_tty_mode_set_raw_mode_roundtrip_or_not_supported() {
     with_harness_context(|mut context| {
-        let pair = assert_ok_or_expected_error(
-            context.destack_tty_pty_open(24, 80, 0),
-            &[PlatformErrorCode::NotSupported],
-        )?;
+        let pair = open_pty_or_skip_not_supported(&mut context, 24, 80, 0)?;
         let Some(pair) = pair else {
             return Ok(());
         };
-        let pair = decode_harness_value(pair);
 
         let enabled = assert_ok_or_expected_error(
             context.destack_tty_set_raw_mode(pair.worker, true),
@@ -125,10 +101,10 @@ fn test_tty_mode_set_raw_mode_roundtrip_or_not_supported() {
         }
 
         let raw_mode = context.destack_tty_get_mode(pair.worker)?;
-        let raw_mode = decode_harness_value(raw_mode);
+        let raw_mode = super::decode_harness_value(raw_mode);
         #[cfg(unix)]
         {
-            let raw_mask = libc::ICANON | libc::ECHO | libc::ISIG | libc::IEXTEN;
+            let raw_mask = (libc::ICANON | libc::ECHO | libc::ISIG | libc::IEXTEN) as u64;
             assert_eq!(raw_mode.local_flags & raw_mask, 0);
         }
         #[cfg(windows)]
@@ -143,10 +119,10 @@ fn test_tty_mode_set_raw_mode_roundtrip_or_not_supported() {
 
         context.destack_tty_set_raw_mode(pair.worker, false)?;
         let cooked_mode = context.destack_tty_get_mode(pair.worker)?;
-        let cooked_mode = decode_harness_value(cooked_mode);
+        let cooked_mode = super::decode_harness_value(cooked_mode);
         #[cfg(unix)]
         {
-            let cooked_mask = libc::ICANON | libc::ECHO;
+            let cooked_mask = (libc::ICANON | libc::ECHO) as u64;
             assert_eq!(cooked_mode.local_flags & cooked_mask, cooked_mask);
         }
         #[cfg(windows)]
@@ -174,12 +150,6 @@ fn test_tty_mode_set_raw_mode_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         let unknown = TtyHandle(ResourceId(0));
         let result = context.destack_tty_set_raw_mode(unknown, true);
-        assert_platform_error_codes(
-            result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )
+        assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])
     });
 }

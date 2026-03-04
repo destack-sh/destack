@@ -10,7 +10,7 @@ mod mode;
 mod pty;
 #[cfg(any(unix, windows))]
 mod size;
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 mod termios;
 #[cfg(any(unix, windows))]
 mod tests;

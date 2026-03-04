@@ -1,7 +1,10 @@
 #[cfg(any(unix, windows))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_SIGN, with_harness_context};
+use super::{
+    KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_SIGN, error_code_from_runtime_error,
+    is_not_supported_code, with_harness_context,
+};
 use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm,
@@ -267,8 +270,8 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
             {
                 Ok(alice) => alice,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    if code == Some(PlatformErrorCode::NotSupported) {
+                    let code = error_code_from_runtime_error(&error);
+                    if is_not_supported_code(code) {
                         context.destack_crypto_store_close(store)?;
                         continue;
                     }
@@ -297,8 +300,8 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
             {
                 Ok(bob) => bob,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    if code == Some(PlatformErrorCode::NotSupported) {
+                    let code = error_code_from_runtime_error(&error);
+                    if is_not_supported_code(code) {
                         context.destack_crypto_store_close(store)?;
                         continue;
                     }

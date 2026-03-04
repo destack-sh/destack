@@ -6,51 +6,12 @@ mod harness;
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::time::{ClockMetadata, ClockMetadataVm};
 use crate::runtime::BindingCallContext;
+pub(crate) use crate::tests::platform::{
+    assert_platform_error_codes, result_or_skip_not_supported,
+};
 use crate::tests::runtime::TestRuntime;
-
-/// Assert one result failed with one exact platform error code.
-pub(crate) fn assert_platform_error_code<T>(
-    result: RuntimeResult<T>,
-    expected: PlatformErrorCode,
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert_eq!(platform.code, expected);
-
-    Ok(())
-}
-
-/// Assert one result failed with one code from the allowed set.
-pub(crate) fn assert_platform_error_codes<T>(
-    result: RuntimeResult<T>,
-    expected: &[PlatformErrorCode],
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert!(
-        expected.contains(&platform.code),
-        "unexpected platform error code {:?}, allowed: {:?}",
-        platform.code,
-        expected
-    );
-
-    Ok(())
-}
 
 /// Normalize one harness clock info payload into the native value shape.
 pub(crate) fn clock_metadata_from_value(

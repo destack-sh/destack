@@ -1,6 +1,7 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::{
-    assert_platform_error_codes, tcp_protocol, tcp_stream_socket_type, with_harness_context,
+    assert_platform_error_codes_with_privileged_policy, tcp_protocol, tcp_stream_socket_type,
+    with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{AcceptFlags, SocketFamily, SocketShutdown};
@@ -35,7 +36,7 @@ fn test_net_shutdown() {
         context.destack_net_shutdown(client, SocketShutdown::ReadWrite)?;
 
         // writes should fail after full shutdown
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_write(client, context.bytes_slice_value(b"after-shutdown")?),
             &[
                 PlatformErrorCode::NetShutdown,
@@ -94,7 +95,7 @@ fn test_net_shutdown_write_keeps_read_path() {
 
         // write should now fail on the shutdown side
         // writes should fail after write-side shutdown
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_write(client, context.bytes_slice_value(b"write-should-fail")?),
             &[
                 PlatformErrorCode::NetShutdown,

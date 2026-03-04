@@ -1,5 +1,6 @@
 use super::{
-    assert_platform_error_code, assert_platform_error_codes, unique_env_name, with_harness_context,
+    assert_platform_error_code_with_privileged_policy,
+    assert_platform_error_codes_with_privileged_policy, unique_env_name, with_harness_context,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -48,7 +49,7 @@ fn test_process_chdir_updates_cwd_and_restores() {
 #[test]
 fn test_process_chroot_missing_path_reports_specific_error() {
     with_harness_context(|mut context| {
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_chroot(
                 context.path_value("/definitely/missing/destack-process-chroot")?,
             ),
@@ -65,7 +66,7 @@ fn test_process_chroot_missing_path_reports_specific_error() {
 #[test]
 fn test_process_install_syscall_filter_validates_program_shape() {
     with_harness_context(|mut context| {
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_install_syscall_filter(
                 context.bytes_array_value(&[])?,
                 SyscallFilterFlags(0),
@@ -83,7 +84,7 @@ fn test_process_install_syscall_filter_validates_program_shape() {
 #[test]
 fn test_process_set_host_name_rejects_empty_value() {
     with_harness_context(|mut context| {
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_set_host_name(context.string_value("")),
             PlatformErrorCode::InvalidArgumentValue,
         )
@@ -95,7 +96,7 @@ fn test_process_set_host_name_rejects_empty_value() {
 #[test]
 fn test_process_set_network_namespace_missing_path_reports_specific_error() {
     with_harness_context(|mut context| {
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_set_network_namespace(
                 context.path_value("/definitely/missing/destack-process-netns")?,
             ),
@@ -113,7 +114,7 @@ fn test_process_set_network_namespace_missing_path_reports_specific_error() {
 #[test]
 fn test_process_setns_missing_process_reports_specific_error() {
     with_harness_context(|mut context| {
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_setns(ProcessId(u32::MAX), ProcessNamespaceKind::Network),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
@@ -130,7 +131,7 @@ fn test_process_setns_missing_process_reports_specific_error() {
 #[test]
 fn test_process_unshare_rejects_oversized_flag_word() {
     with_harness_context(|mut context| {
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_unshare(ProcessUnshareFlags(u64::MAX)),
             &[
                 PlatformErrorCode::InvalidArgumentValue,

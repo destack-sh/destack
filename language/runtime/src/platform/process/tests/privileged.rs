@@ -1,16 +1,12 @@
 use super::{unique_env_name, with_harness_context, with_native_harness_context};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::process::{ProcessId, ProcessNamespaceKind, ProcessUnshareFlags};
+use crate::tests::platform::is_privileged_test_mode;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn net_namespace_link(pid: libc::pid_t) -> std::io::Result<String> {
     let path = format!("/proc/{pid}/ns/net");
     std::fs::read_link(path).map(|path| path.to_string_lossy().to_string())
-}
-
-fn is_privileged_test_mode() -> bool {
-    let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
-    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
 }
 
 /// Reapply current identity values through setter bindings in privileged mode.

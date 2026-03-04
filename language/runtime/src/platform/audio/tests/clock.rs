@@ -18,7 +18,10 @@ use super::core::{
     harness_stream_config, harness_string, open_null_duplex_stream, open_null_playback_stream,
     stream_open_with_default_options, string_from_harness_value,
 };
-use super::{assert_ok_or_expected_error, assert_platform_error_code, with_harness_context};
+use super::{
+    assert_code_is_not_not_supported, assert_not_supported_result, assert_ok_or_expected_error,
+    error_code_from_runtime_error, is_not_supported_code, with_harness_context,
+};
 use crate::platform::diagnostic::PlatformErrorCode;
 
 #[cfg(any(unix, windows))]
@@ -109,9 +112,8 @@ fn test_audio_stream_clock_rejects_input_adc_for_playback_streams() {
     with_harness_context(|mut context| {
         let (device, stream) = open_null_playback_stream(&mut context)?;
 
-        assert_platform_error_code(
+        assert_not_supported_result(
             context.destack_audio_stream_clock(stream, AudioStreamClockDomain::InputAdc),
-            PlatformErrorCode::NotSupported,
         )?;
 
         context.destack_audio_stream_stop(stream)?;
@@ -167,7 +169,7 @@ fn test_audio_stream_clock_domain_support_matches_device_descriptor_for_availabl
                 ) {
                     Ok(value) => string_from_harness_value(&mut context, value)?,
                     Err(error) => {
-                        let code = error.platform_error().map(|platform| platform.code);
+                        let code = error_code_from_runtime_error(&error);
                         if code == Some(PlatformErrorCode::IoNotFound) {
                             continue;
                         }
@@ -196,7 +198,7 @@ fn test_audio_stream_clock_domain_support_matches_device_descriptor_for_availabl
             let device = match context.destack_audio_device_open(device_id, options) {
                 Ok(device) => device,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
+                    let code = error_code_from_runtime_error(&error);
                     if code == Some(PlatformErrorCode::IoNotFound)
                         || code == Some(PlatformErrorCode::IoPermissionDenied)
                         || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -224,8 +226,8 @@ fn test_audio_stream_clock_domain_support_matches_device_descriptor_for_availabl
                 Ok(stream) => stream,
                 Err(error) => {
                     context.destack_audio_device_close(device)?;
-                    let code = error.platform_error().map(|platform| platform.code);
-                    if code == Some(PlatformErrorCode::NotSupported)
+                    let code = error_code_from_runtime_error(&error);
+                    if is_not_supported_code(code)
                         || code == Some(PlatformErrorCode::IoInvalidData)
                         || code == Some(PlatformErrorCode::AudioUnavailable)
                         || code == Some(PlatformErrorCode::DeviceUnavailable)
@@ -253,15 +255,16 @@ fn test_audio_stream_clock_domain_support_matches_device_descriptor_for_availabl
                 let result = context.destack_audio_stream_clock(stream, domain);
                 if is_supported {
                     if let Err(error) = result {
-                        let code = error.platform_error().map(|platform| platform.code);
-                        assert_ne!(
+                        let code = error_code_from_runtime_error(&error);
+                        assert_code_is_not_not_supported(
                             code,
-                            Some(PlatformErrorCode::NotSupported),
-                            "backend {backend:?} advertises clock domain {domain:?} but stream.clock returned notSupported",
-                        );
+                            &format!(
+                                "backend {backend:?} advertises clock domain {domain:?} but stream.clock returned notSupported"
+                            ),
+                        )?;
                     }
                 } else {
-                    assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+                    assert_not_supported_result(result)?;
                 }
             }
 

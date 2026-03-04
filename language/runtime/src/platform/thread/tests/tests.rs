@@ -6,9 +6,11 @@ mod harness;
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::thread::{ThreadOptions, ThreadOptionsVm};
 use crate::runtime::{BindingCallContext, NativeStringRef};
+pub(crate) use crate::tests::platform::{
+    assert_platform_error_code, assert_platform_error_codes, result_or_skip_not_supported,
+};
 use crate::tests::runtime::TestRuntime;
 
 /// Return canonical thread spawn options used by tests.
@@ -27,47 +29,6 @@ pub(crate) fn test_thread_entry() -> &'static str {
 /// Return canonical timeout that means wait indefinitely.
 pub(crate) fn wait_forever_timeout() -> u64 {
     u64::MAX
-}
-
-/// Assert one result failed with one exact platform error code.
-pub(crate) fn assert_platform_error_code<T>(
-    result: RuntimeResult<T>,
-    expected: PlatformErrorCode,
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert_eq!(platform.code, expected);
-
-    Ok(())
-}
-
-/// Assert one result failed with one code from the allowed set.
-pub(crate) fn assert_platform_error_codes<T>(
-    result: RuntimeResult<T>,
-    expected: &[PlatformErrorCode],
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert!(
-        expected.contains(&platform.code),
-        "unexpected platform error code {:?}, allowed: {:?}",
-        platform.code,
-        expected
-    );
-
-    Ok(())
 }
 
 /// Test harness context used by tests.

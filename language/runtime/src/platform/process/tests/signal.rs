@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use super::{assert_platform_error_code, is_would_block, with_harness_context};
+use super::{
+    assert_platform_error_code_with_privileged_policy, is_would_block, with_harness_context,
+};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -279,7 +281,7 @@ fn test_process_signal_fd_read_and_set_mask_roundtrip() {
 #[test]
 fn test_process_signal_wait_rejects_invalid_signal_value() {
     with_harness_context(|mut context| {
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_signal_wait(context.signal_slice_value(&[Signal(0)])?),
             PlatformErrorCode::InvalidArgumentValue,
         )
@@ -300,11 +302,11 @@ fn test_process_signal_wait_requires_blocked_mask() {
                 SignalMaskHow::Unblock,
                 context.signal_slice_value(&[signal])?,
             )?;
-            assert_platform_error_code(
+            assert_platform_error_code_with_privileged_policy(
                 context.destack_process_signal_wait(context.signal_slice_value(&[signal])?),
                 PlatformErrorCode::InvalidArgumentValue,
             )?;
-            assert_platform_error_code(
+            assert_platform_error_code_with_privileged_policy(
                 context.destack_process_signal_try_wait(context.signal_slice_value(&[signal])?),
                 PlatformErrorCode::InvalidArgumentValue,
             )?;
@@ -325,7 +327,7 @@ fn test_process_signal_wait_requires_blocked_mask() {
 fn test_process_signal_fd_validation_errors_are_specific() {
     with_harness_context(|mut context| {
         // invalid signal-fd arguments should return invalid-argument errors
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_signal_fd_open(
                 context.signal_slice_value(&[Signal(libc::SIGUSR1 as u32)])?,
                 SignalFdFlags(1),
@@ -334,22 +336,22 @@ fn test_process_signal_fd_validation_errors_are_specific() {
         )?;
 
         let invalid_handle = SignalFdHandle(ResourceId(0));
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_signal_fd_try_read(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_signal_fd_read(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_signal_fd_set_mask(
                 invalid_handle,
                 context.signal_slice_value(&[Signal(libc::SIGUSR1 as u32)])?,
             ),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_signal_fd_close(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
@@ -366,7 +368,7 @@ fn test_process_signal_fd_validation_errors_are_specific() {
             let subscription = context.destack_process_signal_subscribe(signal)?;
             let forged_handle = SignalFdHandle(subscription.0);
 
-            assert_platform_error_code(
+            assert_platform_error_code_with_privileged_policy(
                 context.destack_process_signal_fd_close(forged_handle),
                 PlatformErrorCode::InvalidArgumentValue,
             )?;

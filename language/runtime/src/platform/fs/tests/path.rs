@@ -298,14 +298,14 @@ fn test_fs_utf16_output_path_requires_utf8_on_unix() {
 
         // utf16 readlink is not supported on unix hosts
         let link = context.path_utf16(&link_path);
-        super::assert_platform_error_codes(
+        super::assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_readlink(link),
             &[PlatformErrorCode::NotSupported],
         )?;
 
         // utf16 realpath is not supported on unix hosts
         let link = context.path_utf16(&link_path);
-        super::assert_platform_error_codes(
+        super::assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_realpath(link),
             &[PlatformErrorCode::NotSupported],
         )?;

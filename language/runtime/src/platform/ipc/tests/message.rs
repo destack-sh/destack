@@ -1,8 +1,10 @@
+#![cfg(target_os = "linux")]
+
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{VmSlice, resource};
 use crate::runtime::NativeSlice;
 
-use super::core::{assert_platform_error_code, unique_ipc_name};
+use super::core::{assert_runtime_error_code, unique_ipc_name};
 use super::{HarnessValue, IpcHarnessContext, with_harness_context};
 
 /// Clone one byte-slice harness wrapper by copying the contained slice descriptor.
@@ -17,7 +19,6 @@ fn clone_bytes_value(
 }
 
 /// Verify message queues can open, send, receive, close, and unlink.
-#[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn test_message_queue_roundtrip() {
     with_harness_context(|mut context| {
@@ -36,9 +37,9 @@ fn test_message_queue_roundtrip() {
         let mut receive_buffer = vec![0u8; 256];
         let receive_value = context.mutable_bytes_value(&mut receive_buffer)?;
         let receive_value_copy = clone_bytes_value(&context, &receive_value);
-        let receive = context.message_queue_receive_value(
-            context.destack_ipc_message_queue_receive(handle, 1_000_000_000, receive_value)?,
-        );
+        let received_payload =
+            context.destack_ipc_message_queue_receive(handle, 1_000_000_000, receive_value)?;
+        let receive = context.message_queue_receive_value(received_payload);
         assert_eq!(receive.bytes as usize, payload.len());
         assert_eq!(receive.priority, 7);
 
@@ -56,7 +57,6 @@ fn test_message_queue_roundtrip() {
 }
 
 /// Verify message queue open rejects unsupported flag bits.
-#[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn test_message_queue_open_rejects_unsupported_flags() {
     with_harness_context(|mut context| {
@@ -67,14 +67,13 @@ fn test_message_queue_open_rejects_unsupported_flags() {
             .destack_ipc_message_queue_open(name_value, u32::MAX, 0o600, 8, 256)
             .err()
             .expect("expected queueOpen to reject unsupported flags");
-        assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });
 }
 
 /// Verify message queue operations reject unknown handles.
-#[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn test_message_queue_rejects_unknown_handle() {
     with_harness_context(|mut context| {
@@ -86,7 +85,7 @@ fn test_message_queue_rejects_unknown_handle() {
             .destack_ipc_message_queue_close(unknown)
             .err()
             .expect("expected queueClose to fail for unknown handle");
-        assert_platform_error_code(&close_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&close_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });

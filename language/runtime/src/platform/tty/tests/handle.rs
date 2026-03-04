@@ -2,7 +2,7 @@
 use super::close_tty_worker_resource;
 use super::{
     assert_ok_or_expected_error, assert_platform_error_codes, decode_harness_value,
-    with_harness_context,
+    open_pty_or_skip_not_supported, with_harness_context,
 };
 #[cfg(unix)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -63,13 +63,7 @@ fn test_tty_handle_close_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         let unknown = TtyHandle(ResourceId(0));
         let result = context.destack_tty_close(unknown);
-        assert_platform_error_codes(
-            result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )
+        assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])
     });
 }
 
@@ -78,25 +72,15 @@ fn test_tty_handle_close_rejects_unknown_handle() {
 #[test]
 fn test_tty_handle_close_rejects_double_close() {
     with_harness_context(|mut context| {
-        let pair = assert_ok_or_expected_error(
-            context.destack_tty_pty_open(24, 80, 0),
-            &[PlatformErrorCode::NotSupported],
-        )?;
+        let pair = open_pty_or_skip_not_supported(&mut context, 24, 80, 0)?;
         let Some(pair) = pair else {
             return Ok(());
         };
-        let pair = decode_harness_value(pair);
 
         context.destack_tty_close(pair.worker)?;
 
         let second = context.destack_tty_close(pair.worker);
-        assert_platform_error_codes(
-            second,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )?;
+        assert_platform_error_codes(second, &[PlatformErrorCode::InvalidArgumentValue])?;
 
         context.destack_tty_pty_close(pair.controller)?;
 
@@ -111,13 +95,7 @@ fn test_tty_handle_is_terminal_file_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         let unknown = FileHandle(ResourceId(0));
         let result = context.destack_tty_is_terminal_file(unknown);
-        assert_platform_error_codes(
-            result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
-        )
+        assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])
     });
 }
 
@@ -145,13 +123,7 @@ fn test_tty_handle_is_terminal_file_reports_false_for_non_terminal_file() {
 #[test]
 fn test_tty_handle_is_terminal_file_reports_true_for_terminal_file() {
     with_harness_context(|mut context| {
-        let pair = assert_ok_or_expected_error(
-            context.destack_tty_pty_open(24, 80, 0),
-            &[PlatformErrorCode::NotSupported],
-        )?;
-        let Some(pair) = pair else {
-            return Ok(());
-        };
+        let pair = context.destack_tty_pty_open(24, 80, 0)?;
         let pair = decode_harness_value(pair);
 
         let worker_descriptor = super::tty_descriptor(context.call_context, pair.worker)?;

@@ -1,7 +1,7 @@
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource;
 
-use super::core::{assert_platform_error_code, unique_ipc_name};
+use super::core::{assert_runtime_error_code, unique_ipc_name};
 use super::with_harness_context;
 
 /// Verify semaphore create, post, and wait behavior across native and VM bindings.
@@ -20,7 +20,7 @@ fn test_semaphore_create_post_wait() {
             Ok(_) => panic!("expected immediate semaphore wait to time out"),
             Err(error) => error,
         };
-        assert_platform_error_code(&timeout_error, PlatformErrorCode::IoTimedOut);
+        assert_runtime_error_code(&timeout_error, PlatformErrorCode::IoTimedOut);
 
         // post one permit and verify wait now succeeds
         context.destack_ipc_semaphore_post(handle, 1)?;
@@ -42,7 +42,7 @@ fn test_semaphore_create_rejects_unsupported_flags() {
             Ok(_) => panic!("expected semaphoreCreate to fail for unsupported flags"),
             Err(error) => error,
         };
-        assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });
@@ -62,7 +62,7 @@ fn test_semaphore_rejects_unknown_handle() {
             Ok(_) => panic!("expected semaphorePost to fail for unknown handle"),
             Err(error) => error,
         };
-        assert_platform_error_code(&post_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&post_error, PlatformErrorCode::InvalidArgumentValue);
 
         // wait should fail with invalid-argument for unknown handle
         let wait_error = context.destack_ipc_semaphore_wait(unknown, 0);
@@ -70,7 +70,7 @@ fn test_semaphore_rejects_unknown_handle() {
             Ok(_) => panic!("expected semaphoreWait to fail for unknown handle"),
             Err(error) => error,
         };
-        assert_platform_error_code(&wait_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&wait_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });
@@ -99,7 +99,7 @@ fn test_futex_wait_and_wake_paths() {
             Ok(_) => panic!("expected futexWait to report wouldBlock on mismatch"),
             Err(error) => error,
         };
-        assert_platform_error_code(&mismatch_error, PlatformErrorCode::IoWouldBlock);
+        assert_runtime_error_code(&mismatch_error, PlatformErrorCode::IoWouldBlock);
 
         // verify wake reports zero when no waiter is currently blocked
         let woken = context.destack_ipc_futex_wake(handle, 0, 1)?;
@@ -111,7 +111,7 @@ fn test_futex_wait_and_wake_paths() {
             Ok(_) => panic!("expected futexWait to time out without a wake"),
             Err(error) => error,
         };
-        assert_platform_error_code(&timeout_error, PlatformErrorCode::IoTimedOut);
+        assert_runtime_error_code(&timeout_error, PlatformErrorCode::IoTimedOut);
 
         // unmap and close one futex shared-memory object
         context.destack_ipc_shared_memory_unmap(mapping.address, mapping.length)?;

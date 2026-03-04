@@ -1,7 +1,10 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 use std::path::PathBuf;
 
-use super::{assert_platform_error_code, assert_platform_error_codes, with_harness_context};
+use super::{
+    assert_platform_error_code_with_privileged_policy,
+    assert_platform_error_codes_with_privileged_policy, with_harness_context,
+};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::SocketMessageFlags;
 
@@ -19,7 +22,10 @@ fn test_net_uds_roundtrip() {
                 Ok(listener) => listener,
                 Err(error) => {
                     // uds may be unavailable on some harnesses
-                    assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+                    assert_platform_error_code_with_privileged_policy::<()>(
+                        Err(error),
+                        PlatformErrorCode::NotSupported,
+                    )?;
                     let _ = std::fs::remove_file(&socket_path);
                     return Ok(());
                 }
@@ -68,7 +74,10 @@ fn test_net_uds_sendmsg_recvmsg() {
                 Ok(listener) => listener,
                 Err(error) => {
                     // uds may be unavailable on some harnesses
-                    assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+                    assert_platform_error_code_with_privileged_policy::<()>(
+                        Err(error),
+                        PlatformErrorCode::NotSupported,
+                    )?;
                     let _ = std::fs::remove_file(&socket_path);
                     return Ok(());
                 }
@@ -98,10 +107,14 @@ fn test_net_uds_sendmsg_recvmsg() {
                 Ok(receive) => context.recv_message_fields(receive),
                 Err(error) => {
                     // recvmsg may be unavailable on some harnesses
-                    assert_platform_error_code::<(u64, u32, bool, u32, bool, bool)>(
-                        Err(error),
-                        PlatformErrorCode::NotSupported,
-                    )?;
+                    assert_platform_error_code_with_privileged_policy::<(
+                        u64,
+                        u32,
+                        bool,
+                        u32,
+                        bool,
+                        bool,
+                    )>(Err(error), PlatformErrorCode::NotSupported)?;
                     context.destack_net_close(server)?;
                     context.destack_net_close(client)?;
                     context.destack_net_uds_close_listener(listener)?;
@@ -143,7 +156,10 @@ fn test_net_uds_recvmsg_credentials() {
                 Ok(listener) => listener,
                 Err(error) => {
                     // uds may be unavailable on some harnesses
-                    assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+                    assert_platform_error_code_with_privileged_policy::<()>(
+                        Err(error),
+                        PlatformErrorCode::NotSupported,
+                    )?;
                     let _ = std::fs::remove_file(&socket_path);
                     return Ok(());
                 }
@@ -173,10 +189,14 @@ fn test_net_uds_recvmsg_credentials() {
                 Ok(receive) => context.recv_message_fields(receive),
                 Err(error) => {
                     // credentials are unavailable on some hosts
-                    assert_platform_error_code::<(u64, u32, bool, u32, bool, bool)>(
-                        Err(error),
-                        PlatformErrorCode::NotSupported,
-                    )?;
+                    assert_platform_error_code_with_privileged_policy::<(
+                        u64,
+                        u32,
+                        bool,
+                        u32,
+                        bool,
+                        bool,
+                    )>(Err(error), PlatformErrorCode::NotSupported)?;
                     context.destack_net_close(server)?;
                     context.destack_net_close(client)?;
                     context.destack_net_uds_close_listener(listener)?;
@@ -218,7 +238,10 @@ fn test_net_uds_sendmsg_invalid_flags() {
                 Ok(listener) => listener,
                 Err(error) => {
                     // uds may be unavailable on some harnesses
-                    assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+                    assert_platform_error_code_with_privileged_policy::<()>(
+                        Err(error),
+                        PlatformErrorCode::NotSupported,
+                    )?;
                     let _ = std::fs::remove_file(&socket_path);
                     return Ok(());
                 }
@@ -232,13 +255,9 @@ fn test_net_uds_sendmsg_invalid_flags() {
 
         // reject out of range sendmsg flags
         let message = context.empty_send_message_value(u32::MAX, false)?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_send_msg(client, context.bytes_slice_value(b"hello")?, message),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         // close sockets and listener
@@ -268,7 +287,10 @@ fn test_net_uds_roundtrip_utf16_path() {
             Ok(listener) => listener,
             Err(error) => {
                 // utf16 uds bindings may be unavailable on some harnesses
-                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+                assert_platform_error_code_with_privileged_policy::<()>(
+                    Err(error),
+                    PlatformErrorCode::NotSupported,
+                )?;
                 let _ = std::fs::remove_file(&socket_path);
                 return Ok(());
             }

@@ -1,6 +1,6 @@
 use super::super::with_harness_context;
 use super::core::{
-    assert_platform_error_code, credential_authentication_options_value, credential_query_value,
+    assert_runtime_error_code, credential_authentication_options_value, credential_query_value,
     credential_write_options_value, string_value,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -29,7 +29,7 @@ fn test_credentials_write_rejects_empty_payload() {
             Err(error) => error,
         };
 
-        assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });
@@ -47,7 +47,7 @@ fn test_credentials_read_rejects_empty_service() {
             Err(error) => error,
         };
 
-        assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });
@@ -67,7 +67,7 @@ fn test_credentials_contains_rejects_empty_account() {
             Err(error) => error,
         };
 
-        assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });
@@ -91,7 +91,7 @@ fn test_credentials_authenticate_rejects_empty_prompt() {
             Err(error) => error,
         };
 
-        assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });

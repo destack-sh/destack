@@ -9,7 +9,8 @@ use serde_json::json;
 
 use super::{
     KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP,
-    KEY_USAGE_VERIFY, KEY_USAGE_WRAP, with_harness_context,
+    KEY_USAGE_VERIFY, KEY_USAGE_WRAP, assert_not_supported_platform_code,
+    error_code_from_runtime_error, is_not_supported_code, with_harness_context,
 };
 use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
@@ -973,7 +974,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
         let platform = error
             .platform_error()
             .expect("key.generateSecret error should contain one platform error");
-        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+        assert_not_supported_platform_code(platform.code);
 
         // reject persistent secret key generation
         let persistent_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
@@ -997,7 +998,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
         let platform = error
             .platform_error()
             .expect("key.generateSecret error should contain one platform error");
-        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+        assert_not_supported_platform_code(platform.code);
 
         // reject persistent key import
         let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestAes(
@@ -1022,7 +1023,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
         let platform = error
             .platform_error()
             .expect("key.import error should contain one platform error");
-        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+        assert_not_supported_platform_code(platform.code);
 
         context.destack_crypto_store_close(store)?;
 
@@ -1075,7 +1076,7 @@ fn test_key_generate_follows_host_lane_write_support() {
                 let platform = error
                     .platform_error()
                     .expect("key.generateSecret error should contain one platform error");
-                assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                assert_not_supported_platform_code(platform.code);
             }
 
             context.destack_crypto_store_close(store)?;
@@ -1290,8 +1291,8 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             {
                 Ok(pair) => pair,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    if code == Some(PlatformErrorCode::NotSupported) {
+                    let code = error_code_from_runtime_error(&error);
+                    if is_not_supported_code(code) {
                         context.destack_crypto_store_close(store)?;
                         continue;
                     }
@@ -1499,8 +1500,8 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             {
                 Ok(imported_key) => imported_key,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    if code == Some(PlatformErrorCode::NotSupported) {
+                    let code = error_code_from_runtime_error(&error);
+                    if is_not_supported_code(code) {
                         context.destack_crypto_store_close(store)?;
                         continue;
                     }
@@ -1658,8 +1659,8 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             {
                 Ok(pair) => pair,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    if code == Some(PlatformErrorCode::NotSupported) {
+                    let code = error_code_from_runtime_error(&error);
+                    if is_not_supported_code(code) {
                         context.destack_crypto_store_close(store)?;
                         continue;
                     }
@@ -1789,7 +1790,7 @@ fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
             let platform = error
                 .platform_error()
                 .expect("key.generateSecret error should contain one platform error");
-            assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+            assert_not_supported_platform_code(platform.code);
 
             context.destack_crypto_store_close(store)?;
         }
@@ -1860,7 +1861,7 @@ fn test_key_generate_hardware_backed_secret_follows_host_lane_support() {
                     let platform = error
                         .platform_error()
                         .expect("key.generateSecret error should contain one platform error");
-                    assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                    assert_not_supported_platform_code(platform.code);
                 }
             }
 
@@ -1903,7 +1904,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() 
         let platform = error
             .platform_error()
             .expect("key.generateSecret error should contain one platform error");
-        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+        assert_not_supported_platform_code(platform.code);
 
         // reject persistent generation on provider stores
         let persistent_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
@@ -1926,7 +1927,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() 
         let platform = error
             .platform_error()
             .expect("key.generateSecret error should contain one platform error");
-        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+        assert_not_supported_platform_code(platform.code);
 
         context.destack_crypto_store_close(store)?;
 
