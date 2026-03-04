@@ -9,6 +9,29 @@ use super::core::{
     REMAP_OPERATION, decode_remap_flags, page_size, unix_protection, validated_range,
 };
 
+/// Operation tag for instruction-cache flush bindings.
+#[cfg(target_os = "android")]
+const FLUSH_INSTRUCTION_CACHE_OPERATION: &str = "destack.memory.protect.flushInstructionCache";
+
+#[cfg(all(
+    not(any(target_arch = "x86", target_arch = "x86_64")),
+    target_vendor = "apple"
+))]
+unsafe extern "C" {
+    /// Invalidate one instruction-cache region on apple targets.
+    fn sys_icache_invalidate(start: *const core::ffi::c_void, length: usize);
+}
+
+#[cfg(all(
+    not(any(target_arch = "x86", target_arch = "x86_64")),
+    not(target_vendor = "apple"),
+    not(target_os = "android")
+))]
+unsafe extern "C" {
+    /// Clear one instruction-cache region on non-apple targets.
+    fn __clear_cache(begin: *mut core::ffi::c_char, end: *mut core::ffi::c_char);
+}
+
 /// Change memory protection for one range.
 pub(crate) unsafe fn destack_memory_protect(
     _context: &BindingCallContext,
@@ -49,7 +72,7 @@ pub(crate) unsafe fn destack_memory_remap(
     // decode remap behavior flags
     let may_move = decode_remap_flags(flags.0)?;
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         // map portable remap behavior to native mremap flags
         let mut native_flags = 0;
@@ -75,7 +98,7 @@ pub(crate) unsafe fn destack_memory_remap(
         return Ok(());
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     {
         // mark remap as unsupported on this backend
         let _ = (pointer, old_length, new_length, may_move);
@@ -101,13 +124,38 @@ pub(crate) unsafe fn destack_memory_flush_instruction_cache(
         return Ok(());
     }
 
-    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+    #[cfg(all(
+        not(any(target_arch = "x86", target_arch = "x86_64")),
+        target_vendor = "apple"
+    ))]
     {
-        // use compiler-provided cache clear entrypoint on non-x86 targets
-        unsafe extern "C" {
-            fn __clear_cache(begin: *mut core::ffi::c_char, end: *mut core::ffi::c_char);
+        // invalidate the instruction cache through the apple runtime entrypoint
+        unsafe {
+            sys_icache_invalidate(pointer.cast::<core::ffi::c_void>(), length);
         }
 
+        Ok(())
+    }
+
+    #[cfg(all(
+        not(any(target_arch = "x86", target_arch = "x86_64")),
+        target_os = "android"
+    ))]
+    {
+        // report explicit non-support until android exposes one stable runtime lane here
+        let _ = (pointer, length);
+        Err(core_platform::not_supported(
+            FLUSH_INSTRUCTION_CACHE_OPERATION,
+        ))
+    }
+
+    #[cfg(all(
+        not(any(target_arch = "x86", target_arch = "x86_64")),
+        not(target_vendor = "apple"),
+        not(target_os = "android")
+    ))]
+    {
+        // use compiler-provided cache clear entrypoint on non-apple non-x86 targets
         // flush the instruction cache for the requested byte span
         let begin = pointer as *mut core::ffi::c_char;
         let end = unsafe { begin.add(length) };

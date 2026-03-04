@@ -7,9 +7,8 @@ use super::{
     decode_macos_application_lifecycle, decode_macos_memory_pressure_level,
     decode_macos_power_mode, decode_macos_thermal_state,
 };
-use crate::host::{
-    HostMemoryPressureLevel, HostPowerMode, HostThermalState, MacosApplicationLifecycle,
-};
+use crate::host::macos::MacosApplicationLifecycle;
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]
 fn test_decode_lifecycle_did_finish_launching() {

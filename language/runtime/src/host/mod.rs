@@ -109,7 +109,7 @@ pub use android::{
     destack_host_android_notify_window_terminated, destack_host_android_register_bindings,
 };
 
-#[cfg(target_os = "macos")]
+#[cfg(any(test, target_os = "macos"))]
 pub use macos::{
     MacosApplicationLifecycle, destack_host_macos_notify_application_lifecycle,
     destack_host_macos_notify_interruption_changed,

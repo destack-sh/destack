@@ -3,9 +3,19 @@ use std::os::fd::RawFd;
 use super::core::{register_pty_pair, set_cloexec, validate_winsize_dimension};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly"
+))]
+use crate::platform::core as core_platform;
 use crate::platform::tty::PtyPair;
 use crate::platform::tty::core::{close_pty_resource, ensure_out, validate_zero_flags};
-use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Return whether unix pty host APIs are available on this target.

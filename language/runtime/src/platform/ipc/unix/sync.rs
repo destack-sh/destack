@@ -222,7 +222,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
                     break Ok(());
                 }
 
-                let errno = crate::platform::core::get_errno();
+                let errno = core_platform::get_errno();
                 if errno == libc::EINTR {
                     continue;
                 }
@@ -264,7 +264,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
                     break Ok(());
                 }
 
-                let errno = crate::platform::core::get_errno();
+                let errno = core_platform::get_errno();
                 if errno == libc::EINTR {
                     if Instant::now() >= deadline {
                         if timeoutns == 0 {
@@ -313,7 +313,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 
         // always unmap one futex word view
         unmap_futex_word(&mapping);
-        return result;
+        result
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -372,7 +372,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
             )
         };
         if woken < 0 {
-            let errno = crate::platform::core::get_errno();
+            let errno = core_platform::get_errno();
             unmap_futex_word(&mapping);
             return Err(io_error_with_errno(
                 FUTEX_WAKE_OPERATION,
@@ -389,7 +389,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
         unsafe {
             out.write(woken as u32);
         }
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -524,7 +524,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
             return Ok(());
         }
 
-        let errno = crate::platform::core::get_errno();
+        let errno = core_platform::get_errno();
         if errno == libc::EAGAIN {
             return Err(timed_out(
                 SEMAPHORE_WAIT_OPERATION,
@@ -547,7 +547,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
                 return Ok(());
             }
 
-            let errno = crate::platform::core::get_errno();
+            let errno = core_platform::get_errno();
             if errno == libc::EINTR {
                 continue;
             }
@@ -569,7 +569,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
             return Ok(());
         }
 
-        let errno = crate::platform::core::get_errno();
+        let errno = core_platform::get_errno();
         if errno == libc::EINTR {
             continue;
         }

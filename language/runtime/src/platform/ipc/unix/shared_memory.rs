@@ -3,9 +3,11 @@ use crate::platform::ipc::SharedMemoryMapping;
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
-use super::core::{
-    io_error, posix_name, register_shared_memory_descriptor, shared_memory_descriptor,
-};
+#[cfg(not(target_os = "android"))]
+use super::core::posix_name;
+#[cfg(not(target_os = "android"))]
+use super::core::register_shared_memory_descriptor;
+use super::core::{io_error, shared_memory_descriptor};
 
 /// Create one named shared-memory object.
 const SHARED_MEMORY_CREATE_OPERATION: &str = "destack.ipc.sharedMemory.create";
@@ -85,47 +87,57 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
         ));
     }
 
-    // decode and normalize the shared-memory name
-    let name = posix_name(name, "name")?;
+    #[cfg(not(target_os = "android"))]
+    {
+        // decode and normalize the shared-memory name
+        let name = posix_name(name, "name")?;
 
-    // create one new named shared-memory descriptor
-    let descriptor = unsafe {
-        libc::shm_open(
-            name.as_ptr(),
-            libc::O_CREAT | libc::O_EXCL | libc::O_RDWR,
-            0o600,
-        )
-    };
-    if descriptor < 0 {
-        return Err(io_error(
-            SHARED_MEMORY_CREATE_OPERATION,
-            "shm_open",
-            "failed to create shared-memory object",
-        ));
-    }
-
-    // size the backing object before exposing the handle
-    let size = i64::try_from(size)
-        .map_err(|_| core_platform::invalid_argument("size", "size exceeds host off_t range"))?;
-    let truncate_status = unsafe { libc::ftruncate(descriptor, size) };
-    if truncate_status != 0 {
-        unsafe {
-            libc::close(descriptor);
+        // create one new named shared-memory descriptor
+        let descriptor = unsafe {
+            libc::shm_open(
+                name.as_ptr(),
+                libc::O_CREAT | libc::O_EXCL | libc::O_RDWR,
+                0o600,
+            )
+        };
+        if descriptor < 0 {
+            return Err(io_error(
+                SHARED_MEMORY_CREATE_OPERATION,
+                "shm_open",
+                "failed to create shared-memory object",
+            ));
         }
-        return Err(io_error(
-            SHARED_MEMORY_CREATE_OPERATION,
-            "ftruncate",
-            "failed to resize shared-memory object",
-        ));
+
+        // size the backing object before exposing the handle
+        let size = i64::try_from(size).map_err(|_| {
+            core_platform::invalid_argument("size", "size exceeds host off_t range")
+        })?;
+        let truncate_status = unsafe { libc::ftruncate(descriptor, size) };
+        if truncate_status != 0 {
+            unsafe {
+                libc::close(descriptor);
+            }
+            return Err(io_error(
+                SHARED_MEMORY_CREATE_OPERATION,
+                "ftruncate",
+                "failed to resize shared-memory object",
+            ));
+        }
+
+        // register descriptor and write handle output
+        let handle = register_shared_memory_descriptor(context, descriptor);
+        unsafe {
+            out.write(handle);
+        }
+
+        Ok(())
     }
 
-    // register descriptor and write handle output
-    let handle = register_shared_memory_descriptor(context, descriptor);
-    unsafe {
-        out.write(handle);
+    #[cfg(target_os = "android")]
+    {
+        let _ = (context, name);
+        Err(core_platform::not_supported(SHARED_MEMORY_CREATE_OPERATION))
     }
-
-    Ok(())
 }
 
 /// Map one shared memory range.
@@ -232,26 +244,35 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
     core_platform::ensure_out(out, "out")?;
     core_platform::ensure_zero_flags(flags, "flags")?;
 
-    // decode and normalize the shared-memory name
-    let name = posix_name(name, "name")?;
+    #[cfg(not(target_os = "android"))]
+    {
+        // decode and normalize the shared-memory name
+        let name = posix_name(name, "name")?;
 
-    // open one existing shared-memory descriptor
-    let descriptor = unsafe { libc::shm_open(name.as_ptr(), libc::O_RDWR, 0o600) };
-    if descriptor < 0 {
-        return Err(io_error(
-            SHARED_MEMORY_OPEN_OPERATION,
-            "shm_open",
-            "failed to open shared-memory object",
-        ));
+        // open one existing shared-memory descriptor
+        let descriptor = unsafe { libc::shm_open(name.as_ptr(), libc::O_RDWR, 0o600) };
+        if descriptor < 0 {
+            return Err(io_error(
+                SHARED_MEMORY_OPEN_OPERATION,
+                "shm_open",
+                "failed to open shared-memory object",
+            ));
+        }
+
+        // register descriptor and write handle output
+        let handle = register_shared_memory_descriptor(context, descriptor);
+        unsafe {
+            out.write(handle);
+        }
+
+        Ok(())
     }
 
-    // register descriptor and write handle output
-    let handle = register_shared_memory_descriptor(context, descriptor);
-    unsafe {
-        out.write(handle);
+    #[cfg(target_os = "android")]
+    {
+        let _ = (context, name);
+        Err(core_platform::not_supported(SHARED_MEMORY_OPEN_OPERATION))
     }
-
-    Ok(())
 }
 
 /// Unmap one shared memory range.

@@ -25,6 +25,7 @@ use super::property::{
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+#[cfg(target_os = "macos")]
 use crate::platform::core as core_platform;
 
 /// Enumerate one normalized CoreAudio device list on macOS.

@@ -1375,7 +1375,7 @@ pub(crate) unsafe fn destack_net_route_add(
     // reject unix targets without route-mutation support
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = route;
+        let _ = (context, route);
         route_not_supported("destack.net.routeAdd")
     }
 
@@ -1424,7 +1424,7 @@ pub(crate) unsafe fn destack_net_route_delete(
     // reject unix targets without route-mutation support
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = route;
+        let _ = (context, route);
         route_not_supported("destack.net.routeDelete")
     }
 

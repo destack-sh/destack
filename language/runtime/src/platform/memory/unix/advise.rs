@@ -3,7 +3,9 @@ use crate::platform::core as core_platform;
 use crate::platform::memory::MemoryAdvice;
 use crate::runtime::BindingCallContext;
 
-use super::core::{HUGE_PAGE_OPERATION, page_size, validated_range};
+#[cfg(not(target_os = "linux"))]
+use super::core::HUGE_PAGE_OPERATION;
+use super::core::{page_size, validated_range};
 
 /// Apply memory access advice.
 pub(crate) unsafe fn destack_memory_advise(
@@ -64,7 +66,7 @@ pub(crate) unsafe fn destack_memory_huge_page(
     let page_size = page_size()?;
     let (pointer, length) = validated_range(address, length, page_size)?;
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         // map enable state to linux huge-page advisory constants
         let advice = if enabled {
@@ -79,10 +81,10 @@ pub(crate) unsafe fn destack_memory_huge_page(
             return Err(core_platform::io_error("madvise", None));
         }
 
-        return Ok(());
+        Ok(())
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     {
         // mark huge-page hinting as unsupported on this backend
         let _ = (pointer, length, enabled);
