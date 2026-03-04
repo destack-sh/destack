@@ -85,6 +85,9 @@ just bridge/ci
 ## Release Credentials
 
 Publishing commands load credentials from `.env.local` via `just`.
+Release CI is tag driven and runs on `v*` pushes.
+The release workflow fails if the pushed tag does not match `VERSION.txt`.
+Release CI also fails when `CHANGELOG.md` has no section for `VERSION.txt`.
 Use the following variable level matrix for the GitHub Actions `release` environment.
 
 | Key | Kind | Required when | Purpose |
@@ -107,7 +110,16 @@ Use the following variable level matrix for the GitHub Actions `release` environ
 | `PUB_DEV_USE_OIDC` | Variable | Optional | Enables pub.dev trusted publishing in CI |
 | `PUB_DEV_CREDENTIALS_JSON` | Secret | `PUB_DEV_USE_OIDC != true` | Fallback pub.dev credentials |
 | `VSCE_PAT` | Secret | Always | VS Code extension publishing |
-| `ZED_GITHUB_TOKEN` | Secret | `publish_zed == true` | GitHub token for zed registry PR lane |
-| `ZED_REGISTRY_PUSH_TO` | Variable | `publish_zed == true` | zed registry target fork/owner |
+| `RELEASE_PUBLISH_ZED` | Variable | Optional | Enables zed registry publish on release tags |
+| `ZED_GITHUB_TOKEN` | Secret | `RELEASE_PUBLISH_ZED == true` | GitHub token for zed registry PR lane |
+| `ZED_REGISTRY_PUSH_TO` | Variable | `RELEASE_PUBLISH_ZED == true` | zed registry target fork/owner |
 
 For local live publishing outside CI, token based env vars such as `NPM_TOKEN`, `CARGO_TOKEN`, `PYPI_TOKEN`, and `VSCE_PAT` are still supported.
+
+## Release Flow
+
+Use the top level `just` recipes so versioning and changelog automation stay consistent.
+Run `just bump patch`, `just bump minor`, or `just bump major` to update all tracked version files.
+Run `just release-changelog` to generate the `CHANGELOG.md` section for the current version.
+Run `just release-validate` to verify tag, tracked versions, and changelog state for the current version.
+Run `just release patch "chore(all): bump version to X.Y.Z"` to bump, validate, update changelog, commit, and tag in one command.
