@@ -121,6 +121,8 @@ pub enum LintPreset {
     /// Recommended rules enabled.
     #[default]
     Recommended,
+    /// Recommended plus strict rules enabled.
+    Strict,
     /// All rules enabled.
     All,
 }
@@ -131,6 +133,7 @@ impl LintPreset {
         match s.to_lowercase().as_str() {
             "none" | "off" => Some(Self::None),
             "recommended" => Some(Self::Recommended),
+            "strict" => Some(Self::Strict),
             "all" => Some(Self::All),
             _ => None,
         }
@@ -141,6 +144,7 @@ impl LintPreset {
         match self {
             Self::None => "none",
             Self::Recommended => "recommended",
+            Self::Strict => "strict",
             Self::All => "all",
         }
     }
@@ -490,14 +494,16 @@ impl LinterOptions {
         self.categories.get(&category).copied()
     }
 
-    /// Resolve effective severity for a rule given its category and default severity.
+    /// Resolve effective severity for one rule.
     ///
-    /// Resolution order: rule override > category override > preset default
+    /// Resolution order: rule override > category override > preset default.
     pub fn resolve_severity(
         &self,
         rule_id: &str,
         category: LintCategory,
         default: LintSeverity,
+        is_recommended: bool,
+        is_strict: bool,
     ) -> LintSeverity {
         // rule override takes precedence
         if let Some(severity) = self.overrides.get(rule_id) {
@@ -512,13 +518,10 @@ impl LinterOptions {
         // preset logic
         match self.preset {
             LintPreset::None => LintSeverity::Off,
-            LintPreset::Recommended => {
-                if category.is_recommended() {
-                    default
-                } else {
-                    LintSeverity::Off
-                }
-            }
+            LintPreset::Recommended => is_recommended
+                .then_some(default)
+                .unwrap_or(LintSeverity::Off),
+            LintPreset::Strict => is_strict.then_some(default).unwrap_or(LintSeverity::Off),
             LintPreset::All => default,
         }
     }
@@ -859,7 +862,7 @@ impl From<&DsConfigLinterModuleDependencyExceptionJson> for LintModuleDependency
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigLinterRulesJson {
-    /// Preset: "none", "recommended", or "all".
+    /// Preset: "none", "recommended", "strict", or "all".
     pub preset: Option<String>,
     /// Enable the recommended rule set (shorthand for preset: "recommended").
     pub recommended: Option<bool>,
