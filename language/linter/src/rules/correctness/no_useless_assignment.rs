@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{self as dir, GlobalSymbolId, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::collect_pattern_value_binding_symbols;
+use crate::rules::common::{
+    collect_expression_read_symbol_usage, collect_pattern_value_binding_symbols,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -92,7 +94,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
             let inner_expr = self.ctx.tree.get(inner_id);
 
             // check if this expression reads any of the assigned variables
-            let reads = collect_expression_reads(self.ctx.tree, inner_id);
+            let reads = collect_expression_read_symbol_usage(self.ctx.tree, inner_id);
             for read in &reads {
                 last_assignments.remove(read);
             }
@@ -104,6 +106,11 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
                     to_report.insert(prev_expr_id.id);
                 }
                 last_assignments.insert(assigned_symbol, inner_id);
+            }
+
+            // stop at terminating control flow because later statements are unreachable
+            if expression_stops_execution(inner_expr) {
+                break;
             }
         }
 
@@ -181,6 +188,17 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
     }
 }
 
+/// Return true when this expression unconditionally stops block execution.
+fn expression_stops_execution(expression: &dir::Expression) -> bool {
+    matches!(
+        expression,
+        dir::Expression::Return { .. }
+            | dir::Expression::Throw { .. }
+            | dir::Expression::Break { .. }
+            | dir::Expression::Continue { .. }
+    )
+}
+
 /// Build an unsafe fix by removing one overwritten assignment.
 fn useless_assignment_fix(
     ctx: &LintModuleDirContext<'_>,
@@ -219,65 +237,6 @@ fn parent_statement_span(
 }
 
 /// Collect read symbols in one expression subtree.
-fn collect_expression_reads(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> HashSet<GlobalSymbolId> {
-    let mut visitor = ExpressionReadCollector {
-        reads: HashSet::new(),
-        options: NodeVisitorOptions::default(),
-    };
-    let expression = tree.get(expression_id);
-    visitor.visit_expression(tree, expression_id, expression);
-    visitor.reads
-}
-
-/// Collect symbol reads while skipping write positions.
-struct ExpressionReadCollector {
-    /// Collected symbols read from the expression.
-    reads: HashSet<GlobalSymbolId>,
-    /// Visitor options.
-    options: NodeVisitorOptions,
-}
-
-impl NodeVisitor for ExpressionReadCollector {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &dir::NodeTree,
-        id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-    ) {
-        // assignment left side is a write, only visit right side
-        if let dir::Expression::Assign { right, .. } = expression {
-            let right_expression = tree.get(*right);
-            self.visit_expression(tree, *right, right_expression);
-            return;
-        }
-
-        // let declarator patterns are writes, only visit initializers
-        if let dir::Expression::Let { declarators, .. } = expression {
-            for declarator_id in declarators {
-                let declarator = tree.get(*declarator_id);
-                if let Some(value_expression_id) = declarator.value {
-                    let value_expression = tree.get(value_expression_id);
-                    self.visit_expression(tree, value_expression_id, value_expression);
-                }
-            }
-            return;
-        }
-
-        if let Some(symbol) = expression.target_symbol() {
-            self.reads.insert(symbol);
-        }
-
-        walk_expression(self, tree, id, expression);
-    }
-}
-
 impl NodeVisitor for UselessAssignmentVisitor<'_, '_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
@@ -454,6 +413,23 @@ function test(): void {
     let value = 1;
     value += 2;
     return value;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-assignment");
+    }
+
+    /// Ignore unreachable overwrites after a terminating return.
+    #[test]
+    fn test_ignores_unreachable_overwrite_after_return() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessAssignment);
+        let result = test.lint_dir(
+            "no_useless_assignment/test_ignores_unreachable_overwrite_after_return.ds",
+            r#"
+function test(value: int32): int32 {
+    let current = value;
+    return current;
+    current = 0;
 }
 "#,
         );

@@ -4,15 +4,15 @@ use destack_workspace::{LintSeverity, Module, ProfileId};
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_type_map, function_parameter_types_at, is_explicit_any_type, is_promise_type,
-    symbol_primary_declaration_for,
+    expression_type_map, expression_unwrap_transparent, function_parameter_types_at,
+    is_explicit_any_type, is_promise_type, symbol_primary_declaration_for,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Require `unknown` instead of `any` for Promise catch callback variables.
+    /// Require `unknown` instead of `any` for Promise rejection callback variables.
     ///
-    /// Catch callback parameters represent unknown error values at runtime.
+    /// Promise rejection callback parameters represent unknown error values at runtime.
     /// Using `unknown` preserves type safety and forces explicit narrowing.
     #[lint(
         id = "use-unknown-in-catch-callback-variable",
@@ -27,7 +27,7 @@ declare_lint! {
         declarations = Exclude
     )]
     pub UseUnknownInCatchCallbackVariable,
-    "Require `unknown` for Promise catch callback variables"
+    "Require `unknown` for Promise rejection callback variables"
 }
 
 impl LintRule for UseUnknownInCatchCallbackVariable {
@@ -38,6 +38,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let catch_name = ctx.program.strings.intern("catch");
+        let then_name = ctx.program.strings.intern("then");
         let promise_symbol = ctx
             .well_known_symbols()
             .get_type_symbol(WellKnownSymbol::Promise)
@@ -54,11 +55,14 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
             else {
                 continue;
             };
-            if dynamic_arguments.is_empty() {
-                continue;
-            }
-
-            let Some(catch_receiver) = promise_catch_receiver_expression(ctx, *left, catch_name)
+            let Some((promise_receiver, callback_argument_index, callback_kind)) =
+                promise_rejection_callback_target(
+                    ctx,
+                    *left,
+                    dynamic_arguments.len(),
+                    catch_name,
+                    then_name,
+                )
             else {
                 continue;
             };
@@ -69,7 +73,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
                 ctx.tree,
                 ctx.symbols,
                 ctx.types,
-                catch_receiver,
+                promise_receiver,
                 |types, type_id| is_promise_type(types, type_id, Some(promise_symbol)),
             )
             .unwrap_or(false);
@@ -77,44 +81,60 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
                 continue;
             }
 
-            let callback_argument = ctx.tree.get(dynamic_arguments[0]).value();
-            let callback_parameter_id = first_callback_parameter(ctx, callback_argument);
-            if !catch_callback_uses_any_parameter(ctx, callback_argument, callback_parameter_id) {
+            let callback_argument = ctx
+                .tree
+                .get(dynamic_arguments[callback_argument_index])
+                .value();
+            let callback_candidates =
+                collect_rejection_callback_candidates(ctx.tree, callback_argument);
+            if callback_candidates.is_empty() {
                 continue;
             }
 
-            let diagnostic_span = callback_parameter_id
-                .map(|parameter_id| ctx.get_span(parameter_id))
-                .unwrap_or_else(|| ctx.get_span(callback_argument));
-            let severity = if let Some(parameter_id) = callback_parameter_id {
-                ctx.get_effective_severity(meta, parameter_id)
-            } else {
-                ctx.get_effective_severity(meta, expression_id)
-            };
-            if !severity.is_enabled() {
-                continue;
+            // report every callback candidate that still uses explicit any
+            for callback_candidate_id in callback_candidates {
+                let callback_parameter_id = first_callback_parameter(ctx, callback_candidate_id);
+                if !catch_callback_uses_any_parameter(
+                    ctx,
+                    callback_candidate_id,
+                    callback_parameter_id,
+                ) {
+                    continue;
+                }
+
+                let diagnostic_span = callback_parameter_id
+                    .map(|parameter_id| ctx.get_span(parameter_id))
+                    .unwrap_or_else(|| ctx.get_span(callback_candidate_id));
+                let severity = if let Some(parameter_id) = callback_parameter_id {
+                    ctx.get_effective_severity(meta, parameter_id)
+                } else {
+                    ctx.get_effective_severity(meta, callback_candidate_id)
+                };
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                let mut diagnostic = LintDiagnostic::new(
+                    USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.id,
+                    USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.code,
+                    USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.category,
+                    severity,
+                    format!("{callback_kind} callback parameter should be unknown"),
+                    ctx.module.file_id,
+                    diagnostic_span,
+                )
+                .with_label("use `unknown` instead of `any` for promise rejection callbacks");
+
+                // compute fixes only when requested by the runner
+                if ctx.include_fixes
+                    && let Some(parameter_id) = callback_parameter_id
+                    && let Some(fix) = catch_callback_unknown_fix(ctx, parameter_id)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
-
-            let mut diagnostic = LintDiagnostic::new(
-                USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.id,
-                USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.code,
-                USE_UNKNOWN_IN_CATCH_CALLBACK_VARIABLE.category,
-                severity,
-                "catch callback parameter should be unknown",
-                ctx.module.file_id,
-                diagnostic_span,
-            )
-            .with_label("use `unknown` instead of `any` for catch callback parameters");
-
-            // compute fixes only when requested by the runner
-            if ctx.include_fixes
-                && let Some(parameter_id) = callback_parameter_id
-                && let Some(fix) = catch_callback_unknown_fix(ctx, parameter_id)
-            {
-                diagnostic = diagnostic.with_fix(fix);
-            }
-
-            ctx.report(diagnostic);
         }
     }
 }
@@ -138,17 +158,86 @@ fn catch_callback_unknown_fix(
     Some(LintFix::safe("Replace `any` with `unknown`").with_edits(edits))
 }
 
-/// Resolve the receiver expression for `promise.catch(...)`.
-fn promise_catch_receiver_expression(
+/// Resolve promise rejection callback target info for `catch` and `then`.
+fn promise_rejection_callback_target(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
+    argument_count: usize,
     catch_name: dir::StringId,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
+    then_name: dir::StringId,
+) -> Option<(dir::LocalNodeId<dir::Expression>, usize, &'static str)> {
     let expression = ctx.tree.get(expression_id);
     let dir::Expression::Member { left, name, .. } = expression else {
         return None;
     };
-    (*name == catch_name).then_some(*left)
+
+    // catch(handler): first callback argument is rejection handler
+    if *name == catch_name {
+        return (argument_count >= 1).then_some((*left, 0, "catch"));
+    }
+
+    // then(onFulfilled, onRejected): second callback argument is rejection handler
+    if *name == then_name {
+        return (argument_count >= 2).then_some((*left, 1, "then rejection"));
+    }
+
+    None
+}
+
+/// Collect callback candidates from one rejection callback argument expression.
+fn collect_rejection_callback_candidates(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
+    let mut candidates = Vec::new();
+    collect_rejection_callback_candidates_inner(tree, expression_id, &mut candidates);
+    candidates
+}
+
+/// Recursively collect callback candidates from wrapper expressions.
+fn collect_rejection_callback_candidates_inner(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    candidates: &mut Vec<dir::LocalNodeId<dir::Expression>>,
+) {
+    let expression_id = expression_unwrap_transparent(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // sequence uses the last evaluated expression as callback
+    if let dir::Expression::SequenceExpression { expressions } = expression {
+        if let Some(last_expression_id) = expressions.last() {
+            collect_rejection_callback_candidates_inner(tree, *last_expression_id, candidates);
+        }
+
+        return;
+    }
+
+    // logical expressions can choose either branch
+    if let dir::Expression::Binary {
+        left,
+        operator: dir::BinaryOperator::And | dir::BinaryOperator::Or | dir::BinaryOperator::Coalesce,
+        right,
+    } = expression
+    {
+        collect_rejection_callback_candidates_inner(tree, *left, candidates);
+        collect_rejection_callback_candidates_inner(tree, *right, candidates);
+        return;
+    }
+
+    // ternary expressions can choose either arm
+    if let dir::Expression::If {
+        kind: dir::IfKind::Ternary,
+        then_expression,
+        else_expression: Some(else_expression),
+        ..
+    } = expression
+    {
+        collect_rejection_callback_candidates_inner(tree, *then_expression, candidates);
+        collect_rejection_callback_candidates_inner(tree, *else_expression, candidates);
+        return;
+    }
+
+    candidates.push(expression_id);
 }
 
 /// Return true when one catch callback takes an `any` typed first parameter.
@@ -419,6 +508,108 @@ Promise.reject("failed").catch((error: unknown) => {
             .assert_no_lint("use-unknown-in-catch-callback-variable");
     }
 
+    /// Flag explicit any in Promise then rejection callbacks.
+    #[test]
+    fn test_flags_any_then_rejection_callback_parameter() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_flags_any_then_rejection_callback_parameter.ds",
+            r#"
+Promise.resolve(1).then((value: int32) => value, (error: any) => {
+    return error;
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable")
+            .assert_has_fix("use-unknown-in-catch-callback-variable");
+    }
+
+    /// Allow unknown in Promise then rejection callbacks.
+    #[test]
+    fn test_allows_unknown_then_rejection_callback_parameter() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_allows_unknown_then_rejection_callback_parameter.ds",
+            r#"
+Promise.resolve(1).then((value: int32) => value, (error: unknown) => {
+    return error;
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("use-unknown-in-catch-callback-variable");
+    }
+
+    /// Ignore Promise then calls without a rejection callback.
+    #[test]
+    fn test_ignores_then_without_rejection_callback() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_ignores_then_without_rejection_callback.ds",
+            r#"
+Promise.resolve(1).then((value: int32) => value);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("use-unknown-in-catch-callback-variable");
+    }
+
+    /// Flag explicit any in ternary catch callback expressions.
+    #[test]
+    fn test_flags_any_in_ternary_catch_callback() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_flags_any_in_ternary_catch_callback.ds",
+            r#"
+const useFirst = true;
+Promise.reject("failed").catch(
+    useFirst
+        ? (error: any) => {
+            return error;
+        }
+        : (error: unknown) => {
+            return error;
+        }
+);
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable");
+    }
+
+    /// Flag explicit any in sequence catch callback expressions.
+    #[test]
+    fn test_flags_any_in_sequence_catch_callback() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_flags_any_in_sequence_catch_callback.ts",
+            r#"
+Promise.reject("failed").catch((0, ((error: any) => {
+    return error;
+})));
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable");
+    }
+
+    /// Flag explicit any in logical catch callback expressions.
+    #[test]
+    fn test_flags_any_in_logical_catch_callback() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_flags_any_in_logical_catch_callback.ds",
+            r#"
+Promise.reject("failed").catch(false || ((error: any) => {
+    return error;
+}));
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable");
+    }
+
     /// Ignore non-Promise catch methods.
     #[test]
     fn test_ignores_non_promise_catch_method() {
@@ -594,6 +785,29 @@ Promise.reject("failed").catch((error: any) => {
             .assert_safe_fixed(
                 r#"
 Promise.reject("failed").catch((error: unknown) => {
+    return error;
+});
+"#,
+            );
+    }
+
+    /// Safely rewrite inline then rejection callback any annotation.
+    #[test]
+    fn test_fix_inline_then_rejection_callback_parameter_any() {
+        let test = TestProgram::for_rule_with_prelude(UseUnknownInCatchCallbackVariable);
+        let result = test.lint_dir(
+            "use_unknown_in_catch_callback_variable/test_fix_inline_then_rejection_callback_parameter_any.ds",
+            r#"
+Promise.resolve(1).then((value: int32) => value, (error: any) => {
+    return error;
+});
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-unknown-in-catch-callback-variable")
+            .assert_safe_fixed(
+                r#"
+Promise.resolve(1).then((value: int32) => value, (error: unknown) => {
     return error;
 });
 "#,

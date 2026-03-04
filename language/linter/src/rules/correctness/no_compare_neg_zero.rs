@@ -1,9 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    ast_expression_unwrap_parenthesized, is_comparison_operator,
-};
+use crate::rules::common::{ast_expression_unwrap_parenthesized, is_comparison_operator};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {

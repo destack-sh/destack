@@ -3,7 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::is_array_type;
+use crate::rules::common::{is_array_type, is_string_array_type};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -51,6 +51,10 @@ struct ArraySortVisitor<'a, 'b> {
     array_symbol: dir::GlobalSymbolId,
     /// The sort method name.
     sort_name: StringId,
+    /// The toSorted method name.
+    to_sorted_name: StringId,
+    /// The well known String symbol for this module.
+    string_symbol: dir::GlobalSymbolId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -60,12 +64,16 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let sort_name = ctx.program.strings.intern("sort");
+        let to_sorted_name = ctx.program.strings.intern("toSorted");
+        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
 
         Self {
             ctx,
             meta,
             array_symbol,
             sort_name,
+            to_sorted_name,
+            string_symbol,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -100,7 +108,7 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
         };
 
         // check method name
-        if *name != self.sort_name {
+        if *name != self.sort_name && *name != self.to_sorted_name {
             return;
         }
 
@@ -119,6 +127,16 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
             return;
         }
 
+        // ignore string arrays because lexicographic ordering is usually intentional
+        if is_string_array_type(
+            self.ctx.types,
+            type_id,
+            Some(self.array_symbol),
+            Some(self.string_symbol),
+        ) {
+            return;
+        }
+
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
@@ -133,11 +151,11 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
                 REQUIRE_ARRAY_SORT_COMPARE.code,
                 REQUIRE_ARRAY_SORT_COMPARE.category,
                 severity,
-                "array .sort() requires a comparison function",
+                "array sort call requires a comparison function",
                 self.ctx.module.file_id,
                 span,
             )
-            .with_label("provide a comparison function to avoid lexicographic sorting"),
+            .with_label("provide a comparison function for non-string array ordering"),
         );
     }
 }
@@ -230,17 +248,44 @@ custom.sort();
     }
 
     #[test]
-    fn test_flags_string_array_sort() {
+    fn test_allows_string_array_sort_without_compare() {
         let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
         let result = test.lint_dir(
-            "require_array_sort_compare/test_flags_string_array_sort.ds",
+            "require_array_sort_compare/test_allows_string_array_sort_without_compare.ds",
             r#"
 let names: string[] = ["c", "a", "b"];
 names.sort();
 "#,
         );
-        // string arrays still flag because the rule doesn't differentiate element types
+        test.result(result)
+            .assert_no_lint("require-array-sort-compare");
+    }
+
+    #[test]
+    fn test_flags_to_sorted_without_compare() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "require_array_sort_compare/test_flags_to_sorted_without_compare.ds",
+            r#"
+let items = [3, 1, 2];
+items.toSorted();
+"#,
+        );
         test.result(result)
             .assert_lint("require-array-sort-compare");
+    }
+
+    #[test]
+    fn test_allows_to_sorted_on_string_array_without_compare() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "require_array_sort_compare/test_allows_to_sorted_on_string_array_without_compare.ds",
+            r#"
+let names: string[] = ["c", "a", "b"];
+names.toSorted();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("require-array-sort-compare");
     }
 }

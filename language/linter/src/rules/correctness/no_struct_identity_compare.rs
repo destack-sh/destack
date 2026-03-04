@@ -1,7 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolType, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::is_reference_symbol_type;
+use crate::rules::common::{expression_unwrap_transparent, is_reference_symbol_type};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -74,9 +74,20 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
     fn check_struct_compare(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
-        right: dir::LocalNodeId<dir::Expression>,
+        mut left: dir::LocalNodeId<dir::Expression>,
+        mut right: dir::LocalNodeId<dir::Expression>,
     ) {
+        // normalize transparent wrappers for nullish and type checks
+        left = expression_unwrap_transparent(self.ctx.tree, left);
+        right = expression_unwrap_transparent(self.ctx.tree, right);
+
+        // allow explicit nullish sentinel checks on optional values
+        if is_nullish_literal_expression(self.ctx.tree, left)
+            || is_nullish_literal_expression(self.ctx.tree, right)
+        {
+            return;
+        }
+
         // resolve the left operand type
         let left_is_struct = self.ctx.expression_type_id(left).is_some_and(|type_id| {
             is_reference_symbol_type(self.ctx.types, type_id, SymbolType::Struct)
@@ -113,6 +124,20 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
             .with_label("structs have no identity; use == or != instead"),
         );
     }
+}
+
+/// Return true when one expression is a nullish literal.
+fn is_nullish_literal_expression(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let expression = tree.get(expression_id);
+    matches!(
+        expression,
+        dir::Expression::TypeLiteral {
+            value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
+        }
+    )
 }
 
 impl NodeVisitor for StructCompareVisitor<'_, '_> {
@@ -228,6 +253,38 @@ let equal = a === b;
 let a: int32 = 1;
 let b: int32 = 2;
 let equal = a === b;
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-struct-identity-compare");
+    }
+
+    /// Allow nullish checks on optional struct values.
+    #[test]
+    fn test_allows_struct_nullish_check() {
+        let test = TestProgram::for_rule_without_prelude(NoStructIdentityCompare);
+        let result = test.lint_dir(
+            "no_struct_identity_compare/test_allows_struct_nullish_check.ds",
+            r#"
+struct Point { x: int32; y: int32 }
+let value: Point | null = null;
+let isNull = value === null;
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-struct-identity-compare");
+    }
+
+    /// Allow wrapped nullish checks on optional struct values.
+    #[test]
+    fn test_allows_wrapped_struct_nullish_check() {
+        let test = TestProgram::for_rule_without_prelude(NoStructIdentityCompare);
+        let result = test.lint_dir(
+            "no_struct_identity_compare/test_allows_wrapped_struct_nullish_check.ds",
+            r#"
+struct Point { x: int32; y: int32 }
+let value: Point | null = null;
+let isNull = (value) === (null);
 "#,
         );
         test.result(result)

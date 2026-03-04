@@ -219,8 +219,7 @@ impl NodeVisitor for IteratorInvalidationVisitor<'_, '_> {
             // get the iterated collection's symbol
             if let Some(symbol) = expression_target_symbol(tree, *iterator) {
                 // push one scope for this loop and walk body
-                self.iterated_symbol_scopes
-                    .push(HashSet::from([symbol]));
+                self.iterated_symbol_scopes.push(HashSet::from([symbol]));
 
                 // walk the body
                 let body_block = tree.get(*body);

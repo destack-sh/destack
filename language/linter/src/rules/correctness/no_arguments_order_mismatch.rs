@@ -4,7 +4,8 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_candidate_symbols, expression_unwrap_parenthesized, symbol_primary_declaration_for,
+    argument_expression_id, expression_candidate_symbols, expression_declared_or_inferred_type_id,
+    expression_unwrap_parenthesized, is_string_type, symbol_primary_declaration_for,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -76,6 +77,15 @@ impl LintRule for NoArgumentsOrderMismatch {
             else {
                 continue;
             };
+            if !swapped_pair_type_compatible(
+                ctx,
+                callee_expression_id,
+                argument_ids,
+                first_index,
+                second_index,
+            ) {
+                continue;
+            }
 
             let severity = ctx.get_effective_severity(meta, expression_id);
             if !severity.is_enabled() {
@@ -124,6 +134,122 @@ impl LintRule for NoArgumentsOrderMismatch {
             );
         }
     }
+}
+
+/// Return true when one swapped argument pair is type compatible with swapped parameters.
+///
+/// This mirrors sonar style heuristics: if we can resolve local signature and
+/// type information, each argument should fit the opposite parameter.
+fn swapped_pair_type_compatible(
+    ctx: &LintModuleDirContext<'_>,
+    callee_expression_id: dir::LocalNodeId<dir::Expression>,
+    argument_ids: &[dir::LocalNodeId<dir::Argument>],
+    first_index: usize,
+    second_index: usize,
+) -> bool {
+    let callee_expression = ctx.tree.get(callee_expression_id);
+    let candidate_symbols = expression_candidate_symbols(
+        &ctx.program,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.symbols,
+        ctx.types,
+        callee_expression_id,
+        callee_expression,
+    );
+    if candidate_symbols.is_empty() {
+        return true;
+    }
+
+    // evaluate every local declaration candidate conservatively
+    for symbol_id in candidate_symbols {
+        let Some(declaration_id) = symbol_primary_declaration_for(
+            &ctx.program,
+            ctx.profile_id,
+            ctx.module_id(),
+            ctx.symbols,
+            symbol_id,
+        ) else {
+            continue;
+        };
+        if declaration_id.module_id != ctx.module_id() {
+            continue;
+        }
+
+        let Some(dynamic_parameters) =
+            declaration_dynamic_parameters(ctx.tree, declaration_id.local_id)
+        else {
+            continue;
+        };
+        let Some(first_parameter_id) = dynamic_parameters.get(first_index).copied() else {
+            continue;
+        };
+        let Some(second_parameter_id) = dynamic_parameters.get(second_index).copied() else {
+            continue;
+        };
+        let Some(first_argument_expression_id) =
+            argument_expression_id(ctx.tree, argument_ids[first_index])
+        else {
+            continue;
+        };
+        let Some(second_argument_expression_id) =
+            argument_expression_id(ctx.tree, argument_ids[second_index])
+        else {
+            continue;
+        };
+
+        // require stable argument and parameter types before rejecting
+        let Some(first_argument_type_id) = expression_declared_or_inferred_type_id(
+            ctx.module_id(),
+            ctx.tree,
+            ctx.types,
+            first_argument_expression_id,
+        ) else {
+            continue;
+        };
+        let Some(second_argument_type_id) = expression_declared_or_inferred_type_id(
+            ctx.module_id(),
+            ctx.tree,
+            ctx.types,
+            second_argument_expression_id,
+        ) else {
+            continue;
+        };
+        let Some(first_parameter_type_id) =
+            parameter_declared_or_inferred_type_id(ctx, first_parameter_id)
+        else {
+            continue;
+        };
+        let Some(second_parameter_type_id) =
+            parameter_declared_or_inferred_type_id(ctx, second_parameter_id)
+        else {
+            continue;
+        };
+
+        let first_mismatch =
+            type_pair_has_string_mismatch(ctx, first_argument_type_id, second_parameter_type_id);
+        let second_mismatch =
+            type_pair_has_string_mismatch(ctx, second_argument_type_id, first_parameter_type_id);
+        if first_mismatch || second_mismatch {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Return true when one argument and parameter pair is obviously string incompatible.
+fn type_pair_has_string_mismatch(
+    ctx: &LintModuleDirContext<'_>,
+    left_type_id: dir::LocalTypeId,
+    right_type_id: dir::LocalTypeId,
+) -> bool {
+    let string_symbol = ctx
+        .well_known_symbols()
+        .get_type_symbol(dir::WellKnownSymbol::String);
+    let left_is_string = is_string_type(ctx.types, left_type_id, string_symbol);
+    let right_is_string = is_string_type(ctx.types, right_type_id, string_symbol);
+    left_is_string != right_is_string
 }
 
 /// Return argument name hints for one positional argument list.
@@ -248,6 +374,24 @@ fn declaration_parameter_names(
             .map(|parameter_id| parameter_name_for_signature_parameter(tree, parameter_id))
             .collect(),
     )
+}
+
+/// Return one parameter type from declared annotation or inferred symbol type.
+fn parameter_declared_or_inferred_type_id(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+) -> Option<dir::LocalTypeId> {
+    let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
+
+    // prefer explicit parameter annotation type
+    if let Some(declared_type_id) = ctx.types.get_declared_type_id(global_parameter_id) {
+        return Some(declared_type_id);
+    }
+
+    // otherwise use bound parameter symbol value type
+    let parameter = ctx.tree.get(parameter_id);
+    let parameter_symbol = parameter.symbol().into_global(ctx.module_id());
+    ctx.types.get_value_type_id(parameter_symbol)
 }
 
 /// Return dynamic parameter ids for one callable declaration node.
@@ -446,6 +590,25 @@ const a = "localhost";
 const b = 8080;
 
 configure(a, b);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-arguments-order-mismatch");
+    }
+
+    /// Allow swapped name hints when swapped types do not fit opposite parameters.
+    #[test]
+    fn test_allows_swapped_name_hints_with_incompatible_swapped_types() {
+        let test = TestProgram::for_rule_without_prelude(NoArgumentsOrderMismatch);
+        let result = test.lint_dir(
+            "no_arguments_order_mismatch/test_allows_swapped_name_hints_with_incompatible_swapped_types.ds",
+            r#"
+function setDimensions(width: int32, height: string): void {}
+
+const height: int32 = 10;
+const width: string = "wide";
+
+setDimensions(height, width);
 "#,
         );
         test.result(result)

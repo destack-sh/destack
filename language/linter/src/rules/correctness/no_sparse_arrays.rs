@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::argument_value_expression_id;
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -41,15 +42,9 @@ impl LintRule for NoSparseArrays {
 
             // check for holes (stub expressions in elements)
             for element_id in elements {
-                let argument = ctx.tree.get(*element_id);
-                let value_id = match argument {
-                    ast::Argument::Positional { value, .. } => value,
-                    ast::Argument::Spread { value, .. } => value,
-                    ast::Argument::Named { value, .. } => value,
-                    ast::Argument::Labeled { value, .. } => value,
-                };
+                let value_id = argument_value_expression_id(ctx.tree, *element_id);
 
-                let value = ctx.tree.get(*value_id);
+                let value = ctx.tree.get(value_id);
                 if matches!(value, ast::Expression::Stub) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
@@ -69,7 +64,7 @@ impl LintRule for NoSparseArrays {
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
-                        && let Some(fix) = no_sparse_arrays_fix(ctx, *value_id)
+                        && let Some(fix) = no_sparse_arrays_fix(ctx, value_id)
                     {
                         diagnostic = diagnostic.with_fix(fix);
                     }

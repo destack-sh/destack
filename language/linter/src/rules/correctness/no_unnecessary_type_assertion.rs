@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_is_any_typed, expression_target_symbol, expression_type_map,
-    expression_unwrap_parenthesized, is_any_type, symbol_value_type_id_for, unwrap_value_type_id,
+    expression_unwrap_transparent, is_any_type, symbol_value_type_id_for, unwrap_value_type_id,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -55,6 +55,7 @@ impl LintRule for NoUnnecessaryTypeAssertion {
                     span,
                     assertion.source_expression,
                     "this assertion does not change the type",
+                    ctx.include_fixes,
                 );
                 ctx.report(diagnostic);
                 continue;
@@ -83,6 +84,7 @@ impl LintRule for NoUnnecessaryTypeAssertion {
                 span,
                 assertion.source_expression,
                 "this assertion repeats the existing type",
+                ctx.include_fixes,
             );
             ctx.report(diagnostic);
         }
@@ -160,7 +162,7 @@ fn assertion_target_is_explicit_any(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression_id = expression_unwrap_transparent(tree, expression_id);
     let expression = tree.get(expression_id);
     matches!(
         expression,
@@ -177,16 +179,9 @@ fn redundant_assertion_diagnostic(
     assertion_span: destack_source::Span,
     source_expression: dir::LocalNodeId<dir::Expression>,
     label: &str,
+    include_fixes: bool,
 ) -> LintDiagnostic {
-    let source_span = ctx.get_span(source_expression);
-    let source_text = ctx.get_span_text(source_span).to_string();
-    let edits = ctx
-        .edit_builder()
-        .replace(assertion_span, source_text)
-        .into_edits();
-    let fix = LintFix::safe("Remove redundant assertion").with_edits(edits);
-
-    LintDiagnostic::new(
+    let diagnostic = LintDiagnostic::new(
         NO_UNNECESSARY_TYPE_ASSERTION.id,
         NO_UNNECESSARY_TYPE_ASSERTION.code,
         NO_UNNECESSARY_TYPE_ASSERTION.category,
@@ -195,8 +190,20 @@ fn redundant_assertion_diagnostic(
         ctx.module.file_id,
         assertion_span,
     )
-    .with_label(label)
-    .with_fix(fix)
+    .with_label(label);
+
+    if !include_fixes {
+        return diagnostic;
+    }
+
+    let source_span = ctx.get_span(source_expression);
+    let source_text = ctx.get_span_text(source_span).to_string();
+    let edits = ctx
+        .edit_builder()
+        .replace(assertion_span, source_text)
+        .into_edits();
+    let fix = LintFix::safe("Remove redundant assertion").with_edits(edits);
+    diagnostic.with_fix(fix)
 }
 
 /// One assertion expression shape normalized across DIR phases.

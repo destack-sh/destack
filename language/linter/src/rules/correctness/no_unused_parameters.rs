@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{collect_module_symbol_usage, collect_parameter_value_binding_symbols};
+use crate::rules::common::{
+    collect_module_read_symbol_usage, collect_parameter_value_binding_symbols,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,8 +35,7 @@ impl LintRule for NoUnusedParameters {
 
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let usage = collect_module_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
-        let used_symbols = usage.used_local_symbols(ctx.module_id());
+        let read_symbols = collect_module_read_symbol_usage(ctx.tree, &ctx.roots);
 
         // inspect all parameters
         for parameter_id in ctx.tree.iter_node_ids_of_type::<dir::Parameter>() {
@@ -65,7 +66,7 @@ impl LintRule for NoUnusedParameters {
                     }
 
                     // skip used parameter symbols
-                    if used_symbols.contains(&symbol_id) {
+                    if read_symbols.contains(&symbol_id.into_global(ctx.module_id())) {
                         continue;
                     }
 
@@ -111,9 +112,19 @@ impl LintRule for NoUnusedParameters {
                     bindings.remove(&symbol_id);
 
                     // report each unused binding in the parameter pattern
-                    for binding_symbol in bindings {
+                    let mut binding_symbols = bindings.into_iter().collect::<Vec<_>>();
+
+                    // keep diagnostics deterministic for stable snapshots
+                    binding_symbols.sort_unstable_by_key(|binding_symbol| {
+                        let symbol = ctx.symbols.get_symbol(*binding_symbol);
+                        symbol
+                            .primary_declaration
+                            .map_or(u32::MAX, |node_id| node_id.local_id.id)
+                    });
+
+                    for binding_symbol in binding_symbols {
                         // skip used pattern bindings
-                        if used_symbols.contains(&binding_symbol) {
+                        if read_symbols.contains(&binding_symbol.into_global(ctx.module_id())) {
                             continue;
                         }
 
@@ -280,6 +291,10 @@ fn is_this_parameter_name(ctx: &LintModuleDirContext<'_>, name: dir::StringId) -
 /// Return true when the parameter name should be ignored by configuration.
 fn parameter_name_is_ignored(ctx: &LintModuleDirContext<'_>, name: dir::StringId) -> bool {
     let text = ctx.program.strings.get(name);
+    if text == "_" {
+        return true;
+    }
+
     ctx.options
         .ignored_unused_parameter_prefixes
         .iter()
@@ -315,6 +330,21 @@ function run(value: int32): int32 {
             r#"
 function run(value: int32): int32 {
     return value;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-unused-parameters");
+    }
+
+    /// Allow underscore placeholder parameters by default.
+    #[test]
+    fn test_allows_underscore_placeholder_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedParameters);
+        let result = test.lint_dir(
+            "no_unused_parameters/test_allows_underscore_placeholder_parameter.ds",
+            r#"
+function run(_: int32): int32 {
+    return 1;
 }
 "#,
         );
@@ -486,5 +516,21 @@ function run({ value }: { value: int32 }): int32 {
         test.result(result)
             .assert_lint("no-unused-parameters")
             .assert_has_no_fix("no-unused-parameters");
+    }
+
+    /// Flag write-only parameters that are never read.
+    #[test]
+    fn test_flags_write_only_parameter() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedParameters);
+        let result = test.lint_dir(
+            "no_unused_parameters/test_flags_write_only_parameter.ds",
+            r#"
+function run(value: int32): int32 {
+    value = 1;
+    return 2;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-unused-parameters");
     }
 }

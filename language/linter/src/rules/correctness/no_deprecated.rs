@@ -199,7 +199,8 @@ fn should_skip_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{LintLevel, linter::TestProgram};
+    use crate::LintLevel;
+    use crate::linter::TestProgram;
 
     /// Flag calls to deprecated functions.
     #[test]

@@ -1,7 +1,10 @@
 use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{
+    expression_path_segments, match_case_selector, match_selector_expression_id,
+};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `Number.isNaN()` instead of comparisons with `NaN`.
@@ -25,7 +28,7 @@ declare_lint! {
 }
 
 impl LintRule for UseIsnan {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         UseIsnan::meta()
     }
 
@@ -36,63 +39,142 @@ impl LintRule for UseIsnan {
             let expression = ctx.tree.get(node_id);
 
             // check binary comparison expressions
-            let Expression::Binary {
+            if let Expression::Binary {
                 left,
                 operator,
                 right,
             } = expression
-            else {
+            {
+                check_binary_nan_comparison(ctx, meta, node_id, *left, *operator, *right);
+                continue;
+            }
+
+            // check switch comparisons against NaN
+            let Expression::Match { kind, value, cases } = expression else {
                 continue;
             };
-
-            // only check comparison operators
-            if !matches!(
-                operator,
-                BinaryOperator::Equal
-                    | BinaryOperator::NotEqual
-                    | BinaryOperator::EqualStrict
-                    | BinaryOperator::NotEqualStrict
-                    | BinaryOperator::LessThan
-                    | BinaryOperator::LessThanOrEqual
-                    | BinaryOperator::GreaterThan
-                    | BinaryOperator::GreaterThanOrEqual
-            ) {
+            if *kind != ast::MatchKind::Switch {
                 continue;
             }
 
-            // check if either side is NaN
-            let left_is_nan = is_nan_identifier(ctx, *left);
-            let right_is_nan = is_nan_identifier(ctx, *right);
-            if !left_is_nan && !right_is_nan {
-                continue;
-            }
+            check_switch_nan_comparisons(ctx, meta, *value, cases);
+        }
+    }
+}
 
-            let severity = ctx.get_effective_severity(meta, node_id);
-            if !severity.is_enabled() {
-                continue;
-            }
+/// Check one binary comparison for NaN usage.
+fn check_binary_nan_comparison(
+    ctx: &mut LintModuleAstContext<'_>,
+    meta: &LintMeta,
+    node_id: ast::LocalNodeId<ast::Expression>,
+    left: ast::LocalNodeId<ast::Expression>,
+    operator: BinaryOperator,
+    right: ast::LocalNodeId<ast::Expression>,
+) {
+    // only check comparison operators
+    if !matches!(
+        operator,
+        BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::EqualStrict
+            | BinaryOperator::NotEqualStrict
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual
+    ) {
+        return;
+    }
 
-            let expression_span = ctx.tree.get_span(node_id);
-            let mut diagnostic = LintDiagnostic::new(
+    // check if either side is NaN
+    let left_is_nan = is_nan_identifier(ctx, left);
+    let right_is_nan = is_nan_identifier(ctx, right);
+    if !left_is_nan && !right_is_nan {
+        return;
+    }
+
+    let severity = ctx.get_effective_severity(meta, node_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    let expression_span = ctx.tree.get_span(node_id);
+    let mut diagnostic = LintDiagnostic::new(
+        USE_ISNAN.id,
+        USE_ISNAN.code,
+        USE_ISNAN.category,
+        severity,
+        comparison_message(operator),
+        ctx.module.file_id,
+        expression_span,
+    )
+    .with_label("use Number.isNaN() instead");
+
+    // construct fix for equality operators only
+    if ctx.compute_fixes
+        && let Some(fix) = make_isnan_fix(ctx, left, right, operator, left_is_nan, expression_span)
+    {
+        diagnostic = diagnostic.with_fix(fix);
+    }
+
+    ctx.report(diagnostic);
+}
+
+/// Check switch discriminants and case selectors for NaN comparisons.
+fn check_switch_nan_comparisons(
+    ctx: &mut LintModuleAstContext<'_>,
+    meta: &LintMeta,
+    value: ast::LocalNodeId<ast::Expression>,
+    cases: &[ast::LocalNodeId<ast::MatchCase>],
+) {
+    // switch discriminant `NaN` never equals any case selector
+    if is_nan_identifier(ctx, value) {
+        let severity = ctx.get_effective_severity(meta, value);
+        if severity.is_enabled() {
+            let span = ctx.tree.get_span(value);
+            ctx.report(
+                LintDiagnostic::new(
+                    USE_ISNAN.id,
+                    USE_ISNAN.code,
+                    USE_ISNAN.category,
+                    severity,
+                    "switch discriminant is NaN",
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("switch cases are compared with `===`, so this never matches"),
+            );
+        }
+    }
+
+    // switch `case NaN` selector can never match
+    for case_id in cases {
+        let selector = match_case_selector(ctx.tree.get(*case_id));
+        let Some(selector_expression_id) = match_selector_expression_id(ctx, selector) else {
+            continue;
+        };
+        if !is_nan_identifier(ctx, selector_expression_id) {
+            continue;
+        }
+
+        let severity = ctx.get_effective_severity(meta, selector_expression_id);
+        if !severity.is_enabled() {
+            continue;
+        }
+
+        let span = ctx.tree.get_span(selector_expression_id);
+        ctx.report(
+            LintDiagnostic::new(
                 USE_ISNAN.id,
                 USE_ISNAN.code,
                 USE_ISNAN.category,
                 severity,
-                "comparison with NaN is always false",
+                "switch case compares with NaN",
                 ctx.module.file_id,
-                expression_span,
+                span,
             )
-            .with_label("use Number.isNaN() instead");
-
-            // construct fix for equality operators only
-            if let Some(fix) =
-                make_isnan_fix(ctx, *left, *right, *operator, left_is_nan, expression_span)
-            {
-                diagnostic = diagnostic.with_fix(fix);
-            }
-
-            ctx.report(diagnostic);
-        }
+            .with_label("switch cases are compared with `===`, so this case never matches"),
+        );
     }
 }
 
@@ -102,26 +184,45 @@ fn is_nan_identifier(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expr_id);
-
     match expression {
-        // simple identifier: NaN
-        Expression::Path {
-            path,
-            static_arguments: None,
-        } => {
-            if path.segments.len() == 1 {
-                let name = ctx.strings.get(path.segments[0]);
-                return name.as_ref() == "NaN";
+        // unwrap parenthesized expressions before matching
+        Expression::Parenthesized { expression } => is_nan_identifier(ctx, *expression),
+
+        // handle sequence expressions by checking the last evaluated value
+        Expression::SequenceExpression { expressions } => expressions
+            .last()
+            .is_some_and(|expression_id| is_nan_identifier(ctx, *expression_id)),
+
+        // check path forms: NaN or Number.NaN
+        Expression::Path { .. } => {
+            let Some(segments) = expression_path_segments(ctx.tree, expr_id) else {
+                return false;
+            };
+            if segments.as_slice().len() == 1 {
+                return ctx.strings.get(segments[0]).as_ref() == "NaN";
             }
-            // Number.NaN
-            if path.segments.len() == 2 {
-                let first = ctx.strings.get(path.segments[0]);
-                let second = ctx.strings.get(path.segments[1]);
+            if segments.as_slice().len() == 2 {
+                let first = ctx.strings.get(segments[0]);
+                let second = ctx.strings.get(segments[1]);
                 return first.as_ref() == "Number" && second.as_ref() == "NaN";
             }
+
             false
         }
         _ => false,
+    }
+}
+
+/// Return a diagnostic message matching the NaN comparison operator semantics.
+fn comparison_message(operator: BinaryOperator) -> &'static str {
+    match operator {
+        BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict => {
+            "comparison with NaN is always true"
+        }
+        BinaryOperator::Equal | BinaryOperator::EqualStrict => {
+            "comparison with NaN is always false"
+        }
+        _ => "comparison with NaN is always false",
     }
 }
 
@@ -239,6 +340,79 @@ if (x === Number.NaN) {}
 "#,
         );
         test.result(result).assert_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_detects_nan_switch_discriminant() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
+        let result = test.lint_ast(
+            "use_isnan/test_detects_nan_switch_discriminant.ds",
+            r#"
+switch (NaN) {
+    case 1: break
+    default: break
+}
+"#,
+        );
+        test.result(result).assert_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_detects_nan_switch_case_selector() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
+        let result = test.lint_ast(
+            "use_isnan/test_detects_nan_switch_case_selector.ds",
+            r#"
+let x = 1.0
+switch (x) {
+    case NaN: break
+    default: break
+}
+"#,
+        );
+        test.result(result).assert_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_allows_normal_switch_cases() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
+        let result = test.lint_ast(
+            "use_isnan/test_allows_normal_switch_cases.ds",
+            r#"
+let x = 1.0
+switch (x) {
+    case 1.0: break
+    default: break
+}
+"#,
+        );
+        test.result(result).assert_no_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_detects_sequence_expression_nan() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
+        let result = test.lint_ast(
+            "use_isnan/test_detects_sequence_expression_nan.ts",
+            r#"
+let x = 1.0;
+if (x === (0, NaN)) {}
+"#,
+        );
+        test.result(result).assert_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_allows_sequence_expression_without_nan_result() {
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
+        let result = test.lint_ast(
+            "use_isnan/test_allows_sequence_expression_without_nan_result.ts",
+            r#"
+let x = 1.0;
+if (x === (NaN, 0)) {}
+"#,
+        );
+        test.result(result).assert_no_lint("use-isnan");
     }
 
     #[test]

@@ -313,7 +313,8 @@ let value: float64 = read();
 let isZero = value == 0.0;
 "#,
         );
-        test.result(result).assert_no_lint("no-floating-point-equality");
+        test.result(result)
+            .assert_no_lint("no-floating-point-equality");
     }
 
     #[test]
@@ -327,6 +328,7 @@ let right: float64 = getRight();
 let sameSign = left.signum() == right.signum();
 "#,
         );
-        test.result(result).assert_no_lint("no-floating-point-equality");
+        test.result(result)
+            .assert_no_lint("no-floating-point-equality");
     }
 }
