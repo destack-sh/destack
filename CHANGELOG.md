@@ -8,6 +8,7 @@ Entries are generated from conventional commit history during release preparatio
 _Changes since v0.50.0._
 
 ### Features
+- feat(app/cli): add release manifest for updater metadata
 - feat(dev(all)): unify multi-registry publish flow and live entrypoints
 - feat(bridge): scaffold runtime clients with core/capi
 - feat(language/runtime/platform): extend win32 display backend
@@ -32,8 +33,7 @@ _Changes since v0.50.0._
 - feat(language/runtime/crypto): support basic software/hardware backed crypto bindings
 - feat(language/runtime): implement basic macos crypto backend, scaffold other hosts
 - feat(language/formatter): parenthesize extends expressions in declaration
-- feat(language/formatter): parenthesize super expressions in declaration
-- ... and 344 more
+- ... and 345 more
 
 ### Fixes
 - fix(bridge): use modern pub.dev credentials path for dart publish
@@ -146,6 +146,9 @@ _Changes since v0.50.0._
 - ... and 61 more
 
 ### Chores
+- dev(all): simplify release commands and add release-push
+- chore(all): sync Cargo.lock with 0.55.4 workspace versions
+- dev(all): automate tag gated release validation and changelog
 - chore(all): bump version to 0.55.4
 - dev(all): align version tooling and publish auth
 - chore(language): regenerate dsconfig schema
@@ -168,10 +171,7 @@ _Changes since v0.50.0._
 - chore(all): update READMEs
 - chore(all): update READMEs
 - chore(all): update READMEs
-- chore(language/mir): scaffold more explicit itab/vtable storage
-- chore(language/runtime): scaffold display backends
-- chore(language/runtime): normalize unix tty numeric projections
-- ... and 498 more
+- ... and 501 more
 
 ### Other
 - ci(all): setup cross-platform targets
