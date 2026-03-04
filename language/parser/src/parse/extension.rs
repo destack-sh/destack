@@ -110,7 +110,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType,
+        Argument, Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType, Member,
         Parameter, TypeLiteral, WhereClause,
     };
     use destack_source::NodeSpanType;
@@ -431,6 +431,47 @@ extension for Foo where Guard: Limit {
             // Foo target_type
             assert_node!(parser.tree, *target_type, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_extension_method_with_explicit_this_parameter() {
+        let mut test = TestParser::new(
+            r###"
+extension<T> for Slice<T> {
+    indexSet(this: &Slice<T>, i: number, value: T): void {
+        undefined!;
+    }
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let extension_id = parser
+            .eat_extension(&start, DeclarationDescriptor::default())
+            .unwrap();
+
+        assert_node!(parser.tree, extension_id, Declaration::Extension { members, .. } => {
+            assert_eq!(members.len(), 1);
+            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                assert!(signature.this_parameter.is_some());
+                assert_eq!(signature.dynamic_parameters.len(), 2);
+
+                let this_parameter_id = signature.this_parameter.expect("expected explicit this parameter");
+                assert_node!(parser.tree, this_parameter_id, Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "this");
+                    assert!(ty.is_some());
+                });
+
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+                    assert_string!(parser, *name, "i");
+                });
+                assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { name, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
             });
         });
     }

@@ -4514,6 +4514,87 @@ fn test_parse_precedence_cast_before_comparison() {
     );
 }
 
+/// Parse parenthesized casts on the right side of comparisons in Destack.
+#[test]
+fn test_parse_destack_parenthesized_cast_in_comparison_right_side() {
+    let mut test = TestParser::new("i >= (this.length as number)");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // i >= (this.length as number)
+    assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
+            assert_expression_path!(parser, parser.tree.get(*left), "i");
+            assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+                assert_node!(
+                    parser.tree,
+                    *expression,
+                    Expression::TypeBinary { left, operator, right } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                            assert_node!(parser.tree, *left, Expression::This);
+                            assert_string!(parser, *name, "length");
+                        });
+                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+                    }
+                );
+            });
+        }
+    );
+}
+
+/// Parse logical-or expressions that compare against a parenthesized cast in Destack.
+#[test]
+fn test_parse_destack_logical_or_with_parenthesized_cast_comparison() {
+    let mut test = TestParser::new("i < 0 || i >= (this.length as number)");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // i < 0 || i >= (this.length as number)
+    assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::Or);
+
+            // i < 0
+            assert_node!(parser.tree, *left, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::LessThan);
+            });
+
+            // i >= (this.length as number)
+            assert_node!(parser.tree, *right, Expression::Binary { operator, right, .. } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
+                assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                    });
+                });
+            });
+        }
+    );
+}
+
+/// Parse if statements with parenthesized cast comparisons in the condition.
+#[test]
+fn test_parse_destack_if_condition_with_parenthesized_cast_comparison() {
+    let mut test =
+        TestParser::new("if (i < 0 || i >= (this.length as number)) {\n  undefined!;\n}");
+    let mut parser = test.prepare();
+    let _ = parser.parse();
+
+    // this shape should parse without parser diagnostics
+    let has_parse_error = parser
+        .diagnostics
+        .iter()
+        .into_iter()
+        .any(|diagnostic| diagnostic.code.starts_with("EP"));
+    assert!(!has_parse_error);
+}
+
 /// Addition has higher precedence than elementwise or.
 #[test]
 fn test_parse_precedence_elementwise_vs_addition() {

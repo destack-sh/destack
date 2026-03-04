@@ -723,7 +723,6 @@ impl Parser {
                 // eat right expression
                 let subject_id = left_expression_id;
                 let mut right_options = self.options;
-                right_options.set_in_parenthesis(false);
                 right_options.set_in_statement_position(false);
                 right_options.set_in_type_conditional_right(false);
                 right_options.left_precedence = Some(right_operator.precedence());
@@ -734,6 +733,12 @@ impl Parser {
                             TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
                         )
                     );
+
+                // cast and satisfies in parenthesized value expressions need
+                // the parenthesis flag so the type right side can stop at `)`
+                if !parses_value_type_operator_right {
+                    right_options.set_in_parenthesis(false);
+                }
 
                 // type operators in value expressions parse a full type expression on the right
                 if !self.options.is_in_type()
