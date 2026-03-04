@@ -466,6 +466,7 @@ jobs:
       - package-cli-artifacts
       - smoke-install-windows
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment: release
     permissions:
       contents: write
     steps:
@@ -486,6 +487,60 @@ jobs:
           name: release-cli-assets-${{ github.sha }}
           path: release-cli-assets
 
+      - name: Validate release signing configuration
+        run: |
+          if [ -z "${RELEASE_GPG_PRIVATE_KEY}" ]; then
+            echo "missing RELEASE_GPG_PRIVATE_KEY secret"
+            exit 1
+          fi
+          if [ -z "${RELEASE_GPG_PASSPHRASE}" ]; then
+            echo "missing RELEASE_GPG_PASSPHRASE secret"
+            exit 1
+          fi
+          if [ -z "${RELEASE_GPG_KEY_ID}" ]; then
+            echo "missing RELEASE_GPG_KEY_ID variable"
+            exit 1
+          fi
+        env:
+          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+          RELEASE_GPG_KEY_ID: ${{ vars.RELEASE_GPG_KEY_ID }}
+
+      - name: Import release signing key
+        run: |
+          printf '%s\n' "${RELEASE_GPG_PRIVATE_KEY}" > release-signing.key.asc
+          gpg --batch --import release-signing.key.asc
+          rm -f release-signing.key.asc
+        env:
+          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+
+      - name: Sign release integrity files
+        run: |
+          if [ ! -f "release-cli-assets/SHA256SUMS" ]; then
+            echo "missing release-cli-assets/SHA256SUMS"
+            exit 1
+          fi
+          if [ ! -f "release-cli-assets/manifest.json" ]; then
+            echo "missing release-cli-assets/manifest.json"
+            exit 1
+          fi
+          if [ ! -f "app/cli/install/install.sh" ]; then
+            echo "missing app/cli/install/install.sh"
+            exit 1
+          fi
+          if [ ! -f "app/cli/install/install.ps1" ]; then
+            echo "missing app/cli/install/install.ps1"
+            exit 1
+          fi
+
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${RELEASE_GPG_PASSPHRASE}" --local-user "${RELEASE_GPG_KEY_ID}" --armor --detach-sign --output release-cli-assets/SHA256SUMS.asc release-cli-assets/SHA256SUMS
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${RELEASE_GPG_PASSPHRASE}" --local-user "${RELEASE_GPG_KEY_ID}" --armor --detach-sign --output release-cli-assets/manifest.json.asc release-cli-assets/manifest.json
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${RELEASE_GPG_PASSPHRASE}" --local-user "${RELEASE_GPG_KEY_ID}" --armor --detach-sign --output release-cli-assets/install.sh.asc app/cli/install/install.sh
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${RELEASE_GPG_PASSPHRASE}" --local-user "${RELEASE_GPG_KEY_ID}" --armor --detach-sign --output release-cli-assets/install.ps1.asc app/cli/install/install.ps1
+        env:
+          RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+          RELEASE_GPG_KEY_ID: ${{ vars.RELEASE_GPG_KEY_ID }}
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
@@ -495,6 +550,7 @@ jobs:
             release-cli-assets/*
             app/cli/install/install.sh
             app/cli/install/install.ps1
+            app/cli/install/release-signing-public.asc
 
   publish-packages:
     name: Publish Packages
@@ -504,6 +560,7 @@ jobs:
       - build-artifacts
       - package-cli-artifacts
       - smoke-install-windows
+      - create-release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     environment: release
     permissions:
@@ -537,7 +594,6 @@ jobs:
           ruby-version: "3.4"
 
       - name: Setup Dart for pub.dev OIDC
-        if: vars.PUB_DEV_USE_OIDC == 'true'
         uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c
 
       - name: Download cli release assets
@@ -545,6 +601,27 @@ jobs:
         with:
           name: release-cli-assets-${{ github.sha }}
           path: release-cli-assets
+
+      - name: Download detached release signatures
+        run: |
+          release_download_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          curl --fail --location --silent --show-error "${release_download_base}/SHA256SUMS.asc" --output "release-cli-assets/SHA256SUMS.asc"
+          curl --fail --location --silent --show-error "${release_download_base}/manifest.json.asc" --output "release-cli-assets/manifest.json.asc"
+          curl --fail --location --silent --show-error "${release_download_base}/install.sh.asc" --output "release-cli-assets/install.sh.asc"
+          curl --fail --location --silent --show-error "${release_download_base}/install.ps1.asc" --output "release-cli-assets/install.ps1.asc"
+
+      - name: Verify detached release signatures
+        run: |
+          export GNUPGHOME
+          GNUPGHOME="$(mktemp -d)"
+          chmod 700 "${GNUPGHOME}"
+          trap 'rm -rf "${GNUPGHOME}"' EXIT
+
+          gpg --batch --import app/cli/install/release-signing-public.asc
+          gpg --batch --verify release-cli-assets/SHA256SUMS.asc release-cli-assets/SHA256SUMS
+          gpg --batch --verify release-cli-assets/manifest.json.asc release-cli-assets/manifest.json
+          gpg --batch --verify release-cli-assets/install.sh.asc app/cli/install/install.sh
+          gpg --batch --verify release-cli-assets/install.ps1.asc app/cli/install/install.ps1
 
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
@@ -590,33 +667,13 @@ jobs:
             exit 1
           fi
 
-          if [ "${NPM_USE_TRUSTED_PUBLISHING}" != "true" ] && [ -z "${NPM_TOKEN}" ]; then
-            echo "missing npm auth: set NPM_TOKEN or enable NPM_USE_TRUSTED_PUBLISHING=true"
+          if [ -z "${NUGET_PUBLISH_USERNAME}" ]; then
+            echo "missing NUGET_PUBLISH_USERNAME variable"
             exit 1
           fi
 
-          if [ "${NUGET_USE_TRUSTED_PUBLISHING}" = "true" ]; then
-            if [ -z "${NUGET_PUBLISH_USERNAME}" ]; then
-              echo "missing NUGET_PUBLISH_USERNAME variable for trusted nuget publishing"
-              exit 1
-            fi
-          elif [ -z "${NUGET_API_KEY}" ]; then
-            echo "missing NUGET_API_KEY secret"
-            exit 1
-          fi
-
-          if [ "${RUBYGEMS_USE_TRUSTED_PUBLISHING}" = "true" ]; then
-            if [ -z "${RUBYGEMS_OIDC_ROLE}" ]; then
-              echo "missing RUBYGEMS_OIDC_ROLE variable for trusted rubygems publishing"
-              exit 1
-            fi
-          elif [ -z "${RUBYGEMS_API_KEY}" ]; then
-            echo "missing RUBYGEMS_API_KEY secret"
-            exit 1
-          fi
-
-          if [ "${PUB_DEV_USE_OIDC}" != "true" ] && [ -z "${PUB_DEV_CREDENTIALS_JSON}" ]; then
-            echo "missing pub.dev auth: set PUB_DEV_CREDENTIALS_JSON or enable PUB_DEV_USE_OIDC=true"
+          if [ -z "${RUBYGEMS_OIDC_ROLE}" ]; then
+            echo "missing RUBYGEMS_OIDC_ROLE variable"
             exit 1
           fi
 
@@ -631,44 +688,27 @@ jobs:
             fi
           fi
         env:
-          NPM_USE_TRUSTED_PUBLISHING: ${{ vars.NPM_USE_TRUSTED_PUBLISHING }}
-          NUGET_USE_TRUSTED_PUBLISHING: ${{ vars.NUGET_USE_TRUSTED_PUBLISHING }}
           NUGET_PUBLISH_USERNAME: ${{ vars.NUGET_PUBLISH_USERNAME }}
-          RUBYGEMS_USE_TRUSTED_PUBLISHING: ${{ vars.RUBYGEMS_USE_TRUSTED_PUBLISHING }}
           RUBYGEMS_OIDC_ROLE: ${{ vars.RUBYGEMS_OIDC_ROLE }}
-          PUB_DEV_USE_OIDC: ${{ vars.PUB_DEV_USE_OIDC }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           MAVEN_REPOSITORY_USERNAME: ${{ secrets.MAVEN_REPOSITORY_USERNAME }}
           MAVEN_REPOSITORY_PASSWORD: ${{ secrets.MAVEN_REPOSITORY_PASSWORD }}
           MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
           MAVEN_GPG_KEY_ID: ${{ vars.MAVEN_GPG_KEY_ID }}
-          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-          PUB_DEV_CREDENTIALS_JSON: ${{ secrets.PUB_DEV_CREDENTIALS_JSON }}
           PUBLISH_ZED: ${{ vars.RELEASE_PUBLISH_ZED }}
           ZED_GITHUB_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}
           ZED_REGISTRY_PUSH_TO: ${{ vars.ZED_REGISTRY_PUSH_TO }}
 
-      - name: Configure npm token authentication
-        if: vars.NPM_USE_TRUSTED_PUBLISHING != 'true'
-        run: |
-          printf '%s\n' "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Login to NuGet with OIDC
-        if: vars.NUGET_USE_TRUSTED_PUBLISHING == 'true'
         id: nuget-login
         uses: NuGet/login@d22cc5f58ff5b88bf9bd452535b4335137e24544
         with:
           user: ${{ vars.NUGET_PUBLISH_USERNAME }}
 
       - name: Configure RubyGems credentials with OIDC
-        if: vars.RUBYGEMS_USE_TRUSTED_PUBLISHING == 'true'
         uses: rubygems/configure-rubygems-credentials@bc6dd217f8a4f919d6835fcfefd470ef821f5c44
         with:
           role-to-assume: ${{ vars.RUBYGEMS_OIDC_ROLE }}
@@ -682,9 +722,7 @@ jobs:
           just bridge/publish-bun ""
           just bridge/publish-vite ""
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
-          DESTACK_NPM_TRUSTED_PUBLISHING: ${{ vars.NPM_USE_TRUSTED_PUBLISHING }}
 
       - name: Publish Cargo packages
         run: just bridge/publish-cargo ""
@@ -694,7 +732,7 @@ jobs:
       - name: Publish NuGet package
         run: just bridge/publish-nuget ""
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
           NUGET_OIDC_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
 
       - name: Publish Maven package
@@ -708,8 +746,6 @@ jobs:
 
       - name: Publish Ruby gem
         run: just bridge/publish-rubygems ""
-        env:
-          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
 
       - name: Publish Hex package
         run: just bridge/publish-hex ""
@@ -717,16 +753,9 @@ jobs:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
 
       - name: Publish pub.dev package with OIDC
-        if: vars.PUB_DEV_USE_OIDC == 'true'
         run: just bridge/publish-pub ""
         env:
           DESTACK_PUB_USE_OIDC: "1"
-
-      - name: Publish pub.dev package with credentials
-        if: vars.PUB_DEV_USE_OIDC != 'true'
-        run: just bridge/publish-pub ""
-        env:
-          PUB_DEV_CREDENTIALS_JSON: ${{ secrets.PUB_DEV_CREDENTIALS_JSON }}
 
       - name: Build PyPI distributions
         run: |
