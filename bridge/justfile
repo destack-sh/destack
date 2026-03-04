@@ -356,12 +356,24 @@ publish-pub dry="--dry-run":
     @if [ "{{dry}}" = "--dry-run" ]; then \
         (cd dart && dart pub publish --dry-run); \
     else \
-        if [ -n "${PUB_DEV_CREDENTIALS_JSON:-}" ]; then \
-            mkdir -p "${HOME}/.pub-cache"; \
-            printf '%s' "${PUB_DEV_CREDENTIALS_JSON}" > "${HOME}/.pub-cache/credentials.json"; \
+        pub_credentials_path=""; \
+        if [ -n "${XDG_CONFIG_HOME:-}" ]; then \
+            pub_credentials_path="${XDG_CONFIG_HOME}/dart/pub-credentials.json"; \
+        else \
+            pub_credentials_path="${HOME}/.config/dart/pub-credentials.json"; \
         fi; \
-        if [ ! -f "${HOME}/.pub-cache/credentials.json" ]; then \
-            echo "missing pub.dev credentials, set PUB_DEV_CREDENTIALS_JSON or run dart pub token add"; \
+        if [ "$(uname -s)" = "Darwin" ]; then \
+            pub_credentials_path="${HOME}/Library/Application Support/dart/pub-credentials.json"; \
+        fi; \
+        if [ -n "${PUB_DEV_CREDENTIALS_JSON:-}" ]; then \
+            mkdir -p "$(dirname "${pub_credentials_path}")"; \
+            printf '%s' "${PUB_DEV_CREDENTIALS_JSON}" > "${pub_credentials_path}"; \
+        fi; \
+        if [ ! -f "${pub_credentials_path}" ] && [ -f "${HOME}/.pub-cache/credentials.json" ]; then \
+            pub_credentials_path="${HOME}/.pub-cache/credentials.json"; \
+        fi; \
+        if [ ! -f "${pub_credentials_path}" ]; then \
+            echo "missing pub.dev credentials, set PUB_DEV_CREDENTIALS_JSON or run dart pub login"; \
             exit 1; \
         fi; \
         (cd dart && dart pub publish --force); \
