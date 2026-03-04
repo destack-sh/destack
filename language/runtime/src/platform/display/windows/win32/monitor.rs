@@ -1201,7 +1201,7 @@ pub(crate) unsafe fn monitor_set_mode(
         event::publish_mode_changed_event(context, &id, mode);
     }
 
-    event::refresh_monitor_topology_cache(context);
+    event::refresh_monitor_topology_cache(context)?;
     Ok(())
 }
 
@@ -1250,6 +1250,12 @@ pub(crate) unsafe fn monitor_set_hdr_mode(
     handle: resource::DisplayHandle,
     mode: DisplayHdrMode,
 ) -> RuntimeResult<()> {
+    let id = display_resource::resolve_display_id(
+        context,
+        handle,
+        "destack.display.monitor.setHdrMode",
+    )?;
+
     if mode == DisplayHdrMode::Unknown {
         return Err(core_platform::invalid_argument(
             "mode",
@@ -1257,19 +1263,12 @@ pub(crate) unsafe fn monitor_set_hdr_mode(
         ));
     }
     if mode == DisplayHdrMode::System {
-        return Err(core_platform::not_supported(
-            "destack.display.monitor.setHdrMode",
-        ));
+        return Ok(());
     }
 
-    let id = display_resource::resolve_display_id(
-        context,
-        handle,
-        "destack.display.monitor.setHdrMode",
-    )?;
     let enable_hdr = mode == DisplayHdrMode::Hdr;
     set_monitor_hdr_enabled_by_id(&id, enable_hdr, "destack.display.monitor.setHdrMode")?;
-    event::refresh_monitor_topology_cache(context);
+    event::refresh_monitor_topology_cache(context)?;
 
     Ok(())
 }

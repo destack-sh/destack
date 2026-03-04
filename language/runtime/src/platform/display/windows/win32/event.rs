@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
-use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
     DisplayAddedEvent, DisplayAddedPayload, DisplayBackend, DisplayDescriptorChangedEvent,
     DisplayDescriptorChangedPayload, DisplayEventOverflowPolicy, DisplayMetricChangedMask,
@@ -760,24 +760,21 @@ pub(crate) struct DisplayEventRuntimeState {
     monitor_topology_snapshot: Mutex<Option<Vec<MonitorSnapshot>>>,
     /// Event subscriber list for window-event streams.
     window_event_registry: Mutex<Vec<Weak<WindowEventBinding>>>,
-    /// Runtime diagnostics store for callback and best-effort lanes.
-    diagnostics: Arc<AgentDiagnosticStore>,
 }
 
 impl Default for DisplayEventRuntimeState {
     fn default() -> Self {
-        Self::new(Arc::new(AgentDiagnosticStore::default()))
+        Self::new()
     }
 }
 
 impl DisplayEventRuntimeState {
-    /// Create one display-event runtime state with explicit diagnostics storage.
-    fn new(diagnostics: Arc<AgentDiagnosticStore>) -> Self {
+    /// Create one display-event runtime state.
+    fn new() -> Self {
         Self {
             monitor_event_registry: Mutex::new(Vec::new()),
             monitor_topology_snapshot: Mutex::new(None),
             window_event_registry: Mutex::new(Vec::new()),
-            diagnostics,
         }
     }
 }
@@ -786,12 +783,11 @@ impl DisplayEventRuntimeState {
 pub(super) fn display_event_runtime_state(
     context: &BindingCallContext,
 ) -> Arc<DisplayEventRuntimeState> {
-    let diagnostics = Arc::clone(&context.runtime().diagnostic);
     context
         .runtime()
         .platform_state
         .display
-        .display_event_runtime_state(|| DisplayEventRuntimeState::new(diagnostics))
+        .display_event_runtime_state(DisplayEventRuntimeState::new)
 }
 
 #[path = "codec.rs"]
@@ -819,7 +815,7 @@ mod tests {
         WindowEventRecordKind, WindowEventState, display_event_record, monitor_topology_records,
         publish_monitor_event, publish_window_drop_cancelled_event,
         publish_window_drop_completed_event, publish_window_drop_started_event,
-        publish_window_file_dropped_event,
+        publish_window_file_dropped_event, publish_window_text_dropped_event,
     };
     use crate::platform::display::{
         DisplayBackend, DisplayEventOverflowPolicy, DisplayMode, DisplayOrientation,
@@ -1077,6 +1073,33 @@ mod tests {
         ));
     }
 
+    /// Text-drop publisher should preserve text payload and position metadata.
+    #[test]
+    fn test_text_drop_publisher_preserves_text_and_position_payloads() {
+        let (runtime_state, binding, window) = subscribed_window_stream();
+        let text_payload = String::from("dropped-text");
+        let position = Some(WindowPosition { x: 640, y: 480 });
+
+        publish_window_text_dropped_event(&runtime_state, window, text_payload.clone(), position);
+
+        let mut state = binding
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let record = state
+            .pending
+            .pop_front()
+            .expect("missing textDropped record");
+        assert!(matches!(
+            record.kind,
+            WindowEventRecordKind::TextDropped {
+                window: value,
+                text,
+                position: payload_position,
+            } if value == window && text == text_payload && payload_position == position
+        ));
+    }
+
     /// Window-event filters should restrict delivery to one target window.
     #[test]
     fn test_window_event_filter_restricts_window_handle() {
@@ -1122,6 +1145,38 @@ mod tests {
         assert!(matches!(
             state.pending.pop_front().map(|value| value.kind),
             Some(WindowEventRecordKind::DropStarted { window: value }) if value == window
+        ));
+    }
+
+    /// Window-event kind filters should route only text-dropped records.
+    #[test]
+    fn test_window_event_filter_accepts_text_dropped_kind() {
+        let (runtime_state, binding, window) =
+            subscribed_window_stream_with_filter(WindowEventFilterState {
+                window: None,
+                kind_mask: Some(super::core::WINDOW_EVENT_KIND_TEXT_DROPPED),
+            });
+
+        publish_window_drop_started_event(&runtime_state, window);
+        publish_window_text_dropped_event(
+            &runtime_state,
+            window,
+            String::from("accepted-text"),
+            Some(WindowPosition { x: 11, y: 22 }),
+        );
+
+        let mut state = binding
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        assert_eq!(state.pending.len(), 1);
+        assert!(matches!(
+            state.pending.pop_front().map(|value| value.kind),
+            Some(WindowEventRecordKind::TextDropped {
+                window: value,
+                text,
+                position: Some(WindowPosition { x: 11, y: 22 })
+            }) if value == window && text == "accepted-text"
         ));
     }
 

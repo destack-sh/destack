@@ -77,6 +77,7 @@ pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCap
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY.0,
     )
