@@ -3,7 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_is_promise_like, expression_unwrap_parenthesized};
+use crate::rules::common::{
+    expression_is_promise_like, expression_unwrap_parenthesized, is_function_type,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -107,6 +109,23 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             return self.is_promise_expression(*right);
         }
 
+        // follow Promise handler chains through member receivers
+        if let dir::Expression::Call { left, .. } = expression {
+            let left_id = expression_unwrap_parenthesized(self.ctx.tree, *left);
+            let left_expression = self.ctx.tree.get(left_id);
+            if let dir::Expression::Member {
+                left: receiver,
+                name,
+                ..
+            } = left_expression
+                && (*name == self.then_name
+                    || *name == self.catch_name
+                    || *name == self.finally_name)
+            {
+                return self.is_promise_expression(*receiver);
+            }
+        }
+
         expression_is_promise_like(
             self.ctx.module_id(),
             self.ctx.tree,
@@ -120,7 +139,12 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
     fn is_handler_call(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
         let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Call { left, .. } = expression else {
+        let dir::Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        else {
             return false;
         };
 
@@ -130,7 +154,26 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             return false;
         };
 
-        *name == self.then_name || *name == self.catch_name || *name == self.finally_name
+        // `.catch(...)` and `.finally(...)` always handle rejection paths
+        if *name == self.catch_name || *name == self.finally_name {
+            return true;
+        }
+
+        // `.then(...)` only handles rejection when a function rejection handler is provided
+        if *name != self.then_name {
+            return false;
+        }
+
+        let Some(second_argument_id) = dynamic_arguments.get(1) else {
+            return false;
+        };
+        let second_argument = self.ctx.tree.get(*second_argument_id);
+        let handler_id = second_argument.value();
+        let Some(handler_type_id) = self.ctx.expression_type_id(handler_id) else {
+            return false;
+        };
+
+        is_function_type(self.ctx.types, handler_type_id)
     }
 
     /// Return true when the Promise expression is handled.
@@ -312,10 +355,10 @@ load().catch(() => {});
     }
 
     #[test]
-    fn test_allows_then_handler_chain() {
+    fn test_flags_then_without_rejection_handler() {
         let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
         let result = test.lint_dir(
-            "no_floating_promises/test_allows_then_handler_chain.ts",
+            "no_floating_promises/test_flags_then_without_rejection_handler.ts",
             r#"
 async function load(): Promise<number> {
     return 1;
@@ -324,7 +367,45 @@ async function load(): Promise<number> {
 load().then(() => {});
 "#,
         );
+        test.result(result).assert_lint("no-floating-promises");
+    }
+
+    #[test]
+    fn test_allows_then_with_rejection_handler() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
+        let result = test.lint_dir(
+            "no_floating_promises/test_allows_then_with_rejection_handler.ts",
+            r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+load().then(
+    () => {},
+    () => {}
+);
+"#,
+        );
         test.result(result).assert_no_lint("no-floating-promises");
+    }
+
+    #[test]
+    fn test_flags_then_with_non_function_rejection_handler() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPromises);
+        let result = test.lint_dir(
+            "no_floating_promises/test_flags_then_with_non_function_rejection_handler.ts",
+            r#"
+async function load(): Promise<number> {
+    return 1;
+}
+
+load().then(
+    () => {},
+    123
+);
+"#,
+        );
+        test.result(result).assert_lint("no-floating-promises");
     }
 
     #[test]
