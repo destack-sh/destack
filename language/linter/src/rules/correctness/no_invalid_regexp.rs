@@ -1,6 +1,13 @@
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
-use destack_ast::{self as ast, Expression, ScalarLiteral};
+use std::collections::HashSet;
+
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
+
+use crate::rules::common::ast_regex_pattern_info;
+use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+
+/// The set of accepted JavaScript regular expression flags.
+const VALID_REGEX_FLAGS: [char; 8] = ['d', 'g', 'i', 'm', 's', 'u', 'v', 'y'];
 
 declare_lint! {
     /// Disallow invalid regular expression strings.
@@ -29,31 +36,57 @@ impl LintRule for NoInvalidRegexp {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
+        let regexp_name = ctx.strings.intern("RegExp");
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            // check regex literals
-            let expression = ctx.tree.get(node_id);
-            let Expression::ScalarLiteral(ScalarLiteral::RegexString { content, .. }) = expression
-            else {
+            // resolve regex literal or constructor pattern info
+            let Some(pattern_info) = ast_regex_pattern_info(ctx.tree, node_id, regexp_name) else {
                 continue;
             };
 
-            let parse = ctx.regex_parse(*content);
-            let Some(error) = parse.error.as_ref() else {
+            // report invalid flags when statically known
+            if let Some(flags_id) = pattern_info.flags_id
+                && let Some(flags_error) = invalid_regex_flags(ctx.strings.get(flags_id).as_ref())
+            {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                ctx.report(
+                    LintDiagnostic::new(
+                        NO_INVALID_REGEXP.id,
+                        NO_INVALID_REGEXP.code,
+                        NO_INVALID_REGEXP.category,
+                        severity,
+                        format!("invalid regular expression flags: {flags_error}"),
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("this regex flag set is invalid"),
+                );
+
+                continue;
+            }
+
+            // report invalid regex pattern parse errors
+            let parse = ctx.regex_parse(pattern_info.pattern_id);
+            let Some(parse_error) = parse.error.as_ref() else {
                 continue;
             };
-            let parse_error = &error.message;
+
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
             }
+
             ctx.report(
                 LintDiagnostic::new(
                     NO_INVALID_REGEXP.id,
                     NO_INVALID_REGEXP.code,
                     NO_INVALID_REGEXP.category,
                     severity,
-                    format!("invalid regular expression: {parse_error}"),
+                    format!("invalid regular expression: {}", parse_error.message),
                     ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
@@ -61,6 +94,30 @@ impl LintRule for NoInvalidRegexp {
             );
         }
     }
+}
+
+/// Return one invalid regex flag reason, if present.
+fn invalid_regex_flags(flags: &str) -> Option<String> {
+    // track seen flags for duplicate detection
+    let mut seen_flags = HashSet::new();
+    for flag in flags.chars() {
+        // reject unknown flags
+        if !VALID_REGEX_FLAGS.contains(&flag) {
+            return Some(format!("unknown flag `{flag}`"));
+        }
+
+        // reject duplicate flags
+        if !seen_flags.insert(flag) {
+            return Some(format!("duplicate flag `{flag}`"));
+        }
+    }
+
+    // reject mutually exclusive unicode modes
+    if seen_flags.contains(&'u') && seen_flags.contains(&'v') {
+        return Some("flags `u` and `v` are mutually exclusive".to_string());
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -139,5 +196,42 @@ let re = /a{3,1}/
 "#,
         );
         test.result(result).assert_lint("no-invalid-regexp");
+    }
+
+    #[test]
+    fn test_detects_invalid_regexp_constructor_pattern() {
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
+        let result = test.lint_ast(
+            "no_invalid_regexp/test_detects_invalid_regexp_constructor_pattern.ds",
+            r#"
+let re = RegExp("(")
+"#,
+        );
+        test.result(result).assert_lint("no-invalid-regexp");
+    }
+
+    #[test]
+    fn test_detects_invalid_regexp_constructor_flags() {
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
+        let result = test.lint_ast(
+            "no_invalid_regexp/test_detects_invalid_regexp_constructor_flags.ds",
+            r#"
+let re = new RegExp("ok", "gg")
+"#,
+        );
+        test.result(result).assert_lint("no-invalid-regexp");
+    }
+
+    #[test]
+    fn test_allows_regexp_constructor_with_unknown_flags_expression() {
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
+        let result = test.lint_ast(
+            "no_invalid_regexp/test_allows_regexp_constructor_with_unknown_flags_expression.ds",
+            r#"
+let flags = "g";
+let re = RegExp("ok", flags)
+"#,
+        );
+        test.result(result).assert_no_lint("no-invalid-regexp");
     }
 }
