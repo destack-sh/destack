@@ -199,7 +199,7 @@ fn should_skip_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linter::TestProgram;
+    use crate::{LintLevel, linter::TestProgram};
 
     /// Flag calls to deprecated functions.
     #[test]
@@ -286,7 +286,73 @@ legacy();
         test.analyze_module(user_module);
         test.compile();
 
-        let result = test.lint_module(user_module, crate::LintLevel::Dir);
+        let result = test.lint_module(user_module, LintLevel::Dir);
+        test.result(result).assert_lint("no-deprecated");
+    }
+
+    /// Flag aliased imports of deprecated symbols.
+    #[test]
+    fn test_flags_aliased_deprecated_import_usage() {
+        let test = TestProgram::for_rule_with_prelude(NoDeprecated);
+        let legacy_module = test.add_module(
+            "no_deprecated/aliased_legacy.ds",
+            r#"
+@deprecated("use stable()")
+export function legacy(): int32 {
+    return 1;
+}
+"#,
+        );
+        let user_module = test.add_module(
+            "no_deprecated/aliased_user.ds",
+            r#"
+import { legacy as renamedLegacy } from "./aliased_legacy.ds"
+
+renamedLegacy();
+"#,
+        );
+
+        test.import_module(legacy_module);
+        test.import_module(user_module);
+        test.enqueue_profile_resolution_once();
+        test.analyze_module(legacy_module);
+        test.analyze_module(user_module);
+        test.compile();
+
+        let result = test.lint_module(user_module, LintLevel::Dir);
+        test.result(result).assert_lint("no-deprecated");
+    }
+
+    /// Flag namespace imports that reference deprecated symbols.
+    #[test]
+    fn test_flags_namespace_deprecated_import_usage() {
+        let test = TestProgram::for_rule_with_prelude(NoDeprecated);
+        let legacy_module = test.add_module(
+            "no_deprecated/namespace_legacy.ds",
+            r#"
+@deprecated("use stable()")
+export function legacy(): int32 {
+    return 1;
+}
+"#,
+        );
+        let user_module = test.add_module(
+            "no_deprecated/namespace_user.ds",
+            r#"
+import * as legacyModule from "./namespace_legacy.ds"
+
+legacyModule.legacy();
+"#,
+        );
+
+        test.import_module(legacy_module);
+        test.import_module(user_module);
+        test.enqueue_profile_resolution_once();
+        test.analyze_module(legacy_module);
+        test.analyze_module(user_module);
+        test.compile();
+
+        let result = test.lint_module(user_module, LintLevel::Dir);
         test.result(result).assert_lint("no-deprecated");
     }
 }
