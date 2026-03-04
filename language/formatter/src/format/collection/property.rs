@@ -619,29 +619,35 @@ where
     )?;
 
     // dynamic parameters
+    let mut dynamic_parameters = Vec::with_capacity(signature.dynamic_parameters.len() + 1);
+    if let Some(this_parameter) = signature.this_parameter {
+        dynamic_parameters.push(this_parameter);
+    }
+    dynamic_parameters.extend(signature.dynamic_parameters.iter().copied());
+
+    // dynamic parameter rendering
     let should_expand_parameters = signature_parameters_should_expand(
         f.context(),
         signature.mode,
-        &signature.dynamic_parameters,
+        &dynamic_parameters,
         signature.return_type,
         false,
     ) || (signature_is_multiline_before_body
         && signature_return_type_is_union_or_intersection(f.context(), signature.return_type));
-    if signature.dynamic_parameters.is_empty() {
+    if dynamic_parameters.is_empty() {
         write_empty_parameter_list_with_interior_annotations(f, node_id)?;
-    } else if signature.dynamic_parameters.len() == 1
+    } else if dynamic_parameters.len() == 1
         && !should_expand_parameters
-        && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
+        && single_parameter_should_hug(f.context(), dynamic_parameters[0])
     {
-        write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
+        write!(f, [token("("), dynamic_parameters[0], token(")")])?;
     } else {
-        let disallow_trailing_parameter_separator = signature
-            .dynamic_parameters
+        let disallow_trailing_parameter_separator = dynamic_parameters
             .last()
             .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
         write_signature_dynamic_parameter_list(
             f,
-            &signature.dynamic_parameters,
+            &dynamic_parameters,
             should_expand_parameters,
             disallow_trailing_parameter_separator,
         )?;
@@ -989,6 +995,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 mod tests {
     use crate::{
         DestackFormatOptions, TestFormatter, assert_format,
+        assert_format_program_idempotent_with_file_type,
         assert_format_program_roundtrip_with_file_type,
     };
     use destack_ast::DeclarationDescriptor;
@@ -1145,6 +1152,50 @@ export class Test {
             source,
             expected.trim_start(),
             FileType::TypeScript,
+            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        );
+    }
+
+    #[test]
+    fn test_format_destack_method_keeps_explicit_this_parameter_roundtrip() {
+        let source = r#"
+extension<T> for Slice<T> {
+  indexSet(this: &Slice<T>, i: number, value: T): void {
+    undefined!;
+  }
+}
+"#;
+        let expected = r#"
+extension<T> for Slice<T> {
+  indexSet(this: &Slice<T>, i: number, value: T): void {
+    undefined!;
+  }
+}
+"#;
+        assert_format_program_roundtrip_with_file_type(
+            source,
+            expected.trim_start(),
+            FileType::Destack,
+            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        );
+    }
+
+    #[test]
+    fn test_format_destack_method_keeps_explicit_this_parameter_idempotent() {
+        let source = r#"
+extension<T> for Slice<T> {
+  indexSet(this: &Slice<T>, i: number, value: T): void {
+    undefined!;
+  }
+
+  reverse(this: &Slice<T>): void {
+    undefined!;
+  }
+}
+"#;
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::Destack,
             DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
         );
     }
