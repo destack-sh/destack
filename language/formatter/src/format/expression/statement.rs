@@ -21,6 +21,7 @@ use crate::format::expression::{
 use destack_ast::{Comment, CommentStyle, Doc, DocumentationStyle, ImportTarget};
 use destack_fir::format::{Buffer, Format, FormatError};
 use destack_fir::write;
+use destack_workspace::ImportSortOrder;
 
 /// Format `with { ... }` arguments for import and export statements.
 fn format_dependency_with_arguments<'ast>(
@@ -56,6 +57,207 @@ fn format_dependency_with_arguments<'ast>(
     write!(f, [space(), Keyword::With, space(), with_arguments])
 }
 
+/// Return whether any dependency item in one list has annotations.
+fn dependency_items_have_annotations(
+    ctx: &DestackFormatContext<'_>,
+    items: &[LocalNodeId<DependencyItem>],
+) -> bool {
+    items.iter().any(|item| ctx.has_annotation(*item))
+}
+
+/// Return dependency items in output order with optional organize-imports sorting.
+fn dependency_items_for_output(
+    ctx: &DestackFormatContext<'_>,
+    items: &[LocalNodeId<DependencyItem>],
+    options: DependencyOutputOptions,
+) -> Vec<LocalNodeId<DependencyItem>> {
+    if options.organize_imports && !options.has_item_annotations {
+        return sort_dependency_items(items, ctx.tree, ctx.strings, options.sort_order);
+    }
+
+    items.to_vec()
+}
+
+/// Store shared dependency item output options for import and export formatting.
+#[derive(Copy, Clone)]
+struct DependencyOutputOptions {
+    /// Whether organize imports sorting is enabled for this file.
+    organize_imports: bool,
+    /// The configured organize imports sort order.
+    sort_order: ImportSortOrder,
+    /// Whether any dependency item is annotated and must retain source order.
+    has_item_annotations: bool,
+}
+
+/// Build output options for one dependency item list.
+fn dependency_output_options(
+    ctx: &DestackFormatContext<'_>,
+    items: &[LocalNodeId<DependencyItem>],
+) -> DependencyOutputOptions {
+    let has_item_annotations = dependency_items_have_annotations(ctx, items);
+    let organize_imports = ctx.options.organize_imports.is_enabled();
+    let sort_order = ctx.options.import_sort_order;
+
+    DependencyOutputOptions {
+        organize_imports,
+        sort_order,
+        has_item_annotations,
+    }
+}
+
+/// Write one dependency-item collection list with stable expansion rules.
+fn write_dependency_item_collection<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    items: &[LocalNodeId<DependencyItem>],
+    should_expand: bool,
+) -> FormatResult<()> {
+    let mut items_list = list_like("{", "}", ",", items);
+    items_list
+        .as_collection()
+        .include_space()
+        .should_expand(should_expand);
+    write!(f, [items_list])
+}
+
+/// Write one dependency item collection using shared output ordering options.
+fn write_dependency_items_for_output<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    items: &[LocalNodeId<DependencyItem>],
+    options: DependencyOutputOptions,
+) -> FormatResult<()> {
+    let sorted_items = dependency_items_for_output(f.context(), items, options);
+    write_dependency_item_collection(f, &sorted_items, options.has_item_annotations)
+}
+
+/// Write one quoted dependency source target.
+fn write_dependency_target<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    target: StringId,
+) -> FormatResult<()> {
+    write!(f, [token("\""), target, token("\"")])
+}
+
+/// Write one `from "<target>"` dependency source clause.
+fn write_dependency_from_target_clause<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    target: StringId,
+) -> FormatResult<()> {
+    write!(f, [space(), Keyword::From, space()])?;
+    write_dependency_target(f, target)
+}
+
+/// Write one optional dependency attribute clause.
+fn write_dependency_attribute_clause<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    arguments: Option<&[LocalNodeId<Argument>]>,
+) -> FormatResult<()> {
+    if let Some(arguments) = arguments {
+        return format_dependency_with_arguments(f, node_id, arguments);
+    }
+
+    Ok(())
+}
+
+/// Return whether one import-call target should force expanded call arguments.
+fn import_call_target_requires_expanded_arguments(
+    ctx: &DestackFormatContext<'_>,
+    target: &ImportTarget,
+) -> bool {
+    match target {
+        ImportTarget::String(_) => false,
+        ImportTarget::Expression { target } => {
+            ctx.has_annotation(*target) || ctx.node_has_newline(*target)
+        }
+    }
+}
+
+/// Write one import-call target in either string or expression form.
+fn write_import_call_target<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    target: &ImportTarget,
+) -> FormatResult<()> {
+    match target {
+        ImportTarget::String(target) => write_dependency_target(f, *target),
+        ImportTarget::Expression { target } => write!(f, [*target]),
+    }
+}
+
+/// Write expanded import-call arguments with one target and optional `with` arguments.
+fn write_expanded_import_call_arguments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    target: &ImportTarget,
+    arguments: Option<&[LocalNodeId<Argument>]>,
+) -> FormatResult<()> {
+    write!(f, [hard_line_break()])?;
+    write!(
+        f,
+        [group(&block_indent(&format_with(
+            |f: &mut DestackFormatter<'ast, '_>| {
+                let arguments_len = arguments.map_or(0, |items| items.len());
+                let total_items = 1usize + arguments_len;
+
+                // target item
+                write_import_call_target(f, target)?;
+                if total_items > 1 {
+                    write!(f, [token(",")])?;
+                }
+
+                // attribute-arguments items
+                if let Some(arguments) = arguments {
+                    for (index, argument) in arguments.iter().enumerate() {
+                        write!(f, [hard_line_break(), *argument])?;
+                        if index + 1 < arguments.len() {
+                            write!(f, [token(",")])?;
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+        )))]
+    )?;
+    write!(f, [hard_line_break(), token(")")])
+}
+
+/// Write inline import-call arguments with one target and optional `with` arguments.
+fn write_inline_import_call_arguments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    target: &ImportTarget,
+    arguments: Option<&[LocalNodeId<Argument>]>,
+) -> FormatResult<()> {
+    write_import_call_target(f, target)?;
+
+    if let Some(arguments) = arguments {
+        for argument in arguments {
+            write!(f, [token(","), space(), *argument])?;
+        }
+    }
+
+    write!(f, [token(")")])
+}
+
+/// Format one dynamic `import(...)` call expression and report whether it handled output.
+fn format_import_call_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    source: ImportSource,
+    target: &ImportTarget,
+    arguments: Option<&[LocalNodeId<Argument>]>,
+) -> FormatResult<bool> {
+    if source != ImportSource::ImportCall {
+        return Ok(false);
+    }
+
+    write!(f, [Keyword::Import, token("(")])?;
+    if import_call_target_requires_expanded_arguments(f.context(), target) {
+        write_expanded_import_call_arguments(f, target, arguments)?;
+    } else {
+        write_inline_import_call_arguments(f, target, arguments)?;
+    }
+
+    Ok(true)
+}
+
 /// Format an import expression.
 pub(crate) fn format_import_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -67,76 +269,10 @@ pub(crate) fn format_import_expression<'ast>(
     arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
-    let organize = f.context().options.organize_imports.is_enabled();
-    let sort_order = f.context().options.import_sort_order;
-    let items_have_annotations = items.iter().any(|item| f.context().has_annotation(*item));
+    let output_options = dependency_output_options(f.context(), items);
 
     // import call
-    if source == ImportSource::ImportCall {
-        write!(f, [Keyword::Import, token("(")])?;
-
-        let should_expand_import_call_arguments = match target {
-            ImportTarget::Expression { target } => {
-                f.context().has_annotation(*target) || f.context().node_has_newline(*target)
-            }
-            ImportTarget::String(_) => false,
-        };
-
-        if should_expand_import_call_arguments {
-            write!(f, [hard_line_break()])?;
-            write!(
-                f,
-                [group(&block_indent(&format_with(
-                    |f: &mut DestackFormatter<'ast, '_>| {
-                        let arguments_len = arguments.map_or(0, |items| items.len());
-                        let total_items = 1usize + arguments_len;
-
-                        // target item
-                        match target {
-                            ImportTarget::String(target) => {
-                                write!(f, [token("\""), *target, token("\"")])?;
-                            }
-                            ImportTarget::Expression { target } => {
-                                write!(f, [*target])?;
-                            }
-                        }
-                        if total_items > 1 {
-                            write!(f, [token(",")])?;
-                        }
-
-                        // attribute-arguments items
-                        if let Some(arguments) = arguments {
-                            for (index, argument) in arguments.iter().enumerate() {
-                                write!(f, [hard_line_break(), *argument])?;
-                                if index + 1 < arguments.len() {
-                                    write!(f, [token(",")])?;
-                                }
-                            }
-                        }
-
-                        Ok(())
-                    }
-                )))]
-            )?;
-            write!(f, [hard_line_break(), token(")")])?;
-        } else {
-            match target {
-                ImportTarget::String(target) => {
-                    write!(f, [token("\""), *target, token("\"")])?;
-                }
-                ImportTarget::Expression { target } => {
-                    write!(f, [*target])?;
-                }
-            }
-
-            if let Some(arguments) = arguments {
-                for argument in arguments {
-                    write!(f, [token(","), space(), *argument])?;
-                }
-            }
-
-            write!(f, [token(")")])?;
-        }
+    if format_import_call_expression(f, source, target, arguments)? {
         return Ok(());
     }
 
@@ -229,49 +365,26 @@ pub(crate) fn format_import_expression<'ast>(
                 ]
             )?;
         } else if !rest_items.is_empty() {
-            // sort named imports when organize_imports is enabled
-            let sorted_rest = if organize && !items_have_annotations {
-                sort_dependency_items(rest_items, tree, f.context().strings, sort_order)
-            } else {
-                rest_items.to_vec()
-            };
             write!(f, [token(","), space()])?;
-            let mut rest_list = list_like("{", "}", ",", &sorted_rest);
-            rest_list
-                .as_collection()
-                .include_space()
-                .should_expand(items_have_annotations);
-            write!(f, [rest_list])?;
+            write_dependency_items_for_output(f, rest_items, output_options)?;
         }
     }
     // named imports
     else if !items.is_empty() {
-        // sort named imports when organize_imports is enabled
-        let sorted_items = if organize && !items_have_annotations {
-            sort_dependency_items(items, tree, f.context().strings, sort_order)
-        } else {
-            items.to_vec()
-        };
-        let mut items_list = list_like("{", "}", ",", &sorted_items);
-        items_list
-            .as_collection()
-            .include_space()
-            .should_expand(items_have_annotations);
-        write!(f, [items_list])?;
+        write_dependency_items_for_output(f, items, output_options)?;
     } else if import_type_empty_items {
         write!(f, [token("{"), token("}")])?;
     }
 
     // from clause
     if !items.is_empty() || import_type_empty_items {
-        write!(f, [space(), Keyword::From, space()])?;
+        write_dependency_from_target_clause(f, target)?;
+    } else {
+        write_dependency_target(f, target)?;
     }
-    write!(f, [token("\""), target, token("\"")])?;
 
     // attribute clause
-    if let Some(arguments) = arguments {
-        format_dependency_with_arguments(f, node_id, arguments)?;
-    }
+    write_dependency_attribute_clause(f, node_id, arguments)?;
 
     Ok(())
 }
@@ -286,9 +399,7 @@ pub(crate) fn format_export_expression<'ast>(
     arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
-    let organize = f.context().options.organize_imports.is_enabled();
-    let sort_order = f.context().options.import_sort_order;
-    let items_have_annotations = items.iter().any(|item| f.context().has_annotation(*item));
+    let output_options = dependency_output_options(f.context(), items);
 
     // keyword
     write!(f, [Keyword::Export, space()])?;
@@ -373,18 +484,7 @@ pub(crate) fn format_export_expression<'ast>(
     }
     // named exports
     else if !items.is_empty() {
-        // sort named exports when organize_imports is enabled
-        let sorted_items = if organize && !items_have_annotations {
-            sort_dependency_items(items, tree, f.context().strings, sort_order)
-        } else {
-            items.to_vec()
-        };
-        let mut items_list = list_like("{", "}", ",", &sorted_items);
-        items_list
-            .as_collection()
-            .include_space()
-            .should_expand(items_have_annotations);
-        write!(f, [items_list])?;
+        write_dependency_items_for_output(f, items, output_options)?;
     } else if target.is_none() || export_empty_items_with_target {
         // empty export clause: `export {}`
         write!(f, [token("{"), token("}")])?;
@@ -392,23 +492,11 @@ pub(crate) fn format_export_expression<'ast>(
 
     // target
     if let Some(target) = target {
-        write!(
-            f,
-            [
-                space(),
-                Keyword::From,
-                space(),
-                token("\""),
-                target,
-                token("\"")
-            ]
-        )?;
+        write_dependency_from_target_clause(f, target)?;
     }
 
     // attribute clause
-    if let Some(arguments) = arguments {
-        format_dependency_with_arguments(f, node_id, arguments)?;
-    }
+    write_dependency_attribute_clause(f, node_id, arguments)?;
 
     Ok(())
 }
@@ -496,15 +584,15 @@ fn format_export_import_equals(
 
 /// Return whether one expression has a multiline block postfix annotation.
 fn expression_has_multiline_block_postfix_annotation(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
+    let Some(annotation_ids) = ctx.annotations(expression_id) else {
         return false;
     };
 
     annotation_ids.into_iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+        let Annotation::Comment { node, position } = ctx.annotation(annotation_id) else {
             return false;
         };
         if !matches!(
@@ -516,13 +604,158 @@ fn expression_has_multiline_block_postfix_annotation(
             return false;
         }
 
-        let comment = context.tree.get::<Comment>(node);
+        let comment = ctx.tree.get::<Comment>(node);
         if comment.style != CommentStyle::Star {
             return false;
         }
 
-        context.has_newline(context.annotation_span(annotation_id))
+        ctx.has_newline(ctx.annotation_span(annotation_id))
     })
+}
+
+/// Return whether one statement wrapper should delay semicolon emission to after postfix docs.
+fn statement_wrapper_delays_semicolon_for_multiline_as_const_postfix(
+    ctx: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    expression: &Expression,
+    needs_semicolon: bool,
+) -> bool {
+    needs_semicolon
+        && matches!(
+            expression,
+            Expression::TypeUnary {
+                operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
+                ..
+            }
+        )
+        && expression_has_multiline_block_postfix_annotation(ctx, node_id)
+}
+
+/// Return whether wrapper postfix annotations should emit for one directive position.
+fn statement_wrapper_should_emit_postfix_annotations(
+    directive: Option<FormatterDirective>,
+) -> bool {
+    !matches!(
+        directive,
+        Some(FormatterDirective {
+            kind: FormatterDirectiveKind::IgnoreFormat,
+            position: FormatterDirectivePosition::Postfix { .. },
+        })
+    )
+}
+
+/// Return whether one wrapper expression emits its own edge annotations.
+fn statement_wrapper_expression_handles_its_own_edge_annotations(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::If {
+            kind: IfKind::If,
+            ..
+        }
+    )
+}
+
+/// Return whether wrapper annotation emission should use postfix-only output.
+fn statement_wrapper_uses_postfix_only_annotations(
+    ctx: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    expression: &Expression,
+) -> bool {
+    if matches!(
+        expression,
+        Expression::TypeUnary {
+            operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
+            ..
+        }
+    ) {
+        return true;
+    }
+
+    let call_or_new_handles_empty_infix = matches!(
+        expression,
+        Expression::Call {
+            dynamic_arguments,
+            ..
+        }
+        | Expression::New {
+            dynamic_arguments,
+            ..
+        } if dynamic_arguments.is_empty() && ctx.has_infix_annotation(node_id)
+    );
+    if call_or_new_handles_empty_infix {
+        return true;
+    }
+
+    let collection_handles_empty_infix = ctx.has_infix_annotation(node_id)
+        && (matches!(
+            expression,
+            Expression::ObjectExpression { properties, .. } if properties.is_empty()
+        ) || matches!(
+            expression,
+            Expression::ArrayExpression { elements } if elements.is_empty()
+        ));
+    collection_handles_empty_infix
+}
+
+/// Write wrapper infix and postfix annotations in the correct phase order.
+fn write_statement_wrapper_non_boundary_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    expression: &Expression,
+) -> FormatResult<()> {
+    if statement_wrapper_uses_postfix_only_annotations(f.context(), node_id, expression) {
+        return write!(
+            f,
+            [f.context()
+                .any_postfix_except_line_postfix_boundary_annotations(node_id)]
+        );
+    }
+
+    write!(
+        f,
+        [f.context()
+            .any_infix_or_postfix_except_line_postfix_boundary_annotations(node_id)]
+    )
+}
+
+/// Write one statement wrapper terminator and boundary annotation phase.
+fn write_statement_wrapper_terminator_and_boundary_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    needs_semicolon: bool,
+    semicolon_after_multiline_as_const_postfix: bool,
+    should_emit_postfix_annotations: bool,
+) -> FormatResult<()> {
+    // statement terminator
+    if needs_semicolon && !semicolon_after_multiline_as_const_postfix {
+        write!(f, [token(";")])?;
+    }
+
+    // statement-level boundary comments print after the terminator
+    // this matches direct statement-list formatting and prevents wrapper/non-wrapper churn
+    if should_emit_postfix_annotations {
+        write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
+    }
+
+    Ok(())
+}
+
+/// Write one statement wrapper non-boundary annotation phase.
+fn write_statement_wrapper_non_boundary_annotation_phase<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    expression: &Expression,
+    should_emit_postfix_annotations: bool,
+) -> FormatResult<()> {
+    let expression_handles_its_own_edge_annotations =
+        statement_wrapper_expression_handles_its_own_edge_annotations(expression);
+
+    // infix and postfix annotations
+    if !expression_handles_its_own_edge_annotations && should_emit_postfix_annotations {
+        write_statement_wrapper_non_boundary_annotations(f, node_id, expression)?;
+    }
+
+    Ok(())
 }
 
 /// Format one statement wrapper inner expression with an optional trailing semicolon.
@@ -538,93 +771,34 @@ fn format_statement_wrapped_expression<'ast>(
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
     format_expression(f, node_id, expression, directive)?;
 
-    let semicolon_after_multiline_as_const_postfix = needs_semicolon
-        && matches!(
+    let semicolon_after_multiline_as_const_postfix =
+        statement_wrapper_delays_semicolon_for_multiline_as_const_postfix(
+            f.context(),
+            node_id,
             expression,
-            Expression::TypeUnary {
-                operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
-                ..
-            }
-        )
-        && expression_has_multiline_block_postfix_annotation(f.context(), node_id);
-
-    let should_emit_postfix_annotations = !matches!(
-        directive,
-        Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix { .. },
-        })
-    );
-
-    // statement terminator
-    if needs_semicolon && !semicolon_after_multiline_as_const_postfix {
-        write!(f, [token(";")])?;
-    }
-
-    // statement-level boundary comments print after the terminator
-    // this matches direct statement-list formatting and prevents wrapper/non-wrapper churn
-    if should_emit_postfix_annotations {
-        write!(f, [f.context().line_postfix_boundary_annotations(node_id)])?;
-    }
-
-    // regular if chains emit their own edge annotations in control formatter
-    let if_chain_handles_annotations = matches!(
-        expression,
-        Expression::If {
-            kind: IfKind::If,
-            ..
-        }
-    );
-
-    // postfix and infix annotations
-    if !if_chain_handles_annotations && should_emit_postfix_annotations {
-        let call_or_new_handles_empty_infix = matches!(
-            expression,
-            Expression::Call {
-                dynamic_arguments,
-                ..
-            }
-            | Expression::New {
-                dynamic_arguments,
-                ..
-            } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(node_id)
+            needs_semicolon,
         );
-        let collection_handles_empty_infix = f.context().has_infix_annotation(node_id)
-            && (matches!(
-                expression,
-                Expression::ObjectExpression { properties, .. } if properties.is_empty()
-            ) || matches!(
-                expression,
-                Expression::ArrayExpression { elements } if elements.is_empty()
-            ));
+    let should_emit_postfix_annotations =
+        statement_wrapper_should_emit_postfix_annotations(directive);
 
-        if matches!(
-            expression,
-            Expression::TypeUnary {
-                operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
-                ..
-            }
-        ) {
-            write!(
-                f,
-                [f.context()
-                    .any_postfix_except_line_postfix_boundary_annotations(node_id)]
-            )?;
-        } else if call_or_new_handles_empty_infix || collection_handles_empty_infix {
-            write!(
-                f,
-                [f.context()
-                    .any_postfix_except_line_postfix_boundary_annotations(node_id)]
-            )?;
-        } else {
-            write!(
-                f,
-                [f.context()
-                    .any_infix_or_postfix_except_line_postfix_boundary_annotations(node_id)]
-            )?;
-        }
-    }
+    // statement terminator and boundary annotations
+    write_statement_wrapper_terminator_and_boundary_annotations(
+        f,
+        node_id,
+        needs_semicolon,
+        semicolon_after_multiline_as_const_postfix,
+        should_emit_postfix_annotations,
+    )?;
 
+    // infix and postfix annotations
+    write_statement_wrapper_non_boundary_annotation_phase(
+        f,
+        node_id,
+        expression,
+        should_emit_postfix_annotations,
+    )?;
+
+    // delayed semicolon for multiline `as const` postfix comments
     if semicolon_after_multiline_as_const_postfix {
         write!(f, [token(";")])?;
     }
@@ -719,16 +893,16 @@ fn format_using_expression<'ast>(
 
 /// Return whether block annotations include a block prefix annotation.
 fn block_has_block_prefix_annotation(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
-    let Some(annotations) = context.annotations(block_id) else {
+    let Some(annotations) = ctx.annotations(block_id) else {
         return false;
     };
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.annotation(annotation_id),
+            ctx.annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::BlockPrefix,
                 ..
@@ -748,16 +922,16 @@ fn block_has_block_prefix_annotation(
 
 /// Return whether block annotations include a line prefix annotation.
 fn block_has_line_prefix_annotation(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
-    let Some(annotations) = context.annotations(block_id) else {
+    let Some(annotations) = ctx.annotations(block_id) else {
         return false;
     };
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.annotation(annotation_id),
+            ctx.annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::LinePrefix,
                 ..
@@ -777,18 +951,18 @@ fn block_has_line_prefix_annotation(
 
 /// Return whether a control-flow statement body should be preceded by a space.
 fn statement_body_requires_head_space(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     body: LocalNodeId<Block>,
 ) -> bool {
-    if block_has_block_prefix_annotation(context, body) {
+    if block_has_block_prefix_annotation(ctx, body) {
         return false;
     }
 
-    if block_has_line_prefix_annotation(context, body) {
+    if block_has_line_prefix_annotation(ctx, body) {
         return true;
     }
 
-    !is_empty_statement_block(context, body)
+    !is_empty_statement_block(ctx, body)
 }
 
 /// Format a `while` or `do while` expression.
@@ -1016,21 +1190,21 @@ fn format_try_expression<'ast>(
 
 /// Return whether one annotation id is one multiline block comment/doc.
 fn annotation_is_multiline_block(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    let annotation = context.annotation(annotation_id);
-    let annotation_span = context.annotation_span(annotation_id);
+    let annotation = ctx.annotation(annotation_id);
+    let annotation_span = ctx.annotation_span(annotation_id);
 
     // block style comments/docs spanning multiple lines are leading comments
     match annotation {
         Annotation::Comment { node, .. } => {
-            let comment = context.tree.get::<Comment>(node);
-            comment.style == CommentStyle::Star && context.has_newline(annotation_span)
+            let comment = ctx.tree.get::<Comment>(node);
+            comment.style == CommentStyle::Star && ctx.has_newline(annotation_span)
         }
         Annotation::Doc { node, .. } => {
-            let doc = context.tree.get::<Doc>(node);
-            doc.style == DocumentationStyle::Star && context.has_newline(annotation_span)
+            let doc = ctx.tree.get::<Doc>(node);
+            doc.style == DocumentationStyle::Star && ctx.has_newline(annotation_span)
         }
         _ => false,
     }
@@ -1038,64 +1212,62 @@ fn annotation_is_multiline_block(
 
 /// Return whether one annotation id is followed by a newline before the next token.
 fn annotation_is_followed_by_newline(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    let annotation_span = context.annotation_span(annotation_id);
-    let Some(next_token) = context.annotation_next_non_whitespace_token(annotation_id) else {
+    let annotation_span = ctx.annotation_span(annotation_id);
+    let Some(next_token) = ctx.annotation_next_non_whitespace_token(annotation_id) else {
         return false;
     };
     if annotation_span.file != next_token.span.file {
         return false;
     }
 
-    !context
-        .file
+    !ctx.file
         .is_same_line(annotation_span.end.saturating_sub(1), next_token.span.start)
 }
 
 /// Return whether one expression has leading prefix comment/doc annotations for adjacent wrapping.
 fn expression_has_adjacent_leading_comment(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .visit_annotations(expression_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                let annotation_id = *annotation_id;
-                let annotation = context.annotation(annotation_id);
-                if !matches!(
-                    annotation,
-                    Annotation::Comment {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    } | Annotation::Doc {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    }
-                ) {
-                    return false;
+    ctx.visit_annotations(expression_id, |annotations| {
+        annotations.iter().any(|annotation_id| {
+            let annotation_id = *annotation_id;
+            let annotation = ctx.annotation(annotation_id);
+            if !matches!(
+                annotation,
+                Annotation::Comment {
+                    position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                    ..
+                } | Annotation::Doc {
+                    position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                    ..
                 }
+            ) {
+                return false;
+            }
 
-                annotation_is_multiline_block(context, annotation_id)
-                    || annotation_is_followed_by_newline(context, annotation_id)
-            })
+            annotation_is_multiline_block(ctx, annotation_id)
+                || annotation_is_followed_by_newline(ctx, annotation_id)
         })
-        .unwrap_or(false)
+    })
+    .unwrap_or(false)
 }
 
 /// Return the gap span between one member receiver and property token.
 fn member_receiver_property_gap_span(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<Span> {
-    let left_id = match context.tree.get(expression_id) {
+    let left_id = match ctx.tree.get(expression_id) {
         Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => *left,
         _ => return None,
     };
-    let property_span = context.tree.get_main_span(expression_id)?;
-    let left_span = context.span(left_id);
-    let left_anchor_end = expression_trivia_anchor_end(context, left_id);
+    let property_span = ctx.tree.get_main_span(expression_id)?;
+    let left_span = ctx.span(left_id);
+    let left_anchor_end = expression_trivia_anchor_end(ctx, left_id);
 
     if left_span.file != property_span.file || property_span.start <= left_anchor_end {
         return None;
@@ -1108,58 +1280,24 @@ fn member_receiver_property_gap_span(
     ))
 }
 
-/// Return whether one comment span starts on its own line or is multiline.
-fn comment_span_is_own_line_or_multiline(
-    context: &DestackFormatContext<'_>,
-    comment_span: Span,
-) -> bool {
-    if !context
-        .file
-        .is_same_line(comment_span.start, comment_span.end.saturating_sub(1))
-    {
-        return true;
-    }
-
-    context.span_starts_on_own_line(comment_span)
-}
-
 /// Return whether one member expression has own-line or multiline comments between receiver and property.
 fn member_has_leading_comment_between_receiver_and_property(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(gap_span) = member_receiver_property_gap_span(context, expression_id) else {
+    let Some(gap_span) = member_receiver_property_gap_span(ctx, expression_id) else {
         return false;
     };
-    let comment_spans = &context.comment_spans;
-    let first_comment_index =
-        comment_spans.partition_point(|comment_span| comment_span.end <= gap_span.start);
 
-    for comment_span in &comment_spans[first_comment_index..] {
-        if comment_span.file != gap_span.file {
-            continue;
-        }
-        if comment_span.start >= gap_span.end {
-            break;
-        }
-        if comment_span.end <= gap_span.start {
-            continue;
-        }
-
-        if comment_span_is_own_line_or_multiline(context, *comment_span) {
-            return true;
-        }
-    }
-
-    false
+    ctx.has_own_line_or_multiline_comment(gap_span)
 }
 
 /// Return the next left-side expression used for adjacent return/throw comment checks.
 fn next_adjacent_argument_left_side(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
-    match context.tree.get(expression_id) {
+    match ctx.tree.get(expression_id) {
         Expression::SequenceExpression { expressions } => expressions.first().copied(),
         Expression::Member { left, .. }
         | Expression::PrivateMember { left, .. }
@@ -1187,26 +1325,24 @@ fn next_adjacent_argument_left_side(
 
 /// Return whether one adjacent statement argument has leading comments that require wrapping.
 fn adjacent_statement_argument_has_leading_comments(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Expression>,
 ) -> bool {
     let argument_parent_is_yield =
-        context
-            .parent(argument_id)
+        ctx.parent(argument_id)
             .is_some_and(|(parent_id, parent_type)| {
                 parent_type == NodeType::Expression
                     && matches!(
-                        context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                        ctx.tree.get(LocalNodeId::<Expression>::new(parent_id)),
                         Expression::Yield { .. }
                     )
             });
 
     let mut current_id = argument_id;
     loop {
-        let has_adjacent_leading_comment =
-            expression_has_adjacent_leading_comment(context, current_id);
+        let has_adjacent_leading_comment = expression_has_adjacent_leading_comment(ctx, current_id);
         let has_member_gap_comment =
-            member_has_leading_comment_between_receiver_and_property(context, current_id);
+            member_has_leading_comment_between_receiver_and_property(ctx, current_id);
 
         if has_adjacent_leading_comment {
             let should_ignore_for_yield_chain_continuation =
@@ -1222,7 +1358,7 @@ fn adjacent_statement_argument_has_leading_comments(
             return true;
         }
 
-        let Some(next_id) = next_adjacent_argument_left_side(context, current_id) else {
+        let Some(next_id) = next_adjacent_argument_left_side(ctx, current_id) else {
             break;
         };
         current_id = next_id;

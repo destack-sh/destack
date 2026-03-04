@@ -68,10 +68,10 @@ fn marker_matches_any(marker: &str, markers: &[&str]) -> bool {
 /// Parse one directive token from one comment token span.
 #[inline]
 fn directive_token_for_comment_token(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     token: TokenSpan,
 ) -> Option<FormatterDirectiveToken> {
-    parse_directive_token_from_raw(context.token_str(token))
+    parse_directive_token_from_raw(ctx.token_str(token))
 }
 
 /// Return the last comment token that starts before or at one node offset.
@@ -93,12 +93,12 @@ fn last_prefix_comment_token_before(
 
 /// Return one line-leading comment token that prefixes one node span.
 fn prefix_comment_token_for_node(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     node_span: Span,
     comment_tokens: &[TokenSpan],
 ) -> Option<TokenSpan> {
     let token = last_prefix_comment_token_before(comment_tokens, node_span.start)?;
-    if !comment_token_is_line_leading(context, token) {
+    if !comment_token_is_line_leading(ctx, token) {
         return None;
     }
 
@@ -117,27 +117,27 @@ fn directive_kind_for_token(token: FormatterDirectiveToken) -> Option<FormatterD
 
 /// Resolve the formatter directive for a node, if any.
 pub fn directive_for_node<T: Node + Clone>(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
 ) -> Option<FormatterDirective>
 where
     NodeTree: NodeTreeImpl<T>,
 {
-    if !context.has_ignore_directive_markers() {
+    if !ctx.has_ignore_directive_markers() {
         return None;
     }
 
-    let node_span = context.span(node_id);
-    let comment_tokens = context.comment_tokens();
-    let token = prefix_comment_token_for_node(context, node_span, comment_tokens)?;
+    let node_span = ctx.span(node_id);
+    let comment_tokens = ctx.comment_tokens();
+    let token = prefix_comment_token_for_node(ctx, node_span, comment_tokens)?;
     let (between_is_whitespace_only, line_distance) = if token.span.end > node_span.start {
         (true, 0)
     } else {
         let between_is_whitespace_only = token
             .span
             .gap_to(node_span)
-            .is_none_or(|between_span| !context.has_non_whitespace_content(between_span));
-        let line_distance = context
+            .is_none_or(|between_span| !ctx.has_non_whitespace_content(between_span));
+        let line_distance = ctx
             .source_line_distance(token.span.end, node_span.start)
             .map_or(2, |distance| distance as usize);
         (between_is_whitespace_only, line_distance)
@@ -146,7 +146,7 @@ where
         return None;
     }
 
-    let directive_token = directive_token_for_comment_token(context, token)?;
+    let directive_token = directive_token_for_comment_token(ctx, token)?;
     let kind = directive_kind_for_token(directive_token)?;
     Some(FormatterDirective {
         kind,
@@ -158,32 +158,32 @@ where
 
 /// Resolve an ignore range directive for a node.
 pub fn ignore_range_for_node<T: Node + Clone>(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
     comment_tokens: &[TokenSpan],
 ) -> Option<Span>
 where
     NodeTree: NodeTreeImpl<T>,
 {
-    if !context.has_ignore_directive_markers() {
+    if !ctx.has_ignore_directive_markers() {
         return None;
     }
 
-    let node_span = context.span(node_id);
-    let token = prefix_comment_token_for_node(context, node_span, comment_tokens)?;
+    let node_span = ctx.span(node_id);
+    let token = prefix_comment_token_for_node(ctx, node_span, comment_tokens)?;
 
-    let is_adjacent = context.source_line_distance(token.span.start, node_span.start) == Some(1);
+    let is_adjacent = ctx.source_line_distance(token.span.start, node_span.start) == Some(1);
     if !is_adjacent {
         return None;
     }
 
-    match directive_token_for_comment_token(context, token) {
+    match directive_token_for_comment_token(ctx, token) {
         Some(FormatterDirectiveToken::Ignore) => {
             let range_span = Span::new(node_span.file, token.span.start, node_span.end);
-            Some(extend_span_with_trailing_tokens(context, range_span))
+            Some(ctx.extend_span_with_trailing_line_tokens(range_span))
         }
         Some(FormatterDirectiveToken::IgnoreStart) => {
-            let end_span = find_ignore_range_end(context, comment_tokens, token.span.end)?;
+            let end_span = find_ignore_range_end(ctx, comment_tokens, token.span.end)?;
             Some(Span::new(token.span.file, token.span.start, end_span.start))
         }
         Some(FormatterDirectiveToken::IgnoreFile | FormatterDirectiveToken::IgnoreEnd) | None => {
@@ -194,7 +194,7 @@ where
 
 /// Collect ignore ranges for a list of nodes keyed by node id.
 pub fn ignore_ranges_for_nodes<T: Node + Clone>(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     node_ids: &[LocalNodeId<T>],
     comment_tokens: &[TokenSpan],
 ) -> HashMap<u32, Span>
@@ -203,7 +203,7 @@ where
 {
     let mut ignore_ranges = HashMap::new();
     for node_id in node_ids.iter().copied() {
-        if let Some(range_span) = ignore_range_for_node(context, node_id, comment_tokens) {
+        if let Some(range_span) = ignore_range_for_node(ctx, node_id, comment_tokens) {
             ignore_ranges.insert(node_id.id, range_span);
         }
     }
@@ -212,7 +212,7 @@ where
 
 /// Return whether any node in a list has an ignore range.
 pub fn any_ignore_range_for_nodes<T: Node + Clone>(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     node_ids: &[LocalNodeId<T>],
     comment_tokens: &[TokenSpan],
 ) -> bool
@@ -222,123 +222,26 @@ where
     node_ids
         .iter()
         .copied()
-        .any(|node_id| ignore_range_for_node(context, node_id, comment_tokens).is_some())
+        .any(|node_id| ignore_range_for_node(ctx, node_id, comment_tokens).is_some())
 }
 
 /// Return whether a comment token starts at the first non-whitespace position on its line.
-fn comment_token_is_line_leading(context: &DestackFormatContext<'_>, token: TokenSpan) -> bool {
-    context.line_prefix_is_whitespace(token.span.start)
-}
-
-/// Collect all source and side tokens in source order.
-fn sorted_source_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
-    let mut tokens: Vec<TokenSpan> = context
-        .tokens
-        .iter()
-        .copied()
-        .chain(context.side_tokens.iter().copied())
-        .collect();
-    tokens.sort_by_key(|token| token.span.start);
-    tokens
-}
-
-/// Extend one span to include trailing tokens on the same line.
-fn extend_span_to_line_end(tokens: &[TokenSpan], span: Span) -> Span {
-    let mut end = span.end;
-    for token in tokens.iter().copied() {
-        if token.span.start < span.end {
-            continue;
-        }
-
-        match token.token.ty {
-            TokenType::Whitespace => {
-                end = token.span.end;
-            }
-            TokenType::Newline => {
-                break;
-            }
-            _ => {
-                end = token.span.end;
-            }
-        }
-    }
-
-    if end > span.end {
-        Span::new(span.file, span.start, end)
-    } else {
-        span
-    }
-}
-
-/// Return the next non-whitespace token index at or after one start index.
-fn next_non_whitespace_token_index(tokens: &[TokenSpan], mut token_index: usize) -> Option<usize> {
-    while let Some(token) = tokens.get(token_index).copied() {
-        if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
-            token_index += 1;
-            continue;
-        }
-
-        return Some(token_index);
-    }
-
-    None
-}
-
-/// Extend an ignored span to include trailing content on the same line.
-fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Span) -> Span {
-    let tokens = sorted_source_tokens(context);
-    let extended = extend_span_to_line_end(&tokens, span);
-
-    extend_span_with_trailing_statement_terminator(&tokens, extended)
-}
-
-/// Extend an ignored span to include a standalone trailing statement terminator.
-fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Span) -> Span {
-    let token_index = tokens.partition_point(|token| token.span.start < span.end);
-    let Some(candidate_index) = next_non_whitespace_token_index(tokens, token_index) else {
-        return span;
-    };
-    let Some(candidate) = tokens.get(candidate_index).copied() else {
-        return span;
-    };
-    if candidate.token.ty != TokenType::Semicolon {
-        return span;
-    }
-
-    let mut lookahead_index = candidate_index + 1;
-
-    // accept only standalone semicolons: no trailing code on the same line
-    while let Some(token) = tokens.get(lookahead_index).copied() {
-        match token.token.ty {
-            TokenType::Whitespace => {
-                // whitespace tokens are non-newline by construction
-            }
-            TokenType::Newline | TokenType::End => {
-                return Span::new(span.file, span.start, candidate.span.end);
-            }
-            _ => {
-                return span;
-            }
-        }
-
-        lookahead_index += 1;
-    }
-
-    Span::new(span.file, span.start, candidate.span.end)
+fn comment_token_is_line_leading(ctx: &DestackFormatContext<'_>, token: TokenSpan) -> bool {
+    ctx.line_prefix_is_whitespace(token.span.start)
 }
 
 /// Collect comment tokens sorted by source position.
-pub fn comment_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
-    context.comment_tokens().to_vec()
+pub fn comment_tokens(ctx: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
+    ctx.comment_tokens().to_vec()
 }
 
 /// Return whether this file has a formatter ignore-file directive comment.
-pub fn has_file_ignore_directive(context: &DestackFormatContext<'_>) -> bool {
-    if !context.has_ignore_directive_markers() {
+pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
+    if !ctx.has_ignore_directive_markers() {
         return false;
     }
 
-    let tokens = sorted_source_tokens(context);
+    let tokens = ctx.source_tokens_sorted();
 
     for token in tokens {
         match token.token.ty {
@@ -350,7 +253,7 @@ pub fn has_file_ignore_directive(context: &DestackFormatContext<'_>) -> bool {
             | TokenType::DocLineComment
             | TokenType::DocBlockComment => {
                 if matches!(
-                    directive_token_for_comment_token(context, token),
+                    directive_token_for_comment_token(ctx, token),
                     Some(FormatterDirectiveToken::IgnoreFile)
                 ) {
                     return true;
@@ -365,12 +268,12 @@ pub fn has_file_ignore_directive(context: &DestackFormatContext<'_>) -> bool {
 }
 
 /// Extract the source for an ignored span.
-pub fn ignored_span_source(context: &DestackFormatContext<'_>, span: Span) -> String {
-    let raw = context.span_str(span);
-    if context.source_position(span.start).is_none() {
+pub fn ignored_span_source(ctx: &DestackFormatContext<'_>, span: Span) -> String {
+    let raw = ctx.span_str(span);
+    if ctx.source_position(span.start).is_none() {
         return raw.to_owned();
     }
-    let Some(prefix) = context.line_prefix_text(span.start) else {
+    let Some(prefix) = ctx.line_prefix_text(span.start) else {
         return raw.to_owned();
     };
     if prefix.is_empty() || !prefix.trim().is_empty() {
@@ -575,14 +478,14 @@ fn dedent_common_leading_whitespace_after_first_line(raw: &str) -> String {
 
 /// Return the source range that should be preserved for one ignored node.
 pub fn ignored_node_span<T: Node>(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
     directive: FormatterDirective,
 ) -> Span
 where
     NodeTree: NodeTreeImpl<T>,
 {
-    let span = context.span(node_id);
+    let span = ctx.span(node_id);
     let (start, end) = match directive.position {
         FormatterDirectivePosition::Prefix { .. } => (span.start, span.end),
         FormatterDirectivePosition::Postfix { comment_span } => {
@@ -595,7 +498,7 @@ where
 
 /// Find the matching ignore range end comment following a start offset.
 fn find_ignore_range_end(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     comment_tokens: &[TokenSpan],
     start_offset: u32,
 ) -> Option<Span> {
@@ -603,7 +506,7 @@ fn find_ignore_range_end(
         .iter()
         .filter(|token| token.span.start >= start_offset)
         .find_map(|token| {
-            if directive_token_for_comment_token(context, *token)
+            if directive_token_for_comment_token(ctx, *token)
                 == Some(FormatterDirectiveToken::IgnoreEnd)
             {
                 Some(token.span)
@@ -629,19 +532,19 @@ pub(crate) fn is_ignore_directive_comment(raw: &str) -> bool {
 
 /// Return whether one comment node is an ignore directive.
 pub(crate) fn comment_node_is_ignore_directive(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Comment>,
 ) -> bool {
-    let comment_source = context.comment_text(node_id);
+    let comment_source = ctx.comment_text(node_id);
     is_ignore_directive_comment(comment_source.as_ref())
 }
 
 /// Return whether one comment node is any ignore directive token.
 pub(crate) fn comment_node_is_any_ignore_directive(
-    context: &DestackFormatContext<'_>,
+    ctx: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Comment>,
 ) -> bool {
-    let comment_source = context.comment_text(node_id);
+    let comment_source = ctx.comment_text(node_id);
     is_any_ignore_directive_comment(comment_source.as_ref())
 }
 
@@ -756,7 +659,7 @@ mod tests {
             FormatterOptions::default(),
             LanguageType::TypeScript,
         );
-        let context = DestackFormatContext::new(
+        let ctx = DestackFormatContext::new(
             options,
             DestackFormatArtifacts {
                 file: &file,
@@ -769,9 +672,9 @@ mod tests {
             },
         );
 
-        let comment_tokens = comment_tokens(&context);
+        let comment_tokens = comment_tokens(&ctx);
         assert!(!comment_tokens.is_empty());
-        let range = ignore_range_for_node(&context, expressions[0], &comment_tokens);
+        let range = ignore_range_for_node(&ctx, expressions[0], &comment_tokens);
         assert!(range.is_some());
     }
 
@@ -817,7 +720,7 @@ mod tests {
             FormatterOptions::default(),
             LanguageType::TypeScript,
         );
-        let context = DestackFormatContext::new(
+        let ctx = DestackFormatContext::new(
             options,
             DestackFormatArtifacts {
                 file: &file,
@@ -830,17 +733,17 @@ mod tests {
             },
         );
 
-        let comment_tokens = comment_tokens(&context);
-        let range = ignore_range_for_node(&context, second_argument, &comment_tokens)
+        let comment_tokens = comment_tokens(&ctx);
+        let range = ignore_range_for_node(&ctx, second_argument, &comment_tokens)
             .expect("expected ignore range for second argument");
 
-        let (_, start_column) = context
+        let (_, start_column) = ctx
             .file
             .get_position(range.start)
             .expect("expected range start position");
         assert_eq!(start_column, 4);
 
-        let raw = ignored_span_source(&context, range);
+        let raw = ignored_span_source(&ctx, range);
         assert!(raw.starts_with("// oxfmt-ignore-start"));
     }
 
@@ -874,7 +777,7 @@ mod tests {
             FormatterOptions::default(),
             LanguageType::TypeScript,
         );
-        let context = DestackFormatContext::new(
+        let ctx = DestackFormatContext::new(
             options,
             DestackFormatArtifacts {
                 file: &file,
@@ -888,9 +791,9 @@ mod tests {
         );
 
         let directive =
-            directive_for_node(&context, expression_id).expect("expected prefix ignore directive");
-        let ignored_span = ignored_node_span(&context, expression_id, directive);
-        let raw = ignored_span_source(&context, ignored_span);
+            directive_for_node(&ctx, expression_id).expect("expected prefix ignore directive");
+        let ignored_span = ignored_node_span(&ctx, expression_id, directive);
+        let raw = ignored_span_source(&ctx, ignored_span);
 
         assert_eq!(raw, "call(   a, b)");
     }

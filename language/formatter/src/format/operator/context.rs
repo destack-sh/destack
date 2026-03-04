@@ -281,162 +281,63 @@ fn is_type_context_uncached(
         match parent_type {
             // static arguments are always type positions in js/ts syntax
             NodeType::Argument => {
-                let argument_id = LocalNodeId::<Argument>::new(parent_id);
-                if let Some((expression_id, expression_type)) = context.parent_by_id(parent_id)
-                    && expression_type == NodeType::Expression
-                {
-                    let parent_expression = context
-                        .tree
-                        .get(LocalNodeId::<Expression>::new(expression_id));
-                    if expression_static_arguments(parent_expression)
-                        .is_some_and(|arguments| arguments.contains(&argument_id))
-                    {
-                        return true;
-                    }
+                if argument_parent_is_type_context(context, parent_id) {
+                    return true;
                 }
             }
 
             // type specific expressions imply type context
             NodeType::Expression => {
-                let parent_expr = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
-                if let Expression::TypeUnary { operator, right } = parent_expr
-                    && *operator == TypeUnaryOperator::AsConst
-                    && right.id == current_id
-                {
-                    current_id = parent_id;
-                    continue;
-                }
-                if let Expression::TypeBinary { left, operator, .. } = parent_expr
-                    && left.id == current_id
-                    && matches!(
-                        operator,
-                        TypeBinaryOperator::Cast
-                            | TypeBinaryOperator::Satisfies
-                            | TypeBinaryOperator::Is
-                            | TypeBinaryOperator::InstanceOf
-                            | TypeBinaryOperator::In
-                    )
-                {
-                    current_id = parent_id;
-                    continue;
-                }
-                if is_type_expression_variant(parent_expr) {
+                let (is_type_context, continue_with_parent) =
+                    expression_parent_type_context_step(context, parent_id, current_id);
+                if is_type_context {
                     return true;
+                }
+
+                if continue_with_parent {
+                    current_id = parent_id;
+                    continue;
                 }
             }
 
             // declarator type annotation
             NodeType::Declarator => {
-                let declarator = context.tree.get(LocalNodeId::<Declarator>::new(parent_id));
-                if declarator.ty.is_some_and(|ty| ty.id == current_id) {
+                if declarator_parent_is_type_context(context, parent_id, current_id) {
                     return true;
                 }
             }
 
             // parameter type annotation
             NodeType::Parameter => {
-                let parameter = context.tree.get(LocalNodeId::<Parameter>::new(parent_id));
-                let parameter_ty = match parameter {
-                    Parameter::Named { ty, .. }
-                    | Parameter::Pattern { ty, .. }
-                    | Parameter::VariadicNamed { ty, .. }
-                    | Parameter::VariadicPattern { ty, .. } => *ty,
-                };
-                if parameter_ty.is_some_and(|ty| ty.id == current_id) {
+                if parameter_parent_is_type_context(context, parent_id, current_id) {
                     return true;
                 }
             }
 
             // where clause constraint
             NodeType::WhereClause => {
-                let where_clause = context.tree.get(LocalNodeId::<WhereClause>::new(parent_id));
-                if where_clause.right.id == current_id {
+                if where_clause_parent_is_type_context(context, parent_id, current_id) {
                     return true;
                 }
             }
 
             // property field type
             NodeType::Property => {
-                let property = context.tree.get(LocalNodeId::<Property>::new(parent_id));
-                if let Property::Field { value, .. } = property
-                    && value.is_some_and(|value| value.id == current_id)
-                    && let Some((expression_id, expression_type)) = context.parent_by_id(parent_id)
-                    && expression_type == NodeType::Expression
-                {
-                    return is_type_context(context, LocalNodeId::<Expression>::new(expression_id));
+                if property_parent_is_type_context(context, parent_id, current_id) {
+                    return true;
                 }
             }
 
             // member type slots
             NodeType::Member => {
-                let member = context.tree.get(LocalNodeId::<Member>::new(parent_id));
-                let is_type_slot = match member {
-                    Member::Type { ty, value, .. } => {
-                        ty.is_some_and(|ty| ty.id == current_id)
-                            || value.is_some_and(|value| value.id == current_id)
-                    }
-                    Member::Field { value, .. } => {
-                        value.is_some_and(|value| value.id == current_id)
-                    }
-                    Member::ComptimeConst { ty, .. } => ty.is_some_and(|ty| ty.id == current_id),
-                    Member::Embed { value, .. } => value.id == current_id,
-                    Member::Method { .. }
-                    | Member::StaticBlock { .. }
-                    | Member::ComptimeBlock { .. } => false,
-                };
-                if is_type_slot {
+                if member_parent_is_type_context(context, parent_id, current_id) {
                     return true;
                 }
             }
 
             // declaration type slots
             NodeType::Declaration => {
-                let declaration = context.tree.get(LocalNodeId::<Declaration>::new(parent_id));
-                let in_type_slot = match declaration {
-                    Declaration::Type { value, .. } => value.id == current_id,
-                    Declaration::Struct { heritage, .. }
-                    | Declaration::Interface { heritage, .. }
-                    | Declaration::Enum { heritage, .. } => {
-                        heritage
-                            .extends_types
-                            .as_ref()
-                            .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
-                            || heritage
-                                .implements_types
-                                .as_ref()
-                                .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
-                    }
-                    Declaration::Class { heritage, .. } => heritage
-                        .implements_types
-                        .as_ref()
-                        .is_some_and(|types| types.iter().any(|ty| ty.id == current_id)),
-                    Declaration::Extension {
-                        target_type,
-                        heritage,
-                        ..
-                    } => {
-                        target_type.id == current_id
-                            || heritage
-                                .extends_types
-                                .as_ref()
-                                .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
-                            || heritage
-                                .implements_types
-                                .as_ref()
-                                .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
-                    }
-                    Declaration::Function { signature, .. } => signature
-                        .return_type
-                        .is_some_and(|return_type| return_type.id == current_id),
-                    Declaration::ImportAlias { kind, target, .. } => match (kind, target) {
-                        (DependencyKind::Type, ImportAliasTarget::Path { value }) => {
-                            value.id == current_id
-                        }
-                        _ => false,
-                    },
-                    Declaration::Global { .. } | Declaration::Namespace { .. } => false,
-                };
-                if in_type_slot {
+                if declaration_parent_is_type_context(context, parent_id, current_id) {
                     return true;
                 }
             }
@@ -448,6 +349,180 @@ fn is_type_context_uncached(
     }
 
     false
+}
+
+/// Return whether one argument parent marks a type context.
+fn argument_parent_is_type_context(context: &DestackFormatContext<'_>, parent_id: u32) -> bool {
+    let argument_id = LocalNodeId::<Argument>::new(parent_id);
+    let Some((expression_id, expression_type)) = context.parent_by_id(parent_id) else {
+        return false;
+    };
+    if expression_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression = context
+        .tree
+        .get(LocalNodeId::<Expression>::new(expression_id));
+    expression_static_arguments(parent_expression)
+        .is_some_and(|arguments| arguments.contains(&argument_id))
+}
+
+/// Return expression-parent type-context step outcome.
+fn expression_parent_type_context_step(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    current_id: u32,
+) -> (bool, bool) {
+    let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+
+    if let Expression::TypeUnary { operator, right } = parent_expression
+        && *operator == TypeUnaryOperator::AsConst
+        && right.id == current_id
+    {
+        return (false, true);
+    }
+
+    if let Expression::TypeBinary { left, operator, .. } = parent_expression
+        && left.id == current_id
+        && matches!(
+            operator,
+            TypeBinaryOperator::Cast
+                | TypeBinaryOperator::Satisfies
+                | TypeBinaryOperator::Is
+                | TypeBinaryOperator::InstanceOf
+                | TypeBinaryOperator::In
+        )
+    {
+        return (false, true);
+    }
+
+    (is_type_expression_variant(parent_expression), false)
+}
+
+/// Return whether one declarator parent marks a type context.
+fn declarator_parent_is_type_context(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    current_id: u32,
+) -> bool {
+    let declarator = context.tree.get(LocalNodeId::<Declarator>::new(parent_id));
+    declarator.ty.is_some_and(|ty| ty.id == current_id)
+}
+
+/// Return whether one parameter parent marks a type context.
+fn parameter_parent_is_type_context(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    current_id: u32,
+) -> bool {
+    let parameter = context.tree.get(LocalNodeId::<Parameter>::new(parent_id));
+    let parameter_ty = match parameter {
+        Parameter::Named { ty, .. }
+        | Parameter::Pattern { ty, .. }
+        | Parameter::VariadicNamed { ty, .. }
+        | Parameter::VariadicPattern { ty, .. } => *ty,
+    };
+
+    parameter_ty.is_some_and(|ty| ty.id == current_id)
+}
+
+/// Return whether one where-clause parent marks a type context.
+fn where_clause_parent_is_type_context(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    current_id: u32,
+) -> bool {
+    let where_clause = context.tree.get(LocalNodeId::<WhereClause>::new(parent_id));
+    where_clause.right.id == current_id
+}
+
+/// Return whether one property parent marks a type context.
+fn property_parent_is_type_context(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    current_id: u32,
+) -> bool {
+    let property = context.tree.get(LocalNodeId::<Property>::new(parent_id));
+    if let Property::Field { value, .. } = property
+        && value.is_some_and(|value| value.id == current_id)
+        && let Some((expression_id, expression_type)) = context.parent_by_id(parent_id)
+        && expression_type == NodeType::Expression
+    {
+        return is_type_context(context, LocalNodeId::<Expression>::new(expression_id));
+    }
+
+    false
+}
+
+/// Return whether one member parent marks a type context.
+fn member_parent_is_type_context(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    current_id: u32,
+) -> bool {
+    let member = context.tree.get(LocalNodeId::<Member>::new(parent_id));
+    match member {
+        Member::Type { ty, value, .. } => {
+            ty.is_some_and(|ty| ty.id == current_id)
+                || value.is_some_and(|value| value.id == current_id)
+        }
+        Member::Field { value, .. } => value.is_some_and(|value| value.id == current_id),
+        Member::ComptimeConst { ty, .. } => ty.is_some_and(|ty| ty.id == current_id),
+        Member::Embed { value, .. } => value.id == current_id,
+        Member::Method { .. } | Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => false,
+    }
+}
+
+/// Return whether one declaration parent marks a type context.
+fn declaration_parent_is_type_context(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    current_id: u32,
+) -> bool {
+    let declaration = context.tree.get(LocalNodeId::<Declaration>::new(parent_id));
+    match declaration {
+        Declaration::Type { value, .. } => value.id == current_id,
+        Declaration::Struct { heritage, .. }
+        | Declaration::Interface { heritage, .. }
+        | Declaration::Enum { heritage, .. } => {
+            heritage
+                .extends_types
+                .as_ref()
+                .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
+                || heritage
+                    .implements_types
+                    .as_ref()
+                    .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
+        }
+        Declaration::Class { heritage, .. } => heritage
+            .implements_types
+            .as_ref()
+            .is_some_and(|types| types.iter().any(|ty| ty.id == current_id)),
+        Declaration::Extension {
+            target_type,
+            heritage,
+            ..
+        } => {
+            target_type.id == current_id
+                || heritage
+                    .extends_types
+                    .as_ref()
+                    .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
+                || heritage
+                    .implements_types
+                    .as_ref()
+                    .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
+        }
+        Declaration::Function { signature, .. } => signature
+            .return_type
+            .is_some_and(|return_type| return_type.id == current_id),
+        Declaration::ImportAlias { kind, target, .. } => match (kind, target) {
+            (DependencyKind::Type, ImportAliasTarget::Path { value }) => value.id == current_id,
+            _ => false,
+        },
+        Declaration::Global { .. } | Declaration::Namespace { .. } => false,
+    }
 }
 
 /// Return whether an expression is the type annotation of a parameter.
