@@ -71,7 +71,7 @@ Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seem
 - `#Incomplete`: obvious feature is missing
 - `#Suspicious`: something that looks wrong or weird
 - `#Security`: may allow more access than intended
-- `#Architecture`: larger design to reconsider
+- `#Architecture`: larger design issue to reconsider
 
 ### Naming
 
@@ -99,9 +99,10 @@ let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
 
-Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic at various pieces of logic.
+Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic at various pieces of granularity.
 Conceptually, this means not hiding details too much, and assuming (especially internally) that the caller is a consenting adult.
 More specifically, for example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller.
+Prefer parameteric mutability. etc. etc. that sort of thing.
 
 ### Errors
 
@@ -182,12 +183,8 @@ just test
 ## Commits
 
 Typically, agents aren't supposed to commit or merge directly without being explicitly instructed to.
-We follow the conventional commit message format with some nuances:
- - Follow `type(scope): summary` (≤100 chars, imperative).
- - Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
- - Example: `feat(language): improve error span precision (to sub-token granularity)`
-We do not mention non-human authors / contributors in commit messages (it's expected and thus superfluous; humans are always accountable).
+For commit message format, follow `CONTRIBUTING.md#commit-style`.
 
 We typically work with branches and worktrees off a main branch.
 We try to frequently rebase of main and merge back into main.
-When merging into main, try to fast-forward or cherry-pick to retain the commit history.
+When merging into main, try to fast-forward or cherry-pick to retain the commit history (except when there are a _lot_ of small commits, feel free to squash then).
