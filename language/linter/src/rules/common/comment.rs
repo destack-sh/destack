@@ -74,6 +74,28 @@ pub fn is_directive_comment(text: &str) -> bool {
         || trimmed.starts_with("eslint-")
 }
 
+/// Return true when one comment declares intentional switch fallthrough.
+pub fn is_fallthrough_comment(text: &str) -> bool {
+    let normalized = normalize_comment_text(text).to_ascii_lowercase();
+    let normalized = normalized.trim();
+    if is_directive_comment(normalized) {
+        return false;
+    }
+
+    normalized.contains("fallthrough")
+        || normalized.contains("fall through")
+        || normalized.contains("falls through")
+}
+
+/// Normalize one comment text to raw payload words.
+fn normalize_comment_text(text: &str) -> &str {
+    let text = text.trim();
+    let text = text.strip_prefix("//").unwrap_or(text);
+    let text = text.strip_prefix("/*").unwrap_or(text);
+    let text = text.strip_suffix("*/").unwrap_or(text);
+    text.trim()
+}
+
 /// Parse one keyword comment prefix and its tags using configured options.
 pub fn parse_keyword_comment_with_options(
     text: &str,
@@ -313,5 +335,25 @@ mod tests {
     #[test]
     fn test_skips_separator_detection_for_prose() {
         assert!(!is_separator_comment("Binary operator precedence"));
+    }
+
+    /// Detect intentional fallthrough comments.
+    #[test]
+    fn test_detects_fallthrough_comment() {
+        assert!(is_fallthrough_comment("// falls through"));
+        assert!(is_fallthrough_comment("/* fallthrough */"));
+        assert!(is_fallthrough_comment("// fall through"));
+    }
+
+    /// Skip non fallthrough comments.
+    #[test]
+    fn test_skips_non_fallthrough_comment() {
+        assert!(!is_fallthrough_comment("// continue below"));
+    }
+
+    /// Skip directive comments that include fallthrough text.
+    #[test]
+    fn test_skips_fallthrough_directive_comment() {
+        assert!(!is_fallthrough_comment("// eslint-disable-next-line no-fallthrough"));
     }
 }
