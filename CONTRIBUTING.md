@@ -122,4 +122,5 @@ Use the top level `just` recipes so versioning and changelog automation stay con
 Run `just bump patch`, `just bump minor`, or `just bump major` to update all tracked version files.
 Run `just release-changelog` to generate the `CHANGELOG.md` section for the current version.
 Run `just release-validate` to verify tag, tracked versions, and changelog state for the current version.
-Run `just release patch "chore(all): bump version to X.Y.Z"` to bump, validate, update changelog, commit, and tag in one command.
+Run `just release patch` to bump, validate, update changelog, commit, and tag in one command.
+Run `just release-push patch` to do the same flow and push `main` plus the release tag.
