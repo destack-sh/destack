@@ -142,54 +142,115 @@ fn body_unconditionally_exits(
     ctx: &LintModuleAstContext<'_>,
     body_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
-    let block = ctx.tree.get(body_id);
+    // compute flow outcomes for the loop body
+    let flow = block_flow(ctx, body_id);
+    let allows_second_iteration = flow.reaches_next_statement || flow.reaches_next_iteration;
 
-    // empty block doesn't exit
-    if block.expressions.is_empty() {
-        return false;
-    }
-
-    // check all expressions - if ANY expression unconditionally exits, the loop exits
-    for expr_id in &block.expressions {
-        if expression_unconditionally_exits(ctx, *expr_id) {
-            return true;
-        }
-    }
-
-    false
+    !allows_second_iteration
 }
 
-/// Check if an expression unconditionally exits.
-fn expression_unconditionally_exits(
+/// Flow outcomes for one expression subtree.
+#[derive(Clone, Copy, Debug, Default)]
+struct LoopFlow {
+    /// Whether one path reaches the next statement in the same block.
+    reaches_next_statement: bool,
+    /// Whether one path reaches the next iteration directly (for example, `continue`).
+    reaches_next_iteration: bool,
+}
+
+/// Return flow for expressions that always exit the current iteration.
+const fn flow_exit_iteration() -> LoopFlow {
+    LoopFlow {
+        reaches_next_statement: false,
+        reaches_next_iteration: false,
+    }
+}
+
+/// Return flow for expressions that fall through to the next statement.
+const fn flow_fallthrough() -> LoopFlow {
+    LoopFlow {
+        reaches_next_statement: true,
+        reaches_next_iteration: false,
+    }
+}
+
+/// Return flow for expressions that continue the current loop.
+const fn flow_continue_iteration() -> LoopFlow {
+    LoopFlow {
+        reaches_next_statement: false,
+        reaches_next_iteration: true,
+    }
+}
+
+/// Evaluate block flow outcomes.
+fn block_flow(ctx: &LintModuleAstContext<'_>, body_id: ast::LocalNodeId<ast::Block>) -> LoopFlow {
+    let block = ctx.tree.get(body_id);
+    let mut reaches_next_statement = true;
+    let mut reaches_next_iteration = false;
+
+    // evaluate each expression in order while statement flow is still reachable
+    for expression_id in &block.expressions {
+        if !reaches_next_statement {
+            break;
+        }
+
+        let flow = expression_flow(ctx, *expression_id);
+        reaches_next_iteration = reaches_next_iteration || flow.reaches_next_iteration;
+        reaches_next_statement = flow.reaches_next_statement;
+    }
+
+    LoopFlow {
+        reaches_next_statement,
+        reaches_next_iteration,
+    }
+}
+
+/// Evaluate flow outcomes for one expression.
+fn expression_flow(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
+) -> LoopFlow {
     let expr = ctx.tree.get(expr_id);
 
     match expr {
         // direct exit statements
-        ast::Expression::Return { .. } => true,
-        ast::Expression::Break { .. } => true,
-        ast::Expression::Throw { .. } => true,
+        ast::Expression::Return { .. } => flow_exit_iteration(),
+        ast::Expression::Break { .. } => flow_exit_iteration(),
+        ast::Expression::Throw { .. } => flow_exit_iteration(),
+
+        // continue reaches the loop's next iteration
+        ast::Expression::Continue { .. } => flow_continue_iteration(),
 
         // unwrap statement wrapper
-        ast::Expression::Statement(inner_id) => expression_unconditionally_exits(ctx, *inner_id),
+        ast::Expression::Statement(inner_id) => expression_flow(ctx, *inner_id),
 
-        // block: check if it unconditionally exits
-        ast::Expression::Block(block_id) => body_unconditionally_exits(ctx, *block_id),
+        // block: evaluate statement order and flow
+        ast::Expression::Block(block_id) => block_flow(ctx, *block_id),
 
-        // if/else: only exits if BOTH branches exit (we can't determine this easily for all branches)
-        // so we don't flag conditional exits
-        ast::Expression::If { .. } => false,
+        // if/else: merge both branch outcomes
+        ast::Expression::If {
+            then_expression,
+            else_expression,
+            ..
+        } => {
+            let then_flow = expression_flow(ctx, *then_expression);
+            let else_flow = else_expression
+                .map(|expression_id| expression_flow(ctx, expression_id))
+                .unwrap_or_else(flow_fallthrough);
 
-        // match: would need to check all arms, skip for now
-        ast::Expression::Match { .. } => false,
+            LoopFlow {
+                reaches_next_statement: then_flow.reaches_next_statement
+                    || else_flow.reaches_next_statement,
+                reaches_next_iteration: then_flow.reaches_next_iteration
+                    || else_flow.reaches_next_iteration,
+            }
+        }
 
-        // try: complex control flow, skip
-        ast::Expression::Try { .. } => false,
+        // complex control flow: conservatively allow fallthrough
+        ast::Expression::Match { .. } | ast::Expression::Try { .. } => flow_fallthrough(),
 
-        // other expressions don't exit
-        _ => false,
+        // other expressions may fall through
+        _ => flow_fallthrough(),
     }
 }
 
@@ -394,5 +455,41 @@ for (let i = 0; i < 10; i++) {
         );
         test.result(result)
             .assert_no_lint("no-loop-single-iteration");
+    }
+
+    #[test]
+    fn test_allows_continue_branch_with_return_fallback() {
+        let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
+        let result = test.lint_ast(
+            "no_loop_single_iteration/test_allows_continue_branch_with_return_fallback.ds",
+            r#"
+while (true) {
+    if (shouldContinue) {
+        continue;
+    }
+    return value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-loop-single-iteration");
+    }
+
+    #[test]
+    fn test_detects_if_else_all_paths_exit() {
+        let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
+        let result = test.lint_ast(
+            "no_loop_single_iteration/test_detects_if_else_all_paths_exit.ds",
+            r#"
+for (item in items) {
+    if (item.done) {
+        break;
+    } else {
+        return item;
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("no-loop-single-iteration");
     }
 }
