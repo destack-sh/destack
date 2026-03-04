@@ -1,4 +1,4 @@
-name: Runtime Cross Targets
+name: Release Runtime Smoke Windows GNU
 
 on:
   workflow_call:
@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  runtime-cross-targets:
-    name: Runtime Cross Targets
+  release-smoke-runtime-windows-gnu:
+    name: Runtime Release Smoke (windows-gnu)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -20,18 +20,15 @@ jobs:
       - name: Setup Rust and just
         uses: ./.github/actions/setup-rust-just
         with:
-          rust_targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-gnu
+          rust_targets: x86_64-pc-windows-gnu
 
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
 
-      - name: Install Linux cross dependencies
+      - name: Install Wine
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libdbus-1-dev shellcheck
+          sudo apt-get install -y wine64
 
-      - name: Lint runtime toolchain scripts
-        run: just runtime-toolchain-lint
-
-      - name: Run runtime cross-target checks
-        run: just runtime-cross-targets-check
+      - name: Build and run runtime smoke release binary
+        run: just runtime-windows-gnu-smoke --release

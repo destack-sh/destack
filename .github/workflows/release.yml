@@ -26,8 +26,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: nightly-2025-11-27
-  BUN_VERSION: 1.2.18
 
 jobs:
   verify:
@@ -43,23 +41,11 @@ jobs:
       - name: Validate zed grammar pins
         run: python3 bridge/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt --component clippy
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
 
       - name: Run language format gate
         run: just language/ci-format
@@ -98,8 +84,8 @@ jobs:
       - name: Run language release tests
         run: just language/test-release
 
-      - name: Install JS dependencies
-        run: bun install --frozen-lockfile
+      - name: Ensure language bridge toolchains
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
 
       - name: Run library format check
         run: just library/ci-format
@@ -142,168 +128,61 @@ jobs:
     needs:
       - verify
     uses: ./.github/workflows/runtime-android.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-ios:
     name: Runtime iOS
     needs:
       - verify
     uses: ./.github/workflows/runtime-ios.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-linux:
     name: Runtime Linux
     needs:
       - verify
     uses: ./.github/workflows/runtime-linux.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-macos:
     name: Runtime macOS
     needs:
       - verify
     uses: ./.github/workflows/runtime-macos.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-windows:
     name: Runtime Windows
     needs:
       - verify
     uses: ./.github/workflows/runtime-windows.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-windows-gnu:
     name: Runtime Windows GNU
     needs:
       - verify
     uses: ./.github/workflows/runtime-windows-gnu.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-wasip1:
     name: Runtime WASIp1
     needs:
       - verify
     uses: ./.github/workflows/runtime-wasip1.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   release-smoke-runtime-unix:
-    name: Runtime Release Smoke (${{ matrix.id }})
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
     needs:
       - verify
       - runtime-linux
       - runtime-macos
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - id: linux-x86_64
-            runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - id: linux-aarch64
-            runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-          - id: macos-aarch64
-            runner: macos-14
-            target: aarch64-apple-darwin
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustup target add "${{ matrix.target }}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Build runtime smoke release binary
-        run: cargo build --release -p destack_runtime --bin runtime-smoke --target "${{ matrix.target }}"
-
-      - name: Run runtime smoke release binary
-        run: "./target/${{ matrix.target }}/release/runtime-smoke"
+    uses: ./.github/workflows/release-runtime-smoke-unix.yml
 
   release-smoke-runtime-windows:
-    name: Runtime Release Smoke (windows-msvc)
-    runs-on: windows-latest
-    timeout-minutes: 90
     needs:
       - verify
       - runtime-windows
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustup target add x86_64-pc-windows-msvc
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Build runtime smoke release binary
-        run: cargo build --release -p destack_runtime --bin runtime-smoke --target x86_64-pc-windows-msvc
-
-      - name: Run runtime smoke release binary
-        shell: powershell
-        run: .\target\x86_64-pc-windows-msvc\release\runtime-smoke.exe
+    uses: ./.github/workflows/release-runtime-smoke-windows.yml
 
   release-smoke-runtime-windows-gnu:
-    name: Runtime Release Smoke (windows-gnu)
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
     needs:
       - verify
       - runtime-windows-gnu
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustup target add x86_64-pc-windows-gnu
-          rustc --version
-          cargo --version
-
-      - name: Install Zig
-        uses: mlugg/setup-zig@53fc45b17fe98b52f92ee5ea08ff48a85a3e7eb7
-        with:
-          version: 0.15.2
-
-      - name: Install Wine
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wine64
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Build and run runtime smoke release binary
-        run: ./scripts/toolchain/runtime-windows-gnu-smoke.sh --release
+    uses: ./.github/workflows/release-runtime-smoke-windows-gnu.yml
 
   build-artifacts:
     name: Build Release Artifacts
@@ -327,18 +206,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
 
       - name: Build language artifacts
         run: just language/build
@@ -396,22 +265,16 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustup target add "${{ matrix.target }}"
-          rustc --version
-          cargo --version
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
+        with:
+          rust_targets: ${{ matrix.target }}
 
       - name: Install Linux cross compiler
         if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Build CLI binaries
         run: cargo build --release -p destack_cli --target "${{ matrix.target }}"
@@ -654,23 +517,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
 
       - name: Download cli release assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093

@@ -90,6 +90,14 @@ language/grammar/destack/prebuilds/
 language/grammar/destack/.build/
 language/grammar/destack/_obj/
 
+# bridge generated artifacts
+bridge/**/.dart_tool/
+bridge/**/pubspec.lock
+bridge/dotnet/**/[Bb]in/
+bridge/dotnet/**/[Oo]bj/
+bridge/elixir/**/_build/
+bridge/elixir/**/deps/
+
 # Fuzzing
 **/hfuzz_target/**
 **/fuzz/corpus/**

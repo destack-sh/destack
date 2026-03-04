@@ -14,8 +14,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: nightly-2025-11-27
-  BUN_VERSION: 1.2.18
 
 jobs:
   nightly-core:
@@ -28,26 +26,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt --component clippy
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install JS dependencies
-        run: bun install --frozen-lockfile
+          rust_components: rustfmt clippy
+          install_js_dependencies: "true"
 
       - name: Run language fast gates
         run: |
@@ -67,26 +50,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component clippy
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          rust_components: clippy
+          install_js_dependencies: "true"
 
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Install JS dependencies
-        run: bun install --frozen-lockfile
+      - name: Ensure language bridge toolchains
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
 
       - name: Cache conformance fixtures
         id: language-conformance-cache
@@ -149,18 +120,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
 
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
@@ -180,18 +141,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
 
       - name: Run nightly benchmark lane
         run: just bench-nightly
@@ -201,53 +152,39 @@ jobs:
     needs:
       - nightly-core
     uses: ./.github/workflows/runtime-android.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-ios:
     name: Runtime iOS
     needs:
       - nightly-core
     uses: ./.github/workflows/runtime-ios.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-linux:
     name: Runtime Linux
     needs:
       - nightly-core
     uses: ./.github/workflows/runtime-linux.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-macos:
     name: Runtime macOS
     needs:
       - nightly-core
     uses: ./.github/workflows/runtime-macos.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-windows:
     name: Runtime Windows
     needs:
       - nightly-core
     uses: ./.github/workflows/runtime-windows.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-windows-gnu:
     name: Runtime Windows GNU
     needs:
       - nightly-core
     uses: ./.github/workflows/runtime-windows-gnu.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-wasip1:
     name: Runtime WASIp1
     needs:
       - nightly-core
     uses: ./.github/workflows/runtime-wasip1.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}

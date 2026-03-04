@@ -2,13 +2,13 @@
 set -euo pipefail
 
 if [ "${OS:-}" != "Windows_NT" ]; then
-    echo "windows msvc runtime checks must run on a windows host"
-    exit 1
+	echo "windows msvc runtime checks must run on a windows host"
+	exit 1
 fi
 
 # ensure target std is available before cargo check
 if command -v rustup >/dev/null 2>&1; then
-    rustup target add x86_64-pc-windows-msvc >/dev/null
+	rustup target add x86_64-pc-windows-msvc >/dev/null
 fi
 
 # check and lint runtime on windows host

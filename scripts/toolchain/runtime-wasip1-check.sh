@@ -5,7 +5,7 @@ target="wasm32-wasip1"
 
 # ensure target std is available before cargo check
 if command -v rustup >/dev/null 2>&1; then
-    rustup target add "${target}" >/dev/null
+	rustup target add "${target}" >/dev/null
 fi
 
 # check runtime for wasip1 target

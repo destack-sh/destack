@@ -3,10 +3,6 @@ name: Runtime Android
 on:
   workflow_call:
     inputs:
-      rust_toolchain:
-        description: "Rust toolchain version"
-        required: true
-        type: string
       android_api_level:
         description: "Android API level"
         required: false
@@ -41,13 +37,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${{ inputs.rust_toolchain }}" --profile minimal --component clippy
-          rustup default "${{ inputs.rust_toolchain }}"
-          rustup target add aarch64-linux-android
-          rustc --version
-          cargo --version
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
+        with:
+          rust_components: clippy
+          rust_targets: aarch64-linux-android
 
       - name: Install Android host dependencies
         run: |
@@ -67,12 +61,6 @@ jobs:
         run: ./.github/scripts/install-android-ndk.sh
         env:
           ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run android runtime check
         run: just runtime-android-check

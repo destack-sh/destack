@@ -15,8 +15,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: nightly-2025-11-27
-  BUN_VERSION: 1.2.18
 
 jobs:
   repo-integrity:
@@ -32,6 +30,81 @@ jobs:
       - name: Validate zed grammar pins
         run: python3 bridge/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
 
+  changes:
+    name: Changed Paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - repo-integrity
+    outputs:
+      runtime_required: ${{ steps.paths.outputs.runtime_required }}
+      swift_bridge_required: ${{ steps.paths.outputs.swift_bridge_required }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - id: paths
+        name: Resolve changed paths
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # resolve compare base for pull requests and pushes
+          compare_base=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+              compare_base="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+              compare_base="${{ github.event.before }}"
+          fi
+
+          # fall back to running all heavy lanes when compare base is unavailable
+          if [ -z "${compare_base}" ] || [ "${compare_base}" = "0000000000000000000000000000000000000000" ]; then
+              echo "runtime_required=true" >> "${GITHUB_OUTPUT}"
+              echo "swift_bridge_required=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+          fi
+
+          # fetch the base commit when it is not present in shallow clones
+          if ! git cat-file -e "${compare_base}^{commit}" 2>/dev/null; then
+              git fetch --no-tags --depth=1 origin "${compare_base}" || true
+          fi
+
+          # fall back to running heavy lanes when we cannot resolve diff history
+          if ! git cat-file -e "${compare_base}^{commit}" 2>/dev/null; then
+              echo "runtime_required=true" >> "${GITHUB_OUTPUT}"
+              echo "swift_bridge_required=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+          fi
+
+          changed_paths="$(git diff --name-only "${compare_base}" "${{ github.sha }}")"
+          runtime_required="false"
+          swift_bridge_required="false"
+
+          # evaluate coarse lane filters
+          while IFS= read -r changed_path; do
+              if [ -z "${changed_path}" ]; then
+                  continue
+              fi
+
+              case "${changed_path}" in
+                  .github/workflows/ci.yml|.github/workflows/runtime-*.yml|.github/actions/setup-rust-just/*|.github/actions/setup-zig/*|TARGETS.md|Cargo.toml|Cargo.lock|language/*|scripts/toolchain/*)
+                      runtime_required="true"
+                      ;;
+              esac
+
+              case "${changed_path}" in
+                  .github/workflows/ci.yml|bridge/swift/*|bridge/capi/*|bridge/core/*)
+                      swift_bridge_required="true"
+                      ;;
+              esac
+          done <<< "${changed_paths}"
+
+          echo "runtime_required=${runtime_required}" >> "${GITHUB_OUTPUT}"
+          echo "swift_bridge_required=${swift_bridge_required}" >> "${GITHUB_OUTPUT}"
+
   ci-hygiene:
     name: CI Hygiene
     runs-on: ubuntu-latest
@@ -44,21 +117,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install shell lint tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck shfmt
-
-      - name: Install actionlint
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-        with:
-          tool: actionlint
-
       - name: Install just
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run ci hygiene checks
-        run: just check-ci-hygiene
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-ci-hygiene
 
   language-format:
     name: Language Format
@@ -72,18 +135,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
+        with:
+          rust_components: rustfmt
 
       - name: Run language format check
         run: just language/ci-format
@@ -100,18 +155,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component clippy
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
+        with:
+          rust_components: clippy
 
       - name: Run language lint
         run: just language/ci-lint
@@ -128,23 +175,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
 
       - name: Cache conformance fixtures
         id: language-conformance-cache
@@ -189,19 +221,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        shell: bash
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
 
       - name: Prepare package managers
         shell: bash
@@ -224,57 +245,57 @@ jobs:
     name: Runtime Android
     needs:
       - repo-integrity
+      - changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
     uses: ./.github/workflows/runtime-android.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-ios:
     name: Runtime iOS
     needs:
       - repo-integrity
+      - changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
     uses: ./.github/workflows/runtime-ios.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-linux:
     name: Runtime Linux
     needs:
       - repo-integrity
+      - changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
     uses: ./.github/workflows/runtime-linux.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-macos:
     name: Runtime macOS
     needs:
       - repo-integrity
+      - changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
     uses: ./.github/workflows/runtime-macos.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-windows:
     name: Runtime Windows
     needs:
       - repo-integrity
+      - changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
     uses: ./.github/workflows/runtime-windows.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-windows-gnu:
     name: Runtime Windows GNU
     needs:
       - repo-integrity
+      - changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
     uses: ./.github/workflows/runtime-windows-gnu.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   runtime-wasip1:
     name: Runtime WASIp1
     needs:
       - repo-integrity
+      - changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.runtime_required == 'true'
     uses: ./.github/workflows/runtime-wasip1.yml
-    with:
-      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
   library-format:
     name: Library Format
@@ -288,26 +309,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Install JS dependencies
-        run: bun install --frozen-lockfile
+          rust_components: rustfmt
+          install_js_dependencies: "true"
 
       - name: Run library format check
         run: just library/ci-format
@@ -324,26 +330,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component clippy
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Install JS dependencies
-        run: bun install --frozen-lockfile
+          rust_components: clippy
+          install_js_dependencies: "true"
 
       - name: Run library lint
         run: just library/ci-lint
@@ -360,26 +351,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Install JS dependencies
-        run: bun install --frozen-lockfile
+          install_js_dependencies: "true"
 
       - name: Run library ci tests
         run: just library/test-ci
@@ -396,18 +371,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
+        with:
+          rust_components: rustfmt
 
       - name: Run service format check
         run: just service/ci-format
@@ -430,18 +397,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component clippy
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+      - name: Setup Rust and just
+        uses: ./.github/actions/setup-rust-just
+        with:
+          rust_components: clippy
 
       - name: Run service lint
         run: just service/ci-lint
@@ -464,26 +423,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
-          rustup default "${RUST_TOOLCHAIN}"
-          rustc --version
-          cargo --version
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+      - name: Setup Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          install_js_dependencies: "true"
 
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
-
-      - name: Install just
-        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
-
-      - name: Install JS dependencies
-        run: bun install --frozen-lockfile
+      - name: Ensure language bridge toolchains
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just bridge/toolchain-ensure
 
       - name: Run service ci tests
         run: just service/test-ci
@@ -493,3 +439,20 @@ jobs:
 
       - name: Run bridge ci tests
         run: just bridge/test-ci
+
+  bridge-swift-build:
+    name: Bridge Swift Build
+    runs-on: macos-latest
+    timeout-minutes: 30
+    needs:
+      - repo-integrity
+      - changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.swift_bridge_required == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Build Swift bridge package
+        run: cd bridge/swift && swift build

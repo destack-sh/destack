@@ -120,8 +120,8 @@ run-runtime-smoke-host:
     CARGO_INCREMENTAL=0 cargo run -p destack_runtime --bin runtime-smoke --quiet
 
 # run runtime smoke binary on windows gnu target through wine
-runtime-windows-gnu-smoke:
-    ../scripts/toolchain/runtime-windows-gnu-smoke.sh
+runtime-windows-gnu-smoke *args:
+    ../scripts/toolchain/runtime-windows-gnu-smoke.sh {{args}}
 
 # check runtime on windows gnu target with compile, clippy, and executable tests
 runtime-windows-gnu-check filter='':
@@ -155,17 +155,27 @@ test-runtime-privileged:
     LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::fs::tests:: -- --nocapture
     LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::net::tests:: -- --nocapture
 
+# install runtime target toolchains and host prerequisites where possible
+toolchain-install:
+    ../scripts/toolchain/runtime-toolchain.sh install
+
 # inspect runtime target toolchain readiness on this host
-runtime-toolchain-doctor:
-    ../scripts/toolchain/runtime-toolchain-doctor.sh
+toolchain-doctor:
+    ../scripts/toolchain/runtime-toolchain.sh doctor
+
+# ensure runtime target toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
+toolchain-ensure:
+    ../scripts/toolchain/runtime-toolchain.sh ensure
 
 # lint runtime toolchain shell scripts
-runtime-toolchain-lint:
-    ../scripts/toolchain/runtime-toolchain-lint.sh
+toolchain-lint:
+    ../scripts/toolchain/runtime-toolchain.sh lint
 
-# bootstrap runtime target toolchains and host prerequisites where possible
-runtime-toolchain-bootstrap:
-    ../scripts/toolchain/runtime-toolchain-bootstrap.sh
+# backwards compatibility aliases
+alias runtime-toolchain-bootstrap := toolchain-install
+alias runtime-toolchain-doctor := toolchain-doctor
+alias runtime-toolchain-ensure := toolchain-ensure
+alias runtime-toolchain-lint := toolchain-lint
 
 # check runtime for cross targets using Zig as the C toolchain
 runtime-cross-targets-check:
