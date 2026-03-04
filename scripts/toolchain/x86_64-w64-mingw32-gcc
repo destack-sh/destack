@@ -1,4 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+wrapper_basename="$(basename "${BASH_SOURCE[0]}")"
+wrapper_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+wrapper_path="${wrapper_directory}/${wrapper_basename}"
+
+is_compile_step=0
+for argument in "$@"; do
+    if [ "${argument}" = "-c" ]; then
+        is_compile_step=1
+        break
+    fi
+done
+
+if [ "${is_compile_step}" -eq 1 ]; then
+    exec zig cc -target x86_64-windows-gnu -fno-sanitize=undefined "$@"
+fi
+
+system_linker="$(command -v x86_64-w64-mingw32-gcc || true)"
+if [ -n "${system_linker}" ]; then
+    system_directory="$(cd "$(dirname "${system_linker}")" && pwd -P)"
+    system_path="${system_directory}/${wrapper_basename}"
+    if [ "${system_path}" != "${wrapper_path}" ]; then
+        exec "${system_linker}" "$@"
+    fi
+fi
+
 exec zig cc -target x86_64-windows-gnu "$@"
