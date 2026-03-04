@@ -61,15 +61,25 @@ pub(crate) fn io_not_found(operation: &str, message: impl Into<String>) -> Box<R
 }
 
 /// Build one io-would-block runtime error scoped to one binding operation.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub(crate) fn io_would_block(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
     io_operation_error(operation, Some(PlatformErrorCode::IoWouldBlock), message)
 }
 
 /// Build one io-busy runtime error scoped to one binding operation.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub(crate) fn io_busy(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
     io_operation_error(operation, Some(PlatformErrorCode::IoBusy), message)
+}
+
+/// Build one invalid-state runtime error.
+#[cfg(target_os = "linux")]
+pub(crate) fn invalid_state(message: impl Into<String>) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::generic(
+        Some(PlatformErrorCode::Generic),
+        message,
+    ))
+    .boxed()
 }
 
 /// Build one unsupported-flags runtime error for one flag field.

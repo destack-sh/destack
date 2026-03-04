@@ -187,6 +187,8 @@ pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) ->
 
     #[cfg(not(target_os = "macos"))]
     {
+        let _ = context;
+
         Err(backend_not_supported(
             "destack.audio.event.open",
             "coreaudio",
@@ -208,5 +210,10 @@ pub(crate) fn stop_native_device_event_monitor(context: &BindingCallContext) {
         for selector in monitor_selectors() {
             remove_property_listener_with_user_data(selector, user_data);
         }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = context;
     }
 }

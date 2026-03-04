@@ -1,3 +1,4 @@
+#[cfg(target_vendor = "apple")]
 use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
@@ -244,27 +245,76 @@ pub(crate) fn read_boot_time_unix_ns(_context: &BindingCallContext) -> RuntimeRe
 
 /// Read one host load-average payload from unix APIs.
 pub(crate) fn read_load_average(_context: &BindingCallContext) -> RuntimeResult<LoadAverage> {
-    // query load-average tuple from host APIs
-    let mut values = [0.0f64; 3];
-    let count = unsafe { libc::getloadavg(values.as_mut_ptr(), values.len() as i32) };
-    if count < 0 {
-        return Err(core_platform::io_error("getloadavg", None));
+    #[cfg(target_os = "android")]
+    {
+        // parse load averages from procfs on android
+        let payload = std::fs::read_to_string("/proc/loadavg")
+            .map_err(|_| core_platform::io_error("read(/proc/loadavg)", None))?;
+        let mut fields = payload.split_whitespace();
+        let one = fields.next().ok_or_else(|| {
+            invalid_data(
+                OS_INFO_LOAD_AVERAGE_OPERATION,
+                "missing 1-minute load average in /proc/loadavg",
+            )
+        })?;
+        let five = fields.next().ok_or_else(|| {
+            invalid_data(
+                OS_INFO_LOAD_AVERAGE_OPERATION,
+                "missing 5-minute load average in /proc/loadavg",
+            )
+        })?;
+        let fifteen = fields.next().ok_or_else(|| {
+            invalid_data(
+                OS_INFO_LOAD_AVERAGE_OPERATION,
+                "missing 15-minute load average in /proc/loadavg",
+            )
+        })?;
+        let one = one.parse::<f64>().map_err(|_| {
+            invalid_data(
+                OS_INFO_LOAD_AVERAGE_OPERATION,
+                "invalid 1-minute load average in /proc/loadavg",
+            )
+        })?;
+        let five = five.parse::<f64>().map_err(|_| {
+            invalid_data(
+                OS_INFO_LOAD_AVERAGE_OPERATION,
+                "invalid 5-minute load average in /proc/loadavg",
+            )
+        })?;
+        let fifteen = fifteen.parse::<f64>().map_err(|_| {
+            invalid_data(
+                OS_INFO_LOAD_AVERAGE_OPERATION,
+                "invalid 15-minute load average in /proc/loadavg",
+            )
+        })?;
+
+        Ok(LoadAverage { one, five, fifteen })
     }
 
-    // validate full tuple availability
-    if count < values.len() as i32 {
-        return Err(invalid_data(
-            OS_INFO_LOAD_AVERAGE_OPERATION,
-            format!(
-                "getloadavg returned {count} values, expected {}",
-                values.len()
-            ),
-        ));
-    }
+    #[cfg(not(target_os = "android"))]
+    {
+        // query load-average tuple from host APIs
+        let mut values = [0.0f64; 3];
+        let count = unsafe { libc::getloadavg(values.as_mut_ptr(), values.len() as i32) };
+        if count < 0 {
+            return Err(core_platform::io_error("getloadavg", None));
+        }
 
-    Ok(LoadAverage {
-        one: values[0],
-        five: values[1],
-        fifteen: values[2],
-    })
+        // validate full tuple availability
+        if count < values.len() as i32 {
+            return Err(invalid_data(
+                OS_INFO_LOAD_AVERAGE_OPERATION,
+                format!(
+                    "getloadavg returned {count} values, expected {}",
+                    values.len()
+                ),
+            ));
+        }
+
+        Ok(LoadAverage {
+            one: values[0],
+            five: values[1],
+            fifteen: values[2],
+        })
+    }
 }

@@ -55,13 +55,5 @@ pub(super) fn run_blocking_thread_message_loop() {
     // block until one callback or one looper event is dispatched
     let status =
         unsafe { ALooper_pollOnce(-1, null_mut(), null_mut(), null_mut::<*mut libc::c_void>()) };
-    if status == ALOOPER_POLL_CALLBACK || status >= 0 {
-        return;
-    }
-
-    // return when one wake or error status ends the wait
-    if status == ALOOPER_POLL_WAKE || status == ALOOPER_POLL_ERROR || status == ALOOPER_POLL_TIMEOUT
-    {
-        return;
-    }
+    let _ = status;
 }

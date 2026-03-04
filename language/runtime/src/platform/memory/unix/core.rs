@@ -9,6 +9,7 @@ pub(crate) const NUMA_BIND_OPERATION: &str = "destack.memory.map.numaBind";
 /// Operation tag for remap bindings.
 pub(crate) const REMAP_OPERATION: &str = "destack.memory.protect.remap";
 /// Operation tag for huge-page advise bindings.
+#[cfg(not(target_os = "linux"))]
 pub(crate) const HUGE_PAGE_OPERATION: &str = "destack.memory.advise.hugePage";
 
 /// Supported reserve flag mask.

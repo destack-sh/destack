@@ -3,7 +3,7 @@ use crate::platform::ipc::MessageQueueReceive;
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 use super::core::{
     io_error_with_errno, message_queue_descriptor, posix_name, realtime_deadline,
     register_message_queue, timed_out, would_block,
@@ -41,7 +41,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
     context: &BindingCallContext,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         // remove one queue resource and close it through the registered finalizer
         let removed = context
@@ -58,10 +58,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
         return Ok(());
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     let _ = (context, handle);
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(MESSAGE_QUEUE_CLOSE_OPERATION))
 }
 
@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         /// Supported open bits for POSIX message queues.
         const SUPPORTED_OPEN_FLAGS: libc::c_int =
@@ -161,7 +161,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
             return Err(io_error_with_errno(
                 MESSAGE_QUEUE_OPEN_OPERATION,
                 "mq_open",
-                crate::platform::core::get_errno(),
+                core_platform::get_errno(),
                 "failed to open message queue",
             ));
         }
@@ -175,10 +175,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
         return Ok(());
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     let _ = (context, name, flags, mode, maxmessages, maxmessagebytes);
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(MESSAGE_QUEUE_OPEN_OPERATION))
 }
 
@@ -208,7 +208,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         // resolve one native queue descriptor and caller buffer
         let queue = message_queue_descriptor(context, handle, MESSAGE_QUEUE_RECEIVE_OPERATION)?;
@@ -238,7 +238,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
             }
         };
         if received < 0 {
-            let errno = crate::platform::core::get_errno();
+            let errno = core_platform::get_errno();
             if errno == libc::ETIMEDOUT {
                 if timeoutns == 0 {
                     return Err(would_block(
@@ -278,10 +278,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
         return Ok(());
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     let _ = (context, handle, timeoutns, buffer);
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(
         MESSAGE_QUEUE_RECEIVE_OPERATION,
     ))
@@ -311,7 +311,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
     timeoutns: u64,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         // resolve one native queue descriptor and caller payload
         let queue = message_queue_descriptor(context, handle, MESSAGE_QUEUE_SEND_OPERATION)?;
@@ -340,7 +340,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
             }
         };
         if rc != 0 {
-            let errno = crate::platform::core::get_errno();
+            let errno = core_platform::get_errno();
             if errno == libc::ETIMEDOUT {
                 if timeoutns == 0 {
                     return Err(would_block(
@@ -372,10 +372,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
         return Ok(());
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     let _ = (context, handle, priority, timeoutns, argument_payload);
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(MESSAGE_QUEUE_SEND_OPERATION))
 }
 
@@ -400,8 +400,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
     context: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
+        let _ = context;
+
         // decode and normalize one queue name
         let name = posix_name(name, "name")?;
 
@@ -411,7 +413,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
             return Err(io_error_with_errno(
                 MESSAGE_QUEUE_UNLINK_OPERATION,
                 "mq_unlink",
-                crate::platform::core::get_errno(),
+                core_platform::get_errno(),
                 "failed to unlink message queue",
             ));
         }
@@ -419,9 +421,9 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
         return Ok(());
     }
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     let _ = (context, name);
 
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(MESSAGE_QUEUE_UNLINK_OPERATION))
 }

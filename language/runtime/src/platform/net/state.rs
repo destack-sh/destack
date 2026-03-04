@@ -1,3 +1,4 @@
+#[cfg(any(target_os = "macos", windows))]
 use std::sync::{Arc, OnceLock};
 
 #[cfg(target_os = "macos")]

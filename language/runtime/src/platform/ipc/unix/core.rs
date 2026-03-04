@@ -28,7 +28,7 @@ pub(super) struct UnixSemaphoreState {
 }
 
 /// Payload for one POSIX message queue handle.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 #[derive(Debug)]
 pub(super) struct UnixMessageQueueState {
     /// Native queue descriptor returned by mq_open.
@@ -69,14 +69,14 @@ impl ResourceFinalizer for UnixSemaphoreFinalizer {
 }
 
 /// Finalizer that closes one POSIX message queue descriptor.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 #[derive(Debug)]
 pub(super) struct UnixMessageQueueFinalizer {
     /// Queue descriptor to close.
     pub(super) queue: libc::mqd_t,
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 impl ResourceFinalizer for UnixMessageQueueFinalizer {
     /// Close the queue descriptor during resource cleanup.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
@@ -306,7 +306,7 @@ pub(super) fn transferable_descriptor(
 }
 
 /// Resolve one message-queue handle into one native queue descriptor.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 pub(super) fn message_queue_descriptor(
     context: &BindingCallContext,
     handle: resource::MessageQueueHandle,
@@ -445,7 +445,7 @@ pub(super) fn register_transferred_descriptor(
 }
 
 /// Register one POSIX message queue descriptor in the runtime resource table.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 pub(super) fn register_message_queue(
     context: &BindingCallContext,
     queue: libc::mqd_t,

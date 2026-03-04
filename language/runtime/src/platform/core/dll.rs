@@ -2,11 +2,12 @@ use std::ffi::{CStr, c_void};
 use std::fmt::{Debug, Formatter};
 
 /// Build one typed API table from one byte-string symbol map.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 macro_rules! load_dll_api_bytes {
     (
         $library:expr,
         $candidate:expr,
-        $api:path {
+        $api:ident {
             $($field:ident => $name:expr),+ $(,)?
         }
     ) => {{
@@ -19,11 +20,12 @@ macro_rules! load_dll_api_bytes {
 }
 
 /// Build one typed API table from one UTF-8 symbol-name map.
+#[cfg(target_os = "linux")]
 macro_rules! load_dll_api_named {
     (
         $library:expr,
         $candidate:expr,
-        $api:path {
+        $api:ident {
             $($field:ident => $name:expr),+ $(,)?
         }
     ) => {{
@@ -35,7 +37,10 @@ macro_rules! load_dll_api_named {
     }};
 }
 
-pub(crate) use {load_dll_api_bytes, load_dll_api_named};
+#[cfg(any(target_os = "linux", target_os = "android"))]
+pub(crate) use load_dll_api_bytes;
+#[cfg(target_os = "linux")]
+pub(crate) use load_dll_api_named;
 
 /// One owned dynamic-library handle.
 pub(crate) struct DynamicLibrary {
