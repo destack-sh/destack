@@ -96,6 +96,48 @@ pub fn expression_unwrap_parenthesized(
     }
 }
 
+/// Return true when an expression is a standalone statement value.
+///
+/// This accepts parenthesized wrappers around the expression before the
+/// surrounding statement node.
+pub fn expression_is_standalone_statement(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    // start from the target expression
+    let mut current_id = expression_id;
+
+    // walk parent chain through parenthesized wrappers until a statement boundary
+    loop {
+        // require an expression parent
+        let Some(parent) = tree.get_parent(current_id.id) else {
+            return false;
+        };
+        if parent.ty != dir::NodeType::Expression {
+            return false;
+        }
+
+        // inspect the parent expression shape
+        let parent_id = parent.into_typed::<dir::Expression>();
+        let parent_expression = tree.get(parent_id);
+
+        match parent_expression {
+            // keep walking through nested parentheses
+            dir::Expression::Parenthesized { expression } if *expression == current_id => {
+                current_id = parent_id;
+            }
+
+            // accept when the current expression is the statement payload
+            dir::Expression::Statement { statement } => {
+                return *statement == current_id;
+            }
+
+            // reject other parent expression contexts
+            _ => return false,
+        }
+    }
+}
+
 /// Return one discarded call like value and its replacement expression span owner.
 pub fn expression_discarded_call_like_value(
     tree: &dir::NodeTree,
