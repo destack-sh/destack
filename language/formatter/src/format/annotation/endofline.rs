@@ -58,12 +58,12 @@ fn attach_empty_if_comment(
 /// Attach one same-line comment after one line-leading semicolon to the following owner.
 fn attach_after_line_leading_semicolon_comment(
     tree: &NodeTree,
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     following_owner_with_token_after_fallback: Option<u32>,
     is_same_line_comment: bool,
 ) -> Option<CommentAttachment> {
-    if !is_same_line_comment || !seam_has_line_leading_semicolon_before_comment(context, seam) {
+    if !is_same_line_comment || !seam_has_line_leading_semicolon_before_comment(ctx, seam) {
         return None;
     }
 
@@ -76,7 +76,7 @@ fn attach_after_line_leading_semicolon_comment(
 fn attach_trailing_comma_close_brace_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     preceding_owner: Option<u32>,
     is_same_line_line_comment: bool,
@@ -91,7 +91,7 @@ fn attach_trailing_comma_close_brace_comment(
     attach_trailing_comma_close_brace_property_line_comment(
         tree,
         parents,
-        context.token_before_span,
+        ctx.token_before_span,
         preceding_owner,
     )
 }
@@ -100,7 +100,7 @@ fn attach_trailing_comma_close_brace_comment(
 fn attach_after_dependency_item_separator_comma_line_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     preceding_owner: Option<u32>,
     is_same_line_line_comment: bool,
@@ -109,7 +109,7 @@ fn attach_after_dependency_item_separator_comma_line_comment(
         return None;
     }
 
-    let token_before_owner = context
+    let token_before_owner = ctx
         .token_before_span
         .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
     let target_owner = [preceding_owner, token_before_owner]
@@ -127,7 +127,7 @@ fn attach_after_dependency_item_separator_comma_line_comment(
 fn attach_before_dependency_item_separator_comma_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     preceding_owner: Option<u32>,
     following_owner: Option<u32>,
@@ -140,7 +140,7 @@ fn attach_before_dependency_item_separator_comma_comment(
         return None;
     }
 
-    let token_before_owner = context
+    let token_before_owner = ctx
         .token_before_span
         .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
     let target_owner = [preceding_owner, following_owner, token_before_owner]
@@ -229,14 +229,14 @@ fn attach_after_binary_operator_line_comment(
 /// Attach one same-line line comment after one inline break or continue statement.
 fn attach_inline_break_or_continue_comment(
     tree: &NodeTree,
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     is_same_line_line_comment: bool,
 ) -> Option<CommentAttachment> {
     if !is_same_line_line_comment {
         return None;
     }
 
-    let token_before_span = context.token_before_span?;
+    let token_before_span = ctx.token_before_span?;
     let target_node = find_smallest_owner_enclosing_token(tree, token_before_span.span)?;
     if tree.get_node_type(target_node) != NodeType::Expression {
         return None;
@@ -256,12 +256,12 @@ fn attach_inline_break_or_continue_comment(
 /// Attach one same-line interpolation-head line comment to the interpolation owner.
 fn attach_template_interpolation_open_brace_line_comment(
     tree: &NodeTree,
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     following_owner_with_token_after_fallback: Option<u32>,
     is_same_line_line_comment: bool,
 ) -> Option<CommentAttachment> {
-    if !is_same_line_line_comment || !seam_is_template_interpolation_open_brace(context, seam) {
+    if !is_same_line_line_comment || !seam_is_template_interpolation_open_brace(ctx, seam) {
         return None;
     }
 
@@ -505,7 +505,7 @@ fn attach_call_callee_line_comment(
 fn attach_dependency_item_alias_line_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     preceding_owner: Option<u32>,
     following_owner: Option<u32>,
@@ -516,11 +516,11 @@ fn attach_dependency_item_alias_line_comment(
         return None;
     }
 
-    let token_before_owner = context.token_before_span.and_then(|token| {
+    let token_before_owner = ctx.token_before_span.and_then(|token| {
         find_preferred_owner_starting_at(tree, token.span)
             .or_else(|| find_smallest_owner_enclosing_token(tree, token.span))
     });
-    let token_after_owner = context.token_after_span.and_then(|token| {
+    let token_after_owner = ctx.token_after_span.and_then(|token| {
         find_preferred_owner_starting_at(tree, token.span)
             .or_else(|| find_smallest_owner_enclosing_token(tree, token.span))
     });
@@ -561,10 +561,10 @@ fn attach_following_binding_comment(
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
-/// Prepared context for one end-of-line seam comment.
+/// Prepared ctx for one end-of-line seam comment.
 struct EndOfLineCommentContext<'a, 'ctx> {
-    /// The seam context.
-    context: &'a CommentSeamContext<'ctx>,
+    /// The seam ctx.
+    ctx: &'a CommentSeamContext<'ctx>,
     /// The seam facts.
     seam: &'a CommentSeamData,
     /// The syntax tree.
@@ -595,36 +595,33 @@ struct EndOfLineCommentContext<'a, 'ctx> {
     semicolon_after_is_line_leading: bool,
 }
 
-/// Build one end-of-line seam comment context.
-fn build_end_of_line_comment_context<'a, 'ctx>(
-    context: &'a CommentSeamContext<'ctx>,
+/// Build one end-of-line seam comment ctx.
+fn build_end_of_line_comment_ctx<'a, 'ctx>(
+    ctx: &'a CommentSeamContext<'ctx>,
     seam: &'a CommentSeamData,
     enclosing_owner_cache: &mut CommentEnclosingOwnerCache,
     owners: CommentAttachmentNeighbors,
 ) -> EndOfLineCommentContext<'a, 'ctx> {
-    let tree = context.tree;
-    let parents = context.parents;
     let preceding_owner = owners.preceding;
     let following_owner = owners.following;
     let following_owner_with_token_after_fallback =
-        following_owner_with_token_after_fallback(tree, context, following_owner);
-    let token_before_span = context.token_before_span.map(|token| token.span);
-    let token_after_span = context.token_after_span.map(|token| token.span);
+        following_owner_with_token_after_fallback(ctx.tree, ctx, following_owner);
+    let token_before_span = ctx.token_before_span.map(|token| token.span);
+    let token_after_span = ctx.token_after_span.map(|token| token.span);
     let preceding_owner_with_semicolon_fallback =
-        preceding_owner_with_non_newline_token_before_fallback(tree, context, preceding_owner);
-    let enclosing_owner = comment_enclosing_owner(context, enclosing_owner_cache);
+        preceding_owner_with_non_newline_token_before_fallback(ctx.tree, ctx, preceding_owner);
+    let enclosing_owner = comment_enclosing_owner(ctx, enclosing_owner_cache);
     let is_same_line_line_comment = seam.comment_is_line && !seam.has_leading_newline;
     let is_same_line_trailing_block_comment =
         seam.comment_is_star && !seam.has_leading_newline && seam.has_trailing_newline;
-    let semicolon_is_line_leading = seam_has_line_leading_semicolon_before_comment(context, seam);
-    let semicolon_after_is_line_leading =
-        seam_has_line_leading_semicolon_after_comment(context, seam);
+    let semicolon_is_line_leading = seam_has_line_leading_semicolon_before_comment(ctx, seam);
+    let semicolon_after_is_line_leading = seam_has_line_leading_semicolon_after_comment(ctx, seam);
 
     EndOfLineCommentContext {
-        context,
+        ctx,
         seam,
-        tree,
-        parents,
+        tree: ctx.tree,
+        parents: ctx.parents,
         preceding_owner,
         following_owner,
         following_owner_with_token_after_fallback,
@@ -641,11 +638,11 @@ fn build_end_of_line_comment_context<'a, 'ctx>(
 
 /// Run one ordered end-of-line handler sequence.
 fn run_end_of_line_comment_handlers(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
     handlers: &[fn(&EndOfLineCommentContext<'_, '_>) -> Option<CommentAttachment>],
 ) -> Option<CommentAttachment> {
     for handler in handlers {
-        if let Some(attachment) = handler(comment_context) {
+        if let Some(attachment) = handler(ctx) {
             return Some(attachment);
         }
     }
@@ -655,300 +652,292 @@ fn run_end_of_line_comment_handlers(
 
 /// Attach empty-statement semicolon ownership for end-of-line comments.
 fn attach_end_of_line_empty_statement_semicolon_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     try_attach_comment_before_empty_statement_semicolon(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.preceding_owner_with_semicolon_fallback,
-        comment_context.following_owner_with_token_after_fallback,
+        ctx.tree,
+        ctx.parents,
+        ctx.ctx,
+        ctx.seam,
+        ctx.preceding_owner_with_semicolon_fallback,
+        ctx.following_owner_with_token_after_fallback,
     )
 }
 
 /// Attach empty-if ownership for end-of-line comments.
 fn attach_end_of_line_empty_if_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_empty_if_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.preceding_owner_with_semicolon_fallback,
-        comment_context.enclosing_owner,
-        comment_context.token_before_span,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.preceding_owner_with_semicolon_fallback,
+        ctx.enclosing_owner,
+        ctx.token_before_span,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach trailing-comma close-brace ownership for end-of-line comments.
 fn attach_end_of_line_trailing_comma_close_brace_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_trailing_comma_close_brace_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.ctx,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach dependency-item separator ownership for end-of-line comments.
 fn attach_end_of_line_dependency_item_separator_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_after_dependency_item_separator_comma_line_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.ctx,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach dependency-item pre-separator ownership for end-of-line comments.
 fn attach_end_of_line_dependency_item_before_separator_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_before_dependency_item_separator_comma_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.following_owner,
-        comment_context.is_same_line_line_comment,
-        comment_context.is_same_line_trailing_block_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.ctx,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.following_owner,
+        ctx.is_same_line_line_comment,
+        ctx.is_same_line_trailing_block_comment,
     )
 }
 
 /// Attach inline-before-semicolon ownership for end-of-line comments.
 fn attach_end_of_line_inline_before_semicolon_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_inline_comment_before_semicolon(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.semicolon_after_is_line_leading,
-        comment_context.preceding_owner,
-        comment_context.token_before_span,
-        comment_context.is_same_line_line_comment
-            || comment_context.is_same_line_trailing_block_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.semicolon_after_is_line_leading,
+        ctx.preceding_owner,
+        ctx.token_before_span,
+        ctx.is_same_line_line_comment || ctx.is_same_line_trailing_block_comment,
     )
 }
 
 /// Attach line-leading-semicolon ownership for end-of-line comments.
 fn attach_end_of_line_line_leading_semicolon_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_after_line_leading_semicolon_comment(
-        comment_context.tree,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.following_owner_with_token_after_fallback,
-        comment_context.is_same_line_line_comment
-            || comment_context.is_same_line_trailing_block_comment,
+        ctx.tree,
+        ctx.ctx,
+        ctx.seam,
+        ctx.following_owner_with_token_after_fallback,
+        ctx.is_same_line_line_comment || ctx.is_same_line_trailing_block_comment,
     )
 }
 
 /// Attach semicolon-terminated statement ownership for end-of-line comments.
 fn attach_end_of_line_semicolon_terminated_statement_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_after_semicolon_terminated_statement_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.semicolon_is_line_leading,
-        comment_context.preceding_owner_with_semicolon_fallback,
-        comment_context.token_before_span,
-        comment_context.is_same_line_line_comment
-            || comment_context.is_same_line_trailing_block_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.semicolon_is_line_leading,
+        ctx.preceding_owner_with_semicolon_fallback,
+        ctx.token_before_span,
+        ctx.is_same_line_line_comment || ctx.is_same_line_trailing_block_comment,
     )
 }
 
 /// Attach binary-operator tail ownership for end-of-line comments.
 fn attach_end_of_line_binary_operator_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_after_binary_operator_line_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.enclosing_owner,
-        comment_context.following_owner,
-        comment_context.token_after_span,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.enclosing_owner,
+        ctx.following_owner,
+        ctx.token_after_span,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach inline break and continue ownership for end-of-line comments.
 fn attach_end_of_line_inline_break_or_continue_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
-    attach_inline_break_or_continue_comment(
-        comment_context.tree,
-        comment_context.context,
-        comment_context.is_same_line_line_comment,
-    )
+    attach_inline_break_or_continue_comment(ctx.tree, ctx.ctx, ctx.is_same_line_line_comment)
 }
 
 /// Attach template interpolation ownership for end-of-line comments.
 fn attach_end_of_line_template_interpolation_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_template_interpolation_open_brace_line_comment(
-        comment_context.tree,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.following_owner_with_token_after_fallback,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.ctx,
+        ctx.seam,
+        ctx.following_owner_with_token_after_fallback,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach ternary-colon trailing ownership for end-of-line comments.
 fn attach_end_of_line_after_ternary_colon_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_after_ternary_colon_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.following_owner,
-        comment_context.enclosing_owner,
-        comment_context.token_before_span,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.following_owner,
+        ctx.enclosing_owner,
+        ctx.token_before_span,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach ternary-colon prefix-star ownership for end-of-line comments.
 fn attach_end_of_line_before_ternary_colon_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_before_ternary_colon_comment(
-        comment_context.tree,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.following_owner,
+        ctx.tree,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.following_owner,
     )
 }
 
 /// Attach tree-expression close-brace ownership for end-of-line comments.
 fn attach_end_of_line_tree_expression_close_brace_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_before_tree_expression_close_brace_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach argument close-brace ownership for end-of-line comments.
 fn attach_end_of_line_argument_close_brace_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_before_argument_close_brace_comment(
-        comment_context.tree,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.enclosing_owner,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.enclosing_owner,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach parenthesized tree-head ownership for end-of-line comments.
 fn attach_end_of_line_parenthesized_tree_head_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_parenthesized_tree_head_line_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.following_owner_with_token_after_fallback,
-        comment_context.token_after_span,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.following_owner_with_token_after_fallback,
+        ctx.token_after_span,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach call-argument head ownership for end-of-line comments.
 fn attach_end_of_line_call_argument_head_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_call_argument_head_line_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.token_before_span,
-        comment_context.seam,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.token_before_span,
+        ctx.seam,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach call-callee boundary ownership for end-of-line comments.
 fn attach_end_of_line_call_callee_boundary_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_call_callee_line_comment(
-        comment_context.tree,
-        comment_context.seam,
-        comment_context.enclosing_owner,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.seam,
+        ctx.enclosing_owner,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach dependency-item alias ownership for end-of-line comments.
 fn attach_end_of_line_dependency_item_alias_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_dependency_item_alias_line_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.following_owner,
-        comment_context.enclosing_owner,
-        comment_context.is_same_line_line_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.ctx,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.following_owner,
+        ctx.enclosing_owner,
+        ctx.is_same_line_line_comment,
     )
 }
 
 /// Attach following-binding ownership for end-of-line comments.
 fn attach_end_of_line_following_binding_comment(
-    comment_context: &EndOfLineCommentContext<'_, '_>,
+    ctx: &EndOfLineCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_following_binding_comment(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.following_owner,
-        comment_context.token_after_span,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.following_owner,
+        ctx.token_after_span,
     )
 }
 
 /// Attach end-of-line comments and terminal seam comments.
 pub(crate) fn attach_end_of_line_comment(
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     enclosing_owner_cache: &mut CommentEnclosingOwnerCache,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    if !seam.has_trailing_newline && context.token_after.is_some() {
+    if !seam.has_trailing_newline && ctx.token_after.is_some() {
         return None;
     }
 
-    let comment_context =
-        build_end_of_line_comment_context(context, seam, enclosing_owner_cache, owners);
+    let ctx = build_end_of_line_comment_ctx(ctx, seam, enclosing_owner_cache, owners);
 
     run_end_of_line_comment_handlers(
-        &comment_context,
+        &ctx,
         &[
             attach_end_of_line_empty_statement_semicolon_comment,
             attach_end_of_line_empty_if_comment,

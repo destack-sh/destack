@@ -15,10 +15,10 @@ use super::semicolon::{
     try_attach_comment_before_empty_statement_semicolon,
 };
 
-/// Prepared context for one remaining-placement seam comment.
+/// Prepared ctx for one remaining-placement seam comment.
 struct RemainingCommentContext<'a, 'ctx> {
-    /// The seam context.
-    context: &'a CommentSeamContext<'ctx>,
+    /// The seam ctx.
+    ctx: &'a CommentSeamContext<'ctx>,
     /// The seam facts.
     seam: &'a CommentSeamData,
     /// The syntax tree.
@@ -43,32 +43,29 @@ struct RemainingCommentContext<'a, 'ctx> {
     semicolon_after_is_line_leading: bool,
 }
 
-/// Build one remaining-placement seam comment context.
-fn build_remaining_comment_context<'a, 'ctx>(
-    context: &'a CommentSeamContext<'ctx>,
+/// Build one remaining-placement seam comment ctx.
+fn build_remaining_comment_ctx<'a, 'ctx>(
+    ctx: &'a CommentSeamContext<'ctx>,
     seam: &'a CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> RemainingCommentContext<'a, 'ctx> {
-    let tree = context.tree;
-    let parents = context.parents;
-    let token_before_span = context.token_before_span.map(|token| token.span);
+    let token_before_span = ctx.token_before_span.map(|token| token.span);
     let token_before_owner =
-        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span));
-    let token_after_span = context.token_after_span.map(|token| token.span);
+        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(ctx.tree, span));
+    let token_after_span = ctx.token_after_span.map(|token| token.span);
     let preceding_owner = owners.preceding;
     let following_owner = owners.following;
     let following_owner_with_token_after_fallback =
-        following_owner_with_token_after_fallback(tree, context, following_owner);
+        following_owner_with_token_after_fallback(ctx.tree, ctx, following_owner);
     let is_inline_star_comment =
         seam.comment_is_star && !seam.has_leading_newline && !seam.has_trailing_newline;
-    let semicolon_after_is_line_leading =
-        seam_has_line_leading_semicolon_after_comment(context, seam);
+    let semicolon_after_is_line_leading = seam_has_line_leading_semicolon_after_comment(ctx, seam);
 
     RemainingCommentContext {
-        context,
+        ctx,
         seam,
-        tree,
-        parents,
+        tree: ctx.tree,
+        parents: ctx.parents,
         token_before_span,
         token_before_owner,
         token_after_span,
@@ -82,11 +79,11 @@ fn build_remaining_comment_context<'a, 'ctx>(
 
 /// Run one ordered remaining-placement handler sequence.
 fn run_remaining_comment_handlers(
-    comment_context: &RemainingCommentContext<'_, '_>,
+    ctx: &RemainingCommentContext<'_, '_>,
     handlers: &[fn(&RemainingCommentContext<'_, '_>) -> Option<CommentAttachment>],
 ) -> Option<CommentAttachment> {
     for handler in handlers {
-        if let Some(attachment) = handler(comment_context) {
+        if let Some(attachment) = handler(ctx) {
             return Some(attachment);
         }
     }
@@ -148,58 +145,58 @@ fn attach_following_owner(
 
 /// Attach empty-statement semicolon ownership for remaining comments.
 fn attach_remaining_empty_statement_semicolon_comment(
-    comment_context: &RemainingCommentContext<'_, '_>,
+    ctx: &RemainingCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     try_attach_comment_before_empty_statement_semicolon(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.following_owner_with_token_after_fallback,
+        ctx.tree,
+        ctx.parents,
+        ctx.ctx,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.following_owner_with_token_after_fallback,
     )
 }
 
 /// Attach inline-before-semicolon ownership for remaining comments.
 fn attach_remaining_inline_before_semicolon_comment(
-    comment_context: &RemainingCommentContext<'_, '_>,
+    ctx: &RemainingCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_inline_comment_before_semicolon(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.semicolon_after_is_line_leading,
-        comment_context.preceding_owner,
-        comment_context.token_before_span,
-        comment_context.is_inline_star_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.semicolon_after_is_line_leading,
+        ctx.preceding_owner,
+        ctx.token_before_span,
+        ctx.is_inline_star_comment,
     )
 }
 
 /// Attach semicolon-guard head ownership for remaining comments.
 fn attach_remaining_semicolon_guard_head_comment(
-    comment_context: &RemainingCommentContext<'_, '_>,
+    ctx: &RemainingCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_before_comment_semicolon_guard_head(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.context,
-        comment_context.seam,
-        comment_context.following_owner,
+        ctx.tree,
+        ctx.parents,
+        ctx.ctx,
+        ctx.seam,
+        ctx.following_owner,
     )
 }
 
 /// Attach preceding-preferring separator ownership for remaining comments.
 fn attach_remaining_preceding_separator_comment(
-    comment_context: &RemainingCommentContext<'_, '_>,
+    ctx: &RemainingCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_token_after_prefers_preceding(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.seam,
-        comment_context.preceding_owner,
-        comment_context.token_before_owner,
-        comment_context.token_before_span,
-        comment_context.is_inline_star_comment,
+        ctx.tree,
+        ctx.parents,
+        ctx.seam,
+        ctx.preceding_owner,
+        ctx.token_before_owner,
+        ctx.token_before_span,
+        ctx.is_inline_star_comment,
     )
 }
 
@@ -218,26 +215,26 @@ fn token_type_is_close_delimiter_or_separator(token_type: Option<TokenType>) -> 
 
 /// Attach default following-owner ownership for remaining comments.
 fn attach_remaining_default_following_comment(
-    comment_context: &RemainingCommentContext<'_, '_>,
+    ctx: &RemainingCommentContext<'_, '_>,
 ) -> Option<CommentAttachment> {
     attach_following_owner(
-        comment_context.tree,
-        comment_context.parents,
-        comment_context.following_owner,
-        comment_context.token_after_span,
+        ctx.tree,
+        ctx.parents,
+        ctx.following_owner,
+        ctx.token_after_span,
     )
 }
 
 /// Attach remaining inline comments when own-line and end-of-line rules do not apply.
 pub(crate) fn attach_remaining_comment(
-    context: &CommentSeamContext<'_>,
+    ctx: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    let comment_context = build_remaining_comment_context(context, seam, owners);
+    let ctx = build_remaining_comment_ctx(ctx, seam, owners);
 
     run_remaining_comment_handlers(
-        &comment_context,
+        &ctx,
         &[
             attach_remaining_empty_statement_semicolon_comment,
             attach_remaining_inline_before_semicolon_comment,
