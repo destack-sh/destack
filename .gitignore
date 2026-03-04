@@ -97,6 +97,7 @@ bridge/dotnet/**/[Bb]in/
 bridge/dotnet/**/[Oo]bj/
 bridge/elixir/**/_build/
 bridge/elixir/**/deps/
+bridge/elixir/*.tar
 
 # Fuzzing
 **/hfuzz_target/**

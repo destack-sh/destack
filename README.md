@@ -7,7 +7,7 @@
 
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
-Open source TypeScript(++) toolchain, VM, AOT compiler, runtime, library, services, and apps.
+Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, library, services, and apps.
 
 <p>
     <a href="VERSION.txt"><img src="https://img.shields.io/badge/version-0.55.3-2ea44f?style=for-the-badge" alt="Version"></a>
@@ -24,7 +24,7 @@ Open source TypeScript(++) toolchain, VM, AOT compiler, runtime, library, servic
 
 **Destack is a universal software engine with a language, compiler, toolchain, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.**
 Conceptually, Destack is the antithesis to the very idea of a "stack":
-instead of wrangling many disparate languages, tools, libraries, approaches, services, and apps, Destack unifies the processes of software development into _one_ malleable computing stack:
+instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software development into _one_ universal computing stack:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
 - [**Destack Library**](library/README.md): Standard library for most things most software needs.
@@ -129,9 +129,9 @@ More importantly, we need to program machines in _some_ symbolic system to contr
 8. **Why not abandon standards entirely and fix _all_ the problems in a whole new stack?** 
 It's tempting to design the "optimal" stack, but even if AI could magically migrate everything, historically, new "big bang" systems usually fail.
 The core tensions in Destack is deciding which technologies are: 
-a) expressive enough to support all software,
-b) performant enough to run at machine speed, and 
-c) familiar enough to be drop-in usable / reviewable.
+a) expressive enough to support universal software,
+b) performant enough to run all software at machine speed, and 
+c) familiar enough to be intuitive and reviewable.
 The intersection of a, b, and c turns out web-shaped. 
 
 9. **Why is Destack itself built on top of Rust, considering Destack and "TS++" are so great?** 

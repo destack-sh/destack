@@ -110,7 +110,7 @@ destack_lsp_types = { path = "service/lsp/types" }
 destack_cli = { path = "app/cli" }
 
 # bridge
-destack_bridge_core = { path = "bridge/core" }
+destack_bridge_core = { path = "bridge/core", version = "=0.55.3" }
 destack_capi = { path = "bridge/capi" }
 destack_napi = { path = "bridge/napi" }
 destack_wasm = { path = "bridge/wasm" }

@@ -312,10 +312,14 @@ publish-dry:
 publish-live:
     just build
     just app/validate-cli-publish
-    just library/publish ""
-    just app/publish ""
-    just bridge/publish ""
-    just template/publish-create-destack ""
+    just publish-live-packages
+
+# publish all packages live without build orchestration
+publish-live-packages:
+    just library/publish-live
+    just app/publish-live
+    just bridge/publish-live
+    just template/publish-create-destack-live
 
 # publish all packages live with local cli binary staging
 publish-live-local:
@@ -350,10 +354,7 @@ publish-live-local:
     fi
 
     just app/validate-cli-publish
-    just library/publish ""
-    just app/publish ""
-    just bridge/publish ""
-    just template/publish-create-destack ""
+    just publish-live-packages
 
 # create a new release (bump, commit, tag, push)
 release kind message:
