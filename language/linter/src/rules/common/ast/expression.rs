@@ -19,6 +19,42 @@ pub fn ast_expression_unwrap_parenthesized(
     }
 }
 
+/// Return the surrounding statement expression for a standalone expression.
+pub fn ast_expression_statement_ancestor(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    // start from the target expression
+    let mut current_id = expression_id;
+
+    // walk through parenthesized wrappers to one statement boundary
+    loop {
+        let parent_id = parents.get(current_id)?;
+        if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+            return None;
+        }
+
+        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        let parent_expression = tree.get(parent_expression_id);
+
+        if let ast::Expression::Parenthesized { expression } = parent_expression
+            && *expression == current_id
+        {
+            current_id = parent_expression_id;
+            continue;
+        }
+
+        if let ast::Expression::Statement(statement_id) = parent_expression
+            && *statement_id == current_id
+        {
+            return Some(parent_expression_id);
+        }
+
+        return None;
+    }
+}
+
 /// Return path segments when the expression is a non-generic path.
 pub fn expression_path_segments(
     tree: &ast::NodeTree,
@@ -45,6 +81,20 @@ pub fn expression_path_segments(
 
     // return path segments in source order
     Some(path.segments.to_vec())
+}
+
+/// Return the value expression id for one argument node.
+pub fn argument_value_expression_id(
+    tree: &ast::NodeTree,
+    argument_id: ast::LocalNodeId<ast::Argument>,
+) -> ast::LocalNodeId<ast::Expression> {
+    let argument = tree.get(argument_id);
+    match argument {
+        ast::Argument::Positional { value, .. }
+        | ast::Argument::Spread { value, .. }
+        | ast::Argument::Named { value, .. }
+        | ast::Argument::Labeled { value, .. } => *value,
+    }
 }
 
 /// Convert a constant value into an f64 when possible.

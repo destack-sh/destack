@@ -354,6 +354,8 @@ mod tests {
     /// Skip directive comments that include fallthrough text.
     #[test]
     fn test_skips_fallthrough_directive_comment() {
-        assert!(!is_fallthrough_comment("// eslint-disable-next-line no-fallthrough"));
+        assert!(!is_fallthrough_comment(
+            "// eslint-disable-next-line no-fallthrough"
+        ));
     }
 }

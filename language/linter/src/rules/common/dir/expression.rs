@@ -3,8 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
 
-use crate::ConstValue;
-use crate::LintModuleDirContext;
+use crate::{ConstValue, LintModuleDirContext};
 
 use super::{
     function_return_type, is_any_type, is_async_function_type, is_promise_type,
@@ -36,8 +35,8 @@ pub fn expression_target_symbol(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
-    // unwrap parenthesized expressions first
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    // unwrap transparent wrappers first
+    let expression_id = expression_unwrap_transparent(tree, expression_id);
 
     // return the reference target symbol when present
     let expression = tree.get(expression_id);
@@ -65,9 +64,9 @@ pub fn expressions_have_equivalent_syntax(
     left_id: dir::LocalNodeId<dir::Expression>,
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // normalize parenthesized wrappers before comparisons
-    let left_id = expression_unwrap_parenthesized(ctx.tree, left_id);
-    let right_id = expression_unwrap_parenthesized(ctx.tree, right_id);
+    // normalize transparent wrappers before comparisons
+    let left_id = expression_unwrap_transparent(ctx.tree, left_id);
+    let right_id = expression_unwrap_transparent(ctx.tree, right_id);
 
     // compare canonicalized reference paths first
     let left_path = expression_reference_path(ctx.tree, left_id);
@@ -79,12 +78,16 @@ pub fn expressions_have_equivalent_syntax(
     // compare syntax text with spacing removed
     let left_text = ctx.get_span_text(ctx.get_span(left_id));
     let right_text = ctx.get_span_text(ctx.get_span(right_id));
-    normalize_expression_syntax(left_text.as_ref()) == normalize_expression_syntax(right_text.as_ref())
+    normalize_expression_syntax(left_text.as_ref())
+        == normalize_expression_syntax(right_text.as_ref())
 }
 
 /// Normalize expression syntax for token style equality checks.
 fn normalize_expression_syntax(source: &str) -> String {
-    source.chars().filter(|character| !character.is_whitespace()).collect()
+    source
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect()
 }
 
 /// Return true when the expression is a global qualified member access.
@@ -94,22 +97,90 @@ pub fn expression_is_global_qualified_member(
     qualifiers: &[dir::GlobalSymbolId],
     member_name: StringId,
 ) -> bool {
+    // normalize transparent wrappers first
+    let expression_id = expression_unwrap_transparent(tree, expression_id);
+
     // resolve the member path
-    let Some(path) = expression_reference_path(tree, expression_id) else {
+    if let Some(path) = expression_reference_path(tree, expression_id) {
+        // ensure the requested member is present
+        if path.members.as_slice() != [member_name] {
+            return false;
+        }
+
+        // ensure the base is a known global qualifier
+        return match path.base {
+            ReferenceBase::Symbol(symbol) => qualifiers.contains(&symbol),
+            ReferenceBase::This => false,
+            ReferenceBase::Super => false,
+        };
+    }
+
+    // support computed static string access like `window["alert"]`
+    let Some((base_id, property_name)) = expression_static_property_access(tree, expression_id)
+    else {
+        return false;
+    };
+    if property_name != member_name {
+        return false;
+    }
+
+    let Some(base_symbol) = expression_target_symbol(tree, base_id) else {
         return false;
     };
 
-    // ensure the requested member is present
-    if path.members.as_slice() != [member_name] {
-        return false;
+    qualifiers.contains(&base_symbol)
+}
+
+/// Return one static string literal value from an expression.
+pub fn expression_static_string_literal(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<StringId> {
+    // normalize transparent wrappers first
+    let expression_id = expression_unwrap_transparent(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // match direct string literals
+    if let dir::Expression::ScalarLiteral {
+        value: dir::ScalarLiteral::String(value),
+    } = expression
+    {
+        return Some(*value);
     }
 
-    // ensure the base is a known global qualifier
-    match path.base {
-        ReferenceBase::Symbol(symbol) => qualifiers.contains(&symbol),
-        ReferenceBase::This => false,
-        ReferenceBase::Super => false,
+    // match template literals without interpolations
+    let dir::Expression::TemplateExpression { value } = expression else {
+        return None;
+    };
+    let dir::TemplateLiteral::String { string } = value else {
+        return None;
+    };
+
+    Some(*string)
+}
+
+/// Return one static property access pair as `(left, property_name)`.
+pub fn expression_static_property_access(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<(dir::LocalNodeId<dir::Expression>, StringId)> {
+    // normalize transparent wrappers first
+    let expression_id = expression_unwrap_transparent(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // match dot member access
+    if let dir::Expression::Member { left, name, .. } = expression {
+        return Some((*left, *name));
     }
+
+    // match bracket member access with static string keys
+    let dir::Expression::Index { left, right } = expression else {
+        return None;
+    };
+    let index_id = right.as_ref().copied()?;
+    let property_name = expression_static_string_literal(tree, index_id)?;
+
+    Some((*left, property_name))
 }
 
 /// Return the expression id with parenthesized nodes unwrapped.
@@ -122,6 +193,52 @@ pub fn expression_unwrap_parenthesized(
             return expression_id;
         };
         expression_id = *expression;
+    }
+}
+
+/// Resolve the value expression for one DIR argument node.
+pub fn argument_expression_id(
+    tree: &dir::NodeTree,
+    argument_id: dir::LocalNodeId<dir::Argument>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let argument = tree.get(argument_id);
+
+    match argument {
+        dir::Argument::Named { value, .. }
+        | dir::Argument::Labeled { value, .. }
+        | dir::Argument::Positional { value, .. }
+        | dir::Argument::Spread { value, .. } => Some(*value),
+    }
+}
+
+/// Return the expression id with transparent wrappers unwrapped.
+pub fn expression_unwrap_transparent(
+    tree: &dir::NodeTree,
+    mut expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
+    loop {
+        let expression = tree.get(expression_id);
+        match expression {
+            dir::Expression::Parenthesized { expression } => {
+                expression_id = *expression;
+            }
+            dir::Expression::Maybe { left }
+            | dir::Expression::Must { left }
+            | dir::Expression::Instantiation { left, .. } => {
+                expression_id = *left;
+            }
+            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
+                expression_id = *value;
+            }
+            dir::Expression::ValueOf { right, .. }
+            | dir::Expression::ReferenceOf { right, .. }
+            | dir::Expression::PointerOf { right, .. } => {
+                expression_id = *right;
+            }
+            _ => {
+                return expression_id;
+            }
+        }
     }
 }
 
@@ -196,6 +313,22 @@ pub fn expression_discarded_call_like_value(
             }
             expression_id = *expression;
             replacement_expression_id = expression_id;
+            continue;
+        }
+
+        if let dir::Expression::Await { expression } | dir::Expression::AwaitMaybe { expression } =
+            expression
+        {
+            let value_id = expression_unwrap_parenthesized(tree, *expression);
+            if matches!(
+                tree.get(value_id),
+                dir::Expression::Call { .. } | dir::Expression::New { .. }
+            ) {
+                return Some((value_id, expression_id));
+            }
+
+            replacement_expression_id = expression_id;
+            expression_id = *expression;
             continue;
         }
 

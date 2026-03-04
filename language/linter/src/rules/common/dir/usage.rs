@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
+use destack_dir::{NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
 
@@ -80,6 +81,35 @@ pub fn collect_module_symbol_usage(
     usage
 }
 
+/// Collect symbols read by one expression subtree.
+pub fn collect_expression_read_symbol_usage(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> HashSet<dir::GlobalSymbolId> {
+    let mut collector = ReadSymbolCollector {
+        reads: HashSet::new(),
+        options: NodeVisitorOptions::default(),
+    };
+    let expression = tree.get(expression_id);
+    collector.visit_expression(tree, expression_id, expression);
+    collector.reads
+}
+
+/// Collect read symbols for a list of module roots.
+pub fn collect_module_read_symbol_usage(
+    tree: &dir::NodeTree,
+    roots: &[dir::LocalNodeId<dir::Expression>],
+) -> HashSet<dir::GlobalSymbolId> {
+    let mut reads = HashSet::new();
+
+    // collect read symbols from each root expression tree
+    for root_id in roots {
+        reads.extend(collect_expression_read_symbol_usage(tree, *root_id));
+    }
+
+    reads
+}
+
 /// Collect assigned symbols for assignment-like expressions in one module.
 #[allow(clippy::too_many_arguments)]
 pub fn collect_assigned_symbol_usage(
@@ -141,5 +171,51 @@ fn assignment_target_expression_id(
             right,
         } => Some(*right),
         _ => None,
+    }
+}
+
+/// Collect symbol reads while skipping pure write positions.
+struct ReadSymbolCollector {
+    /// Collected symbols read from one expression.
+    reads: HashSet<dir::GlobalSymbolId>,
+    /// Visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl NodeVisitor for ReadSymbolCollector {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // assignment left side is write only here, only visit the right side
+        if let dir::Expression::Assign { right, .. } = expression {
+            let right_expression = tree.get(*right);
+            self.visit_expression(tree, *right, right_expression);
+            return;
+        }
+
+        // let declarator patterns are writes, only visit initializers
+        if let dir::Expression::Let { declarators, .. } = expression {
+            for declarator_id in declarators {
+                let declarator = tree.get(*declarator_id);
+                if let Some(value_expression_id) = declarator.value {
+                    let value_expression = tree.get(value_expression_id);
+                    self.visit_expression(tree, value_expression_id, value_expression);
+                }
+            }
+            return;
+        }
+
+        if let Some(symbol_id) = expression.target_symbol() {
+            self.reads.insert(symbol_id);
+        }
+
+        walk_expression(self, tree, id, expression);
     }
 }
