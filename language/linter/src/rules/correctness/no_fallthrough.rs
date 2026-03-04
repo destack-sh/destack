@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::is_fallthrough_comment;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -47,6 +48,7 @@ impl LintRule for NoFallthrough {
                 if i == cases.len() - 1 {
                     continue;
                 }
+                let next_case_id = cases[i + 1];
 
                 let case = ctx.tree.get(*case_id);
                 let (body_id, is_block) = match case {
@@ -56,6 +58,11 @@ impl LintRule for NoFallthrough {
                         if let Some(id) = body_expression_id {
                             (*id, true)
                         } else {
+                            // allow explicit intentional fallthrough comments
+                            if has_fallthrough_comment_between_cases(ctx, *case_id, next_case_id) {
+                                continue;
+                            }
+
                             // empty block falls through
                             let severity = ctx.get_effective_severity(meta, node_id);
                             if severity.is_enabled() {
@@ -92,6 +99,11 @@ impl LintRule for NoFallthrough {
                 };
 
                 if !terminates {
+                    // allow explicit intentional fallthrough comments
+                    if has_fallthrough_comment_between_cases(ctx, *case_id, next_case_id) {
+                        continue;
+                    }
+
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         continue;
@@ -119,6 +131,33 @@ impl LintRule for NoFallthrough {
             }
         }
     }
+}
+
+/// Return true when comments between two switch cases declare intentional fallthrough.
+fn has_fallthrough_comment_between_cases(
+    ctx: &LintModuleAstContext<'_>,
+    current_case_id: ast::LocalNodeId<ast::MatchCase>,
+    next_case_id: ast::LocalNodeId<ast::MatchCase>,
+) -> bool {
+    let current_span = ctx.tree.get_span(current_case_id);
+    let next_span = ctx.tree.get_span(next_case_id);
+    if current_span.end > next_span.start {
+        return false;
+    }
+
+    // search all comments in the case gap for intent markers
+    ctx.tree.comment_trivia().iter().any(|comment_trivia| {
+        let comment_span = comment_trivia.span;
+        if comment_span.file != ctx.module.file_id {
+            return false;
+        }
+        if comment_span.start < current_span.start || comment_span.end > next_span.start {
+            return false;
+        }
+
+        let comment_text = ctx.get_span_text(comment_span);
+        is_fallthrough_comment(comment_text)
+    })
 }
 
 /// Build an unsafe fix by inserting `break;` at the end of a switch case.
@@ -399,5 +438,44 @@ switch (x) {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_allows_fallthrough_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
+        let result = test.lint_ast(
+            "no_fallthrough/test_allows_fallthrough_comment.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+        log("one");
+        // falls through
+    case 2:
+        break;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-fallthrough");
+    }
+
+    #[test]
+    fn test_allows_fallthrough_block_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
+        let result = test.lint_ast(
+            "no_fallthrough/test_allows_fallthrough_block_comment.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1: {
+        log("one");
+        /* fallthrough */
+    }
+    case 2:
+        break;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-fallthrough");
     }
 }
