@@ -24,31 +24,50 @@ declare_lint! {
 }
 
 impl LintRule for NoConstantCondition {
+    /// Return lint metadata.
     fn meta(&self) -> &'static crate::LintMeta {
         NoConstantCondition::meta()
     }
 
+    /// Check module AST nodes for constant conditional expressions.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata
         let meta = self.meta();
 
+        // walk conditional expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            // resolve the condition expression to inspect
             let condition_id = match ctx.tree.get(node_id) {
                 ast::Expression::If { condition, .. } => match condition {
                     ast::IfCondition::Expression { condition } => *condition,
                     ast::IfCondition::Let { .. } => continue,
                 },
-                ast::Expression::While { condition, .. } => *condition,
+                ast::Expression::While { kind, condition, .. } => {
+                    // align source defaults: allow `while (true)` as an explicit infinite loop
+                    if *kind == ast::WhileKind::While && ctx.const_bool(*condition) == Some(true) {
+                        continue;
+                    }
+                    *condition
+                }
+                ast::Expression::For {
+                    condition: Some(condition),
+                    ..
+                } => *condition,
                 _ => continue,
             };
+
+            // only report statically known constants
             if ctx.const_value(condition_id).is_none() {
                 continue;
             }
 
+            // resolve effective severity
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
             }
 
+            // build diagnostic
             let mut diagnostic = LintDiagnostic::new(
                 NO_CONSTANT_CONDITION.id,
                 NO_CONSTANT_CONDITION.code,
@@ -59,6 +78,8 @@ impl LintRule for NoConstantCondition {
                 ctx.tree.get_span(condition_id),
             )
             .with_label("this condition is always the same");
+
+            // attach conservative autofix when available
             if ctx.compute_fixes
                 && let Some(fix) = no_constant_condition_fix(ctx, node_id)
             {
@@ -75,6 +96,7 @@ fn no_constant_condition_fix(
     ctx: &mut LintModuleAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
+    // inspect the conditional expression shape
     let expression = ctx.tree.get(expression_id);
 
     // simplify constant if expressions
@@ -118,6 +140,18 @@ fn no_constant_condition_fix(
         );
     }
 
+    // remove `for (...; false; ...)` loops in statement position
+    if let ast::Expression::For {
+        condition: Some(condition),
+        ..
+    } = expression
+        && !ctx.const_bool(*condition)?
+    {
+        let statement_span = parent_statement_span(ctx, expression_id)?;
+        let edits = ctx.edit_builder().delete(statement_span).into_edits();
+        return Some(LintFix::safe("Remove for loop that never executes").with_edits(edits));
+    }
+
     // remove `while (false)` loops in statement position
     if let ast::Expression::While {
         kind: ast::WhileKind::While,
@@ -140,17 +174,20 @@ fn parent_statement_span(
     ctx: &LintModuleAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<destack_source::Span> {
+    // resolve parent node id
     let parent_id = ctx.parents.get(expression_id)?;
     if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
         return None;
     }
 
+    // require statement wrapper parent
     let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
     let parent_expression = ctx.tree.get(parent_expression_id);
     if !matches!(parent_expression, ast::Expression::Statement(_)) {
         return None;
     }
 
+    // return statement span
     Some(ctx.tree.get_span(parent_expression_id))
 }
 
@@ -194,17 +231,16 @@ if (false) { foo(); }
     }
 
     #[test]
-    fn test_detects_while_true() {
+    fn test_allows_while_true_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
-            "no_constant_condition/test_detects_while_true.ds",
+            "no_constant_condition/test_allows_while_true_by_default.ds",
             r#"
 while (true) { foo(); }
 "#,
         );
         test.result(result)
-            .assert_lint("no-constant-condition")
-            .assert_has_no_fix("no-constant-condition");
+            .assert_no_lint("no-constant-condition");
     }
 
     #[test]
@@ -275,5 +311,41 @@ if (x > 0) { foo(); }
 "#,
         );
         test.result(result).assert_no_lint("no-constant-condition");
+    }
+
+    #[test]
+    fn test_detects_do_while_true() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
+        let result = test.lint_ast(
+            "no_constant_condition/test_detects_do_while_true.ds",
+            r#"
+do { foo(); } while (true);
+"#,
+        );
+        test.result(result).assert_lint("no-constant-condition");
+    }
+
+    #[test]
+    fn test_detects_for_true() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
+        let result = test.lint_ast(
+            "no_constant_condition/test_detects_for_true.ds",
+            r#"
+for (; true; ) { foo(); }
+"#,
+        );
+        test.result(result).assert_lint("no-constant-condition");
+    }
+
+    #[test]
+    fn test_detects_for_false() {
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
+        let result = test.lint_ast(
+            "no_constant_condition/test_detects_for_false.ds",
+            r#"
+for (; false; ) { foo(); }
+"#,
+        );
+        test.result(result).assert_lint("no-constant-condition");
     }
 }
