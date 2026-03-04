@@ -6,16 +6,17 @@ use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
 use crate::format::expression::{
-    Annotation, AnnotationPosition, Asynchrony, Block, DeclarationDescriptor, DeclarationKind,
-    Declarator, DependencyKind, DependencyMode, DestackFormatContext, DestackFormatter, Expression,
-    ForEachBinding, ForEachDeclarationKind, ForEachKind, FormatResult, IfCondition, IfKind,
-    ImportSource, Keyword, LetKind, LocalNodeId, Mutability, NodeTree, NodeType, Pattern, Span,
-    StringId, TypeUnaryOperator, WhileKind, YieldCardinality, block_indent,
-    call_arguments_are_multiline_span, detect_for_each_binding_keyword, format_declarator,
-    format_expression, format_for_each_binding_pattern, format_if_else_chain, format_match,
-    format_statement_body_block, format_ternary, format_with, group, hard_line_break,
-    is_empty_statement_block, line_postfix_boundary, list_like, space, token,
-    tree_literal_should_break,
+    Annotation, AnnotationPosition, Argument, Asynchrony, Block, DeclarationDescriptor,
+    DeclarationKind, Declarator, DependencyItem, DependencyKind, DependencyMode,
+    DestackFormatContext, DestackFormatter, Expression, ForEachBinding, ForEachDeclarationKind,
+    ForEachKind, FormatResult, IfCondition, IfKind, ImportSource, Keyword, LetKind, LocalNodeId,
+    Mutability, NodeTree, NodeType, Pattern, Span, StringId, TypeUnaryOperator, WhileKind,
+    YieldCardinality, block_indent, call_arguments_are_multiline_span,
+    detect_for_each_binding_keyword, format_declarator, format_expression,
+    format_expression_without_prefix_annotations, format_for_each_binding_pattern,
+    format_if_else_chain, format_match, format_statement_body_block, format_ternary, format_with,
+    group, hard_line_break, is_empty_statement_block, line_postfix_boundary, list_like, space,
+    token, tree_literal_should_break,
 };
 use destack_ast::{Comment, CommentStyle, Doc, DocumentationStyle, ImportTarget};
 use destack_fir::format::{Buffer, Format, FormatError};
@@ -25,7 +26,7 @@ use destack_fir::write;
 fn format_dependency_with_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    arguments: &[LocalNodeId<crate::format::expression::Argument>],
+    arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     // attribute head comments should stay attached to the with head, not drift to statement tails
     let has_attribute_head_annotation = f
@@ -62,8 +63,8 @@ pub(crate) fn format_import_expression<'ast>(
     source: ImportSource,
     kind: DependencyKind,
     target: &ImportTarget,
-    items: &[LocalNodeId<crate::format::expression::DependencyItem>],
-    arguments: Option<&[LocalNodeId<crate::format::expression::Argument>]>,
+    items: &[LocalNodeId<DependencyItem>],
+    arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let organize = f.context().options.organize_imports.is_enabled();
@@ -281,8 +282,8 @@ pub(crate) fn format_export_expression<'ast>(
     node_id: LocalNodeId<Expression>,
     kind: DependencyKind,
     target: Option<StringId>,
-    items: &[LocalNodeId<crate::format::expression::DependencyItem>],
-    arguments: Option<&[LocalNodeId<crate::format::expression::Argument>]>,
+    items: &[LocalNodeId<DependencyItem>],
+    arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let organize = f.context().options.organize_imports.is_enabled();
@@ -1179,8 +1180,7 @@ fn next_adjacent_argument_left_side(
             ..
         } => Some(*condition),
         Expression::Statement(expression) => Some(*expression),
-        // explicit parentheses already delimit leading trivia for this argument segment
-        Expression::Parenthesized { .. } => None,
+        Expression::Parenthesized { expression } => Some(*expression),
         _ => None,
     }
 }
@@ -1203,8 +1203,6 @@ fn adjacent_statement_argument_has_leading_comments(
 
     let mut current_id = argument_id;
     loop {
-        current_id = context.transparent_inner_expression(current_id);
-
         let has_adjacent_leading_comment =
             expression_has_adjacent_leading_comment(context, current_id);
         let has_member_gap_comment =
@@ -1240,8 +1238,55 @@ fn format_adjacent_statement_argument<'ast>(
 ) -> FormatResult<()> {
     let value_check_id = f.context().transparent_inner_expression(value_id);
     let value_expression = f.context().tree.get(value_check_id);
+    let sequence_value_id = match value_expression {
+        Expression::SequenceExpression { .. } => Some(value_check_id),
+        Expression::Parenthesized { expression }
+            if matches!(
+                f.context().tree.get(*expression),
+                Expression::SequenceExpression { .. }
+            ) =>
+        {
+            Some(*expression)
+        }
+        _ => None,
+    };
     let value_has_leading_comment =
-        adjacent_statement_argument_has_leading_comments(f.context(), value_check_id);
+        adjacent_statement_argument_has_leading_comments(f.context(), value_id);
+    if let Some(sequence_value_id) = sequence_value_id
+        && value_has_leading_comment
+    {
+        let prefix_annotation_owner_id = if f.context().has_prefix_annotation(value_id) {
+            Some(value_id)
+        } else if f.context().has_prefix_annotation(sequence_value_id) {
+            Some(sequence_value_id)
+        } else {
+            None
+        };
+        let grouped_sequence = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(prefix_annotation_owner_id) = prefix_annotation_owner_id {
+                write!(
+                    f,
+                    [f.context()
+                        .any_prefix_annotations(prefix_annotation_owner_id)]
+                )?;
+            }
+            write!(f, [token("(")])?;
+            format_expression_without_prefix_annotations(f, sequence_value_id)?;
+            write!(f, [token(")")])
+        });
+        write!(
+            f,
+            [
+                space(),
+                token("("),
+                block_indent(&grouped_sequence),
+                hard_line_break(),
+                token(")")
+            ]
+        )?;
+        return Ok(());
+    }
+
     let value_is_parenthesized = matches!(value_expression, Expression::Parenthesized { .. });
     let value_is_unwrapped_sequence =
         matches!(value_expression, Expression::SequenceExpression { .. });

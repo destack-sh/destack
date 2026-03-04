@@ -4,7 +4,7 @@ use crate::format::expression::{
     argument_is_block_callback, argument_is_object_literal, argument_value_id, is_trivial_argument,
     is_trivial_expression, transparent_inner_expression,
 };
-use destack_ast::{Keyword, TemplateLiteral, TokenSpan};
+use destack_ast::{Keyword, Node, NodeTree, NodeTreeImpl, TemplateLiteral, TokenSpan};
 
 /// Store shared argument simplicity checks for call and chain classifiers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -235,6 +235,22 @@ pub(crate) fn next_non_whitespace_token_after_span(
     context.next_non_whitespace_token_after_span(span)
 }
 
+/// Return the nearest non-trivia token before one span.
+pub(crate) fn previous_non_trivia_token_before_span(
+    context: &DestackFormatContext<'_>,
+    span: Span,
+) -> Option<TokenSpan> {
+    context.previous_non_trivia_token_before_span(span)
+}
+
+/// Return the nearest non-trivia token after one span.
+pub(crate) fn next_non_trivia_token_after_span(
+    context: &DestackFormatContext<'_>,
+    span: Span,
+) -> Option<TokenSpan> {
+    context.next_non_trivia_token_after_span(span)
+}
+
 /// Return the Nth non-trivia token that intersects one span.
 pub(crate) fn nth_non_trivia_token_in_span(
     context: &DestackFormatContext<'_>,
@@ -313,6 +329,15 @@ pub(crate) fn next_non_whitespace_token_after_annotation(
 ) -> Option<TokenSpan> {
     let span = context.annotation_span(annotation_id);
     next_non_whitespace_token_after_span(context, span)
+}
+
+/// Return the nearest non-trivia token after one annotation span.
+pub(crate) fn next_non_trivia_token_after_annotation(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<TokenSpan> {
+    let span = context.annotation_span(annotation_id);
+    next_non_trivia_token_after_span(context, span)
 }
 
 /// Return whether one identifier token matches one keyword.
@@ -430,10 +455,60 @@ pub(crate) fn call_arguments_preserve_blank_line_between(
 ) -> bool {
     let left_span = context.span(left_argument_id);
     let right_span = context.span(right_argument_id);
-    let Some(between_span) = left_span.gap_to(right_span) else {
+    if left_span.file != right_span.file {
         return false;
-    };
+    }
+
+    let right_leading_start = right_argument_leading_render_start(context, right_argument_id);
+    if right_leading_start <= left_span.end {
+        return false;
+    }
+
+    let between_span = Span::new(left_span.file, left_span.end, right_leading_start);
     context.has_blank_line(between_span)
+}
+
+/// Return the earliest start offset rendered for one argument, including leading prefix annotations.
+fn right_argument_leading_render_start(
+    context: &DestackFormatContext<'_>,
+    right_argument_id: LocalNodeId<Argument>,
+) -> u32 {
+    let mut leading_start = context.span(right_argument_id).start;
+    collect_prefix_annotation_leading_start(context, right_argument_id, &mut leading_start);
+
+    let right_argument_value_id = argument_value_id(context.tree, right_argument_id);
+    collect_prefix_annotation_leading_start(context, right_argument_value_id, &mut leading_start);
+
+    leading_start
+}
+
+/// Update one leading start offset from prefix annotations owned by one node.
+fn collect_prefix_annotation_leading_start<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    leading_start: &mut u32,
+) where
+    T: Node,
+    NodeTree: NodeTreeImpl<T>,
+{
+    let Some(annotation_ids) = context.annotations(node_id) else {
+        return;
+    };
+
+    for annotation_id in annotation_ids {
+        let position = context.annotation(annotation_id).position();
+        if !matches!(
+            position,
+            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+        ) {
+            continue;
+        }
+
+        let annotation_span = context.annotation_span(annotation_id);
+        if annotation_span.start < *leading_start {
+            *leading_start = annotation_span.start;
+        }
+    }
 }
 
 /// Return whether an argument has multiline non-blank prefix annotations.

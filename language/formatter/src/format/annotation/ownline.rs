@@ -4,7 +4,9 @@ use destack_ast::{
 use destack_source::Span;
 
 use super::attachment::{
-    following_owner_with_token_after_fallback, promote_owner_to_tree_expression_parent,
+    following_owner_with_token_after_fallback,
+    preceding_owner_with_non_newline_token_before_fallback,
+    preceding_owner_with_token_before_fallback, promote_owner_to_tree_expression_parent,
 };
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
@@ -67,29 +69,6 @@ fn promote_owner_to_expression_ancestor_if_needed(
     }
 
     promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Expression).unwrap_or(owner)
-}
-
-/// Resolve one own-line preceding owner with one non-newline token fallback.
-fn preceding_owner_with_token_fallback(
-    context: &CommentSeamContext<'_>,
-    owners: CommentAttachmentNeighbors,
-) -> Option<u32> {
-    owners
-        .preceding
-        .or_else(|| {
-            context
-                .token_before_span
-                .and_then(|token| find_smallest_owner_enclosing_token(context.tree, token.span))
-        })
-        .or_else(|| {
-            context
-                .token_before
-                .and_then(|token_index| {
-                    previous_non_newline_token_index(context.semantic_tokens, token_index)
-                })
-                .and_then(|token_index| context.semantic_tokens.get(token_index))
-                .and_then(|token| find_smallest_owner_enclosing_token(context.tree, token.span))
-        })
 }
 
 /// Handle own-line comments before nested else seams.
@@ -196,12 +175,17 @@ fn attach_call_argument_head_comment(
         return None;
     }
 
-    let token_before_owner =
-        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span))?;
+    let token_before_span = token_before_span?;
+    let token_before_owner = find_smallest_owner_enclosing_token(tree, token_before_span)?;
     let token_before_owner = normalize_formatter_trivia_target_owner(tree, token_before_owner);
     let call_like_owner =
         promote_owner_to_call_like_expression_ancestor(tree, parents, token_before_owner)?;
     let target_owner = first_dynamic_argument_owner_for_call_like(tree, call_like_owner)?;
+    let target_owner_span = tree.get_span_by_id(target_owner);
+    if token_before_span.start >= target_owner_span.start {
+        return None;
+    }
+
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
 
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
@@ -396,7 +380,7 @@ struct OwnLineCommentContext<'a, 'ctx> {
     /// Enclosing owner.
     enclosing_owner: Option<u32>,
     /// Owner after seam with token fallback.
-    following_owner_with_token_fallback: Option<u32>,
+    following_owner_with_token_after_fallback: Option<u32>,
 }
 
 /// Build one own-line seam comment context.
@@ -408,12 +392,15 @@ fn build_own_line_comment_context<'a, 'ctx>(
 ) -> OwnLineCommentContext<'a, 'ctx> {
     let tree = context.tree;
     let parents = context.parents;
-    let preceding_owner = preceding_owner_with_token_fallback(context, owners);
+    let preceding_owner =
+        preceding_owner_with_token_before_fallback(tree, context, owners.preceding);
+    let preceding_owner =
+        preceding_owner_with_non_newline_token_before_fallback(tree, context, preceding_owner);
     let following_owner = owners.following;
     let token_before_span = context.token_before_span.map(|token| token.span);
     let token_after_span = context.token_after_span.map(|token| token.span);
     let enclosing_owner = comment_enclosing_owner(context, enclosing_owner_cache);
-    let following_owner_with_token_fallback =
+    let following_owner_with_token_after_fallback =
         following_owner_with_token_after_fallback(tree, context, following_owner);
 
     OwnLineCommentContext {
@@ -427,7 +414,7 @@ fn build_own_line_comment_context<'a, 'ctx>(
         token_before_span,
         token_after_span,
         enclosing_owner,
-        following_owner_with_token_fallback,
+        following_owner_with_token_after_fallback,
     }
 }
 
@@ -455,7 +442,7 @@ fn attach_own_line_empty_statement_semicolon_comment(
         comment_context.context,
         comment_context.seam,
         comment_context.preceding_owner,
-        comment_context.following_owner_with_token_fallback,
+        comment_context.following_owner_with_token_after_fallback,
     )
 }
 
@@ -470,7 +457,7 @@ fn attach_own_line_statement_semicolon_comment(
         comment_context.seam,
         comment_context.owners,
         comment_context.preceding_owner,
-        comment_context.following_owner_with_token_fallback,
+        comment_context.following_owner_with_token_after_fallback,
         comment_context.token_before_span,
     )
 }

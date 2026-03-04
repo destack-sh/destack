@@ -74,6 +74,47 @@ fn directive_token_for_comment_token(
     parse_directive_token_from_raw(context.token_str(token))
 }
 
+/// Return the last comment token that starts before or at one node offset.
+fn last_prefix_comment_token_before(
+    comment_tokens: &[TokenSpan],
+    node_start: u32,
+) -> Option<TokenSpan> {
+    let mut last_prefix_token = None;
+    for token in comment_tokens {
+        if token.span.start <= node_start {
+            last_prefix_token = Some(*token);
+        } else {
+            break;
+        }
+    }
+
+    last_prefix_token
+}
+
+/// Return one line-leading comment token that prefixes one node span.
+fn prefix_comment_token_for_node(
+    context: &DestackFormatContext<'_>,
+    node_span: Span,
+    comment_tokens: &[TokenSpan],
+) -> Option<TokenSpan> {
+    let token = last_prefix_comment_token_before(comment_tokens, node_span.start)?;
+    if !comment_token_is_line_leading(context, token) {
+        return None;
+    }
+
+    Some(token)
+}
+
+/// Return one formatter directive kind for one parsed directive token.
+fn directive_kind_for_token(token: FormatterDirectiveToken) -> Option<FormatterDirectiveKind> {
+    match token {
+        FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart => {
+            Some(FormatterDirectiveKind::IgnoreFormat)
+        }
+        FormatterDirectiveToken::IgnoreFile | FormatterDirectiveToken::IgnoreEnd => None,
+    }
+}
+
 /// Resolve the formatter directive for a node, if any.
 pub fn directive_for_node<T: Node + Clone>(
     context: &DestackFormatContext<'_>,
@@ -87,54 +128,32 @@ where
     }
 
     let node_span = context.span(node_id);
-
     let comment_tokens = context.comment_tokens();
-    let mut last_prefix_token: Option<TokenSpan> = None;
-    for token in comment_tokens {
-        if token.span.start <= node_span.start {
-            last_prefix_token = Some(*token);
-        } else {
-            break;
-        }
+    let token = prefix_comment_token_for_node(context, node_span, comment_tokens)?;
+    let (between_is_whitespace_only, line_distance) = if token.span.end > node_span.start {
+        (true, 0)
+    } else {
+        let between_is_whitespace_only = token
+            .span
+            .gap_to(node_span)
+            .is_none_or(|between_span| !context.has_non_whitespace_content(between_span));
+        let line_distance = context
+            .source_line_distance(token.span.end, node_span.start)
+            .map_or(2, |distance| distance as usize);
+        (between_is_whitespace_only, line_distance)
+    };
+    if !between_is_whitespace_only || line_distance > 1 {
+        return None;
     }
 
-    if let Some(token) = last_prefix_token {
-        if !comment_token_is_line_leading(context, token) {
-            return None;
-        }
-
-        let (between_is_whitespace_only, line_distance) = if token.span.end > node_span.start {
-            (true, 0)
-        } else {
-            let between_is_whitespace_only = token
-                .span
-                .gap_to(node_span)
-                .is_none_or(|between_span| !context.has_non_whitespace_content(between_span));
-            let line_distance = context
-                .source_line_distance(token.span.end, node_span.start)
-                .map_or(2, |distance| distance as usize);
-            (between_is_whitespace_only, line_distance)
-        };
-        if between_is_whitespace_only && line_distance <= 1 {
-            let directive_token = directive_token_for_comment_token(context, token);
-            let kind = match directive_token {
-                Some(FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart) => {
-                    Some(FormatterDirectiveKind::IgnoreFormat)
-                }
-                _ => None,
-            };
-            if let Some(kind) = kind {
-                return Some(FormatterDirective {
-                    kind,
-                    position: FormatterDirectivePosition::Prefix {
-                        comment_span: token.span,
-                    },
-                });
-            }
-        }
-    }
-
-    None
+    let directive_token = directive_token_for_comment_token(context, token)?;
+    let kind = directive_kind_for_token(directive_token)?;
+    Some(FormatterDirective {
+        kind,
+        position: FormatterDirectivePosition::Prefix {
+            comment_span: token.span,
+        },
+    })
 }
 
 /// Resolve an ignore range directive for a node.
@@ -151,39 +170,26 @@ where
     }
 
     let node_span = context.span(node_id);
+    let token = prefix_comment_token_for_node(context, node_span, comment_tokens)?;
 
-    let mut last_prefix_token: Option<TokenSpan> = None;
-    for token in comment_tokens {
-        if token.span.start <= node_span.start {
-            last_prefix_token = Some(*token);
-        } else {
-            break;
-        }
+    let is_adjacent = context.source_line_distance(token.span.start, node_span.start) == Some(1);
+    if !is_adjacent {
+        return None;
     }
 
-    if let Some(token) = last_prefix_token {
-        if !comment_token_is_line_leading(context, token) {
-            return None;
+    match directive_token_for_comment_token(context, token) {
+        Some(FormatterDirectiveToken::Ignore) => {
+            let range_span = Span::new(node_span.file, token.span.start, node_span.end);
+            Some(extend_span_with_trailing_tokens(context, range_span))
         }
-
-        let is_adjacent =
-            context.source_line_distance(token.span.start, node_span.start) == Some(1);
-        if is_adjacent {
-            match directive_token_for_comment_token(context, token) {
-                Some(FormatterDirectiveToken::Ignore) => {
-                    let range_span = Span::new(node_span.file, token.span.start, node_span.end);
-                    return Some(extend_span_with_trailing_tokens(context, range_span));
-                }
-                Some(FormatterDirectiveToken::IgnoreStart) => {
-                    let end_span = find_ignore_range_end(context, comment_tokens, token.span.end)?;
-                    return Some(Span::new(token.span.file, token.span.start, end_span.start));
-                }
-                _ => {}
-            }
+        Some(FormatterDirectiveToken::IgnoreStart) => {
+            let end_span = find_ignore_range_end(context, comment_tokens, token.span.end)?;
+            Some(Span::new(token.span.file, token.span.start, end_span.start))
+        }
+        Some(FormatterDirectiveToken::IgnoreFile | FormatterDirectiveToken::IgnoreEnd) | None => {
+            None
         }
     }
-
-    None
 }
 
 /// Collect ignore ranges for a list of nodes keyed by node id.
@@ -224,8 +230,8 @@ fn comment_token_is_line_leading(context: &DestackFormatContext<'_>, token: Toke
     context.line_prefix_is_whitespace(token.span.start)
 }
 
-/// Extend an ignored span to include trailing content on the same line.
-fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Span) -> Span {
+/// Collect all source and side tokens in source order.
+fn sorted_source_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
     let mut tokens: Vec<TokenSpan> = context
         .tokens
         .iter()
@@ -233,7 +239,11 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
         .chain(context.side_tokens.iter().copied())
         .collect();
     tokens.sort_by_key(|token| token.span.start);
+    tokens
+}
 
+/// Extend one span to include trailing tokens on the same line.
+fn extend_span_to_line_end(tokens: &[TokenSpan], span: Span) -> Span {
     let mut end = span.end;
     for token in tokens.iter().copied() {
         if token.span.start < span.end {
@@ -243,7 +253,6 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
         match token.token.ty {
             TokenType::Whitespace => {
                 end = token.span.end;
-                continue;
             }
             TokenType::Newline => {
                 break;
@@ -254,37 +263,49 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
         }
     }
 
-    let extended = if end > span.end {
+    if end > span.end {
         Span::new(span.file, span.start, end)
     } else {
         span
-    };
-
-    extend_span_with_trailing_statement_terminator(&tokens, extended)
+    }
 }
 
-/// Extend an ignored span to include a standalone trailing statement terminator.
-fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Span) -> Span {
-    let mut token_index = tokens.partition_point(|token| token.span.start < span.end);
-
-    // skip pure whitespace before the next meaningful token
+/// Return the next non-whitespace token index at or after one start index.
+fn next_non_whitespace_token_index(tokens: &[TokenSpan], mut token_index: usize) -> Option<usize> {
     while let Some(token) = tokens.get(token_index).copied() {
         if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
             token_index += 1;
             continue;
         }
 
-        break;
+        return Some(token_index);
     }
 
-    let Some(candidate) = tokens.get(token_index).copied() else {
+    None
+}
+
+/// Extend an ignored span to include trailing content on the same line.
+fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Span) -> Span {
+    let tokens = sorted_source_tokens(context);
+    let extended = extend_span_to_line_end(&tokens, span);
+
+    extend_span_with_trailing_statement_terminator(&tokens, extended)
+}
+
+/// Extend an ignored span to include a standalone trailing statement terminator.
+fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Span) -> Span {
+    let token_index = tokens.partition_point(|token| token.span.start < span.end);
+    let Some(candidate_index) = next_non_whitespace_token_index(tokens, token_index) else {
+        return span;
+    };
+    let Some(candidate) = tokens.get(candidate_index).copied() else {
         return span;
     };
     if candidate.token.ty != TokenType::Semicolon {
         return span;
     }
 
-    let mut lookahead_index = token_index + 1;
+    let mut lookahead_index = candidate_index + 1;
 
     // accept only standalone semicolons: no trailing code on the same line
     while let Some(token) = tokens.get(lookahead_index).copied() {
@@ -317,13 +338,7 @@ pub fn has_file_ignore_directive(context: &DestackFormatContext<'_>) -> bool {
         return false;
     }
 
-    let mut tokens = context
-        .tokens
-        .iter()
-        .copied()
-        .chain(context.side_tokens.iter().copied())
-        .collect::<Vec<_>>();
-    tokens.sort_by_key(|token| token.span.start);
+    let tokens = sorted_source_tokens(context);
 
     for token in tokens {
         match token.token.ty {
@@ -374,7 +389,11 @@ pub fn write_ignored_span<'ast>(
     span: Span,
 ) -> FormatResult<()> {
     let raw = ignored_span_source(f.context(), span);
-    let raw = dedent_common_leading_whitespace(raw.as_str());
+    let raw = if !f.context().span_starts_on_own_line(span) {
+        dedent_common_leading_whitespace_after_first_line(raw.as_str())
+    } else {
+        dedent_common_leading_whitespace(raw.as_str())
+    };
     let raw = if raw.trim().is_empty() {
         raw.chars()
             .filter(|character| *character == '\n')
@@ -486,6 +505,72 @@ fn dedent_common_leading_whitespace(raw: &str) -> String {
         .map(|line| line.strip_prefix(common_prefix).unwrap_or(line).to_owned())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Remove shared leading indentation from non-empty lines after the first line.
+fn dedent_common_leading_whitespace_after_first_line(raw: &str) -> String {
+    let lines = raw.lines().collect::<Vec<_>>();
+    if lines.len() <= 1 {
+        return raw.to_owned();
+    }
+
+    let mut common_prefix: Option<&str> = None;
+    for line in lines.iter().skip(1) {
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let prefix_end = line
+            .char_indices()
+            .find_map(|(index, character)| {
+                if character == ' ' || character == '\t' {
+                    None
+                } else {
+                    Some(index)
+                }
+            })
+            .unwrap_or(line.len());
+        let prefix = &line[..prefix_end];
+
+        match common_prefix {
+            None => common_prefix = Some(prefix),
+            Some(current_prefix) => {
+                let mut shared_len = 0usize;
+                let mut current_iter = current_prefix.chars();
+                let mut next_iter = prefix.chars();
+                loop {
+                    let Some(current_character) = current_iter.next() else {
+                        break;
+                    };
+                    let Some(next_character) = next_iter.next() else {
+                        break;
+                    };
+                    if current_character != next_character {
+                        break;
+                    }
+                    shared_len += current_character.len_utf8();
+                }
+                common_prefix = Some(&current_prefix[..shared_len]);
+            }
+        }
+    }
+
+    let Some(common_prefix) = common_prefix else {
+        return raw.to_owned();
+    };
+    if common_prefix.is_empty() {
+        return raw.to_owned();
+    }
+
+    let mut normalized_lines = Vec::with_capacity(lines.len());
+    normalized_lines.push(lines[0].to_owned());
+    normalized_lines.extend(
+        lines
+            .iter()
+            .skip(1)
+            .map(|line| line.strip_prefix(common_prefix).unwrap_or(line).to_owned()),
+    );
+    normalized_lines.join("\n")
 }
 
 /// Return the source range that should be preserved for one ignored node.
@@ -643,8 +728,8 @@ mod tests {
     use destack_workspace::FormatterOptions;
 
     use crate::format::directive::{
-        comment_tokens, directive_for_node, ignore_range_for_node, ignored_node_span,
-        ignored_span_source,
+        comment_tokens, dedent_common_leading_whitespace_after_first_line, directive_for_node,
+        ignore_range_for_node, ignored_node_span, ignored_span_source,
     };
     use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
 
@@ -808,5 +893,13 @@ mod tests {
         let raw = ignored_span_source(&context, ignored_span);
 
         assert_eq!(raw, "call(   a, b)");
+    }
+
+    #[test]
+    fn test_dedent_common_leading_whitespace_after_first_line_dedents_nested_lines() {
+        let raw = "{\n    [A in B]: C | D;\n  };";
+        let dedented = dedent_common_leading_whitespace_after_first_line(raw);
+
+        assert_eq!(dedented, "{\n  [A in B]: C | D;\n};");
     }
 }

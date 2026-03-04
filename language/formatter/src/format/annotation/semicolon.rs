@@ -122,20 +122,49 @@ fn semicolon_token_is_line_leading(semantic_tokens: &[TokenSpan], semicolon_inde
     true
 }
 
+/// One semicolon seam side relative to one comment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SemicolonSeamSide {
+    /// The semicolon appears before the comment.
+    BeforeComment,
+    /// The semicolon appears after the comment.
+    AfterComment,
+}
+
+impl SemicolonSeamSide {
+    /// Build one guard seam result for this seam side.
+    #[inline]
+    fn to_guard_seam(self, target_type: TokenType) -> SemicolonGuardCommentSeam {
+        match self {
+            Self::BeforeComment => SemicolonGuardCommentSeam::BeforeComment { target_type },
+            Self::AfterComment => SemicolonGuardCommentSeam::AfterComment { target_type },
+        }
+    }
+}
+
+/// Return whether one semicolon on one seam side is line-leading.
+fn seam_side_has_line_leading_semicolon(
+    semantic_tokens: &[TokenSpan],
+    semicolon_type: Option<TokenType>,
+    semicolon_index: Option<usize>,
+) -> bool {
+    if semicolon_type != Some(TokenType::Semicolon) {
+        return false;
+    }
+
+    semicolon_index.is_some_and(|index| semicolon_token_is_line_leading(semantic_tokens, index))
+}
+
 /// Return whether one seam has one line-leading semicolon before its comment.
 pub(crate) fn seam_has_line_leading_semicolon_before_comment(
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
 ) -> bool {
-    if !seam.token_before_is(TokenType::Semicolon) {
-        return false;
-    }
-
-    let Some(semicolon_index) = context.token_before else {
-        return false;
-    };
-
-    semicolon_token_is_line_leading(context.semantic_tokens, semicolon_index)
+    seam_side_has_line_leading_semicolon(
+        context.semantic_tokens,
+        seam.token_before_type,
+        context.token_before,
+    )
 }
 
 /// Return whether one seam has one line-leading semicolon after its comment.
@@ -143,15 +172,11 @@ pub(crate) fn seam_has_line_leading_semicolon_after_comment(
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
 ) -> bool {
-    if !seam.token_after_is(TokenType::Semicolon) {
-        return false;
-    }
-
-    let Some(semicolon_index) = context.token_after else {
-        return false;
-    };
-
-    semicolon_token_is_line_leading(context.semantic_tokens, semicolon_index)
+    seam_side_has_line_leading_semicolon(
+        context.semantic_tokens,
+        seam.token_after_type,
+        context.token_after,
+    )
 }
 
 /// Return whether one semicolon guard target owner starts with one ASI hazard.
@@ -240,73 +265,67 @@ pub(crate) fn classify_semicolon_guard_comment_seam(
     token_after_type: Option<TokenType>,
     token_after_index: Option<usize>,
 ) -> SemicolonGuardCommentSeam {
-    if token_before_type == Some(TokenType::Semicolon) {
-        if let Some((target_token_index, target_type)) = before_comment_semicolon_guard_target(
-            semantic_tokens,
-            token_after_type,
-            token_after_index,
-        ) {
-            let semicolon_is_line_leading = token_before_index
-                .is_some_and(|index| semicolon_token_is_line_leading(semantic_tokens, index));
-            let non_leading_semicolon_can_guard =
-                token_type_is_semicolon_guard_boundary_continuation(target_type);
-            if !semicolon_is_line_leading && !non_leading_semicolon_can_guard {
-                return SemicolonGuardCommentSeam::None;
-            }
-
-            let target_is_asi_hazard = semicolon_guard_target_is_asi_hazard(
-                tree,
-                parents,
-                semantic_tokens,
-                target_token_index,
-            );
-            if target_is_asi_hazard {
-                return SemicolonGuardCommentSeam::BeforeComment { target_type };
-            }
-        }
+    let before_comment_target =
+        before_comment_semicolon_guard_target(semantic_tokens, token_after_type, token_after_index);
+    if let Some(seam) = classify_semicolon_guard_side(
+        tree,
+        parents,
+        semantic_tokens,
+        SemicolonSeamSide::BeforeComment,
+        token_before_type,
+        token_before_index,
+        before_comment_target,
+    ) {
+        return seam;
     }
 
-    if token_after_type == Some(TokenType::Semicolon)
-        && let Some((target_token_index, target_type)) =
-            after_comment_semicolon_guard_target(semantic_tokens, token_after_index)
-    {
-        let semicolon_is_line_leading = token_after_index
-            .is_some_and(|index| semicolon_token_is_line_leading(semantic_tokens, index));
-        let non_leading_semicolon_can_guard =
-            token_type_is_semicolon_guard_boundary_continuation(target_type);
-        if !semicolon_is_line_leading && !non_leading_semicolon_can_guard {
-            return SemicolonGuardCommentSeam::None;
-        }
-
-        let target_is_asi_hazard = semicolon_guard_target_is_asi_hazard(
-            tree,
-            parents,
-            semantic_tokens,
-            target_token_index,
-        );
-        if target_is_asi_hazard {
-            return SemicolonGuardCommentSeam::AfterComment { target_type };
-        }
+    let after_comment_target =
+        after_comment_semicolon_guard_target(semantic_tokens, token_after_index);
+    if let Some(seam) = classify_semicolon_guard_side(
+        tree,
+        parents,
+        semantic_tokens,
+        SemicolonSeamSide::AfterComment,
+        token_after_type,
+        token_after_index,
+        after_comment_target,
+    ) {
+        return seam;
     }
 
     SemicolonGuardCommentSeam::None
 }
 
-/// Return one preceding owner with one previous non-newline token fallback owner.
-pub(crate) fn preceding_owner_with_non_newline_token_fallback(
+/// Classify one semicolon guard seam shape for one seam side.
+fn classify_semicolon_guard_side(
     tree: &NodeTree,
-    context: &CommentSeamContext<'_>,
-    preceding_owner: Option<u32>,
-) -> Option<u32> {
-    let fallback_owner = context
-        .token_before
-        .and_then(|token_index| {
-            previous_non_newline_token_index(context.semantic_tokens, token_index)
-        })
-        .and_then(|token_index| context.semantic_tokens.get(token_index))
-        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+    parents: &NodeParentIndex,
+    semantic_tokens: &[TokenSpan],
+    seam_side: SemicolonSeamSide,
+    semicolon_type: Option<TokenType>,
+    semicolon_index: Option<usize>,
+    target: Option<(usize, TokenType)>,
+) -> Option<SemicolonGuardCommentSeam> {
+    if semicolon_type != Some(TokenType::Semicolon) {
+        return None;
+    }
 
-    preceding_owner.or(fallback_owner)
+    let (target_token_index, target_type) = target?;
+    let semicolon_is_line_leading =
+        seam_side_has_line_leading_semicolon(semantic_tokens, semicolon_type, semicolon_index);
+    let non_leading_semicolon_can_guard =
+        token_type_is_semicolon_guard_boundary_continuation(target_type);
+    if !semicolon_is_line_leading && !non_leading_semicolon_can_guard {
+        return None;
+    }
+
+    let target_is_asi_hazard =
+        semicolon_guard_target_is_asi_hazard(tree, parents, semantic_tokens, target_token_index);
+    if !target_is_asi_hazard {
+        return None;
+    }
+
+    Some(seam_side.to_guard_seam(target_type))
 }
 
 /// Return one empty-statement block owner when one seam appears before its semicolon.
@@ -725,7 +744,7 @@ pub(crate) fn attach_own_line_comment_before_statement_semicolon(
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
     preceding_owner: Option<u32>,
-    following_owner_with_token_fallback: Option<u32>,
+    following_owner_with_token_after_fallback: Option<u32>,
     token_before_span: Option<Span>,
 ) -> Option<CommentAttachment> {
     if !seam.comment_is_line || !seam.token_after_is(TokenType::Semicolon) {
@@ -738,7 +757,7 @@ pub(crate) fn attach_own_line_comment_before_statement_semicolon(
         return Some(attachment);
     }
 
-    let target_owner = following_owner_with_token_fallback
+    let target_owner = following_owner_with_token_after_fallback
         .map(|target_owner| {
             promote_owner_to_nearest_statement_boundary(tree, parents, target_owner)
         })

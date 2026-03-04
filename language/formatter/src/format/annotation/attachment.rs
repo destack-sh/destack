@@ -11,7 +11,7 @@ use super::blank::blank_trivia_attachment;
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
     CommentSeamData, comment_enclosing_owner, delimiters_match, is_close_delimiter_token,
-    is_open_delimiter_token,
+    is_open_delimiter_token, previous_non_newline_token_index,
 };
 use super::declaration::try_attach_comment_declaration;
 use super::endofline::attach_end_of_line_comment;
@@ -949,6 +949,19 @@ struct CommentAttachmentDispatchContext<'a, 'cache> {
 type CommentAttachmentHandler =
     fn(&mut CommentAttachmentDispatchContext<'_, '_>) -> Option<CommentAttachment>;
 
+/// Ordered seam attachment handlers for comment trivia routing.
+const COMMENT_ATTACHMENT_HANDLERS: &[CommentAttachmentHandler] = &[
+    attach_comment_delimiter_interior_dispatch,
+    attach_comment_parameter_type_boundary_dispatch,
+    attach_comment_expression_dispatch,
+    attach_comment_statement_prefix_dispatch,
+    attach_comment_declaration_dispatch,
+    attach_comment_statement_suffix_dispatch,
+    attach_comment_assignment_dispatch,
+    attach_comment_block_body_dispatch,
+    attach_comment_default_dispatch,
+];
+
 /// Run one ordered list of seam attachment handlers.
 fn run_comment_attachment_handlers(
     context: &mut CommentAttachmentDispatchContext<'_, '_>,
@@ -1071,16 +1084,23 @@ fn attach_comment_default_dispatch(
     ))
 }
 
-/// Resolve one comment trivia target owner and position from one token seam.
-pub(crate) fn comment_trivia_attachment(
-    file: &File,
-    tree: &NodeTree,
+/// Boundary token facts derived from one comment seam.
+struct CommentSeamBoundaryTokens {
+    /// The normalized non-trivia token index before the seam.
+    token_before_index: Option<usize>,
+    /// The normalized non-trivia token index after the seam.
+    token_after_index: Option<usize>,
+    /// The token span before the seam.
+    token_before_span: Option<TokenSpan>,
+    /// The token span after the seam.
+    token_after_span: Option<TokenSpan>,
+}
+
+/// Resolve normalized seam boundary token indexes and spans for one comment trivia.
+fn resolve_seam_boundary_tokens(
     semantic_tokens: &[TokenSpan],
-    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
     trivia: ast::CommentTrivia,
-    owner_index: &FormatterTriviaOwnerIndex,
-    parents: &NodeParentIndex,
-) -> CommentAttachment {
+) -> CommentSeamBoundaryTokens {
     let token_before = normalize_boundary_before_token_index(
         semantic_tokens,
         decode_token_index(trivia.boundary.token_before),
@@ -1098,7 +1118,22 @@ pub(crate) fn comment_trivia_attachment(
         .and_then(|index| semantic_tokens.get(index))
         .copied();
 
-    let mut following_owner = token_after
+    CommentSeamBoundaryTokens {
+        token_before_index: token_before,
+        token_after_index: token_after,
+        token_before_span,
+        token_after_span,
+    }
+}
+
+/// Resolve preceding and following seam owners from boundary token facts.
+fn resolve_seam_boundary_owners(
+    tree: &NodeTree,
+    owner_index: &FormatterTriviaOwnerIndex,
+    seam_tokens: &CommentSeamBoundaryTokens,
+) -> CommentAttachmentNeighbors {
+    let mut following_owner = seam_tokens
+        .token_after_index
         .and_then(|index| {
             owner_index
                 .owner_start_by_token
@@ -1106,14 +1141,15 @@ pub(crate) fn comment_trivia_attachment(
                 .and_then(|owner| *owner)
         })
         .or_else(|| {
-            token_after.and_then(|index| {
+            seam_tokens.token_after_index.and_then(|index| {
                 owner_index
                     .nearest_owner_start_by_token
                     .get(index)
                     .and_then(|owner| *owner)
             })
         });
-    let mut preceding_owner = token_before
+    let mut preceding_owner = seam_tokens
+        .token_before_index
         .and_then(|index| {
             owner_index
                 .owner_end_by_token
@@ -1121,7 +1157,7 @@ pub(crate) fn comment_trivia_attachment(
                 .and_then(|owner| *owner)
         })
         .or_else(|| {
-            token_before.and_then(|index| {
+            seam_tokens.token_before_index.and_then(|index| {
                 owner_index
                     .nearest_owner_end_by_token
                     .get(index)
@@ -1130,119 +1166,177 @@ pub(crate) fn comment_trivia_attachment(
         });
 
     if following_owner.is_none()
-        && let Some(token_after_span) = token_after_span
+        && let Some(token_after_span) = seam_tokens.token_after_span
     {
         following_owner = find_preferred_owner_starting_at(tree, token_after_span.span)
             .or_else(|| find_smallest_owner_enclosing_token(tree, token_after_span.span));
     }
 
     if preceding_owner.is_none()
-        && let Some(token_before_span) = token_before_span
+        && let Some(token_before_span) = seam_tokens.token_before_span
     {
         preceding_owner = find_smallest_owner_enclosing_token(tree, token_before_span.span);
     }
 
-    let context = CommentSeamContext {
+    CommentAttachmentNeighbors::new(preceding_owner, following_owner)
+}
+
+/// Build one comment seam context from boundary token facts.
+fn build_comment_seam_context<'a>(
+    file: &'a File,
+    tree: &'a NodeTree,
+    semantic_tokens: &'a [TokenSpan],
+    token_keyword_by_span: &'a FxHashMap<Span, Option<Keyword>>,
+    trivia: ast::CommentTrivia,
+    parents: &'a NodeParentIndex,
+    seam_tokens: &CommentSeamBoundaryTokens,
+) -> CommentSeamContext<'a> {
+    CommentSeamContext {
         file,
         tree,
         semantic_tokens,
         token_keyword_by_span,
         trivia,
         parents,
-        token_before,
-        token_after,
-        token_before_span,
-        token_after_span,
-    };
-    let owners = CommentAttachmentNeighbors::new(preceding_owner, following_owner);
-    let seam = CommentSeamData::build(&context);
+        token_before: seam_tokens.token_before_index,
+        token_after: seam_tokens.token_after_index,
+        token_before_span: seam_tokens.token_before_span,
+        token_after_span: seam_tokens.token_after_span,
+    }
+}
+
+/// Attach one comment seam using the ordered attachment pipeline.
+fn attach_comment_for_seam(
+    tree: &NodeTree,
+    owner_index: &FormatterTriviaOwnerIndex,
+    parents: &NodeParentIndex,
+    seam_context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    owners: CommentAttachmentNeighbors,
+) -> CommentAttachment {
     let mut enclosing_owner_cache = CommentEnclosingOwnerCache::default();
     let mut dispatch_context = CommentAttachmentDispatchContext {
         tree,
         owner_index,
         parents,
-        seam_context: &context,
-        seam: &seam,
+        seam_context,
+        seam,
         owners,
         enclosing_owner_cache: &mut enclosing_owner_cache,
     };
-    let handlers = [
-        attach_comment_delimiter_interior_dispatch as CommentAttachmentHandler,
-        attach_comment_parameter_type_boundary_dispatch,
-        attach_comment_expression_dispatch,
-        attach_comment_statement_prefix_dispatch,
-        attach_comment_declaration_dispatch,
-        attach_comment_statement_suffix_dispatch,
-        attach_comment_assignment_dispatch,
-        attach_comment_block_body_dispatch,
-        attach_comment_default_dispatch,
-    ];
-    let attachment = run_comment_attachment_handlers(&mut dispatch_context, &handlers);
     let attachment =
-        attachment.expect("comment attachment pipeline should always produce one attachment");
+        run_comment_attachment_handlers(&mut dispatch_context, COMMENT_ATTACHMENT_HANDLERS);
+
+    attachment.expect("comment attachment pipeline should always produce one attachment")
+}
+
+/// Resolve one comment trivia target owner and position from one token seam.
+pub(crate) fn comment_trivia_attachment(
+    file: &File,
+    tree: &NodeTree,
+    semantic_tokens: &[TokenSpan],
+    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
+    trivia: ast::CommentTrivia,
+    owner_index: &FormatterTriviaOwnerIndex,
+    parents: &NodeParentIndex,
+) -> CommentAttachment {
+    let seam_tokens = resolve_seam_boundary_tokens(semantic_tokens, trivia);
+    let owners = resolve_seam_boundary_owners(tree, owner_index, &seam_tokens);
+    let context = build_comment_seam_context(
+        file,
+        tree,
+        semantic_tokens,
+        token_keyword_by_span,
+        trivia,
+        parents,
+        &seam_tokens,
+    );
+    let seam = CommentSeamData::build(&context);
+    let attachment = attach_comment_for_seam(tree, owner_index, parents, &context, &seam, owners);
 
     normalize_trailing_object_member_comment_attachment(tree, parents, &context, &seam, attachment)
 }
 
-/// Build formatter annotation projection for semantic annotations and trivia.
-pub(crate) fn formatter_annotation_projection(
+/// Return whether one declaration owner is the default export value of one export expression chain.
+fn declaration_is_default_export_value(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    target_node_id: u32,
+) -> bool {
+    if tree.get_node_type(target_node_id) != NodeType::Declaration {
+        return false;
+    }
+
+    let Some(declaration_expression_node_id) = parents.get_by_id(target_node_id) else {
+        return false;
+    };
+    if tree.get_node_type(declaration_expression_node_id) != NodeType::Expression {
+        return false;
+    }
+
+    let declaration_expression_id = LocalNodeId::<Expression>::new(declaration_expression_node_id);
+    let Expression::Declaration(declaration_id) = tree.get(declaration_expression_id) else {
+        return false;
+    };
+    if declaration_id.id != target_node_id {
+        return false;
+    }
+
+    let mut ancestor_id = parents.get_by_id(declaration_expression_node_id);
+    while let Some(node_id) = ancestor_id {
+        if tree.get_node_type(node_id) == NodeType::Expression {
+            let expression_id = LocalNodeId::<Expression>::new(node_id);
+            if let Expression::Export { items, .. } = tree.get(expression_id) {
+                return items.iter().any(|item_id| {
+                    let item = tree.get(*item_id);
+                    item.mode == DependencyMode::Default
+                        && item
+                            .value
+                            .is_some_and(|value_id| value_id.id == declaration_expression_id.id)
+                });
+            }
+        }
+
+        ancestor_id = parents.get_by_id(node_id);
+    }
+
+    false
+}
+
+/// Sort node local annotation ids by source position for deterministic rendering.
+fn sort_node_annotation_ids_by_source(
+    entries: &[FormatterAnnotationEntry],
+    by_node_id: &mut [SmallVec<[LocalNodeId<Annotation>; 4]>],
+) {
+    for annotation_ids in by_node_id {
+        if annotation_ids.len() <= 1 {
+            continue;
+        }
+
+        annotation_ids.sort_by(
+            |left: &LocalNodeId<Annotation>, right: &LocalNodeId<Annotation>| {
+                let left_span = entries[left.id as usize].span;
+                let right_span = entries[right.id as usize].span;
+                left_span
+                    .start
+                    .cmp(&right_span.start)
+                    .then(left_span.end.cmp(&right_span.end))
+                    .then(left.id.cmp(&right.id))
+            },
+        );
+    }
+}
+
+/// Project parser side semantic annotations into formatter annotation entries.
+fn project_parser_semantic_annotations(
     file: &File,
     tree: &NodeTree,
     tokens: &[TokenSpan],
     parents: &NodeParentIndex,
-    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
-) -> (
-    Vec<FormatterAnnotationEntry>,
-    Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
+    owner_index: &FormatterTriviaOwnerIndex,
+    entries: &mut Vec<FormatterAnnotationEntry>,
+    by_node_id: &mut [SmallVec<[LocalNodeId<Annotation>; 4]>],
 ) {
-    let node_count = tree.next_id() as usize;
-    let mut entries = Vec::new();
-    let mut by_node_id = vec![SmallVec::new(); node_count];
-    let mut comment_targets = Vec::<(Span, u32)>::new();
-    let owner_index = formatter_trivia_owner_index(tree, tokens);
-
-    let declaration_is_default_export_value = |target_node_id: u32| {
-        if tree.get_node_type(target_node_id) != NodeType::Declaration {
-            return false;
-        }
-
-        let Some(declaration_expression_node_id) = parents.get_by_id(target_node_id) else {
-            return false;
-        };
-        if tree.get_node_type(declaration_expression_node_id) != NodeType::Expression {
-            return false;
-        }
-
-        let declaration_expression_id =
-            LocalNodeId::<Expression>::new(declaration_expression_node_id);
-        let Expression::Declaration(declaration_id) = tree.get(declaration_expression_id) else {
-            return false;
-        };
-        if declaration_id.id != target_node_id {
-            return false;
-        }
-
-        let mut ancestor_id = parents.get_by_id(declaration_expression_node_id);
-        while let Some(node_id) = ancestor_id {
-            if tree.get_node_type(node_id) == NodeType::Expression {
-                let expression_id = LocalNodeId::<Expression>::new(node_id);
-                if let Expression::Export { items, .. } = tree.get(expression_id) {
-                    return items.iter().any(|item_id| {
-                        let item = tree.get(*item_id);
-                        item.mode == DependencyMode::Default
-                            && item
-                                .value
-                                .is_some_and(|value_id| value_id.id == declaration_expression_id.id)
-                    });
-                }
-            }
-
-            ancestor_id = parents.get_by_id(node_id);
-        }
-
-        false
-    };
-
     // add parser semantic annotations first
     for (&target_id, annotation_ids) in tree.get_all_annotations() {
         if target_id as usize >= by_node_id.len() {
@@ -1268,7 +1362,7 @@ pub(crate) fn formatter_annotation_projection(
                     if token.token.ty == TokenType::At
                         && let Some(declaration_id) = find_owner_at_or_after_token_with_node_type(
                             tree,
-                            &owner_index,
+                            owner_index,
                             token_index,
                             NodeType::Declaration,
                         )
@@ -1284,7 +1378,7 @@ pub(crate) fn formatter_annotation_projection(
                         file,
                         tree,
                         parents,
-                        &owner_index,
+                        owner_index,
                         tokens,
                         annotation_span,
                     )
@@ -1301,7 +1395,7 @@ pub(crate) fn formatter_annotation_projection(
                         file,
                         tree,
                         parents,
-                        &owner_index,
+                        owner_index,
                         tokens,
                         annotation_span,
                     )
@@ -1326,7 +1420,7 @@ pub(crate) fn formatter_annotation_projection(
 
                     if let Some(member_target) = find_owner_at_or_after_token_with_node_type(
                         tree,
-                        &owner_index,
+                        owner_index,
                         token_index,
                         NodeType::Member,
                     )
@@ -1337,7 +1431,7 @@ pub(crate) fn formatter_annotation_projection(
                     } else if let Some(property_target) =
                         find_owner_at_or_after_token_with_node_type(
                             tree,
-                            &owner_index,
+                            owner_index,
                             token_index,
                             NodeType::Property,
                         )
@@ -1354,7 +1448,7 @@ pub(crate) fn formatter_annotation_projection(
                     } else if let Some(declaration_target) =
                         find_owner_at_or_after_token_with_node_type(
                             tree,
-                            &owner_index,
+                            owner_index,
                             token_index,
                             NodeType::Declaration,
                         )
@@ -1386,7 +1480,7 @@ pub(crate) fn formatter_annotation_projection(
                     let owner_is_declaration =
                         tree.get_node_type(target_node_id) == NodeType::Declaration;
                     let owner_is_default_export_value =
-                        declaration_is_default_export_value(target_node_id);
+                        declaration_is_default_export_value(tree, parents, target_node_id);
                     if position == AnnotationPosition::BlockPrefix
                         && decorator_starts_on_owner_line
                         && owner_is_declaration
@@ -1413,9 +1507,20 @@ pub(crate) fn formatter_annotation_projection(
             by_node_id[target_node_id as usize].push(local_id);
         }
     }
+}
 
-    // build formatter-side seam indexes for trivia placement
-    let seam_index = formatter_trivia_seam_index(tree);
+/// Project comment trivia into formatter annotation entries and return target spans.
+fn project_comment_trivia_annotations(
+    file: &File,
+    tree: &NodeTree,
+    tokens: &[TokenSpan],
+    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
+    owner_index: &FormatterTriviaOwnerIndex,
+    parents: &NodeParentIndex,
+    entries: &mut Vec<FormatterAnnotationEntry>,
+    by_node_id: &mut [SmallVec<[LocalNodeId<Annotation>; 4]>],
+) -> Vec<(Span, u32)> {
+    let mut comment_targets = Vec::<(Span, u32)>::new();
 
     // add comment trivia with formatter-side placement resolution
     for trivia in tree.comment_trivia().iter().copied() {
@@ -1425,7 +1530,7 @@ pub(crate) fn formatter_annotation_projection(
             tokens,
             token_keyword_by_span,
             trivia,
-            &owner_index,
+            owner_index,
             parents,
         );
 
@@ -1448,6 +1553,21 @@ pub(crate) fn formatter_annotation_projection(
         by_node_id[target_id as usize].push(local_id);
     }
 
+    comment_targets
+}
+
+/// Project blank trivia into formatter annotation entries.
+fn project_blank_trivia_annotations(
+    tree: &NodeTree,
+    tokens: &[TokenSpan],
+    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
+    owner_index: &FormatterTriviaOwnerIndex,
+    seam_index: &FormatterTriviaSeamIndex,
+    parents: &NodeParentIndex,
+    comment_targets: &[(Span, u32)],
+    entries: &mut Vec<FormatterAnnotationEntry>,
+    by_node_id: &mut [SmallVec<[LocalNodeId<Annotation>; 4]>],
+) {
     // add blank trivia with formatter-side placement resolution
     for trivia in tree.blank_trivia().iter().copied() {
         let token_before_index = decode_token_index(trivia.boundary.token_before);
@@ -1525,8 +1645,8 @@ pub(crate) fn formatter_annotation_projection(
             tokens,
             token_keyword_by_span,
             trivia,
-            &owner_index,
-            &seam_index,
+            owner_index,
+            seam_index,
             parents,
         );
 
@@ -1562,25 +1682,65 @@ pub(crate) fn formatter_annotation_projection(
         });
         by_node_id[target_id as usize].push(local_id);
     }
+}
+
+/// Build formatter annotation projection for semantic annotations and trivia.
+pub(crate) fn formatter_annotation_projection(
+    file: &File,
+    tree: &NodeTree,
+    tokens: &[TokenSpan],
+    parents: &NodeParentIndex,
+    token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
+) -> (
+    Vec<FormatterAnnotationEntry>,
+    Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
+) {
+    let node_count = tree.next_id() as usize;
+    let mut entries = Vec::new();
+    let mut by_node_id = vec![SmallVec::new(); node_count];
+    let owner_index = formatter_trivia_owner_index(tree, tokens);
+
+    // add parser semantic annotations first
+    project_parser_semantic_annotations(
+        file,
+        tree,
+        tokens,
+        parents,
+        &owner_index,
+        &mut entries,
+        &mut by_node_id,
+    );
+
+    // build formatter-side seam indexes for trivia placement
+    let seam_index = formatter_trivia_seam_index(tree);
+
+    // add comment trivia with formatter-side placement resolution
+    let comment_targets = project_comment_trivia_annotations(
+        file,
+        tree,
+        tokens,
+        token_keyword_by_span,
+        &owner_index,
+        parents,
+        &mut entries,
+        &mut by_node_id,
+    );
+
+    // add blank trivia with formatter-side placement resolution
+    project_blank_trivia_annotations(
+        tree,
+        tokens,
+        token_keyword_by_span,
+        &owner_index,
+        &seam_index,
+        parents,
+        &comment_targets,
+        &mut entries,
+        &mut by_node_id,
+    );
 
     // keep node-local annotation order source-stable
-    for annotation_ids in &mut by_node_id {
-        if annotation_ids.len() <= 1 {
-            continue;
-        }
-
-        annotation_ids.sort_by(
-            |left: &LocalNodeId<Annotation>, right: &LocalNodeId<Annotation>| {
-                let left_span = entries[left.id as usize].span;
-                let right_span = entries[right.id as usize].span;
-                left_span
-                    .start
-                    .cmp(&right_span.start)
-                    .then(left_span.end.cmp(&right_span.end))
-                    .then(left.id.cmp(&right.id))
-            },
-        );
-    }
+    sort_node_annotation_ids_by_source(&entries, &mut by_node_id);
 
     (entries, by_node_id)
 }
@@ -2088,6 +2248,36 @@ pub(crate) fn following_owner_with_token_after_fallback(
                 .token_after_span
                 .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
         })
+}
+
+/// Resolve one preceding owner with one token-before fallback owner.
+pub(crate) fn preceding_owner_with_token_before_fallback(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    preceding_owner: Option<u32>,
+) -> Option<u32> {
+    preceding_owner.or_else(|| {
+        context
+            .token_before_span
+            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+    })
+}
+
+/// Resolve one preceding owner with one previous non-newline token fallback owner.
+pub(crate) fn preceding_owner_with_non_newline_token_before_fallback(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    preceding_owner: Option<u32>,
+) -> Option<u32> {
+    let fallback_owner = context
+        .token_before
+        .and_then(|token_index| {
+            previous_non_newline_token_index(context.semantic_tokens, token_index)
+        })
+        .and_then(|token_index| context.semantic_tokens.get(token_index))
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+
+    preceding_owner.or(fallback_owner)
 }
 
 /// Return the then-branch owner id for one if-expression owner that has no else branch.

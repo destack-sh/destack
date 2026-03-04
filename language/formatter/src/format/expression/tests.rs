@@ -2077,14 +2077,14 @@ a = b + /** TODO this is a very very very very long comment that makes it go > 8
     let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
 
     let (first_test, first_block) =
-        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+        TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| {
             p.eat_block(BlockContext::Expression)
         })
         .unwrap();
     let first_output = first_test.format(&first_block, options.clone());
 
     let (second_test, second_block) =
-        TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+        TestFormatter::parse_with_file_type(&first_output, FileType::JavaScriptXml, |p| {
             p.eat_block(BlockContext::Expression)
         })
         .unwrap();
@@ -2178,6 +2178,52 @@ fn test_format_throw_parenthesized_sequence_with_comment_is_idempotent() {
     let second_output = second_test.format(&second_block, options);
 
     assert_format_output_eq(&first_output, &second_output);
+}
+
+#[test]
+fn test_format_return_throw_parenthesized_sequence_with_inline_head_comment_is_idempotent() {
+    let source = r#"function sequenceExpressionInside() {
+  return ( // Reason for a
+    a, b
+  );
+  throw ( // Reason for a
+    a, b
+  );
+}"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+#[test]
+fn test_format_return_parenthesized_sequence_with_own_line_comment_is_stable() {
+    let source = r#"function sequenceExpressionInside() {
+  return (
+    // Reason for a
+    (a, b)
+  );
+}"#;
+    let expected = r#"function sequenceExpressionInside() {
+  return (
+    // Reason for a
+    (a, b)
+  );
+}
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_roundtrip_with_file_type(source, expected, FileType::JavaScript, options);
+}
+
+#[test]
+fn test_format_jsdoc_same_line_jsx_return_is_idempotent() {
+    let source = r#"function multilineBlockSameLineJsx() {
+  return (
+    /**
+     * JSX Same line
+     */ <div></div>
+  );
+}"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScriptXml, options);
 }
 
 /// Satisfies seam comments on qualified rhs paths should become trailing expression comments.
@@ -2522,7 +2568,6 @@ fn test_format_semicolon_guard_with_inline_comment_before_unary_plus_is_idempote
 
 /// Return statement semicolon-guard comments should stay inside the function body.
 #[test]
-#[ignore = "unresolved second-pass parse drift in return guard seams"]
 fn test_format_return_semicolon_guard_comments_stay_in_body() {
     let source = r#"function a() {
   return

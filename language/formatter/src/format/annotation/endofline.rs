@@ -8,6 +8,7 @@ use super::attachment::{
     attach_line_comment_after_ternary_colon, attach_star_comment_before_ternary_colon,
     attach_trailing_comma_close_brace_property_line_comment,
     following_owner_with_token_after_fallback, if_expression_then_owner_without_else,
+    preceding_owner_with_non_newline_token_before_fallback,
     promote_owner_to_tree_expression_parent,
 };
 use super::boundary::{
@@ -25,8 +26,7 @@ use super::ownership::{
 };
 use super::semicolon::{
     attach_after_semicolon_terminated_statement_comment, attach_inline_comment_before_semicolon,
-    preceding_owner_with_non_newline_token_fallback, seam_has_line_leading_semicolon_after_comment,
-    seam_has_line_leading_semicolon_before_comment,
+    seam_has_line_leading_semicolon_after_comment, seam_has_line_leading_semicolon_before_comment,
     try_attach_comment_before_empty_statement_semicolon,
 };
 
@@ -60,14 +60,14 @@ fn attach_after_line_leading_semicolon_comment(
     tree: &NodeTree,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
-    following_owner_with_token_fallback: Option<u32>,
+    following_owner_with_token_after_fallback: Option<u32>,
     is_same_line_comment: bool,
 ) -> Option<CommentAttachment> {
     if !is_same_line_comment || !seam_has_line_leading_semicolon_before_comment(context, seam) {
         return None;
     }
 
-    let target_owner = following_owner_with_token_fallback?;
+    let target_owner = following_owner_with_token_after_fallback?;
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
@@ -258,14 +258,14 @@ fn attach_template_interpolation_open_brace_line_comment(
     tree: &NodeTree,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
-    following_owner_with_token_fallback: Option<u32>,
+    following_owner_with_token_after_fallback: Option<u32>,
     is_same_line_line_comment: bool,
 ) -> Option<CommentAttachment> {
     if !is_same_line_line_comment || !seam_is_template_interpolation_open_brace(context, seam) {
         return None;
     }
 
-    let target_node = following_owner_with_token_fallback?;
+    let target_node = following_owner_with_token_after_fallback?;
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
     Some((Some(target_node), AnnotationPosition::BlockPrefix))
 }
@@ -405,7 +405,7 @@ fn attach_parenthesized_tree_head_line_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     seam: &CommentSeamData,
-    following_owner_with_token_fallback: Option<u32>,
+    following_owner_with_token_after_fallback: Option<u32>,
     token_after_span: Option<Span>,
     is_same_line_line_comment: bool,
 ) -> Option<CommentAttachment> {
@@ -416,7 +416,7 @@ fn attach_parenthesized_tree_head_line_comment(
         return None;
     }
 
-    let target_owner = following_owner_with_token_fallback?;
+    let target_owner = following_owner_with_token_after_fallback?;
     let target_owner = token_after_span
         .map(|span| promote_owner_by_shared_start(tree, parents, target_owner, span.start))
         .unwrap_or(target_owner);
@@ -576,7 +576,7 @@ struct EndOfLineCommentContext<'a, 'ctx> {
     /// Owner after the seam.
     following_owner: Option<u32>,
     /// Owner after the seam with token fallback.
-    following_owner_with_token_fallback: Option<u32>,
+    following_owner_with_token_after_fallback: Option<u32>,
     /// Span before the seam.
     token_before_span: Option<Span>,
     /// Span after the seam.
@@ -606,12 +606,12 @@ fn build_end_of_line_comment_context<'a, 'ctx>(
     let parents = context.parents;
     let preceding_owner = owners.preceding;
     let following_owner = owners.following;
-    let following_owner_with_token_fallback =
+    let following_owner_with_token_after_fallback =
         following_owner_with_token_after_fallback(tree, context, following_owner);
     let token_before_span = context.token_before_span.map(|token| token.span);
     let token_after_span = context.token_after_span.map(|token| token.span);
     let preceding_owner_with_semicolon_fallback =
-        preceding_owner_with_non_newline_token_fallback(tree, context, preceding_owner);
+        preceding_owner_with_non_newline_token_before_fallback(tree, context, preceding_owner);
     let enclosing_owner = comment_enclosing_owner(context, enclosing_owner_cache);
     let is_same_line_line_comment = seam.comment_is_line && !seam.has_leading_newline;
     let is_same_line_trailing_block_comment =
@@ -627,7 +627,7 @@ fn build_end_of_line_comment_context<'a, 'ctx>(
         parents,
         preceding_owner,
         following_owner,
-        following_owner_with_token_fallback,
+        following_owner_with_token_after_fallback,
         token_before_span,
         token_after_span,
         preceding_owner_with_semicolon_fallback,
@@ -663,7 +663,7 @@ fn attach_end_of_line_empty_statement_semicolon_comment(
         comment_context.context,
         comment_context.seam,
         comment_context.preceding_owner_with_semicolon_fallback,
-        comment_context.following_owner_with_token_fallback,
+        comment_context.following_owner_with_token_after_fallback,
     )
 }
 
@@ -750,7 +750,7 @@ fn attach_end_of_line_line_leading_semicolon_comment(
         comment_context.tree,
         comment_context.context,
         comment_context.seam,
-        comment_context.following_owner_with_token_fallback,
+        comment_context.following_owner_with_token_after_fallback,
         comment_context.is_same_line_line_comment
             || comment_context.is_same_line_trailing_block_comment,
     )
@@ -806,7 +806,7 @@ fn attach_end_of_line_template_interpolation_comment(
         comment_context.tree,
         comment_context.context,
         comment_context.seam,
-        comment_context.following_owner_with_token_fallback,
+        comment_context.following_owner_with_token_after_fallback,
         comment_context.is_same_line_line_comment,
     )
 }
@@ -873,7 +873,7 @@ fn attach_end_of_line_parenthesized_tree_head_comment(
         comment_context.tree,
         comment_context.parents,
         comment_context.seam,
-        comment_context.following_owner_with_token_fallback,
+        comment_context.following_owner_with_token_after_fallback,
         comment_context.token_after_span,
         comment_context.is_same_line_line_comment,
     )

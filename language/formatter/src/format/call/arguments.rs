@@ -3,7 +3,8 @@ use crate::format::analysis::{
     argument_has_leading_prefix_annotation_outside_span, argument_has_multiline_prefix_annotation,
     argument_is_inline_closure_cast_object, argument_is_interpolated_template_literal,
     call_arguments_have_boundary_comments, call_arguments_preserve_blank_line_between,
-    call_has_static_arguments, next_non_whitespace_token_after_annotation,
+    call_has_static_arguments, next_non_trivia_token_after_annotation,
+    next_non_whitespace_token_after_annotation, previous_non_trivia_token_before_span,
     previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
     timing,
 };
@@ -568,25 +569,8 @@ fn separator_line_comment_preceding_comma(
     context: &DestackFormatContext<'_>,
     annotation_span: Span,
 ) -> Option<TokenSpan> {
-    let mut previous_token = previous_non_whitespace_token_before_span(context, annotation_span);
-
-    while let Some(token) = previous_token {
-        if token.token.ty == TokenType::Comma {
-            return Some(token);
-        }
-
-        if matches!(
-            token.token.ty,
-            TokenType::LineComment | TokenType::DocLineComment
-        ) {
-            previous_token = previous_non_whitespace_token_before_span(context, token.span);
-            continue;
-        }
-
-        return None;
-    }
-
-    None
+    let previous_token = previous_non_trivia_token_before_span(context, annotation_span)?;
+    (previous_token.token.ty == TokenType::Comma).then_some(previous_token)
 }
 
 /// Return whether a boundary comment is on a member or index continuation seam.
@@ -628,7 +612,7 @@ fn separator_line_comment_annotation_info(
 
     let annotation_span = context.annotation_span(annotation_id);
     let preceding_comma = separator_line_comment_preceding_comma(context, annotation_span);
-    let following_token = next_non_whitespace_token_after_annotation(context, annotation_id);
+    let following_token = next_non_trivia_token_after_annotation(context, annotation_id);
     if separator_comment_is_member_or_index_continuation(following_token, position) {
         return None;
     }
@@ -663,43 +647,29 @@ fn separator_line_comment_annotation_info(
         annotation_id,
         annotation_span,
         preceding_comma,
-        following_separator,
+        following_token.filter(|token| token.token.ty == TokenType::Comma),
         has_virtual_trailing_separator,
     );
-    let has_blank_line_before_first_comment = if let Some(separator_token) = preceding_comma {
-        let before_comment_span = Span::new(
-            annotation_span.file,
-            separator_token.span.end,
-            annotation_span.start,
+    let has_blank_line_before_first_comment =
+        separator_line_comment_has_blank_line_before_first_comment(
+            context,
+            annotation_span,
+            preceding_comma,
+            following_token.filter(|token| token.token.ty == TokenType::Comma),
+            has_virtual_trailing_separator,
+            false,
         );
-        context.has_blank_line(before_comment_span)
-    } else if following_separator {
-        if let Some(separator_token) =
-            next_non_whitespace_token_after_annotation(context, annotation_id)
-        {
-            let before_separator_span = Span::new(
-                annotation_span.file,
-                annotation_span.end,
-                separator_token.span.start,
-            );
-            context.has_blank_line(before_separator_span)
-        } else {
-            false
-        }
-    } else {
-        false
-    };
 
     Some((node, is_own_line, has_blank_line_before_first_comment))
 }
 
 /// Return whether one separator comment starts on its own source line.
-fn separator_line_comment_is_own_line(
+pub(crate) fn separator_line_comment_is_own_line(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
     annotation_span: Span,
     preceding_comma: Option<TokenSpan>,
-    following_separator: bool,
+    following_comma: Option<TokenSpan>,
     has_virtual_trailing_separator: bool,
 ) -> bool {
     if let Some(separator_token) = preceding_comma {
@@ -712,13 +682,7 @@ fn separator_line_comment_is_own_line(
         return context.has_newline(before_comment_span);
     }
 
-    if following_separator {
-        let Some(separator_token) =
-            next_non_whitespace_token_after_annotation(context, annotation_id)
-        else {
-            return false;
-        };
-
+    if let Some(separator_token) = following_comma {
         let after_comment_span = Span::new(
             annotation_span.file,
             annotation_span.end,
@@ -734,16 +698,60 @@ fn separator_line_comment_is_own_line(
     false
 }
 
+/// Return whether one separator comment has one preserved blank line before the first comment token.
+pub(crate) fn separator_line_comment_has_blank_line_before_first_comment(
+    context: &DestackFormatContext<'_>,
+    annotation_span: Span,
+    preceding_comma: Option<TokenSpan>,
+    following_comma: Option<TokenSpan>,
+    has_virtual_trailing_separator: bool,
+    include_virtual_trailing_blank_line: bool,
+) -> bool {
+    if let Some(separator_token) = preceding_comma {
+        let before_comment_span = Span::new(
+            annotation_span.file,
+            separator_token.span.end,
+            annotation_span.start,
+        );
+        return context.has_blank_line(before_comment_span);
+    }
+
+    if let Some(separator_token) = following_comma {
+        let before_separator_span = Span::new(
+            annotation_span.file,
+            annotation_span.end,
+            separator_token.span.start,
+        );
+        return context.has_blank_line(before_separator_span);
+    }
+
+    if has_virtual_trailing_separator && include_virtual_trailing_blank_line {
+        let Some(previous_token) = previous_non_trivia_token_before_span(context, annotation_span)
+        else {
+            return false;
+        };
+        let before_comment_span = Span::new(
+            annotation_span.file,
+            previous_token.span.end,
+            annotation_span.start,
+        );
+        return context.has_blank_line(before_comment_span);
+    }
+
+    false
+}
+
 /// Return whether one annotation is a separator line comment.
 /// Return one separator comment source from one annotation list and filter.
-fn separator_line_comment_source_from_annotations<F>(
+pub(crate) fn separator_line_comment_source_from_annotations<F, G>(
     context: &DestackFormatContext<'_>,
     annotations: &[LocalNodeId<Annotation>],
-    virtual_trailing_separator_policy: VirtualTrailingSeparatorPolicy,
-    mut annotation_allowed: F,
+    mut annotation_info: F,
+    mut annotation_allowed: G,
 ) -> Option<SeparatorLineCommentSource>
 where
-    F: FnMut(LocalNodeId<Annotation>) -> bool,
+    F: FnMut(LocalNodeId<Annotation>) -> Option<(LocalNodeId<Comment>, bool, bool)>,
+    G: FnMut(LocalNodeId<Annotation>) -> bool,
 {
     for (index, annotation_id) in annotations.iter().copied().enumerate() {
         if !annotation_allowed(annotation_id) {
@@ -751,11 +759,7 @@ where
         }
 
         let Some((comment_id, is_own_line, has_blank_line_before_first_comment)) =
-            separator_line_comment_annotation_info(
-                context,
-                annotation_id,
-                virtual_trailing_separator_policy,
-            )
+            annotation_info(annotation_id)
         else {
             continue;
         };
@@ -773,11 +777,7 @@ where
                 continue;
             }
 
-            let Some((next_comment_id, _, _)) = separator_line_comment_annotation_info(
-                context,
-                next_annotation_id,
-                virtual_trailing_separator_policy,
-            ) else {
+            let Some((next_comment_id, _, _)) = annotation_info(next_annotation_id) else {
                 break;
             };
 
@@ -795,45 +795,80 @@ where
     None
 }
 
+/// Return one prefix comment style for one annotation.
+fn annotation_prefix_comment_style(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<CommentStyle> {
+    let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+        return None;
+    };
+    if !matches!(
+        position,
+        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+    ) {
+        return None;
+    }
+
+    let comment = context.tree.get::<Comment>(node);
+    Some(comment.style)
+}
+
+/// Return one slash prefix comment node for one annotation.
+fn annotation_slash_prefix_comment_node(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<LocalNodeId<Comment>> {
+    let Annotation::Comment { node, .. } = context.annotation(annotation_id) else {
+        return None;
+    };
+    (annotation_prefix_comment_style(context, annotation_id) == Some(CommentStyle::Slash))
+        .then_some(node)
+}
+
+/// Return one comma token immediately before one annotation span.
+fn annotation_preceding_comma_token(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<TokenSpan> {
+    let annotation_span = context.annotation_span(annotation_id);
+    let preceding_token = previous_non_trivia_token_before_span(context, annotation_span)?;
+    (preceding_token.token.ty == TokenType::Comma).then_some(preceding_token)
+}
+
 /// Return one separator line comment source from following-argument prefix annotations.
 fn separator_line_comment_source_from_following_prefix_annotations<F>(
     context: &DestackFormatContext<'_>,
     annotations: &[LocalNodeId<Annotation>],
-    mut annotation_allowed: F,
+    annotation_allowed: F,
 ) -> Option<SeparatorLineCommentSource>
 where
-    F: FnMut(LocalNodeId<Annotation>) -> bool,
+    F: Fn(LocalNodeId<Annotation>) -> bool,
 {
+    // separator extraction from following prefixes only applies to slash comment clusters
+    let has_non_slash_prefix_comment = annotations.iter().copied().any(|annotation_id| {
+        annotation_allowed(annotation_id)
+            && annotation_prefix_comment_style(context, annotation_id)
+                .is_some_and(|style| style != CommentStyle::Slash)
+    });
+    if has_non_slash_prefix_comment {
+        return None;
+    }
+
     for (index, annotation_id) in annotations.iter().copied().enumerate() {
         if !annotation_allowed(annotation_id) {
             continue;
         }
 
-        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+        let Some(node) = annotation_slash_prefix_comment_node(context, annotation_id) else {
             continue;
         };
-        if !matches!(
-            position,
-            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-        ) {
-            continue;
-        }
 
-        let comment = context.tree.get::<Comment>(node);
-        if comment.style != CommentStyle::Slash {
+        let Some(preceding_token) = annotation_preceding_comma_token(context, annotation_id) else {
             continue;
-        }
+        };
 
         let annotation_span = context.annotation_span(annotation_id);
-        let Some(preceding_token) =
-            previous_non_whitespace_token_before_span(context, annotation_span)
-        else {
-            continue;
-        };
-        if preceding_token.token.ty != TokenType::Comma {
-            continue;
-        }
-
         let before_comment_span = Span::new(
             annotation_span.file,
             preceding_token.span.end,
@@ -854,35 +889,11 @@ where
                 continue;
             }
 
-            let Annotation::Comment {
-                node: next_node,
-                position: next_position,
-            } = context.annotation(next_annotation_id)
+            let Some(next_node) = annotation_slash_prefix_comment_node(context, next_annotation_id)
             else {
                 break;
             };
-            if !matches!(
-                next_position,
-                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-            ) {
-                break;
-            }
-
-            let next_comment = context.tree.get::<Comment>(next_node);
-            if next_comment.style != CommentStyle::Slash {
-                break;
-            }
-
-            let next_annotation_span = context.annotation_span(next_annotation_id);
-            let Some(next_preceding_token) =
-                previous_non_whitespace_token_before_span(context, next_annotation_span)
-            else {
-                break;
-            };
-            if !matches!(
-                next_preceding_token.token.ty,
-                TokenType::Comma | TokenType::LineComment | TokenType::DocLineComment
-            ) {
+            if annotation_preceding_comma_token(context, next_annotation_id).is_none() {
                 break;
             }
 
@@ -957,7 +968,13 @@ pub(crate) fn single_argument_separator_line_comment_source(
         separator_line_comment_source_from_annotations(
             context,
             annotations,
-            virtual_trailing_separator_policy,
+            |annotation_id| {
+                separator_line_comment_annotation_info(
+                    context,
+                    annotation_id,
+                    virtual_trailing_separator_policy,
+                )
+            },
             |_| true,
         )
     };
@@ -974,7 +991,13 @@ pub(crate) fn single_argument_separator_line_comment_source(
         separator_line_comment_source_from_annotations(
             context,
             &annotations,
-            virtual_trailing_separator_policy,
+            |annotation_id| {
+                separator_line_comment_annotation_info(
+                    context,
+                    annotation_id,
+                    virtual_trailing_separator_policy,
+                )
+            },
             |annotation_id| {
                 let annotation_span = context.annotation_span(annotation_id);
                 annotation_span.file == value_span.file && annotation_span.start >= value_span.end
@@ -991,17 +1014,30 @@ pub(crate) fn single_argument_separator_line_comment_source(
     if value_span.file != call_span.file || seam_start >= call_span.end {
         return None;
     }
+    let following_argument_id = next_argument_in_expression(context, call_node_id, argument_id);
+    let seam_end = following_argument_id
+        .map(|next_argument_id| context.span(next_argument_id).start)
+        .unwrap_or(call_span.end);
+    if seam_start >= seam_end {
+        return None;
+    }
 
     let call_annotation_source = context.annotations(call_node_id).and_then(|annotations| {
         separator_line_comment_source_from_annotations(
             context,
             &annotations,
-            virtual_trailing_separator_policy,
+            |annotation_id| {
+                separator_line_comment_annotation_info(
+                    context,
+                    annotation_id,
+                    virtual_trailing_separator_policy,
+                )
+            },
             |annotation_id| {
                 let annotation_span = context.annotation_span(annotation_id);
                 annotation_span.file == argument_span.file
                     && annotation_span.start >= seam_start
-                    && annotation_span.end <= call_span.end
+                    && annotation_span.end <= seam_end
             },
         )
     });
@@ -1017,7 +1053,7 @@ pub(crate) fn single_argument_separator_line_comment_source(
                 let annotation_span = context.annotation_span(annotation_id);
                 annotation_span.file == argument_span.file
                     && annotation_span.start >= seam_start
-                    && annotation_span.end <= call_span.end
+                    && annotation_span.end <= seam_end
             },
         )
     });
@@ -1025,17 +1061,19 @@ pub(crate) fn single_argument_separator_line_comment_source(
         return call_prefix_annotation_source;
     }
 
-    let following_argument_id = next_argument_in_expression(context, call_node_id, argument_id)?;
-    let resolve_from_following_prefix_annotations = |annotations: &[LocalNodeId<Annotation>]| {
-        separator_line_comment_source_from_following_prefix_annotations(
-            context,
-            annotations,
-            |_| true,
-        )
-    };
-
+    let following_argument_id = following_argument_id?;
+    let following_argument_span = context.span(following_argument_id);
     if let Some(annotations) = context.annotations(following_argument_id)
-        && let Some(comment_source) = resolve_from_following_prefix_annotations(&annotations)
+        && let Some(comment_source) =
+            separator_line_comment_source_from_following_prefix_annotations(
+                context,
+                &annotations,
+                |annotation_id| {
+                    let annotation_span = context.annotation_span(annotation_id);
+                    annotation_span.file == following_argument_span.file
+                        && annotation_span.end <= following_argument_span.start
+                },
+            )
     {
         return Some(comment_source);
     }
@@ -1218,6 +1256,23 @@ fn write_argument_without_separator_line_comment_with_prefix_filter<'ast>(
     argument_id: LocalNodeId<Argument>,
     suppressed_prefix_separator_comment_ids: Option<&[LocalNodeId<Comment>]>,
 ) -> FormatResult<bool> {
+    write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy(
+        f,
+        argument_id,
+        suppressed_prefix_separator_comment_ids,
+        false,
+    )
+}
+
+/// Write one argument without separator line comments and with optional postfix blank suppression.
+fn write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy<
+    'ast,
+>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+    suppressed_prefix_separator_comment_ids: Option<&[LocalNodeId<Comment>]>,
+    suppress_postfix_blank_annotations: bool,
+) -> FormatResult<bool> {
     if !argument_can_render_without_separator_line_comment(f.context(), argument_id) {
         return Ok(false);
     }
@@ -1238,13 +1293,50 @@ fn write_argument_without_separator_line_comment_with_prefix_filter<'ast>(
     }
 
     write_argument_with_modifiers_and_value(argument, force_break_after_lambda_prefix_comment, f)?;
-    write!(
-        f,
-        [f.context()
-            .any_infix_or_postfix_except_line_postfix_boundary_annotations(argument_id)]
-    )?;
+
+    if suppress_postfix_blank_annotations {
+        let mut items = annotation_render_items(
+            f.context(),
+            AnnotationCapture::AnyInfixOrPostfixExceptLinePostfixBoundary,
+            argument_id,
+        );
+        items.retain(|item| {
+            !(item.node_type == NodeType::Blank
+                && matches!(
+                    item.position,
+                    AnnotationPosition::LinePostfix
+                        | AnnotationPosition::BlockPostfix
+                        | AnnotationPosition::LinePostfixBoundary
+                ))
+        });
+        write_annotation_render_items(
+            f,
+            AnnotationCapture::AnyInfixOrPostfixExceptLinePostfixBoundary,
+            argument_id,
+            &items,
+        )?;
+    } else {
+        write!(
+            f,
+            [f.context()
+                .any_infix_or_postfix_except_line_postfix_boundary_annotations(argument_id)]
+        )?;
+    }
 
     Ok(true)
+}
+
+/// Write one argument for list-level separator rendering.
+fn write_argument_without_separator_line_comment_for_separator_source<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<bool> {
+    write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy(
+        f,
+        argument_id,
+        None,
+        true,
+    )
 }
 
 /// Write one argument without separator line comments that are emitted at list level.
@@ -1626,7 +1718,7 @@ fn write_separator_comment_multiline_arguments<'ast>(
         }
 
         if let Some(comment_source) = separator_line_comment_sources[index].as_ref()
-            && write_argument_without_separator_line_comment(f, *argument_id)?
+            && write_argument_without_separator_line_comment_for_separator_source(f, *argument_id)?
         {
             write_separator_line_comment_after_comma(f, comment_source)?;
             continue;
@@ -2501,6 +2593,37 @@ mod tests {
     }
 
     #[test]
+    fn test_separator_comment_source_ignores_nested_function_body_comment_cluster() {
+        let source = "(function webpackUniversalModuleDefinition() {})(
+  this,
+  function (__WEBPACK_EXTERNAL_MODULE_85__, __WEBPACK_EXTERNAL_MODULE_115__) {
+    return /******/ (function (modules) {
+      // webpackBootstrap
+      /******/
+    })(
+      /************************************************************************/
+      /******/ [1],
+    );
+  },
+)";
+        let (formatter, call_id) =
+            TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+                p.eat_expression(Default::default())
+            })
+            .expect("parse wrapper call with nested function body comments");
+        let context = context_from_formatter(&formatter);
+        let arguments = call_dynamic_arguments(&context, call_id);
+        let first_argument_id = arguments[0];
+
+        let separator_source =
+            single_argument_separator_line_comment_source(&context, call_id, first_argument_id);
+        assert!(
+            separator_source.is_none(),
+            "nested function body comments should not become separator comment sources",
+        );
+    }
+
+    #[test]
     fn test_call_layout_ignores_nested_collection_dangling_line_comment_for_separator_forcing() {
         let source = "expect(() => {}).toTriggerReadyStateChanges([
   // Nothing.
@@ -3076,6 +3199,32 @@ moreArgTypes(
         assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
     }
 
+    #[test]
+    fn test_format_preserve_line_argument_list_fixture_slice_is_idempotent() {
+        let source = r#"comments(
+  // Comment
+
+  /* Some comments */
+  short,
+  /* Another comment */
+
+  short2, // Even more comments
+);
+
+evenMoreArgTypes(
+  doSomething(
+    { name: "Hello World", age: 34 },
+
+    true,
+  ),
+
+  14,
+);
+"#;
+        let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+        assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+    }
+
     /// Preserve-line statement gap ownership should stay stable across formatting passes.
     #[test]
     fn test_preserve_line_argument_cluster_statement_gap_signals_are_stable() {
@@ -3149,6 +3298,232 @@ moreArgTypes(
             first_following_has_blank_prefix, second_following_has_blank_prefix,
             "following statement blank prefix signal should stay stable across passes",
         );
+    }
+
+    #[test]
+    fn test_separator_comment_blank_line_signal_is_stable_for_preserve_line_slice() {
+        let source = r#"comments(
+  // Comment
+
+  /* Some comments */
+  short,
+  /* Another comment */
+
+  short2, // Even more comments
+)"#;
+        let (first_formatter, first_call_id) =
+            TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+                p.eat_expression(Default::default())
+            })
+            .expect("parse first preserve-line comments call");
+        let first_context = context_from_formatter(&first_formatter);
+        let first_arguments = call_dynamic_arguments(&first_context, first_call_id);
+        let first_source = single_argument_separator_line_comment_source(
+            &first_context,
+            first_call_id,
+            first_arguments[0],
+        );
+
+        let first_output = first_formatter.format(
+            &first_call_id,
+            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        );
+        let (second_formatter, second_call_id) =
+            TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+                p.eat_expression(Default::default())
+            })
+            .expect("parse second preserve-line comments call");
+        let second_context = context_from_formatter(&second_formatter);
+        let second_arguments = call_dynamic_arguments(&second_context, second_call_id);
+        let second_source = single_argument_separator_line_comment_source(
+            &second_context,
+            second_call_id,
+            second_arguments[0],
+        );
+
+        assert_eq!(
+            first_source.is_some(),
+            second_source.is_some(),
+            "separator comment source presence should stay stable across passes",
+        );
+    }
+
+    #[test]
+    fn test_preserve_line_argument_cluster_following_statement_gap_signals_are_stable() {
+        let source = r#"moreArgTypes(
+  [1, 2, 3],
+
+  {
+    name: "Hello World",
+    age: 29,
+  },
+
+  doSomething(
+    // Hello world
+
+    // Hello world again
+    { name: "Hello World", age: 34 },
+
+    oneThing + anotherThing,
+
+    // Comment
+  ),
+);
+
+evenMoreArgTypes(
+  doSomething(
+    { name: "Hello World", age: 34 },
+
+    true,
+  ),
+
+  14,
+
+  1 + 2 - 90 / 80,
+
+  !98 * 60 - 90,
+);
+"#;
+        let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+        let (first_formatter, first_roots) =
+            TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+                .expect("parse first preserve-line following statement slice");
+        let first_context = context_from_formatter(&first_formatter);
+        let first_previous_has_blank_postfix =
+            expression_has_blank_postfix_annotation(&first_context, first_roots[0]);
+        let first_following_has_blank_prefix =
+            first_context.has_blank_prefix_annotation(first_roots[1]);
+        let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+
+        let (second_formatter, second_roots) =
+            TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+                Ok(p.parse())
+            })
+            .expect("parse second preserve-line following statement slice");
+        let second_context = context_from_formatter(&second_formatter);
+        let second_previous_has_blank_postfix =
+            expression_has_blank_postfix_annotation(&second_context, second_roots[0]);
+        let second_following_has_blank_prefix =
+            second_context.has_blank_prefix_annotation(second_roots[1]);
+
+        assert_eq!(
+            first_previous_has_blank_postfix, second_previous_has_blank_postfix,
+            "previous statement blank postfix signal should stay stable across passes",
+        );
+        assert_eq!(
+            first_following_has_blank_prefix, second_following_has_blank_prefix,
+            "following statement blank prefix signal should stay stable across passes",
+        );
+    }
+
+    #[test]
+    fn test_preserve_line_even_more_and_apply_slice_is_idempotent() {
+        let source = r#"evenMoreArgTypes(
+  doSomething(
+    { name: "Hello World", age: 34 },
+
+    true,
+  ),
+
+  14,
+
+  1 + 2 - 90 / 80,
+
+  !98 * 60 - 90,
+);
+
+foo.apply(
+  null,
+
+  // Array here
+  [1, 2],
+);
+"#;
+        let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+        assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+    }
+
+    #[test]
+    fn test_preserve_line_argument_list_jsx_mode_slice_is_idempotent() {
+        let source = r#"comments(
+  // Comment
+
+  /* Some comments */
+  short,
+  /* Another comment */
+
+  short2, // Even more comments
+
+  /* Another comment */
+
+  // Long Long Long Long Long Comment
+
+  /* Long Long Long Long Long Comment */
+  // Long Long Long Long Long Comment
+
+  short3,
+  // More comments
+);
+
+differentArgTypes(
+  () => {
+    return true;
+  },
+
+  isTrue ? doSomething() : 12,
+);
+
+moreArgTypes(
+  [1, 2, 3],
+
+  {
+    name: "Hello World",
+    age: 29,
+  },
+
+  doSomething(
+    // Hello world
+
+    // Hello world again
+    { name: "Hello World", age: 34 },
+
+    oneThing + anotherThing,
+
+    // Comment
+  ),
+);
+
+evenMoreArgTypes(
+  doSomething(
+    { name: "Hello World", age: 34 },
+
+    true,
+  ),
+
+  14,
+
+  1 + 2 - 90 / 80,
+
+  !98 * 60 - 90,
+);
+
+foo.apply(
+  null,
+
+  // Array here
+  [1, 2],
+);
+
+bar.on(
+  "readable",
+
+  () => {
+    doStuff();
+  },
+);
+"#;
+        let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+        assert_format_program_idempotent_with_file_type(source, FileType::JavaScriptXml, options);
     }
 
     /// Return the nested `.concat(...)` call id from one `.filter(...)` chain expression.

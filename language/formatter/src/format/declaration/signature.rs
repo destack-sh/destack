@@ -1,7 +1,11 @@
 use crate::format::analysis::{
     next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
 };
-use crate::format::call::{SeparatorLineCommentSource, write_separator_line_comment_after_comma};
+use crate::format::call::{
+    SeparatorLineCommentSource, separator_line_comment_has_blank_line_before_first_comment,
+    separator_line_comment_is_own_line, separator_line_comment_source_from_annotations,
+    write_separator_line_comment_after_comma,
+};
 use crate::format::collection::list_like;
 use crate::format::collection::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
@@ -16,7 +20,6 @@ use destack_ast::{
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::Span;
 use destack_workspace::TrailingComma;
 
 // signature expansion thresholds
@@ -373,94 +376,50 @@ fn parameter_separator_line_comment_annotation_info(
     let annotation_span = context.annotation_span(annotation_id);
     let previous_token = previous_non_whitespace_token_before_annotation(context, annotation_id);
     let next_token = next_non_whitespace_token_after_annotation(context, annotation_id);
-    let has_preceding_separator =
-        previous_token.is_some_and(|token| token.token.ty == TokenType::Comma);
-    let has_following_separator_before_close_parenthesis = next_token
-        .is_some_and(|token| token.token.ty == TokenType::Comma)
-        && next_token.is_some_and(|token| {
+    let preceding_separator = previous_token.filter(|token| token.token.ty == TokenType::Comma);
+    let following_comma = next_token.filter(|token| token.token.ty == TokenType::Comma);
+    let has_following_separator_before_close_parenthesis =
+        following_comma.is_some_and(|separator_token| {
             context
-                .next_non_whitespace_token_after_span(token.span)
+                .next_non_whitespace_token_after_span(separator_token.span)
                 .is_some_and(|after_separator| {
                     after_separator.token.ty == TokenType::CloseParenthesis
                 })
         });
+    let following_separator = has_following_separator_before_close_parenthesis
+        .then_some(following_comma)
+        .flatten();
     let has_following_close_parenthesis =
         next_token.is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
-    let has_virtual_trailing_separator = !has_preceding_separator
-        && !has_following_separator_before_close_parenthesis
+    let has_virtual_trailing_separator = preceding_separator.is_none()
+        && following_separator.is_none()
         && has_following_close_parenthesis
         && context.annotation_starts_on_own_line(annotation_id);
-    if !has_preceding_separator
-        && !has_following_separator_before_close_parenthesis
+    if preceding_separator.is_none()
+        && following_separator.is_none()
         && !has_virtual_trailing_separator
     {
         return None;
     }
 
-    let is_own_line = if has_virtual_trailing_separator {
-        context.annotation_starts_on_own_line(annotation_id)
-    } else if let Some(separator_token) = previous_token {
-        if separator_token.token.ty != TokenType::Comma {
-            false
-        } else {
-            let before_comment_span = Span::new(
-                annotation_span.file,
-                separator_token.span.end,
-                annotation_span.start,
-            );
-            context.has_newline(before_comment_span)
-        }
-    } else if has_following_separator_before_close_parenthesis {
-        if let Some(separator_token) = next_token {
-            let after_comment_span = Span::new(
-                annotation_span.file,
-                annotation_span.end,
-                separator_token.span.start,
-            );
-            context.has_newline(after_comment_span)
-        } else {
-            false
-        }
-    } else {
-        context.annotation_starts_on_own_line(annotation_id)
-    };
+    let is_own_line = separator_line_comment_is_own_line(
+        context,
+        annotation_id,
+        annotation_span,
+        preceding_separator,
+        following_separator,
+        has_virtual_trailing_separator,
+    );
 
-    let has_blank_line_before_first_comment = if has_virtual_trailing_separator {
-        if let Some(previous_token) = previous_token {
-            let before_comment_span = Span::new(
-                annotation_span.file,
-                previous_token.span.end,
-                annotation_span.start,
-            );
-            context.has_blank_line(before_comment_span)
-        } else {
-            false
-        }
-    } else if let Some(separator_token) = previous_token {
-        if separator_token.token.ty != TokenType::Comma {
-            false
-        } else {
-            let before_comment_span = Span::new(
-                annotation_span.file,
-                separator_token.span.end,
-                annotation_span.start,
-            );
-            context.has_blank_line(before_comment_span)
-        }
-    } else if has_following_separator_before_close_parenthesis {
-        if let Some(separator_token) = next_token {
-            let before_separator_span = Span::new(
-                annotation_span.file,
-                annotation_span.end,
-                separator_token.span.start,
-            );
-            context.has_blank_line(before_separator_span)
-        } else {
-            false
-        }
-    } else {
-        false
-    };
+    let has_blank_line_before_first_comment =
+        separator_line_comment_has_blank_line_before_first_comment(
+            context,
+            annotation_span,
+            preceding_separator,
+            following_separator,
+            has_virtual_trailing_separator,
+            true,
+        );
 
     Some((node, is_own_line, has_blank_line_before_first_comment))
 }
@@ -471,40 +430,12 @@ fn parameter_separator_line_comment_source(
     parameter_id: LocalNodeId<Parameter>,
 ) -> Option<SeparatorLineCommentSource> {
     let annotations = context.annotations(parameter_id)?;
-    for (index, annotation_id) in annotations.iter().copied().enumerate() {
-        let Some((comment_id, is_own_line, has_blank_line_before_first_comment)) =
-            parameter_separator_line_comment_annotation_info(context, annotation_id)
-        else {
-            continue;
-        };
-
-        let mut comment_ids = vec![comment_id];
-        for next_annotation_id in annotations.iter().skip(index + 1).copied() {
-            if matches!(
-                context.annotation(next_annotation_id),
-                Annotation::Blank { .. }
-            ) {
-                continue;
-            }
-
-            let Some((next_comment_id, _, _)) =
-                parameter_separator_line_comment_annotation_info(context, next_annotation_id)
-            else {
-                break;
-            };
-
-            comment_ids.push(next_comment_id);
-        }
-
-        return Some(SeparatorLineCommentSource {
-            comment_ids,
-            is_own_line,
-            has_blank_line_before_first_comment,
-            detached_from_following_prefix: false,
-        });
-    }
-
-    None
+    separator_line_comment_source_from_annotations(
+        context,
+        &annotations,
+        |annotation_id| parameter_separator_line_comment_annotation_info(context, annotation_id),
+        |_| true,
+    )
 }
 
 /// Return whether one parameter has boundary-postfix annotations that are not separator comments.

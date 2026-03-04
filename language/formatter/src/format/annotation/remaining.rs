@@ -36,7 +36,7 @@ struct RemainingCommentContext<'a, 'ctx> {
     /// Owner after the seam.
     following_owner: Option<u32>,
     /// Owner after the seam with token fallback.
-    following_owner_with_token_fallback: Option<u32>,
+    following_owner_with_token_after_fallback: Option<u32>,
     /// Inline block comment classification.
     is_inline_star_comment: bool,
     /// Line-leading semicolon classification for token after comment.
@@ -57,7 +57,7 @@ fn build_remaining_comment_context<'a, 'ctx>(
     let token_after_span = context.token_after_span.map(|token| token.span);
     let preceding_owner = owners.preceding;
     let following_owner = owners.following;
-    let following_owner_with_token_fallback =
+    let following_owner_with_token_after_fallback =
         following_owner_with_token_after_fallback(tree, context, following_owner);
     let is_inline_star_comment =
         seam.comment_is_star && !seam.has_leading_newline && !seam.has_trailing_newline;
@@ -74,7 +74,7 @@ fn build_remaining_comment_context<'a, 'ctx>(
         token_after_span,
         preceding_owner,
         following_owner,
-        following_owner_with_token_fallback,
+        following_owner_with_token_after_fallback,
         is_inline_star_comment,
         semicolon_after_is_line_leading,
     }
@@ -156,7 +156,7 @@ fn attach_remaining_empty_statement_semicolon_comment(
         comment_context.context,
         comment_context.seam,
         comment_context.preceding_owner,
-        comment_context.following_owner_with_token_fallback,
+        comment_context.following_owner_with_token_after_fallback,
     )
 }
 
