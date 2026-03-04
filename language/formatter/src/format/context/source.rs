@@ -57,6 +57,79 @@ fn token_stream_has_non_whitespace_content(tokens: &[TokenSpan], span: Span) -> 
     false
 }
 
+/// Return the next non-whitespace token index at or after one start index.
+fn next_non_whitespace_token_index(tokens: &[TokenSpan], mut token_index: usize) -> Option<usize> {
+    while let Some(token) = tokens.get(token_index).copied() {
+        if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
+            token_index += 1;
+            continue;
+        }
+
+        return Some(token_index);
+    }
+
+    None
+}
+
+/// Extend one span to include trailing tokens on the same line.
+fn extend_span_to_line_end(tokens: &[TokenSpan], span: Span) -> Span {
+    let mut end = span.end;
+    for token in tokens.iter().copied() {
+        if token.span.start < span.end {
+            continue;
+        }
+
+        match token.token.ty {
+            TokenType::Whitespace => {
+                end = token.span.end;
+            }
+            TokenType::Newline => {
+                break;
+            }
+            _ => {
+                end = token.span.end;
+            }
+        }
+    }
+
+    if end > span.end {
+        Span::new(span.file, span.start, end)
+    } else {
+        span
+    }
+}
+
+/// Extend one span to include a standalone trailing semicolon.
+fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Span) -> Span {
+    let token_index = tokens.partition_point(|token| token.span.start < span.end);
+    let Some(candidate_index) = next_non_whitespace_token_index(tokens, token_index) else {
+        return span;
+    };
+    let Some(candidate) = tokens.get(candidate_index).copied() else {
+        return span;
+    };
+    if candidate.token.ty != TokenType::Semicolon {
+        return span;
+    }
+
+    let mut lookahead_index = candidate_index + 1;
+    while let Some(token) = tokens.get(lookahead_index).copied() {
+        match token.token.ty {
+            TokenType::Whitespace => {}
+            TokenType::Newline | TokenType::End => {
+                return Span::new(span.file, span.start, candidate.span.end);
+            }
+            _ => {
+                return span;
+            }
+        }
+
+        lookahead_index += 1;
+    }
+
+    Span::new(span.file, span.start, candidate.span.end)
+}
+
 impl<'a> DestackFormatContext<'a> {
     /// Return the token immediately before one token that starts at the given offset.
     pub fn token_before_token_start(&self, token_start: u32) -> Option<TokenSpan> {
@@ -585,6 +658,27 @@ impl<'a> DestackFormatContext<'a> {
         })
     }
 
+    /// Return all source and side tokens sorted by source position.
+    #[inline]
+    pub fn source_tokens_sorted(&self) -> Vec<TokenSpan> {
+        let mut tokens: Vec<TokenSpan> = self
+            .tokens
+            .iter()
+            .copied()
+            .chain(self.side_tokens.iter().copied())
+            .collect();
+        tokens.sort_by_key(|token| token.span.start);
+        tokens
+    }
+
+    /// Extend one span to include trailing same-line content and standalone semicolons.
+    #[inline]
+    pub fn extend_span_with_trailing_line_tokens(&self, span: Span) -> Span {
+        let tokens = self.source_tokens_sorted();
+        let span = extend_span_to_line_end(&tokens, span);
+        extend_span_with_trailing_statement_terminator(&tokens, span)
+    }
+
     /// Get the Unicode scalar count for a source span.
     #[inline]
     pub fn span_char_len(&self, span: Span) -> usize {
@@ -789,7 +883,7 @@ impl<'a> DestackFormatContext<'a> {
         current_id
     }
 
-    /// Return a cached type-context value for one expression node.
+    /// Return a cached type-ctx value for one expression node.
     #[inline]
     pub fn lookup_expression_type_context(&self, node_id: LocalNodeId<Expression>) -> Option<bool> {
         let node_index = node_id.id as usize;
@@ -810,7 +904,7 @@ impl<'a> DestackFormatContext<'a> {
         None
     }
 
-    /// Store one type-context value for one expression node.
+    /// Store one type-ctx value for one expression node.
     #[inline]
     pub fn store_expression_type_context(
         &self,
@@ -1137,6 +1231,36 @@ impl<'a> DestackFormatContext<'a> {
             .borrow_mut()
             .insert(span, has_comment);
         has_comment
+    }
+
+    /// Return whether one span contains an own-line or multiline comment span.
+    pub fn has_own_line_or_multiline_comment(&self, span: Span) -> bool {
+        let first_relevant_index = self
+            .comment_spans
+            .partition_point(|comment_span| comment_span.end <= span.start);
+
+        for comment_span in &self.comment_spans[first_relevant_index..] {
+            if comment_span.file != span.file {
+                continue;
+            }
+
+            if comment_span.start >= span.end {
+                break;
+            }
+
+            if comment_span.end <= span.start {
+                continue;
+            }
+
+            let is_multiline = !self
+                .file
+                .is_same_line(comment_span.start, comment_span.end.saturating_sub(1));
+            if is_multiline || self.span_starts_on_own_line(*comment_span) {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Whether the given node is at a line start.
