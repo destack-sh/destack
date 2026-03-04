@@ -1,8 +1,10 @@
 use destack_ast::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_method_call, has_useful_to_string_type};
+use crate::rules::common::{
+    expression_method_call, expression_target_symbol, has_useful_to_string_type,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -35,9 +37,20 @@ impl LintRule for NoBaseToString {
 
     /// Check module DIR nodes for base toString calls.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        // resolve lint metadata and well known names
         let meta = self.meta();
         let to_string_name = ctx.program.strings.intern("toString");
-        let mut visitor = BaseToStringVisitor::new(ctx, meta, to_string_name);
+        let to_locale_string_name = ctx.program.strings.intern("toLocaleString");
+        let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
+
+        // walk module expressions
+        let mut visitor = BaseToStringVisitor::new(
+            ctx,
+            meta,
+            to_string_name,
+            to_locale_string_name,
+            string_symbol,
+        );
         visitor.run();
     }
 }
@@ -50,6 +63,10 @@ struct BaseToStringVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The interned "toString" name.
     to_string_name: StringId,
+    /// The interned "toLocaleString" name.
+    to_locale_string_name: StringId,
+    /// The optional well known String symbol.
+    string_symbol: Option<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -60,11 +77,15 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         ctx: &'a mut LintModuleDirContext<'b>,
         meta: &'a LintMeta,
         to_string_name: StringId,
+        to_locale_string_name: StringId,
+        string_symbol: Option<dir::GlobalSymbolId>,
     ) -> Self {
         Self {
             ctx,
             meta,
             to_string_name,
+            to_locale_string_name,
+            string_symbol,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -81,14 +102,16 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
     }
 
     /// Check a method call for base toString usage.
-    fn check_to_string(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+    fn check_to_string_like(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         // match method call pattern
         let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
             return;
         };
 
-        // check if this is toString()
-        if method_call.method_name != self.to_string_name {
+        // check if this is toString() or toLocaleString()
+        if method_call.method_name != self.to_string_name
+            && method_call.method_name != self.to_locale_string_name
+        {
             return;
         }
 
@@ -123,13 +146,78 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
             .with_label("this type has no useful toString representation"),
         );
     }
+
+    /// Check global String(value) calls for base object stringification.
+    fn check_string_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        // resolve required String symbol
+        let Some(string_symbol) = self.string_symbol else {
+            return;
+        };
+
+        // match call expression
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        else {
+            return;
+        };
+
+        // ensure this is a call to global String
+        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, *left) else {
+            return;
+        };
+        if target_symbol != string_symbol {
+            return;
+        }
+
+        // resolve first argument type
+        let Some(argument_id) = dynamic_arguments.first() else {
+            return;
+        };
+        let argument = self.ctx.tree.get(*argument_id);
+        let argument_value = argument.value();
+        let Some(type_id) = self.ctx.expression_type_id(argument_value) else {
+            return;
+        };
+
+        // ignore useful stringification targets
+        if has_useful_to_string_type(self.ctx.types, type_id) {
+            return;
+        }
+
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // report the diagnostic
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                NO_BASE_TO_STRING.id,
+                NO_BASE_TO_STRING.code,
+                NO_BASE_TO_STRING.category,
+                severity,
+                "String() may produce '[object Object]'",
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("this value has no useful toString representation"),
+        );
+    }
 }
 
 impl NodeVisitor for BaseToStringVisitor<'_, '_> {
+    /// Return visitor options.
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
 
+    /// Visit an expression node.
     fn visit_expression(
         &mut self,
         tree: &dir::NodeTree,
@@ -138,7 +226,8 @@ impl NodeVisitor for BaseToStringVisitor<'_, '_> {
     ) {
         // check call expressions
         if matches!(expression, dir::Expression::Call { .. }) {
-            self.check_to_string(id);
+            self.check_to_string_like(id);
+            self.check_string_call(id);
         }
 
         // walk expression children
@@ -202,6 +291,80 @@ let str = num.toString();
             r#"
 let arr = [1, 2, 3];
 let str = arr.toString();
+"#,
+        );
+        test.result(result).assert_no_lint("no-base-to-string");
+    }
+
+    /// Flag toLocaleString on plain object.
+    #[test]
+    fn test_flags_object_to_locale_string() {
+        let test = TestProgram::for_rule_without_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_flags_object_to_locale_string.ds",
+            r#"
+let obj = { x: 1, y: 2 };
+let str = obj.toLocaleString();
+"#,
+        );
+        test.result(result).assert_lint("no-base-to-string");
+    }
+
+    /// Allow toLocaleString on string.
+    #[test]
+    fn test_allows_string_to_locale_string() {
+        let test = TestProgram::for_rule_without_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_allows_string_to_locale_string.ds",
+            r#"
+let str = "hello";
+let result = str.toLocaleString();
+"#,
+        );
+        test.result(result).assert_no_lint("no-base-to-string");
+    }
+
+    /// Flag String conversion for plain object values.
+    #[test]
+    fn test_flags_string_call_on_object() {
+        let test = TestProgram::for_rule_with_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_flags_string_call_on_object.ds",
+            r#"
+let obj = { x: 1, y: 2 };
+let str = String(obj);
+"#,
+        );
+        test.result(result).assert_lint("no-base-to-string");
+    }
+
+    /// Allow String conversion for primitives.
+    #[test]
+    fn test_allows_string_call_on_number() {
+        let test = TestProgram::for_rule_with_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_allows_string_call_on_number.ds",
+            r#"
+let value: int32 = 42;
+let str = String(value);
+"#,
+        );
+        test.result(result).assert_no_lint("no-base-to-string");
+    }
+
+    /// Allow shadowed String function calls.
+    #[test]
+    fn test_allows_shadowed_string_call() {
+        let test = TestProgram::for_rule_with_prelude(NoBaseToString);
+        let result = test.lint_dir(
+            "no_base_to_string/test_allows_shadowed_string_call.ds",
+            r#"
+let String = (value: { x: int32 }): string => {
+    return "value";
+};
+
+let value = { x: 1 };
+let str = String(value);
 "#,
         );
         test.result(result).assert_no_lint("no-base-to-string");
