@@ -4,11 +4,11 @@
 /// Most code should use Result<T, E> with E: Error.
 export newtype interface Error {
     /// Human readable error message.
-    message: string
+    message: string;
 
     /// Optional cause for chained errors.
-    cause?: Error
+    cause?: Error;
 
     /// Optional stack trace or debugging detail.
-    stack?: string
+    stack?: string;
 }

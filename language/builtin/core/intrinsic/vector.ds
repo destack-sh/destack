@@ -21,7 +21,7 @@ export declare function splat<T, comptime N: int>(value: T): Vector<T, N>;
 export declare function shuffle<T, comptime N: int, comptime M: int>(
     a: Vector<T, N>,
     b: Vector<T, N>,
-    mask: Vector<int, M>
+    mask: Vector<int, M>,
 ): Vector<T, M>;
 
 /// Per-lane conditional select.
@@ -31,7 +31,7 @@ export declare function shuffle<T, comptime N: int, comptime M: int>(
 export declare function select<T, comptime N: int>(
     mask: Vector<boolean, N>,
     a: Vector<T, N>,
-    b: Vector<T, N>
+    b: Vector<T, N>,
 ): Vector<T, N>;
 
 /// Horizontal reduction: sum all lanes.

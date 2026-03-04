@@ -2,7 +2,14 @@
 export { Type, typeOf } from "./reflect/type.ds";
 
 // ownership
-export { type Bytes, type Buffer, type Copy, type Clone, type Send, type Sync } from "./memory/index.ds";
+export {
+    type Bytes,
+    type Buffer,
+    type Copy,
+    type Clone,
+    type Send,
+    type Sync,
+} from "./memory/index.ds";
 
 // control flow
 export { type Try, type TryBranch } from "./control/try.ds";
@@ -74,7 +81,12 @@ export {
 } from "./intrinsic/decorator.ds";
 
 // binding decorators (intrinsics)
-export { binding, require, type BindingOptions, type PlatformCapability } from "./intrinsic/binding.ds";
+export {
+    binding,
+    require,
+    type BindingOptions,
+    type PlatformCapability,
+} from "./intrinsic/binding.ds";
 
 // arithmetic operators
 export {
@@ -97,7 +109,13 @@ export {
 } from "./operator/arithmetic.ds";
 
 // comparison operators
-export { type Equal, type PartialEqual, type Compare, type PartialCompare, Ordering } from "./operator/comparison.ds";
+export {
+    type Equal,
+    type PartialEqual,
+    type Compare,
+    type PartialCompare,
+    Ordering,
+} from "./operator/comparison.ds";
 
 // formatting operators
 export { type Display, type Debug } from "./operator/format.ds";

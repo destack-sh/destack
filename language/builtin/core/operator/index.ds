@@ -16,6 +16,12 @@ export {
     type ShiftRightUnsigned,
     type Concatenate,
 } from "./arithmetic.ds";
-export { type Equal, type PartialEqual, type Compare, type PartialCompare, Ordering } from "./comparison.ds";
+export {
+    type Equal,
+    type PartialEqual,
+    type Compare,
+    type PartialCompare,
+    Ordering,
+} from "./comparison.ds";
 export { type Index, type IndexSet, type Deref, type DerefSet } from "./subscript.ds";
 export { type Display, type Debug } from "./format.ds";

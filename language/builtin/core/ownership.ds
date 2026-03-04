@@ -2,9 +2,8 @@
 export newtype interface Copy {}
 
 /// Clone the value into a new owned value.
-export interface Clone {
-    /// Clone the value.
-}
+/// Clone the value.
+export interface Clone {}
 
 /// Mark a type as safe to send across threads.
 export newtype interface Send {}

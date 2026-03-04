@@ -2,7 +2,7 @@
 export newtype interface Copy {}
 
 /// Clone the value into a new owned value.
+/// Clone the value.
 export interface Clone {
-    /// Clone the value.
     // clone(): this
 }
