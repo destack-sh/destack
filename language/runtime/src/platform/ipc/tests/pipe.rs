@@ -2,7 +2,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{VmSlice, resource};
 use crate::runtime::NativeSlice;
 
-use super::core::{assert_platform_error_code, decode_pipe_pair_value};
+use super::core::{assert_runtime_error_code, decode_pipe_pair_value};
 use super::{HarnessValue, IpcHarnessContext, with_harness_context};
 
 /// Clone one byte-slice harness wrapper by copying the contained slice descriptor.
@@ -59,7 +59,7 @@ fn test_pipe_open_rejects_unsupported_flags() {
             Ok(_) => panic!("expected invalid flags to fail"),
             Err(error) => error,
         };
-        assert_platform_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });
@@ -81,7 +81,7 @@ fn test_pipe_rejects_unknown_handle() {
             Ok(_) => panic!("expected pipeRead to fail for unknown handle"),
             Err(error) => error,
         };
-        assert_platform_error_code(&read_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&read_error, PlatformErrorCode::InvalidArgumentValue);
 
         // write should fail with invalid-argument for unknown handle
         let write_value = context.bytes_value(&buffer)?;
@@ -90,7 +90,7 @@ fn test_pipe_rejects_unknown_handle() {
             Ok(_) => panic!("expected pipeWrite to fail for unknown handle"),
             Err(error) => error,
         };
-        assert_platform_error_code(&write_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&write_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });

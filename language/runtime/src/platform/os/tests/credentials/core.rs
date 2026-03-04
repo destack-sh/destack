@@ -4,7 +4,6 @@ use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::VmSlice;
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
     CredentialAuthenticationPolicy, CredentialAuthenticationRequirement, CredentialQuery,
@@ -12,6 +11,9 @@ use crate::platform::os::{
     CredentialWriteOptionsVm,
 };
 use crate::runtime::NativeStringRef;
+pub(super) use crate::tests::platform::{
+    assert_not_not_supported_error, assert_not_supported_error, assert_runtime_error_code,
+};
 
 use super::super::{HarnessValue, OsHarnessContext};
 
@@ -36,14 +38,6 @@ pub(super) fn unique_suffix() -> u128 {
         .duration_since(UNIX_EPOCH)
         .expect("system clock should be after unix epoch")
         .as_nanos()
-}
-
-/// Assert one platform error code from one runtime error payload.
-pub(super) fn assert_platform_error_code(error: &RuntimeError, code: PlatformErrorCode) {
-    let platform_error = error
-        .platform_error()
-        .expect("expected one platform error payload");
-    assert_eq!(platform_error.code, code);
 }
 
 /// Build one harness string value for native and vm calls.

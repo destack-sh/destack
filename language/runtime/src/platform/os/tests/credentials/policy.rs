@@ -1,9 +1,10 @@
 use super::super::with_harness_context;
+#[cfg(windows)]
+use super::core::assert_not_not_supported_error;
 use super::core::{
-    assert_platform_error_code, credential_query_value, credential_write_options_value,
+    assert_not_supported_error, credential_query_value, credential_write_options_value,
     string_value,
 };
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{CredentialAccessibility, CredentialAuthenticationPolicy};
 
 /// Verify unsupported write-policy lanes report notSupported on Linux and Windows.
@@ -32,7 +33,7 @@ fn test_credentials_write_policy_lanes_on_linux_and_windows() {
             Ok(_) => panic!("write with accessGroup should report notSupported"),
             Err(error) => error,
         };
-        assert_platform_error_code(&access_group_error, PlatformErrorCode::NotSupported);
+        assert_not_supported_error(&access_group_error);
 
         // reject authentication-policy lanes where backend key stores cannot enforce prompts
         let with_authentication = credential_write_options_value(
@@ -50,7 +51,7 @@ fn test_credentials_write_policy_lanes_on_linux_and_windows() {
             Ok(_) => panic!("write with authentication policy should report notSupported"),
             Err(error) => error,
         };
-        assert_platform_error_code(&authentication_error, PlatformErrorCode::NotSupported);
+        assert_not_supported_error(&authentication_error);
 
         // reject accessibility lanes where backend key stores cannot enforce lifecycle classes
         if cfg!(target_os = "linux") {
@@ -69,7 +70,7 @@ fn test_credentials_write_policy_lanes_on_linux_and_windows() {
                 Ok(_) => panic!("write with non-default accessibility should report notSupported"),
                 Err(error) => error,
             };
-            assert_platform_error_code(&accessibility_error, PlatformErrorCode::NotSupported);
+            assert_not_supported_error(&accessibility_error);
         }
 
         Ok(())
@@ -94,7 +95,7 @@ fn test_credentials_read_policy_lanes_on_linux_and_windows() {
             Err(error) => error,
         };
 
-        assert_platform_error_code(&error, PlatformErrorCode::NotSupported);
+        assert_not_supported_error(&error);
 
         Ok(())
     });
@@ -120,7 +121,7 @@ fn test_credentials_delete_and_contains_access_group_policy_on_linux_and_windows
             Ok(_) => panic!("contains with accessGroup should report notSupported"),
             Err(error) => error,
         };
-        assert_platform_error_code(&contains_error, PlatformErrorCode::NotSupported);
+        assert_not_supported_error(&contains_error);
 
         // reject access-group lanes for delete on backends without group routing
         let service = string_value(&mut context, "destack.policy");
@@ -131,7 +132,7 @@ fn test_credentials_delete_and_contains_access_group_policy_on_linux_and_windows
             Ok(_) => panic!("delete with accessGroup should report notSupported"),
             Err(error) => error,
         };
-        assert_platform_error_code(&delete_error, PlatformErrorCode::NotSupported);
+        assert_not_supported_error(&delete_error);
 
         Ok(())
     });
@@ -154,10 +155,7 @@ fn test_credentials_read_require_authentication_lane_on_windows() {
 
         // verify the lane is implemented even when host auth fails or record is missing
         if let Err(error) = result {
-            let platform_error = error
-                .platform_error()
-                .expect("expected one platform error payload");
-            assert_ne!(platform_error.code, PlatformErrorCode::NotSupported);
+            assert_not_not_supported_error(&error);
         }
 
         Ok(())

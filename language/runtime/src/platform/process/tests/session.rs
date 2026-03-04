@@ -1,4 +1,7 @@
-use super::{assert_platform_error_codes, with_harness_context, with_native_harness_context};
+use super::{
+    assert_platform_error_codes_with_privileged_policy, with_harness_context,
+    with_native_harness_context,
+};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::process::ProcessId;
 
@@ -7,12 +10,9 @@ use crate::platform::process::ProcessId;
 #[test]
 fn test_process_session_setpgid_invalid_pid_reports_specific_error() {
     with_harness_context(|mut context| {
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_setpgid(ProcessId(u32::MAX), ProcessId(u32::MAX)),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )
     });
 }

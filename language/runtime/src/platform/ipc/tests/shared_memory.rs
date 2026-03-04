@@ -1,7 +1,7 @@
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource;
 
-use super::core::{assert_platform_error_code, decode_mapping_value, unique_ipc_name};
+use super::core::{assert_runtime_error_code, decode_mapping_value, unique_ipc_name};
 use super::with_harness_context;
 
 /// Verify shared-memory create, open, map, unmap, and close across native and VM bindings.
@@ -62,7 +62,7 @@ fn test_shared_memory_rejects_unsupported_flags() {
             Ok(_) => panic!("expected sharedMemoryCreate to fail for unsupported flags"),
             Err(error) => error,
         };
-        assert_platform_error_code(&create_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&create_error, PlatformErrorCode::InvalidArgumentValue);
 
         // create one valid handle and verify map rejects non-zero flags
         let create_name = context.string_value(&name)?;
@@ -72,7 +72,7 @@ fn test_shared_memory_rejects_unsupported_flags() {
             Ok(_) => panic!("expected sharedMemoryMap to fail for unsupported flags"),
             Err(error) => error,
         };
-        assert_platform_error_code(&map_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&map_error, PlatformErrorCode::InvalidArgumentValue);
         context.destack_ipc_shared_memory_close(handle)?;
 
         Ok(())
@@ -93,7 +93,7 @@ fn test_shared_memory_rejects_unknown_handle() {
             Ok(_) => panic!("expected sharedMemoryMap to fail for unknown handle"),
             Err(error) => error,
         };
-        assert_platform_error_code(&map_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&map_error, PlatformErrorCode::InvalidArgumentValue);
 
         // close should fail with invalid-argument for unknown handle
         let close_error = context.destack_ipc_shared_memory_close(unknown);
@@ -101,7 +101,7 @@ fn test_shared_memory_rejects_unknown_handle() {
             Ok(_) => panic!("expected sharedMemoryClose to fail for unknown handle"),
             Err(error) => error,
         };
-        assert_platform_error_code(&close_error, PlatformErrorCode::InvalidArgumentValue);
+        assert_runtime_error_code(&close_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
     });

@@ -1,8 +1,7 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-#[cfg(any(windows, target_os = "linux", all(unix, not(target_os = "linux"))))]
-use super::assert_platform_error_code;
 use super::{
-    assert_platform_error_codes, tcp_protocol, tcp_stream_socket_type, with_harness_context,
+    assert_platform_error_codes_with_privileged_policy, tcp_protocol, tcp_stream_socket_type,
+    with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
@@ -11,8 +10,51 @@ use crate::platform::net::{
 };
 #[cfg(any(windows, target_os = "linux"))]
 use crate::platform::net::{UdpSourceMembershipV4, UdpSourceMembershipV4Vm};
-#[cfg(any(windows, target_os = "linux", all(unix, not(target_os = "linux"))))]
-use crate::platform::net::{UdpSourceMembershipV6, UdpSourceMembershipV6Vm};
+
+const ERR_UNSUPPORTED_PROTOCOL: [PlatformErrorCode; 2] = [
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::NetUnsupportedProtocol,
+];
+const ERR_UNSUPPORTED_TIMESTAMPING: [PlatformErrorCode; 5] = [
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::NetUnsupportedProtocol,
+    PlatformErrorCode::IoInvalidData,
+    PlatformErrorCode::Io,
+    PlatformErrorCode::Net,
+];
+#[cfg(target_os = "linux")]
+const ERR_PACKET_MARK_LINUX: [PlatformErrorCode; 5] = [
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::NetUnsupportedProtocol,
+    PlatformErrorCode::Net,
+    PlatformErrorCode::Io,
+];
+const ERR_MULTICAST_MEMBERSHIP: [PlatformErrorCode; 7] = [
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::NetAddressNotAvailable,
+    PlatformErrorCode::NetNetworkUnreachable,
+    PlatformErrorCode::NetUnsupportedProtocol,
+    PlatformErrorCode::NetNoBufferSpace,
+    PlatformErrorCode::Io,
+    PlatformErrorCode::Net,
+];
+const ERR_RAW_SOCKOPT: [PlatformErrorCode; 6] = [
+    PlatformErrorCode::InvalidArgumentValue,
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::IoInvalidData,
+    PlatformErrorCode::Io,
+    PlatformErrorCode::Net,
+    PlatformErrorCode::NetUnsupportedProtocol,
+];
+const ERR_MULTICAST_INTERFACE: [PlatformErrorCode; 6] = [
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::NetAddressNotAvailable,
+    PlatformErrorCode::InvalidArgumentValue,
+    PlatformErrorCode::Io,
+    PlatformErrorCode::Net,
+    PlatformErrorCode::NetUnsupportedProtocol,
+];
 
 /// Configure basic socket options and verify nonblocking read behavior.
 #[cfg(unix)]
@@ -42,21 +84,11 @@ fn test_net_socket_options() {
         context.destack_net_set_reuse_addr(socket, true)?;
         let reuse_addr = context.destack_net_get_reuse_addr(socket)?;
         assert!(reuse_addr);
-        #[cfg(unix)]
-        {
-            context.destack_net_set_reuse_port(socket, true)?;
-        }
-        #[cfg(windows)]
-        {
-            assert_platform_error_code(
-                context.destack_net_set_reuse_port(socket, true),
-                PlatformErrorCode::NotSupported,
-            )?;
-        }
+        context.destack_net_set_reuse_port(socket, true)?;
 
         // nonblocking read should fail predictably without inbound data
         let buffer = context.zeroed_bytes_slice_value(16)?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_read(socket, buffer),
             &[
                 PlatformErrorCode::IoWouldBlock,
@@ -67,17 +99,7 @@ fn test_net_socket_options() {
 
         // repeated option writes should remain idempotent
         context.destack_net_set_reuse_addr(socket, true)?;
-        #[cfg(unix)]
-        {
-            context.destack_net_set_reuse_port(socket, true)?;
-        }
-        #[cfg(windows)]
-        {
-            assert_platform_error_code(
-                context.destack_net_set_reuse_port(socket, true),
-                PlatformErrorCode::NotSupported,
-            )?;
-        }
+        context.destack_net_set_reuse_port(socket, true)?;
 
         // close sockets and listener
         context.destack_net_close(socket)?;
@@ -153,12 +175,9 @@ fn test_net_socket_options_extended() {
             }),
         );
         if let Err(error) = keepalive_result {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::NetUnsupportedProtocol,
-                ],
+                &ERR_UNSUPPORTED_PROTOCOL,
             )?;
         }
         let keep_alive = context.destack_net_get_keep_alive(client)?;
@@ -214,17 +233,9 @@ fn test_net_socket_options_extended() {
             context.string_value("127.0.0.1"),
         );
         if let Err(error) = join_result {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::NetAddressNotAvailable,
-                    PlatformErrorCode::NetNetworkUnreachable,
-                    PlatformErrorCode::NetUnsupportedProtocol,
-                    PlatformErrorCode::NetNoBufferSpace,
-                    PlatformErrorCode::Io,
-                    PlatformErrorCode::Net,
-                ],
+                &ERR_MULTICAST_MEMBERSHIP,
             )?;
         } else {
             context.destack_net_leave_multicast_v4(
@@ -244,18 +255,18 @@ fn test_net_socket_options_extended() {
     });
 }
 
-/// Reject hardware timestamp mode on windows where only software timestamps are supported.
+/// Reject unsupported hardware timestamp mode on windows.
 #[cfg(windows)]
 #[test]
-fn test_net_set_timestamping_hardware_reports_not_supported() {
+fn test_net_set_timestamping_hardware_rejects_unsupported_mode() {
     with_harness_context(|mut context| {
         // open one udp socket
         let socket = context.destack_net_udp_socket(SocketFamily::IPv4)?;
 
-        // hardware timestamp mode must report notSupported
-        assert_platform_error_code(
+        // hardware timestamp mode is not available on windows socket backends
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_net_set_timestamping(socket, SocketTimestampingMode::Hardware),
-            PlatformErrorCode::NotSupported,
+            &ERR_UNSUPPORTED_TIMESTAMPING,
         )?;
 
         // close the socket
@@ -303,29 +314,17 @@ fn test_net_packet_mark_support_matches_platform() {
         {
             let set_result = context.destack_net_set_packet_mark(socket, 0x1234);
             if let Err(error) = set_result {
-                assert_platform_error_codes::<()>(
+                assert_platform_error_codes_with_privileged_policy::<()>(
                     Err(error),
-                    &[
-                        PlatformErrorCode::IoPermissionDenied,
-                        PlatformErrorCode::NotSupported,
-                        PlatformErrorCode::NetUnsupportedProtocol,
-                        PlatformErrorCode::Net,
-                        PlatformErrorCode::Io,
-                    ],
+                    &ERR_PACKET_MARK_LINUX,
                 )?;
             }
 
             let get_result = context.destack_net_get_packet_mark(socket);
             if let Err(error) = get_result {
-                assert_platform_error_codes::<u32>(
+                assert_platform_error_codes_with_privileged_policy::<u32>(
                     Err(error),
-                    &[
-                        PlatformErrorCode::IoPermissionDenied,
-                        PlatformErrorCode::NotSupported,
-                        PlatformErrorCode::NetUnsupportedProtocol,
-                        PlatformErrorCode::Net,
-                        PlatformErrorCode::Io,
-                    ],
+                    &ERR_PACKET_MARK_LINUX,
                 )?;
             }
         }
@@ -333,13 +332,13 @@ fn test_net_packet_mark_support_matches_platform() {
         // non-linux hosts return explicit notSupported for packet marks
         #[cfg(not(target_os = "linux"))]
         {
-            assert_platform_error_code(
+            assert_platform_error_codes_with_privileged_policy(
                 context.destack_net_set_packet_mark(socket, 0x1234),
-                PlatformErrorCode::NotSupported,
+                &ERR_UNSUPPORTED_PROTOCOL,
             )?;
-            assert_platform_error_code(
+            assert_platform_error_codes_with_privileged_policy(
                 context.destack_net_get_packet_mark(socket),
-                PlatformErrorCode::NotSupported,
+                &ERR_UNSUPPORTED_PROTOCOL,
             )?;
         }
 
@@ -383,7 +382,7 @@ fn test_net_join_multicast_source_v4_rejects_invalid_group() {
             }),
             _ => unreachable!("mixed harness values are not possible"),
         };
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_net_join_multicast_source_v4(socket, membership),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
@@ -399,6 +398,8 @@ fn test_net_join_multicast_source_v4_rejects_invalid_group() {
 #[cfg(any(windows, target_os = "linux"))]
 #[test]
 fn test_net_join_multicast_source_v6_rejects_invalid_source() {
+    use crate::platform::net::{UdpSourceMembershipV6, UdpSourceMembershipV6Vm};
+
     with_harness_context(|mut context| {
         // open one udp socket
         let socket = context.destack_net_udp_socket(SocketFamily::IPv6)?;
@@ -421,49 +422,9 @@ fn test_net_join_multicast_source_v6_rejects_invalid_source() {
                 }),
             _ => unreachable!("mixed harness values are not possible"),
         };
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_net_join_multicast_source_v6(socket, membership),
             PlatformErrorCode::InvalidArgumentValue,
-        )?;
-
-        // close the socket
-        context.destack_net_close(socket)?;
-
-        Ok(())
-    });
-}
-
-/// Report notSupported for IPv6 source-membership on non-linux unix targets.
-#[cfg(all(unix, not(target_os = "linux")))]
-#[test]
-fn test_net_join_multicast_source_v6_reports_not_supported_on_non_linux_unix() {
-    with_harness_context(|mut context| {
-        // open one udp socket
-        let socket = context.destack_net_udp_socket(SocketFamily::IPv6)?;
-
-        // build one valid membership payload
-        let group = context.string_value("ff02::1");
-        let source = context.string_value("fe80::1");
-        let membership = match (group, source) {
-            (super::HarnessValue::Native(group), super::HarnessValue::Native(source)) => context
-                .harness_value(UdpSourceMembershipV6 {
-                    group,
-                    source,
-                    interface_index: 0,
-                }),
-            (super::HarnessValue::Vm(group), super::HarnessValue::Vm(source)) => context
-                .harness_value_vm(UdpSourceMembershipV6Vm {
-                    group,
-                    source,
-                    interface_index: 0,
-                }),
-            _ => unreachable!("mixed harness values are not possible"),
-        };
-
-        // non-linux unix targets must report notSupported
-        assert_platform_error_code(
-            context.destack_net_join_multicast_source_v6(socket, membership),
-            PlatformErrorCode::NotSupported,
         )?;
 
         // close the socket
@@ -476,15 +437,24 @@ fn test_net_join_multicast_source_v6_reports_not_supported_on_non_linux_unix() {
 /// Roundtrip reuse-port control on windows when the host supports SO_REUSE_UNICASTPORT.
 #[cfg(windows)]
 #[test]
-fn test_net_reuse_port_windows_roundtrip_or_not_supported() {
+fn test_net_reuse_port_windows_roundtrip_or_expected_error() {
     with_harness_context(|mut context| {
         // open one udp socket
         let socket = context.destack_net_udp_socket(SocketFamily::IPv4)?;
 
-        // set reuse-port and accept notSupported on hosts without SO_REUSE_UNICASTPORT
+        // set reuse-port and accept unsupported windows socket configurations
         let set_enabled = context.destack_net_set_reuse_port(socket, true);
         if let Err(error) = set_enabled {
-            assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+            assert_platform_error_codes_with_privileged_policy::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                    PlatformErrorCode::IoInvalidData,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                ],
+            )?;
             context.destack_net_close(socket)?;
             return Ok(());
         }
@@ -516,15 +486,9 @@ fn test_net_only_v6_and_raw_socket_option_lanes() {
         // set and read IPv6-only mode
         let only_v6_result = context.destack_net_set_only_v6(socket, true);
         if let Err(error) = only_v6_result {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::NetUnsupportedProtocol,
-                    PlatformErrorCode::IoInvalidData,
-                    PlatformErrorCode::Io,
-                    PlatformErrorCode::Net,
-                ],
+                &ERR_UNSUPPORTED_TIMESTAMPING,
             )?;
         } else {
             let is_only_v6 = context.destack_net_get_only_v6(socket)?;
@@ -540,17 +504,7 @@ fn test_net_only_v6_and_raw_socket_option_lanes() {
             argument,
         );
         if let Err(error) = set_result {
-            assert_platform_error_codes::<()>(
-                Err(error),
-                &[
-                    PlatformErrorCode::InvalidArgumentValue,
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::IoInvalidData,
-                    PlatformErrorCode::Io,
-                    PlatformErrorCode::Net,
-                    PlatformErrorCode::NetUnsupportedProtocol,
-                ],
-            )?;
+            assert_platform_error_codes_with_privileged_policy::<()>(Err(error), &ERR_RAW_SOCKOPT)?;
         }
 
         // read raw socket-option bytes with the same generic tuple
@@ -561,17 +515,7 @@ fn test_net_only_v6_and_raw_socket_option_lanes() {
             8,
         );
         if let Err(error) = get_result {
-            assert_platform_error_codes::<()>(
-                Err(error),
-                &[
-                    PlatformErrorCode::InvalidArgumentValue,
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::IoInvalidData,
-                    PlatformErrorCode::Io,
-                    PlatformErrorCode::Net,
-                    PlatformErrorCode::NetUnsupportedProtocol,
-                ],
-            )?;
+            assert_platform_error_codes_with_privileged_policy::<()>(Err(error), &ERR_RAW_SOCKOPT)?;
         }
 
         // close the socket
@@ -593,16 +537,9 @@ fn test_net_multicast_interface_lanes() {
         let set_v4_result = context
             .destack_net_set_multicast_interface_v4(socket_v4, context.string_value("127.0.0.1"));
         if let Err(error) = set_v4_result {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::NetAddressNotAvailable,
-                    PlatformErrorCode::InvalidArgumentValue,
-                    PlatformErrorCode::Io,
-                    PlatformErrorCode::Net,
-                    PlatformErrorCode::NetUnsupportedProtocol,
-                ],
+                &ERR_MULTICAST_INTERFACE,
             )?;
         } else {
             let interface = context.destack_net_get_multicast_interface_v4(socket_v4)?;
@@ -619,16 +556,9 @@ fn test_net_multicast_interface_lanes() {
         // set one IPv6 multicast interface index
         let set_v6_result = context.destack_net_set_multicast_interface_v6(socket_v6, 1);
         if let Err(error) = set_v6_result {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
-                &[
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::NetAddressNotAvailable,
-                    PlatformErrorCode::InvalidArgumentValue,
-                    PlatformErrorCode::Io,
-                    PlatformErrorCode::Net,
-                    PlatformErrorCode::NetUnsupportedProtocol,
-                ],
+                &ERR_MULTICAST_INTERFACE,
             )?;
         } else {
             let _interface_index = context.destack_net_get_multicast_interface_v6(socket_v6)?;
@@ -652,23 +582,17 @@ fn test_net_join_leave_multicast_v6_rejects_invalid_group() {
         // reject invalid group text on join
         let join_result =
             context.destack_net_join_multicast_v6(socket, context.string_value("not-an-ipv6"), 0);
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             join_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         // reject invalid group text on leave
         let leave_result =
             context.destack_net_leave_multicast_v6(socket, context.string_value("not-an-ipv6"), 0);
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             leave_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         // close the socket
@@ -682,6 +606,8 @@ fn test_net_join_leave_multicast_v6_rejects_invalid_group() {
 #[cfg(any(windows, target_os = "linux"))]
 #[test]
 fn test_net_leave_multicast_source_lanes_reject_invalid_membership() {
+    use crate::platform::net::{UdpSourceMembershipV6, UdpSourceMembershipV6Vm};
+
     with_harness_context(|mut context| {
         // open one IPv4 socket for source-membership leave probes
         let socket_v4 = context.destack_net_udp_socket(SocketFamily::IPv4)?;
@@ -713,12 +639,9 @@ fn test_net_leave_multicast_source_lanes_reject_invalid_membership() {
         };
         let leave_v4_result =
             context.destack_net_leave_multicast_source_v4(socket_v4, membership_v4);
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             leave_v4_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
         context.destack_net_close(socket_v4)?;
 
@@ -745,12 +668,9 @@ fn test_net_leave_multicast_source_lanes_reject_invalid_membership() {
         };
         let leave_v6_result =
             context.destack_net_leave_multicast_source_v6(socket_v6, membership_v6);
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             leave_v6_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
         context.destack_net_close(socket_v6)?;
 

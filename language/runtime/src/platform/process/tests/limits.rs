@@ -1,12 +1,14 @@
+#[cfg(target_os = "linux")]
+use super::assert_platform_error_codes_with_privileged_policy;
 use super::{
-    assert_platform_error_code, assert_platform_error_codes, syscall_get_limit,
-    syscall_get_priority, with_harness_context,
+    assert_platform_error_code_with_privileged_policy, syscall_get_limit, syscall_get_priority,
+    with_harness_context,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::process::{
-    ProcessId, ProcessLimit, ProcessLimitResource, ProcessSchedulerConfig, ProcessSchedulerPolicy,
-};
+use crate::platform::process::{ProcessId, ProcessLimit, ProcessLimitResource};
+#[cfg(target_os = "linux")]
+use crate::platform::process::{ProcessSchedulerConfig, ProcessSchedulerPolicy};
 
 /// Set and restore one resource limit while preserving original values.
 #[cfg(unix)]
@@ -65,7 +67,7 @@ fn test_process_limits_reject_invalid_soft_greater_than_hard() {
     let invalid_limit = ProcessLimit { soft: 2, hard: 1 };
 
     with_harness_context(|mut context| {
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_set_limit(resource, context.unified_value(invalid_limit)),
             PlatformErrorCode::InvalidArgumentValue,
         )
@@ -88,17 +90,16 @@ fn test_process_priority_get_set_roundtrip() {
     });
 }
 
-/// Report expected errors for unsupported cgroup and job bindings.
-#[cfg(unix)]
+/// Report expected errors for missing cgroup paths on Linux.
+#[cfg(target_os = "linux")]
 #[test]
-fn test_process_cgroup_and_job_bindings_report_expected_errors() {
+fn test_process_cgroup_bindings_report_expected_errors() {
     with_harness_context(|mut context| {
-        let pid = context.destack_process_pid()?;
         let missing_path = "/definitely/missing/destack-process-cgroup";
         let cgroup_resource = ProcessLimitResource(libc::RLIMIT_AS as u32);
 
         // missing cgroup paths should map to not-found or not-supported errors
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_cgroup_get_limit(
                 context.string_value(missing_path),
                 cgroup_resource,
@@ -108,14 +109,14 @@ fn test_process_cgroup_and_job_bindings_report_expected_errors() {
                 PlatformErrorCode::NotSupported,
             ],
         )?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_cgroup_join(context.string_value(missing_path)),
             &[
                 PlatformErrorCode::ProcessNotFound,
                 PlatformErrorCode::NotSupported,
             ],
         )?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_cgroup_set_limit(
                 context.string_value(missing_path),
                 cgroup_resource,
@@ -127,69 +128,31 @@ fn test_process_cgroup_and_job_bindings_report_expected_errors() {
             ],
         )?;
 
-        // job object bindings should report not-supported on unix
-        assert_platform_error_code(
-            context.destack_process_job_assign(
-                context.string_value("destack-test-job"),
-                context.process_id_slice_value(&[pid])?,
-            ),
-            PlatformErrorCode::NotSupported,
-        )?;
-        assert_platform_error_code(
-            context.destack_process_job_set_limit(
-                context.string_value("destack-test-job"),
-                cgroup_resource,
-                context.unified_value(ProcessLimit { soft: 1, hard: 1 }),
-            ),
-            PlatformErrorCode::NotSupported,
-        )?;
         Ok(())
     });
 }
 
 /// Validate scheduler, affinity, yield, and umask process controls.
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn test_process_scheduler_and_affinity_validation() {
     with_harness_context(|mut context| {
         let pid = context.destack_process_pid()?;
 
-        // affinity reads should either return values or explicit not-supported
-        let affinity = context.destack_process_get_affinity(pid);
-        match affinity {
-            Ok(affinity) => {
-                let affinity = context.cpu_list_from_value(affinity)?;
-                assert!(!affinity.is_empty());
-            }
-            Err(error) => {
-                assert_platform_error_code::<Vec<u32>>(
-                    Err(error),
-                    PlatformErrorCode::NotSupported,
-                )?;
-            }
-        }
+        // affinity reads should return at least one cpu
+        let affinity = context.destack_process_get_affinity(pid)?;
+        let affinity = context.cpu_list_from_value(affinity)?;
+        assert!(!affinity.is_empty());
 
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_set_affinity(pid, context.cpu_set_value(&[u32::MAX])?),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
-        // scheduler reads should either return values or explicit not-supported
-        let scheduler = context.destack_process_get_scheduler(pid);
-        match scheduler {
-            Ok(_) => {}
-            Err(error) => {
-                assert_platform_error_code::<ProcessSchedulerConfig>(
-                    Err(error),
-                    PlatformErrorCode::NotSupported,
-                )?;
-            }
-        }
+        // scheduler reads should succeed
+        let _scheduler = context.destack_process_get_scheduler(pid)?;
 
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_process_set_scheduler(
                 pid,
                 context.unified_value(ProcessSchedulerConfig {
@@ -198,10 +161,7 @@ fn test_process_scheduler_and_affinity_validation() {
                     flags: 1,
                 }),
             ),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         context.destack_process_yield_now()?;

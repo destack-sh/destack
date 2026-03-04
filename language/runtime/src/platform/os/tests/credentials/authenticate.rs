@@ -1,8 +1,9 @@
 use super::super::with_harness_context;
+#[cfg(any(target_vendor = "apple", target_os = "android", windows))]
+use super::core::assert_not_not_supported_error;
 #[cfg(target_os = "linux")]
-use super::core::assert_platform_error_code;
+use super::core::assert_not_supported_error;
 use super::core::credential_authentication_options_value;
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::CredentialAuthenticationRequirement;
 
 /// Return notSupported on platforms where authenticate lane is intentionally unavailable.
@@ -22,7 +23,7 @@ fn test_credentials_authenticate_reports_not_supported() {
             Ok(_) => panic!("authenticate should report notSupported"),
             Err(error) => error,
         };
-        assert_platform_error_code(&error, PlatformErrorCode::NotSupported);
+        assert_not_supported_error(&error);
 
         Ok(())
     });
@@ -44,10 +45,7 @@ fn test_credentials_authenticate_does_not_report_not_supported() {
 
         // verify host failure paths are not surfaced as notSupported on implemented lanes
         if let Err(error) = result {
-            let platform_error = error
-                .platform_error()
-                .expect("expected one platform error payload");
-            assert_ne!(platform_error.code, PlatformErrorCode::NotSupported);
+            assert_not_not_supported_error(&error);
         }
 
         Ok(())

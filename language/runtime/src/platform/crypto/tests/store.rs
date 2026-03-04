@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
-use super::{KEY_USAGE_UNWRAP, KEY_USAGE_WRAP, placeholder_store_handle, with_harness_context};
+use super::{
+    KEY_USAGE_UNWRAP, KEY_USAGE_WRAP, assert_not_supported_platform_code, placeholder_store_handle,
+    with_harness_context,
+};
 use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
     CryptoCertificateQuery, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyGenerationRequest,
@@ -132,7 +135,7 @@ fn test_store_open_follows_probe_availability() {
             let platform = error
                 .platform_error()
                 .expect("store.open error should contain one platform error");
-            assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+            assert_not_supported_platform_code(platform.code);
         }
 
         // provider lane should be available through the software provider

@@ -19,7 +19,11 @@ use super::core::{
     stream_descriptor_flags_from_value, stream_open_with_default_options, stream_state_from_value,
     stream_support_from_value, string_from_harness_value,
 };
-use super::{assert_ok_or_expected_error, assert_platform_error_code, with_harness_context};
+use super::{
+    assert_code_is_not_not_supported, assert_not_supported_result, assert_ok_or_expected_error,
+    assert_platform_error_code, error_code_from_runtime_error, is_not_supported_code,
+    with_harness_context,
+};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{AudioDeviceHandle, AudioEventHandle, AudioStreamHandle};
@@ -27,6 +31,30 @@ use crate::platform::resource::{AudioDeviceHandle, AudioEventHandle, AudioStream
 const RANDOM_NULL_INTERLEAVING_ITERATIONS: usize = 128;
 const RANDOM_HOST_INTERLEAVING_ITERATIONS: usize = 96;
 const RANDOM_STREAM_IO_BYTES: usize = 256;
+const STREAM_STOP_ALLOWED_ERRORS: [PlatformErrorCode; 4] = [
+    PlatformErrorCode::IoWouldBlock,
+    PlatformErrorCode::IoInterrupted,
+    PlatformErrorCode::IoBusy,
+    PlatformErrorCode::NotSupported,
+];
+const STREAM_IO_TRANSIENT_ALLOWED_ERRORS: [PlatformErrorCode; 6] = [
+    PlatformErrorCode::IoWouldBlock,
+    PlatformErrorCode::IoInterrupted,
+    PlatformErrorCode::IoBusy,
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::AudioUnavailable,
+    PlatformErrorCode::DeviceUnavailable,
+];
+const STREAM_OPEN_OPTIONAL_ERRORS: [PlatformErrorCode; 3] = [
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::IoInvalidData,
+    PlatformErrorCode::IoNotFound,
+];
+const STREAM_START_OPTIONAL_ERRORS: [PlatformErrorCode; 3] = [
+    PlatformErrorCode::NotSupported,
+    PlatformErrorCode::IoInvalidData,
+    PlatformErrorCode::IoInterrupted,
+];
 
 /// Randomized interleaving operation for stream and event stress tests.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,12 +160,7 @@ fn close_stream_device_pair(
         if *is_running {
             let _ = assert_ok_or_expected_error(
                 context.destack_audio_stream_stop(stream_handle),
-                &[
-                    PlatformErrorCode::IoWouldBlock,
-                    PlatformErrorCode::IoInterrupted,
-                    PlatformErrorCode::IoBusy,
-                    PlatformErrorCode::NotSupported,
-                ],
+                &STREAM_STOP_ALLOWED_ERRORS,
             )?;
         }
 
@@ -311,10 +334,11 @@ fn test_audio_stream_open_rejects_unsatisfied_requirements() {
                 requirements: AudioStreamRequirementFlags(STREAM_REQUIRE_SCHEDULED_WRITE.0),
             },
         );
-        assert_platform_error_code(
-            context.destack_audio_stream_open(device, config, stream_options),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_stream_open(
+            device,
+            config,
+            stream_options,
+        ))?;
 
         context.destack_audio_device_close(device)?;
         Ok(())
@@ -386,7 +410,7 @@ fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
             ) {
                 Ok(value) => string_from_harness_value(&mut context, value)?,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
+                    let code = error_code_from_runtime_error(&error);
                     if code == Some(PlatformErrorCode::IoNotFound) {
                         continue;
                     }
@@ -413,7 +437,7 @@ fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
             let device = match context.destack_audio_device_open(device_id, options) {
                 Ok(device) => device,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
+                    let code = error_code_from_runtime_error(&error);
                     if code == Some(PlatformErrorCode::IoNotFound) {
                         continue;
                     }
@@ -442,7 +466,7 @@ fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
             let supports_non_interleaved =
                 (capability_flags.0 & BACKEND_CAPABILITY_NON_INTERLEAVED.0) != 0;
             if !supports_non_interleaved {
-                assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+                assert_not_supported_result(result)?;
                 context.destack_audio_device_close(device)?;
                 continue;
             }
@@ -452,12 +476,13 @@ fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
                     context.destack_audio_stream_close(stream)?;
                 }
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    assert_ne!(
+                    let code = error_code_from_runtime_error(&error);
+                    assert_code_is_not_not_supported(
                         code,
-                        Some(PlatformErrorCode::NotSupported),
-                        "backend {backend:?} advertises non-interleaved but stream.open returned notSupported",
-                    );
+                        &format!(
+                            "backend {backend:?} advertises non-interleaved but stream.open returned notSupported"
+                        ),
+                    )?;
                 }
             }
 
@@ -497,10 +522,7 @@ fn test_audio_stream_open_uses_opened_device_direction() {
         context.destack_audio_stream_start(stream)?;
 
         let payload = harness_bytes(&mut context, &[0u8; 32])?;
-        assert_platform_error_code(
-            context.destack_audio_stream_try_write(stream, payload),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_stream_try_write(stream, payload))?;
 
         context.destack_audio_stream_stop(stream)?;
         context.destack_audio_stream_close(stream)?;
@@ -663,7 +685,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -702,7 +724,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                             match context.destack_audio_device_open(device_id, options) {
                                 Ok(device) => device,
                                 Err(error) => {
-                                    let code = error.platform_error().map(|platform| platform.code);
+                                    let code = error_code_from_runtime_error(&error);
                                     if code == Some(PlatformErrorCode::IoNotFound)
                                         || code == Some(PlatformErrorCode::IoPermissionDenied)
                                         || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -739,8 +761,8 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                     ) {
                         Ok(stream) => stream,
                         Err(error) => {
-                            let code = error.platform_error().map(|platform| platform.code);
-                            if code == Some(PlatformErrorCode::NotSupported)
+                            let code = error_code_from_runtime_error(&error);
+                            if is_not_supported_code(code)
                                 || code == Some(PlatformErrorCode::IoInvalidData)
                             {
                                 return Ok(());
@@ -802,14 +824,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                     let payload = harness_bytes(&mut context, &payload)?;
                     let _ = assert_ok_or_expected_error(
                         context.destack_audio_stream_try_write(stream_handle_value, payload),
-                        &[
-                            PlatformErrorCode::IoWouldBlock,
-                            PlatformErrorCode::IoInterrupted,
-                            PlatformErrorCode::IoBusy,
-                            PlatformErrorCode::NotSupported,
-                            PlatformErrorCode::AudioUnavailable,
-                            PlatformErrorCode::DeviceUnavailable,
-                        ],
+                        &STREAM_IO_TRANSIENT_ALLOWED_ERRORS,
                     )?;
                 }
                 StreamInterleavingOperation::TryRead => {
@@ -822,14 +837,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                             stream_handle_value,
                             RANDOM_STREAM_IO_BYTES as u32,
                         ),
-                        &[
-                            PlatformErrorCode::IoWouldBlock,
-                            PlatformErrorCode::IoInterrupted,
-                            PlatformErrorCode::IoBusy,
-                            PlatformErrorCode::NotSupported,
-                            PlatformErrorCode::AudioUnavailable,
-                            PlatformErrorCode::DeviceUnavailable,
-                        ],
+                        &STREAM_IO_TRANSIENT_ALLOWED_ERRORS,
                     )?;
                     if let Some(read) = read {
                         assert!(byte_len(&mut context, read)? <= RANDOM_STREAM_IO_BYTES);
@@ -850,8 +858,8 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                     let opened_event = match context.destack_audio_event_open(event_options) {
                         Ok(event) => event,
                         Err(error) => {
-                            let code = error.platform_error().map(|platform| platform.code);
-                            if code == Some(PlatformErrorCode::NotSupported) {
+                            let code = error_code_from_runtime_error(&error);
+                            if is_not_supported_code(code) {
                                 continue;
                             }
 
@@ -940,7 +948,7 @@ fn test_audio_host_stream_open_close_when_backend_is_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -992,7 +1000,7 @@ fn test_audio_host_stream_open_close_when_backend_is_available() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_host_stream_write_at_reports_not_supported_when_backend_lacks_schedule_lane() {
+fn test_audio_host_stream_write_at_rejects_when_backend_lacks_schedule_lane() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
         let backend_list = backend_availability_rows(&mut context, backend_list)?;
@@ -1013,7 +1021,7 @@ fn test_audio_host_stream_write_at_reports_not_supported_when_backend_lacks_sche
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1044,11 +1052,7 @@ fn test_audio_host_stream_write_at_reports_not_supported_when_backend_lacks_sche
         let config = harness_stream_config(&mut context, config);
         let Some(stream) = assert_ok_or_expected_error(
             stream_open_with_default_options(&mut context, device, config),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoNotFound,
-            ],
+            &STREAM_OPEN_OPTIONAL_ERRORS,
         )?
         else {
             context.destack_audio_device_close(device)?;
@@ -1057,11 +1061,7 @@ fn test_audio_host_stream_write_at_reports_not_supported_when_backend_lacks_sche
 
         let Some(()) = assert_ok_or_expected_error(
             context.destack_audio_stream_start(stream),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoInterrupted,
-            ],
+            &STREAM_START_OPTIONAL_ERRORS,
         )?
         else {
             context.destack_audio_stream_close(stream)?;
@@ -1083,7 +1083,7 @@ fn test_audio_host_stream_write_at_reports_not_supported_when_backend_lacks_sche
             let _ =
                 assert_ok_or_expected_error(write_at_result, &[PlatformErrorCode::IoWouldBlock])?;
         } else {
-            assert_platform_error_code(write_at_result, PlatformErrorCode::NotSupported)?;
+            assert_not_supported_result(write_at_result)?;
         }
 
         context.destack_audio_stream_stop(stream)?;
@@ -1113,7 +1113,7 @@ fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backe
             ) {
                 Ok(value) => string_from_harness_value(&mut context, value)?,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
+                    let code = error_code_from_runtime_error(&error);
                     if code == Some(PlatformErrorCode::IoNotFound) {
                         continue;
                     }
@@ -1151,8 +1151,8 @@ fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backe
             let device = match context.destack_audio_device_open(device_id, options) {
                 Ok(device) => device,
                 Err(error) => {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    if code == Some(PlatformErrorCode::NotSupported) {
+                    let code = error_code_from_runtime_error(&error);
+                    if is_not_supported_code(code) {
                         panic!(
                             "backend {backend:?} advertised share mode {share_mode:?} but device open returned notSupported",
                         );
@@ -1203,50 +1203,47 @@ fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backe
                     assert_ok_or_expected_error(pause_result, &[PlatformErrorCode::IoWouldBlock])?;
                 let _ = context.destack_audio_stream_pause(stream, false);
             } else {
-                assert_platform_error_code(pause_result, PlatformErrorCode::NotSupported)?;
+                assert_not_supported_result(pause_result)?;
             }
 
             let volume_result = context.destack_audio_stream_set_volume(stream, 0.75);
             if supports_volume {
                 if let Err(error) = volume_result {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    assert_ne!(
+                    let code = error_code_from_runtime_error(&error);
+                    assert_code_is_not_not_supported(
                         code,
-                        Some(PlatformErrorCode::NotSupported),
-                        "backend {backend:?} snapshot claimed supports_volume",
-                    );
+                        &format!("backend {backend:?} snapshot claimed supports_volume"),
+                    )?;
                 }
             } else {
-                assert_platform_error_code(volume_result, PlatformErrorCode::NotSupported)?;
+                assert_not_supported_result(volume_result)?;
             }
 
             let mute_result = context.destack_audio_stream_set_mute(stream, true);
             if supports_mute {
                 if let Err(error) = mute_result {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    assert_ne!(
+                    let code = error_code_from_runtime_error(&error);
+                    assert_code_is_not_not_supported(
                         code,
-                        Some(PlatformErrorCode::NotSupported),
-                        "backend {backend:?} snapshot claimed supports_mute",
-                    );
+                        &format!("backend {backend:?} snapshot claimed supports_mute"),
+                    )?;
                 }
             } else {
-                assert_platform_error_code(mute_result, PlatformErrorCode::NotSupported)?;
+                assert_not_supported_result(mute_result)?;
             }
 
             let payload = harness_bytes(&mut context, &[0u8; 64])?;
             let write_at_result = context.destack_audio_stream_write_at(stream, payload, 0);
             if supports_write_at {
                 if let Err(error) = write_at_result {
-                    let code = error.platform_error().map(|platform| platform.code);
-                    assert_ne!(
+                    let code = error_code_from_runtime_error(&error);
+                    assert_code_is_not_not_supported(
                         code,
-                        Some(PlatformErrorCode::NotSupported),
-                        "backend {backend:?} snapshot claimed supports_write_at",
-                    );
+                        &format!("backend {backend:?} snapshot claimed supports_write_at"),
+                    )?;
                 }
             } else {
-                assert_platform_error_code(write_at_result, PlatformErrorCode::NotSupported)?;
+                assert_not_supported_result(write_at_result)?;
             }
 
             context.destack_audio_stream_stop(stream)?;
@@ -1278,7 +1275,7 @@ fn test_audio_coreaudio_loopback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1309,11 +1306,7 @@ fn test_audio_coreaudio_loopback_open_start_stop_when_available() {
         let config = harness_stream_config(&mut context, config);
         let Some(stream) = assert_ok_or_expected_error(
             stream_open_with_default_options(&mut context, device, config),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoNotFound,
-            ],
+            &STREAM_OPEN_OPTIONAL_ERRORS,
         )?
         else {
             context.destack_audio_device_close(device)?;
@@ -1322,11 +1315,7 @@ fn test_audio_coreaudio_loopback_open_start_stop_when_available() {
 
         let Some(()) = assert_ok_or_expected_error(
             context.destack_audio_stream_start(stream),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoInterrupted,
-            ],
+            &STREAM_START_OPTIONAL_ERRORS,
         )?
         else {
             context.destack_audio_stream_close(stream)?;
@@ -1367,7 +1356,7 @@ fn test_audio_asio_playback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1433,7 +1422,7 @@ fn test_audio_asio_open_rejects_shared_mode_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1450,10 +1439,7 @@ fn test_audio_asio_open_rejects_shared_mode_when_available() {
         };
         let device_id = harness_string(&mut context, &device_id);
         let options = harness_device_options(&mut context, options);
-        assert_platform_error_code(
-            context.destack_audio_device_open(device_id, options),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_device_open(device_id, options))?;
 
         Ok(())
     });
@@ -1479,7 +1465,7 @@ fn test_audio_alsa_playback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1545,7 +1531,7 @@ fn test_audio_pipewire_playback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1611,7 +1597,7 @@ fn test_audio_pipewire_loopback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1676,7 +1662,7 @@ fn test_audio_pulseaudio_playback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1742,7 +1728,7 @@ fn test_audio_pulseaudio_loopback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1807,7 +1793,7 @@ fn test_audio_jack_playback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1873,7 +1859,7 @@ fn test_audio_wasapi_loopback_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }
@@ -1904,11 +1890,7 @@ fn test_audio_wasapi_loopback_open_start_stop_when_available() {
         let config = harness_stream_config(&mut context, config);
         let Some(stream) = assert_ok_or_expected_error(
             stream_open_with_default_options(&mut context, device, config),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoNotFound,
-            ],
+            &STREAM_OPEN_OPTIONAL_ERRORS,
         )?
         else {
             context.destack_audio_device_close(device)?;
@@ -1917,11 +1899,7 @@ fn test_audio_wasapi_loopback_open_start_stop_when_available() {
 
         let Some(()) = assert_ok_or_expected_error(
             context.destack_audio_stream_start(stream),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoInterrupted,
-            ],
+            &STREAM_START_OPTIONAL_ERRORS,
         )?
         else {
             context.destack_audio_stream_close(stream)?;
@@ -1962,7 +1940,7 @@ fn test_audio_wasapi_duplex_open_start_stop_when_available() {
         ) {
             Ok(value) => string_from_harness_value(&mut context, value)?,
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound) {
                     return Ok(());
                 }

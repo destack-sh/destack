@@ -170,6 +170,7 @@ impl<'call> ProcessHarnessContext<'call> {
     }
 
     /// Build one backend-specific process-id slice value.
+    #[cfg(target_os = "linux")]
     pub(crate) fn process_id_slice_value(
         &self,
         pids: &[ProcessId],
@@ -308,6 +309,7 @@ impl<'call> ProcessHarnessContext<'call> {
     }
 
     /// Build one backend-specific CPU-set value.
+    #[cfg(target_os = "linux")]
     pub(crate) fn cpu_set_value(
         &self,
         cpus: &[u32],
@@ -450,6 +452,7 @@ impl<'call> ProcessHarnessContext<'call> {
     }
 
     /// Decode one backend-specific CPU-set value into CPU index values.
+    #[cfg(target_os = "linux")]
     pub(crate) fn cpu_list_from_value(
         &self,
         value: HarnessValue<ProcessCpuSet, ProcessCpuSetVm>,

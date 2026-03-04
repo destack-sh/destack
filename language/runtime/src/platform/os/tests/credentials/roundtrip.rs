@@ -1,8 +1,8 @@
 use super::super::with_harness_context;
 use super::core::{
-    assert_platform_error_code, credential_query_value, credential_write_options_value,
-    credentials_roundtrip_supported_on_target, decode_credential_record_value, string_value,
-    unique_suffix,
+    assert_not_supported_error, assert_runtime_error_code, credential_query_value,
+    credential_write_options_value, credentials_roundtrip_supported_on_target,
+    decode_credential_record_value, string_value, unique_suffix,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{CredentialAccessibility, CredentialAuthenticationPolicy};
@@ -35,7 +35,7 @@ fn test_credentials_roundtrip() {
                 Ok(_) => panic!("write should be notSupported on this target"),
                 Err(error) => error,
             };
-            assert_platform_error_code(&error, PlatformErrorCode::NotSupported);
+            assert_not_supported_error(&error);
             return Ok(());
         }
 
@@ -88,7 +88,7 @@ fn test_credentials_roundtrip() {
             Ok(_) => panic!("duplicate write should fail when replaceExisting is false"),
             Err(error) => error,
         };
-        assert_platform_error_code(&error, PlatformErrorCode::IoAlreadyExists);
+        assert_runtime_error_code(&error, PlatformErrorCode::IoAlreadyExists);
 
         // replace one existing record when replacement is enabled
         let replacement_payload = b"destack-os-credentials-roundtrip-replacement-payload";
@@ -134,7 +134,7 @@ fn test_credentials_roundtrip() {
             Ok(_) => panic!("read should fail after delete"),
             Err(error) => error,
         };
-        assert_platform_error_code(&error, PlatformErrorCode::IoNotFound);
+        assert_runtime_error_code(&error, PlatformErrorCode::IoNotFound);
 
         Ok(())
     });

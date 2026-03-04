@@ -1,4 +1,6 @@
-use super::{IoHarnessContext, assert_platform_error_code, with_harness_context};
+use super::{
+    IoHarnessContext, assert_not_supported_result, assert_platform_error_code, with_harness_context,
+};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 #[cfg(windows)]
@@ -476,7 +478,7 @@ fn test_io_poll_backend_selection_contract() {
                 let handle = result?;
                 context.destack_io_poll_close(handle)?;
             } else {
-                assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+                assert_not_supported_result(result)?;
             }
         }
 

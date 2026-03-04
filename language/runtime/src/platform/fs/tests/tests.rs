@@ -20,6 +20,7 @@ use crate::platform::{
     NativeArray, PlatformError, VmAggregateCodec, VmArray, VmSlice, fs as platform_fs,
 };
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+pub(crate) use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
 use crate::tests::runtime::TestRuntime;
 use platform_fs::{
     Dirent, DirentKind, DirentNext, DirentNextVm, DirentVm, OpenOptions, OpenOptionsVm, OsPath,
@@ -176,61 +177,6 @@ pub(crate) fn temp_dir(label: &str) -> PathBuf {
         .as_nanos();
 
     std::env::temp_dir().join(format!("destack_runtime_{label}_{nonce}"))
-}
-
-/// Assert one result failed with one of the expected platform error codes.
-pub(crate) fn assert_platform_error_codes<T>(
-    result: RuntimeResult<T>,
-    expected: &[PlatformErrorCode],
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert_no_permission_denied_in_privileged_mode(platform.code, expected);
-    assert!(
-        expected.contains(&platform.code),
-        "unexpected platform error code: {:?}, expected one of {:?}",
-        platform.code,
-        expected,
-    );
-
-    Ok(())
-}
-
-/// Return true when privileged test mode is enabled.
-fn is_privileged_test_mode() -> bool {
-    let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
-    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
-}
-
-/// Return true when one platform code represents a permission denial.
-fn is_permission_denied_code(code: PlatformErrorCode) -> bool {
-    matches!(
-        code,
-        PlatformErrorCode::IoPermissionDenied
-            | PlatformErrorCode::ProcessPermissionDenied
-            | PlatformErrorCode::SecurityDenied
-    )
-}
-
-/// Fail privileged runs when assertions observe permission-denied errors.
-fn assert_no_permission_denied_in_privileged_mode(
-    observed: PlatformErrorCode,
-    expected: &[PlatformErrorCode],
-) {
-    if !is_privileged_test_mode() {
-        return;
-    }
-
-    if is_permission_denied_code(observed) {
-        panic!(
-            "permission-denied error {observed:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {expected:?})",
-        );
-    }
 }
 
 /// Build a NativeSlice from a mutable byte buffer.

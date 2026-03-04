@@ -1,4 +1,6 @@
-use super::{assert_platform_error_code, unique_env_name, with_harness_context};
+use super::{
+    assert_platform_error_code_with_privileged_policy, unique_env_name, with_harness_context,
+};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::process::{GroupId, UserId};
 
@@ -51,7 +53,7 @@ fn test_process_stdio_handles_open_and_close() {
         context.fs_close_handle(stdout)?;
         context.fs_close_handle(stderr)?;
 
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.fs_close_handle(stdout),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
@@ -101,7 +103,7 @@ fn test_process_env_roundtrip() {
 
         context.destack_process_env_delete(context.string_value(&name))?;
         // deleted variables should report missing-variable errors
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_env_get(context.string_value(&name)),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
@@ -129,7 +131,7 @@ fn test_process_env_bytes_roundtrip() {
 
         context.destack_process_env_delete_bytes(context.bytes_slice_value(&name)?)?;
         // deleted variables should report missing-variable errors
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_process_env_get_bytes(context.bytes_slice_value(&name)?),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
@@ -162,7 +164,10 @@ fn test_process_identity_reads() {
         match context.destack_process_uid() {
             Ok(_uid) => {}
             Err(error) => {
-                assert_platform_error_code::<UserId>(Err(error), PlatformErrorCode::NotSupported)?;
+                assert_platform_error_code_with_privileged_policy::<UserId>(
+                    Err(error),
+                    PlatformErrorCode::NotSupported,
+                )?;
             }
         }
 
@@ -170,7 +175,10 @@ fn test_process_identity_reads() {
         match context.destack_process_gid() {
             Ok(_gid) => {}
             Err(error) => {
-                assert_platform_error_code::<GroupId>(Err(error), PlatformErrorCode::NotSupported)?;
+                assert_platform_error_code_with_privileged_policy::<GroupId>(
+                    Err(error),
+                    PlatformErrorCode::NotSupported,
+                )?;
             }
         }
 

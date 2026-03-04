@@ -1,4 +1,5 @@
 use super::*;
+use crate::tests::platform::is_privileged_test_mode;
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -600,12 +601,6 @@ impl<'call> FsHarnessContext<'call> {
         self.status_result(status, label)
     }
 
-    /// Return true when privileged test mode is enabled.
-    fn is_privileged_test_mode(&self) -> bool {
-        let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
-        matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
-    }
-
     /// Return true when one platform code represents permission denial.
     fn is_permission_denied_code(&self, code: PlatformErrorCode) -> bool {
         matches!(
@@ -629,7 +624,7 @@ impl<'call> FsHarnessContext<'call> {
                 if let Some(platform) = error.platform_error() {
                     let code = platform.code;
                     if allowed.contains(&code) {
-                        if self.is_privileged_test_mode() && self.is_permission_denied_code(code) {
+                        if is_privileged_test_mode() && self.is_permission_denied_code(code) {
                             panic!(
                                 "permission-denied error {code:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (allowed {allowed:?})",
                             );

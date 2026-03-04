@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 use crate::platform::ipc::{MessageQueueReceive, MessageQueueReceiveVm};
 use crate::platform::ipc::{UnixPeerCredentials, UnixReceiveAncillary, UnixReceiveAncillaryVm};
 use crate::platform::{PlatformError, VmSlice, resource};
@@ -127,7 +127,7 @@ impl<'call> IpcHarnessContext<'call> {
     }
 
     /// Decode one message-queue receive payload to the native view.
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     pub(crate) fn message_queue_receive_value(
         &self,
         value: HarnessValue<MessageQueueReceive, MessageQueueReceiveVm>,

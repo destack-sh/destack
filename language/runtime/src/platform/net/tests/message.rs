@@ -1,5 +1,6 @@
 use super::{
-    assert_platform_error_code, tcp_protocol, tcp_stream_socket_type, with_harness_context,
+    assert_platform_error_code_with_privileged_policy, tcp_protocol, tcp_stream_socket_type,
+    with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{AcceptFlags, SocketFamily, SocketMessageFlags};
@@ -88,7 +89,10 @@ fn test_net_mmsg_roundtrip() {
             Ok(messages) => messages,
             Err(error) => {
                 // sendmmsg may be unavailable on some harnesses
-                assert_platform_error_code::<u64>(Err(error), PlatformErrorCode::NotSupported)?;
+                assert_platform_error_code_with_privileged_policy::<u64>(
+                    Err(error),
+                    PlatformErrorCode::NotSupported,
+                )?;
                 context.destack_net_close(server)?;
                 context.destack_net_close(client)?;
                 context.destack_net_close_listener(listener)?;
@@ -99,7 +103,10 @@ fn test_net_mmsg_roundtrip() {
             Ok(sent) => sent,
             Err(error) => {
                 // sendmmsg may be unavailable on some harnesses
-                assert_platform_error_code::<u64>(Err(error), PlatformErrorCode::NotSupported)?;
+                assert_platform_error_code_with_privileged_policy::<u64>(
+                    Err(error),
+                    PlatformErrorCode::NotSupported,
+                )?;
                 context.destack_net_close(server)?;
                 context.destack_net_close(client)?;
                 context.destack_net_close_listener(listener)?;
@@ -168,10 +175,14 @@ fn test_net_sendmsg_recvmsg_roundtrip() {
                 Ok(receive) => context.recv_message_fields(receive),
                 Err(error) => {
                     // recvmsg may be unavailable on some harnesses
-                    assert_platform_error_code::<(u64, u32, bool, u32, bool, bool)>(
-                        Err(error),
-                        PlatformErrorCode::NotSupported,
-                    )?;
+                    assert_platform_error_code_with_privileged_policy::<(
+                        u64,
+                        u32,
+                        bool,
+                        u32,
+                        bool,
+                        bool,
+                    )>(Err(error), PlatformErrorCode::NotSupported)?;
                     context.destack_net_close(server)?;
                     context.destack_net_close(client)?;
                     context.destack_net_close_listener(listener)?;
@@ -316,7 +327,7 @@ fn test_net_recvmsg_rejects_ancillary_requests() {
 
         // reject descriptor capture on windows
         let buffer = context.zeroed_bytes_slice_value(16)?;
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_net_recv_msg(server, buffer, SocketMessageFlags(0), 1, false, 0),
             PlatformErrorCode::NotSupported,
         )?;
@@ -354,7 +365,7 @@ fn test_net_sendmsg_rejects_credential_requests() {
 
         // reject explicit credentials on unsupported unix targets
         let message = context.empty_send_message_value(0, true)?;
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_net_send_msg(client, context.bytes_slice_value(b"hello")?, message),
             PlatformErrorCode::NotSupported,
         )?;

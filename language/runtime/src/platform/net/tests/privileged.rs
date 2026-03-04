@@ -1,14 +1,10 @@
 use super::with_harness_context;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::tests::platform::{error_code_from_runtime_error, is_privileged_test_mode};
 
 const PRIVILEGED_PORTS: [u16; 20] = [
     1, 2, 3, 7, 9, 13, 17, 19, 21, 23, 25, 37, 42, 53, 67, 80, 110, 123, 143, 443,
 ];
-
-fn is_privileged_test_mode() -> bool {
-    let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
-    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
-}
 
 /// Bind one privileged tcp port when privileged mode is enabled.
 #[cfg(unix)]
@@ -30,7 +26,7 @@ fn test_net_bind_privileged_port_succeeds_in_privileged_mode() {
                     return Ok(());
                 }
                 Err(error) => {
-                    let code = error.platform_error().map(|value| value.code);
+                    let code = error_code_from_runtime_error(&error);
                     if matches!(
                         code,
                         Some(PlatformErrorCode::IoPermissionDenied)

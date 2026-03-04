@@ -1,4 +1,4 @@
-use super::{assert_platform_error_codes, temp_dir, with_harness_context};
+use super::{assert_platform_error_codes_with_privileged_policy, temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::FileMode;
 use crate::platform::resource::{DirectoryHandle, FileHandle, ResourceId};
@@ -10,14 +10,14 @@ fn test_fs_invalid_file_handle() {
     with_harness_context(|mut context| {
         // exercise invalid file handle paths
         let buffer = context.zeroed_bytes_slice_value(16)?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_read(FileHandle(ResourceId(9999)), buffer),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
                 PlatformErrorCode::Io,
             ],
         )?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_close(FileHandle(ResourceId(9999))),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
@@ -48,14 +48,14 @@ fn test_fs_invalid_directory_handle() {
         context.destack_fs_closedir(handle)?;
 
         // exercise invalid directory handle paths
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_closedir(handle),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
                 PlatformErrorCode::Io,
             ],
         )?;
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_closedir(DirectoryHandle(ResourceId(9999))),
             &[
                 PlatformErrorCode::InvalidArgumentValue,

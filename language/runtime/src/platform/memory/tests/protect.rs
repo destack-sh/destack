@@ -1,8 +1,7 @@
 use super::{
-    assert_ok_or_expected_error, decode_harness_value, decode_memory_range, page_aligned_length,
-    protection_read_write, remap_flags_may_move, reserve_flags_none, with_harness_context,
+    decode_harness_value, decode_memory_range, page_aligned_length, protection_read_write,
+    remap_flags_may_move, reserve_flags_none, result_or_skip_not_supported, with_harness_context,
 };
-use crate::platform::diagnostic::PlatformErrorCode;
 
 /// Change page protections and flush instruction cache.
 #[cfg(any(unix, windows))]
@@ -37,15 +36,12 @@ fn test_memory_remap_roundtrip_or_not_supported() {
         let mapping = decode_memory_range(mapping);
         context.destack_memory_commit(mapping.address, mapping.length, protection_read_write())?;
 
-        let remapped = assert_ok_or_expected_error(
-            context.destack_memory_remap(
-                mapping.address,
-                mapping.length,
-                mapping.length * 2,
-                remap_flags_may_move(),
-            ),
-            &[PlatformErrorCode::NotSupported],
-        )?;
+        let remapped = result_or_skip_not_supported(context.destack_memory_remap(
+            mapping.address,
+            mapping.length,
+            mapping.length * 2,
+            remap_flags_may_move(),
+        ))?;
 
         if let Some(remapped) = remapped {
             let remapped = decode_harness_value(remapped);

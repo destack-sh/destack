@@ -1,4 +1,4 @@
-use super::{assert_platform_error_codes, with_harness_context};
+use super::{assert_platform_error_codes_with_privileged_policy, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{SocketFamily, SocketProtocol, SocketType};
 
@@ -81,7 +81,7 @@ fn test_net_uds_socket_pair_roundtrip() {
             Ok(pair) => pair,
             Err(error) => {
                 // uds may be unavailable on some windows targets
-                assert_platform_error_codes::<()>(
+                assert_platform_error_codes_with_privileged_policy::<()>(
                     Err(error),
                     &[
                         PlatformErrorCode::NotSupported,

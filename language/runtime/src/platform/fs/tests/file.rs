@@ -1,7 +1,7 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 use std::path::Path;
 
-use super::{assert_platform_error_codes, temp_dir, with_harness_context};
+use super::{assert_platform_error_codes_with_privileged_policy, temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{
     FileMode, FileOffset, FileSize, NodeDevice, OpenFlags, ReadWriteFlags, SeekWhence, SpliceFlags,
@@ -193,7 +193,7 @@ fn test_fs_preadv2_pwritev2_flags_zero_roundtrip() {
 }
 
 /// Reject non-zero preadv2 and pwritev2 flags on hosts without v2 flag support.
-#[cfg(any(unix, windows))]
+#[cfg(target_os = "linux")]
 #[test]
 fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
     with_harness_context(|mut context| {
@@ -228,40 +228,30 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
             ReadWriteFlags(0x1),
         );
 
-        // non-linux hosts must reject v2 flags as not supported
-        #[cfg(not(target_os = "linux"))]
-        {
-            assert_platform_error_codes(preadv2_result, &[PlatformErrorCode::NotSupported])?;
-            assert_platform_error_codes(pwritev2_result, &[PlatformErrorCode::NotSupported])?;
-        }
-
         // linux hosts may accept the flags or reject by kernel policy or support level
-        #[cfg(target_os = "linux")]
-        {
-            if let Err(error) = preadv2_result {
-                assert_platform_error_codes(
-                    Err(error),
-                    &[
-                        PlatformErrorCode::NotSupported,
-                        PlatformErrorCode::InvalidArgumentValue,
-                        PlatformErrorCode::IoInvalidData,
-                        PlatformErrorCode::IoWouldBlock,
-                        PlatformErrorCode::Io,
-                    ],
-                )?;
-            }
-            if let Err(error) = pwritev2_result {
-                assert_platform_error_codes(
-                    Err(error),
-                    &[
-                        PlatformErrorCode::NotSupported,
-                        PlatformErrorCode::InvalidArgumentValue,
-                        PlatformErrorCode::IoInvalidData,
-                        PlatformErrorCode::IoWouldBlock,
-                        PlatformErrorCode::Io,
-                    ],
-                )?;
-            }
+        if let Err(error) = preadv2_result {
+            assert_platform_error_codes_with_privileged_policy(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::InvalidArgumentValue,
+                    PlatformErrorCode::IoInvalidData,
+                    PlatformErrorCode::IoWouldBlock,
+                    PlatformErrorCode::Io,
+                ],
+            )?;
+        }
+        if let Err(error) = pwritev2_result {
+            assert_platform_error_codes_with_privileged_policy(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::InvalidArgumentValue,
+                    PlatformErrorCode::IoInvalidData,
+                    PlatformErrorCode::IoWouldBlock,
+                    PlatformErrorCode::Io,
+                ],
+            )?;
         }
 
         // cleanup
@@ -276,7 +266,7 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
 }
 
 /// Create fifo and fifoat nodes where supported and verify fifo mode bits.
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_fs_mkfifo_and_mkfifoat_support_matches_platform() {
     with_harness_context(|mut context| {
@@ -292,17 +282,10 @@ fn test_fs_mkfifo_and_mkfifoat_support_matches_platform() {
         let mkfifo_result = context.destack_fs_mkfifo(fifo, FileMode(0o644));
 
         // enforce platform behavior for mkfifo
-        #[cfg(unix)]
-        {
-            mkfifo_result?;
-            let fifo = context.path_bytes(&fifo_path);
-            let stat = context.destack_fs_stat(fifo)?;
-            assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
-        }
-        #[cfg(windows)]
-        {
-            assert_platform_error_codes(mkfifo_result, &[PlatformErrorCode::NotSupported])?;
-        }
+        mkfifo_result?;
+        let fifo = context.path_bytes(&fifo_path);
+        let stat = context.destack_fs_stat(fifo)?;
+        assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
 
         // create fifo through directory-relative lane
         let dir = context.path_bytes(&temp_dir);
@@ -312,27 +295,17 @@ fn test_fs_mkfifo_and_mkfifoat_support_matches_platform() {
             context.destack_fs_mkfifoat(directory, fifo_relative, FileMode(0o644));
 
         // enforce platform behavior for mkfifoat
-        #[cfg(unix)]
-        {
-            mkfifoat_result?;
-            let fifo = context.path_bytes(&temp_dir.join("fifoat.pipe"));
-            let stat = context.destack_fs_stat(fifo)?;
-            assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
-        }
-        #[cfg(windows)]
-        {
-            assert_platform_error_codes(mkfifoat_result, &[PlatformErrorCode::NotSupported])?;
-        }
+        mkfifoat_result?;
+        let fifo = context.path_bytes(&temp_dir.join("fifoat.pipe"));
+        let stat = context.destack_fs_stat(fifo)?;
+        assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
 
         // cleanup created nodes and directory resources
         context.destack_fs_closedir(directory)?;
-        #[cfg(unix)]
-        {
-            let fifo = context.path_bytes(&temp_dir.join("fifoat.pipe"));
-            context.destack_fs_unlink(fifo)?;
-            let fifo = context.path_bytes(&fifo_path);
-            context.destack_fs_unlink(fifo)?;
-        }
+        let fifo = context.path_bytes(&temp_dir.join("fifoat.pipe"));
+        context.destack_fs_unlink(fifo)?;
+        let fifo = context.path_bytes(&fifo_path);
+        context.destack_fs_unlink(fifo)?;
         let dir = context.path_bytes(&temp_dir);
         context.destack_fs_rmdir(dir)?;
 
@@ -341,7 +314,7 @@ fn test_fs_mkfifo_and_mkfifoat_support_matches_platform() {
 }
 
 /// Create mknod and mknodat fifo nodes where supported and verify fifo mode bits.
-#[cfg(any(unix, windows))]
+#[cfg(unix)]
 #[test]
 fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
     with_harness_context(|mut context| {
@@ -353,33 +326,23 @@ fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
         context.destack_fs_mkdir(dir, FileMode(0o755))?;
 
         // create fifo-style node through mknod
-        #[cfg(unix)]
         let node_mode = FileMode((libc::S_IFIFO as u32) | 0o644);
-        #[cfg(windows)]
-        let node_mode = FileMode(0o644);
         let node = context.path_bytes(&node_path);
         let mknod_result = context.destack_fs_mknod(node, node_mode, NodeDevice(0));
 
         // enforce platform behavior for mknod fifo nodes
-        #[cfg(unix)]
-        {
-            if let Err(error) = mknod_result {
-                assert_platform_error_codes::<()>(
-                    Err(error),
-                    &[
-                        PlatformErrorCode::IoPermissionDenied,
-                        PlatformErrorCode::NotSupported,
-                    ],
-                )?;
-            } else {
-                let node = context.path_bytes(&node_path);
-                let stat = context.destack_fs_stat(node)?;
-                assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
-            }
-        }
-        #[cfg(windows)]
-        {
-            assert_platform_error_codes(mknod_result, &[PlatformErrorCode::NotSupported])?;
+        if let Err(error) = mknod_result {
+            assert_platform_error_codes_with_privileged_policy::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::IoPermissionDenied,
+                    PlatformErrorCode::NotSupported,
+                ],
+            )?;
+        } else {
+            let node = context.path_bytes(&node_path);
+            let stat = context.destack_fs_stat(node)?;
+            assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
         }
 
         // create fifo-style node through mknodat
@@ -390,41 +353,31 @@ fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
             context.destack_fs_mknodat(directory, node_relative, node_mode, NodeDevice(0));
 
         // enforce platform behavior for mknodat fifo nodes
-        #[cfg(unix)]
-        {
-            if let Err(error) = mknodat_result {
-                assert_platform_error_codes::<()>(
-                    Err(error),
-                    &[
-                        PlatformErrorCode::IoPermissionDenied,
-                        PlatformErrorCode::NotSupported,
-                    ],
-                )?;
-            } else {
-                let node = context.path_bytes(&temp_dir.join("nodeat.pipe"));
-                let stat = context.destack_fs_stat(node)?;
-                assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
-            }
-        }
-        #[cfg(windows)]
-        {
-            assert_platform_error_codes(mknodat_result, &[PlatformErrorCode::NotSupported])?;
+        if let Err(error) = mknodat_result {
+            assert_platform_error_codes_with_privileged_policy::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::IoPermissionDenied,
+                    PlatformErrorCode::NotSupported,
+                ],
+            )?;
+        } else {
+            let node = context.path_bytes(&temp_dir.join("nodeat.pipe"));
+            let stat = context.destack_fs_stat(node)?;
+            assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
         }
 
         // cleanup created nodes and directory resources
         context.destack_fs_closedir(directory)?;
-        #[cfg(unix)]
-        {
-            let nodeat_path = temp_dir.join("nodeat.pipe");
-            if nodeat_path.exists() {
-                let node = context.path_bytes(&nodeat_path);
-                context.destack_fs_unlink(node)?;
-            }
+        let nodeat_path = temp_dir.join("nodeat.pipe");
+        if nodeat_path.exists() {
+            let node = context.path_bytes(&nodeat_path);
+            context.destack_fs_unlink(node)?;
+        }
 
-            if node_path.exists() {
-                let node = context.path_bytes(&node_path);
-                context.destack_fs_unlink(node)?;
-            }
+        if node_path.exists() {
+            let node = context.path_bytes(&node_path);
+            context.destack_fs_unlink(node)?;
         }
         let dir = context.path_bytes(&temp_dir);
         context.destack_fs_rmdir(dir)?;
@@ -444,7 +397,7 @@ fn test_fs_tee_vmsplice_invalid_handle_contract() {
         let payload = context.bytes_slices_value(&payload)?;
 
         // tee must return one explicit unsupported or invalid-handle style error
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_tee(invalid_pipe, invalid_pipe, FileSize(64), SpliceFlags(0)),
             &[
                 PlatformErrorCode::NotSupported,
@@ -456,7 +409,7 @@ fn test_fs_tee_vmsplice_invalid_handle_contract() {
         )?;
 
         // vmsplice must return one explicit unsupported or invalid-handle style error
-        assert_platform_error_codes(
+        assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_vmsplice(invalid_pipe, payload, SpliceFlags(0)),
             &[
                 PlatformErrorCode::NotSupported,

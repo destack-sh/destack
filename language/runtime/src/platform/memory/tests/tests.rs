@@ -2,11 +2,13 @@
 
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::diagnostic::PlatformErrorCode;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::memory;
 use crate::platform::memory::MemoryRange;
-use crate::platform::{PlatformError, memory};
 use crate::runtime::BindingCallContext;
+pub(crate) use crate::tests::platform::{
+    assert_ok_or_expected_error, assert_platform_error_codes, result_or_skip_not_supported,
+};
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
@@ -123,63 +125,6 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
-}
-
-/// Extract one platform error code from one failed result.
-pub(crate) fn error_code<T>(result: RuntimeResult<T>) -> RuntimeResult<PlatformErrorCode> {
-    // normalize successful result into one expected test failure
-    match result {
-        Ok(_) => Err(
-            RuntimeError::from(PlatformError::invalid_argument("operation should fail")).boxed(),
-        ),
-        Err(error) => {
-            // extract platform error code payload from runtime error
-            let platform = error.platform_error().ok_or_else(|| {
-                RuntimeError::from(PlatformError::invalid_argument(
-                    "missing platform error payload",
-                ))
-                .boxed()
-            })?;
-            Ok(platform.code)
-        }
-    }
-}
-
-/// Assert one failed result with one code from the allowed set.
-pub(crate) fn assert_platform_error_codes<T>(
-    result: RuntimeResult<T>,
-    expected: &[PlatformErrorCode],
-) -> RuntimeResult<()> {
-    // resolve platform error code and assert one of the expected values
-    let actual = error_code(result)?;
-    assert!(
-        expected.contains(&actual),
-        "unexpected platform error code {actual:?}, expected one of {expected:?}"
-    );
-
-    Ok(())
-}
-
-/// Assert one result is ok or fails with one expected platform error code.
-pub(crate) fn assert_ok_or_expected_error<T>(
-    result: RuntimeResult<T>,
-    expected: &[PlatformErrorCode],
-) -> RuntimeResult<Option<T>> {
-    // accept either success or one allowed platform error code
-    match result {
-        Ok(value) => Ok(Some(value)),
-        Err(error) => {
-            let Some(code) = error.platform_error().map(|platform| platform.code) else {
-                return Err(error);
-            };
-
-            if expected.contains(&code) {
-                return Ok(None);
-            }
-
-            Err(error)
-        }
-    }
 }
 
 /// Decode one harness value where native and vm payloads are the same ABI type.

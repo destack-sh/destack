@@ -1,5 +1,5 @@
 use super::{
-    assert_platform_error_code, assert_platform_error_codes, clock_metadata_from_value,
+    assert_platform_error_codes, clock_metadata_from_value, result_or_skip_not_supported,
     with_harness_context,
 };
 
@@ -55,21 +55,9 @@ fn test_time_clock_metadata_for_wall_and_monotonic() {
 #[test]
 fn test_time_cpu_clocks() {
     with_harness_context(|mut context| {
-        let process_result = context.destack_time_process_cpu_ns();
-        match process_result {
-            Ok(_value) => {}
-            Err(error) => {
-                assert_platform_error_code::<u64>(Err(error), PlatformErrorCode::NotSupported)?;
-            }
-        }
+        let _ = result_or_skip_not_supported(context.destack_time_process_cpu_ns())?;
 
-        let thread_result = context.destack_time_thread_cpu_ns();
-        match thread_result {
-            Ok(_value) => {}
-            Err(error) => {
-                assert_platform_error_code::<u64>(Err(error), PlatformErrorCode::NotSupported)?;
-            }
-        }
+        let _ = result_or_skip_not_supported(context.destack_time_thread_cpu_ns())?;
 
         Ok(())
     });
@@ -80,15 +68,8 @@ fn test_time_cpu_clocks() {
 #[test]
 fn test_time_extended_clock_samples() {
     with_harness_context(|mut context| {
-        let boot_result = context.destack_time_now_ns(ClockId::Boot);
-        if let Err(error) = boot_result {
-            assert_platform_error_code::<u64>(Err(error), PlatformErrorCode::NotSupported)?;
-        }
-
-        let raw_result = context.destack_time_now_ns(ClockId::MonotonicRaw);
-        if let Err(error) = raw_result {
-            assert_platform_error_code::<u64>(Err(error), PlatformErrorCode::NotSupported)?;
-        }
+        let _ = result_or_skip_not_supported(context.destack_time_now_ns(ClockId::Boot))?;
+        let _ = result_or_skip_not_supported(context.destack_time_now_ns(ClockId::MonotonicRaw))?;
 
         Ok(())
     });

@@ -1,6 +1,12 @@
 #[cfg(windows)]
+use super::assert_not_supported_result;
+#[cfg(windows)]
 use super::with_harness_context_with_runtime_options;
-use super::{assert_platform_error_code, assert_platform_error_codes, with_harness_context};
+use super::{
+    assert_platform_error_code_with_privileged_policy,
+    assert_platform_error_codes_with_privileged_policy, with_harness_context,
+};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
     PacketBackend, PacketBackendSelectionPolicy, PacketCaptureOptions, PacketCaptureOptionsVm,
@@ -22,47 +28,52 @@ const RAW_PROTOCOL: i32 = libc::IPPROTO_RAW;
 #[cfg(windows)]
 const RAW_PROTOCOL: i32 = IPPROTO_RAW as i32;
 
+/// Assert one packet-control call fails with one explicit invalid-handle or unsupported contract.
+fn assert_packet_control_error<T>(result: RuntimeResult<T>) -> RuntimeResult<()> {
+    assert_platform_error_codes_with_privileged_policy(
+        result,
+        &[
+            PlatformErrorCode::NotSupported,
+            PlatformErrorCode::IoInvalidData,
+            PlatformErrorCode::IoPermissionDenied,
+            PlatformErrorCode::NetAddressNotAvailable,
+            PlatformErrorCode::InvalidArgumentValue,
+            PlatformErrorCode::Net,
+            PlatformErrorCode::Io,
+            PlatformErrorCode::IoWouldBlock,
+        ],
+    )
+}
+
 /// Return route-list snapshots where supported and surface notSupported elsewhere.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 #[test]
 fn test_net_route_list_support_matches_platform() {
     with_harness_context(|mut context| {
         let result = context.destack_net_route_list(SocketFamily::IPv4);
-
-        #[cfg(any(target_os = "linux", target_os = "macos", windows))]
-        {
-            let _routes = result?;
-        }
-
-        #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-        {
-            assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
-        }
+        let _routes = result?;
 
         Ok(())
     });
 }
 
 /// Reject unspecified route-list family on supported route backends.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 #[test]
 fn test_net_route_list_rejects_unspecified_family_when_backend_is_available() {
     with_harness_context(|mut context| {
         let result = context.destack_net_route_list(SocketFamily::Unspecified);
-
-        #[cfg(any(target_os = "linux", target_os = "macos", windows))]
-        {
-            assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
-        }
-
-        #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-        {
-            assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
-        }
+        assert_platform_error_code_with_privileged_policy(
+            result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
 
         Ok(())
     });
 }
 
 /// Reject packet-open promiscuous mode without one interface index on Linux.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 #[test]
 fn test_net_packet_open_requires_interface_for_promiscuous_mode() {
     with_harness_context(|mut context| {
@@ -80,16 +91,10 @@ fn test_net_packet_open_requires_interface_for_promiscuous_mode() {
             context.harness_value(options)
         };
         let result = context.destack_net_packet_open(options);
-
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
-        {
-            assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
-        }
-
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-        {
-            assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
-        }
+        assert_platform_error_code_with_privileged_policy(
+            result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
 
         Ok(())
     });
@@ -117,7 +122,7 @@ fn test_net_packet_open_windows_reports_not_supported_when_backend_disabled() {
             };
             let result = context.destack_net_packet_open(options);
 
-            assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+            assert_not_supported_result(result)?;
 
             Ok(())
         },
@@ -149,7 +154,10 @@ fn test_net_packet_open_windows_enabled_runs_backend_validation() {
             };
             let result = context.destack_net_packet_open(options);
 
-            assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
+            assert_platform_error_code_with_privileged_policy(
+                result,
+                PlatformErrorCode::InvalidArgumentValue,
+            )?;
 
             Ok(())
         },
@@ -188,7 +196,7 @@ fn test_net_route_add_delete_ipv6_rejects_invalid_prefix_length() {
                 }),
             _ => unreachable!("mixed harness values are not possible"),
         };
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_net_route_add(route),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
@@ -220,7 +228,7 @@ fn test_net_route_add_delete_ipv6_rejects_invalid_prefix_length() {
                 }),
             _ => unreachable!("mixed harness values are not possible"),
         };
-        assert_platform_error_code(
+        assert_platform_error_code_with_privileged_policy(
             context.destack_net_route_delete(route),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
@@ -239,7 +247,7 @@ fn test_net_raw_socket_and_header_included_lanes() {
         let socket = match socket {
             Ok(socket) => socket,
             Err(error) => {
-                assert_platform_error_codes::<SocketHandle>(
+                assert_platform_error_codes_with_privileged_policy::<SocketHandle>(
                     Err(error),
                     &[
                         PlatformErrorCode::IoPermissionDenied,
@@ -259,7 +267,7 @@ fn test_net_raw_socket_and_header_included_lanes() {
         // toggle header-included mode or report explicit unsupported outcomes
         let header_result = context.destack_net_raw_set_header_included(socket, true);
         if let Err(error) = header_result {
-            assert_platform_error_codes::<()>(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
                 &[
                     PlatformErrorCode::NotSupported,
@@ -322,152 +330,43 @@ fn test_net_packet_control_invalid_handle_contracts() {
         let filter_payload = context.bytes_slice_value(&[0x06, 0x00, 0x00, 0x00])?;
 
         // packet timestamping mode
-        assert_platform_error_codes(
+        assert_packet_control_error(
             context.destack_net_packet_set_timestamp_mode(
                 invalid_socket,
                 PacketTimestampMode::Software,
             ),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
         )?;
 
         // packet filter lanes
-        assert_platform_error_codes(
+        assert_packet_control_error(
             context.destack_net_packet_set_filter(invalid_socket, filter_payload),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
         )?;
-        assert_platform_error_codes(
-            context.destack_net_packet_clear_filter(invalid_socket),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
-        )?;
+        assert_packet_control_error(context.destack_net_packet_clear_filter(invalid_socket))?;
 
         // packet fanout lanes
-        assert_platform_error_codes(
+        assert_packet_control_error(
             context.destack_net_packet_set_fanout(invalid_socket, fanout_options),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
         )?;
-        assert_platform_error_codes(
-            context.destack_net_packet_clear_fanout(invalid_socket),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
-        )?;
+        assert_packet_control_error(context.destack_net_packet_clear_fanout(invalid_socket))?;
 
         // packet ring lanes
-        assert_platform_error_codes(
+        assert_packet_control_error(
             context.destack_net_packet_set_rx_ring(invalid_socket, ring_options_rx),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
         )?;
-        assert_platform_error_codes(
+        assert_packet_control_error(
             context.destack_net_packet_set_tx_ring(invalid_socket, ring_options_tx),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
         )?;
-        assert_platform_error_codes(
-            context.destack_net_packet_clear_ring(invalid_socket),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
-        )?;
+        assert_packet_control_error(context.destack_net_packet_clear_ring(invalid_socket))?;
 
         // packet data and stats lanes
-        assert_platform_error_codes(
+        assert_packet_control_error(
             context.destack_net_packet_receive(invalid_socket, packet_payload),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-                PlatformErrorCode::IoWouldBlock,
-            ],
         )?;
         let packet_payload = context.bytes_slice_value(b"destack-packet")?;
-        assert_platform_error_codes(
+        assert_packet_control_error(
             context.destack_net_packet_send(invalid_socket, packet_payload),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-                PlatformErrorCode::IoWouldBlock,
-            ],
         )?;
-        assert_platform_error_codes(
-            context.destack_net_packet_stats(invalid_socket),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NetAddressNotAvailable,
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
-        )?;
+        assert_packet_control_error(context.destack_net_packet_stats(invalid_socket))?;
 
         Ok(())
     });

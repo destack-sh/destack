@@ -1,5 +1,5 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{assert_platform_error_codes, temp_dir, with_harness_context};
+use super::{assert_platform_error_codes_with_privileged_policy, temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{FileMode, OpenFlags, SymlinkType, XattrFlags};
 
@@ -244,7 +244,10 @@ fn test_fs_xattr_bytes_rejects_nul_name() {
             context.bytes_slice_value(b"value")?,
             XattrFlags(0),
         );
-        assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])?;
+        assert_platform_error_codes_with_privileged_policy(
+            result,
+            &[PlatformErrorCode::InvalidArgumentValue],
+        )?;
 
         let file = context.path_bytes(&file_path);
         context.destack_fs_unlink(file)?;

@@ -3,24 +3,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
     HostIdentity, HostIdentityVm, LoadAverage, LoadAverageVm, SystemSnapshot, SystemSnapshotVm,
 };
+pub(super) use crate::tests::platform::assert_not_supported_error;
 
 use super::{HarnessValue, OsHarnessContext};
 
 /// Return one raw VM context pointer when this harness run uses VM bindings.
 fn vm_context_pointer(context: &OsHarnessContext<'_>) -> Option<*mut ()> {
     context.vm_context
-}
-
-/// Assert one platform error code from one runtime error payload.
-pub(super) fn assert_platform_error_code(error: &RuntimeError, code: PlatformErrorCode) {
-    let platform_error = error
-        .platform_error()
-        .expect("expected one platform error payload");
-    assert_eq!(platform_error.code, code);
 }
 
 /// Return current unix time in nanoseconds.

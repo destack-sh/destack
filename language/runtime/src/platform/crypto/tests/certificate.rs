@@ -1,4 +1,7 @@
-use super::with_harness_context;
+use super::{
+    assert_not_not_supported_platform_code, assert_not_supported_platform_code,
+    with_harness_context,
+};
 #[cfg(target_os = "macos")]
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
@@ -6,7 +9,6 @@ use crate::platform::crypto::{
     CryptoCertificateQuery, CryptoCertificateRevocationMode, CryptoCertificateVerifyIdentity,
     CryptoCertificateVerifyRequest, CryptoStoreKind, CryptoStoreProvider,
 };
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource;
 #[cfg(target_os = "macos")]
 use openssl::sha::sha256;
@@ -181,9 +183,9 @@ fn test_certificate_import_follows_host_store_write_behavior() {
                         .platform_error()
                         .expect("certificate.import error should contain one platform error");
                     if capability.supports_certificate_import {
-                        assert_ne!(platform.code, PlatformErrorCode::NotSupported);
+                        assert_not_not_supported_platform_code(platform.code);
                     } else {
-                        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                        assert_not_supported_platform_code(platform.code);
                     }
 
                     None
@@ -222,9 +224,9 @@ fn test_certificate_import_follows_host_store_write_behavior() {
                             .platform_error()
                             .expect("certificate.delete error should contain one platform error");
                         if capability.supports_certificate_delete {
-                            assert_ne!(platform.code, PlatformErrorCode::NotSupported);
+                            assert_not_not_supported_platform_code(platform.code);
                         } else {
-                            assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                            assert_not_supported_platform_code(platform.code);
                         }
                     }
                 }

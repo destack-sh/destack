@@ -10,7 +10,10 @@ use super::core::{
     event_batch_sequence_rows, harness_event_options, open_null_duplex_stream,
     open_null_playback_stream,
 };
-use super::{assert_ok_or_expected_error, assert_platform_error_code, with_harness_context};
+use super::{
+    assert_code_is_not_not_supported, assert_not_supported_result, assert_ok_or_expected_error,
+    assert_platform_error_code, error_code_from_runtime_error, with_harness_context,
+};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{AudioStreamHandle, ResourceId};
 
@@ -148,10 +151,7 @@ fn test_audio_event_open_native_only_rejects_unavailable_device_lanes() {
         event_options.delivery_mode = AudioEventDeliveryMode::NativeOnly;
 
         let event_options = harness_event_options(&mut context, event_options);
-        assert_platform_error_code(
-            context.destack_audio_event_open(event_options),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_event_open(event_options))?;
 
         Ok(())
     });
@@ -165,10 +165,7 @@ fn test_audio_event_open_native_only_rejects_default_all_flags_subscription() {
         event_options.delivery_mode = AudioEventDeliveryMode::NativeOnly;
 
         let event_options = harness_event_options(&mut context, event_options);
-        assert_platform_error_code(
-            context.destack_audio_event_open(event_options),
-            PlatformErrorCode::NotSupported,
-        )?;
+        assert_not_supported_result(context.destack_audio_event_open(event_options))?;
 
         Ok(())
     });
@@ -192,7 +189,7 @@ fn test_audio_event_open_native_only_accepts_coreaudio_device_lanes_when_availab
                 Ok(())
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound)
                     || code == Some(PlatformErrorCode::IoPermissionDenied)
                     || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -201,11 +198,10 @@ fn test_audio_event_open_native_only_accepts_coreaudio_device_lanes_when_availab
                     return Ok(());
                 }
 
-                assert_ne!(
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "CoreAudio native-only device subscriptions should not report notSupported",
-                );
+                )?;
                 Err(error)
             }
         }
@@ -230,7 +226,7 @@ fn test_audio_event_open_native_only_accepts_wasapi_device_lanes_when_available(
                 Ok(())
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound)
                     || code == Some(PlatformErrorCode::IoPermissionDenied)
                     || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -239,11 +235,10 @@ fn test_audio_event_open_native_only_accepts_wasapi_device_lanes_when_available(
                     return Ok(());
                 }
 
-                assert_ne!(
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "WASAPI native-only device subscriptions should not report notSupported",
-                );
+                )?;
                 Err(error)
             }
         }
@@ -268,7 +263,7 @@ fn test_audio_event_open_native_only_accepts_jack_device_lanes_when_available() 
                 Ok(())
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound)
                     || code == Some(PlatformErrorCode::IoPermissionDenied)
                     || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -277,11 +272,10 @@ fn test_audio_event_open_native_only_accepts_jack_device_lanes_when_available() 
                     return Ok(());
                 }
 
-                assert_ne!(
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "JACK native-only device subscriptions should not report notSupported",
-                );
+                )?;
                 Err(error)
             }
         }
@@ -306,7 +300,7 @@ fn test_audio_event_open_native_only_accepts_pulseaudio_device_lanes_when_availa
                 Ok(())
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound)
                     || code == Some(PlatformErrorCode::IoPermissionDenied)
                     || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -316,11 +310,10 @@ fn test_audio_event_open_native_only_accepts_pulseaudio_device_lanes_when_availa
                     return Ok(());
                 }
 
-                assert_ne!(
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "PulseAudio native-only device subscriptions should not report notSupported",
-                );
+                )?;
                 Err(error)
             }
         }
@@ -345,7 +338,7 @@ fn test_audio_event_open_native_only_accepts_pipewire_device_lanes_when_availabl
                 Ok(())
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound)
                     || code == Some(PlatformErrorCode::IoPermissionDenied)
                     || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -355,11 +348,10 @@ fn test_audio_event_open_native_only_accepts_pipewire_device_lanes_when_availabl
                     return Ok(());
                 }
 
-                assert_ne!(
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "PipeWire native-only device subscriptions should not report notSupported",
-                );
+                )?;
                 Err(error)
             }
         }
@@ -384,7 +376,7 @@ fn test_audio_event_open_native_only_accepts_alsa_device_lanes_when_available() 
                 Ok(())
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound)
                     || code == Some(PlatformErrorCode::IoPermissionDenied)
                     || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -394,11 +386,10 @@ fn test_audio_event_open_native_only_accepts_alsa_device_lanes_when_available() 
                     return Ok(());
                 }
 
-                assert_ne!(
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "ALSA native-only device subscriptions should not report notSupported",
-                );
+                )?;
                 Err(error)
             }
         }
@@ -432,7 +423,7 @@ fn test_audio_event_open_native_only_accepts_asio_device_lanes_when_available() 
                 Ok(())
             }
             Err(error) => {
-                let code = error.platform_error().map(|platform| platform.code);
+                let code = error_code_from_runtime_error(&error);
                 if code == Some(PlatformErrorCode::IoNotFound)
                     || code == Some(PlatformErrorCode::IoPermissionDenied)
                     || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -442,11 +433,10 @@ fn test_audio_event_open_native_only_accepts_asio_device_lanes_when_available() 
                     return Ok(());
                 }
 
-                assert_ne!(
+                assert_code_is_not_not_supported(
                     code,
-                    Some(PlatformErrorCode::NotSupported),
                     "ASIO native-only device subscriptions should not report notSupported",
-                );
+                )?;
                 Err(error)
             }
         }
@@ -702,7 +692,7 @@ fn test_audio_event_open_matches_backend_advertised_device_subscription_flags() 
                             context.destack_audio_event_close(events)?;
                         }
                         Err(error) => {
-                            let code = error.platform_error().map(|platform| platform.code);
+                            let code = error_code_from_runtime_error(&error);
                             if code == Some(PlatformErrorCode::IoNotFound)
                                 || code == Some(PlatformErrorCode::IoPermissionDenied)
                                 || code == Some(PlatformErrorCode::AudioUnavailable)
@@ -711,16 +701,17 @@ fn test_audio_event_open_matches_backend_advertised_device_subscription_flags() 
                                 continue;
                             }
 
-                            assert_ne!(
+                            assert_code_is_not_not_supported(
                                 code,
-                                Some(PlatformErrorCode::NotSupported),
-                                "backend {backend:?} advertises {label} subscription support but event.open returned notSupported",
-                            );
+                                &format!(
+                                    "backend {backend:?} advertises {label} subscription support but event.open returned notSupported"
+                                ),
+                            )?;
                             return Err(error);
                         }
                     }
                 } else {
-                    assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+                    assert_not_supported_result(result)?;
                 }
             }
         }

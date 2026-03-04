@@ -1,13 +1,9 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{assert_platform_error_codes, temp_dir, with_harness_context};
+use super::{assert_platform_error_codes_with_privileged_policy, temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{AccessMode, AtFlags, FileMode, OpenFlags};
+use crate::tests::platform::is_privileged_test_mode;
 use std::path::Path;
-
-fn is_privileged_test_mode() -> bool {
-    let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
-    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
-}
 
 /// Check write access behavior before and after chmod mode changes.
 #[cfg(unix)]
@@ -43,7 +39,7 @@ fn test_fs_access_and_chmod() {
             }
 
             let file = context.path_bytes(&file_path);
-            assert_platform_error_codes(
+            assert_platform_error_codes_with_privileged_policy(
                 context.destack_fs_access(file, AccessMode(0o222)),
                 &[PlatformErrorCode::IoPermissionDenied, PlatformErrorCode::Io],
             )?;

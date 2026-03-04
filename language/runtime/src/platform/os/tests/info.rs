@@ -1,9 +1,8 @@
 use super::core::{
-    assert_platform_error_code, decode_load_average_value, decode_system_snapshot_value,
+    assert_not_supported_error, decode_load_average_value, decode_system_snapshot_value,
     now_unix_ns,
 };
 use super::with_harness_context;
-use crate::platform::diagnostic::PlatformErrorCode;
 
 /// Verify system snapshot fields are structurally valid across native and VM bindings.
 #[cfg(any(unix, windows))]
@@ -61,7 +60,7 @@ fn test_load_average_behavior() {
                 Ok(_) => panic!("loadAverage should report notSupported on windows"),
                 Err(error) => error,
             };
-            assert_platform_error_code(&error, PlatformErrorCode::NotSupported);
+            assert_not_supported_error(&error);
             return Ok(());
         }
 

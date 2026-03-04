@@ -12,7 +12,6 @@ use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{
     OsPath, OsPathBytes, OsPathBytesVm, OsPathUtf16, OsPathUtf16Vm, OsPathVm, PathBytesAbi,
     PathUtf16Abi,
@@ -26,6 +25,12 @@ use crate::platform::{
     NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
 };
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+#[cfg(windows)]
+pub(crate) use crate::tests::platform::assert_not_supported_result;
+pub(crate) use crate::tests::platform::{
+    assert_platform_error_code_with_privileged_policy,
+    assert_platform_error_codes_with_privileged_policy,
+};
 use crate::tests::runtime::TestRuntime;
 use platform_net::{
     KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, ResolveFlags, ResolveQuery,
@@ -292,79 +297,6 @@ impl<'call> NetHarnessContext<'call> {
                 Ok((pair.first, pair.second))
             }
         }
-    }
-}
-
-/// Assert one result failed with one exact platform error code.
-pub(crate) fn assert_platform_error_code<T>(
-    result: RuntimeResult<T>,
-    expected: PlatformErrorCode,
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert_no_permission_denied_in_privileged_mode(platform.code, &[expected]);
-    assert_eq!(platform.code, expected);
-
-    Ok(())
-}
-
-/// Assert one result failed with one of the expected platform error codes.
-pub(crate) fn assert_platform_error_codes<T>(
-    result: RuntimeResult<T>,
-    expected: &[PlatformErrorCode],
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert_no_permission_denied_in_privileged_mode(platform.code, expected);
-    assert!(
-        expected.contains(&platform.code),
-        "unexpected platform error code: {:?}, expected one of {:?}",
-        platform.code,
-        expected,
-    );
-
-    Ok(())
-}
-
-/// Return true when privileged test mode is enabled.
-fn is_privileged_test_mode() -> bool {
-    let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
-    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
-}
-
-/// Return true when one platform code represents a permission denial.
-fn is_permission_denied_code(code: PlatformErrorCode) -> bool {
-    matches!(
-        code,
-        PlatformErrorCode::IoPermissionDenied
-            | PlatformErrorCode::ProcessPermissionDenied
-            | PlatformErrorCode::SecurityDenied
-    )
-}
-
-/// Fail privileged runs when assertions observe permission-denied errors.
-fn assert_no_permission_denied_in_privileged_mode(
-    observed: PlatformErrorCode,
-    expected: &[PlatformErrorCode],
-) {
-    if !is_privileged_test_mode() {
-        return;
-    }
-
-    if is_permission_denied_code(observed) {
-        panic!(
-            "permission-denied error {observed:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {expected:?})",
-        );
     }
 }
 
