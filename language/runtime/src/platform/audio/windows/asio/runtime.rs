@@ -6,10 +6,10 @@ use super::abi::{
     asio_driver_get_buffer_size, asio_driver_get_channels, asio_driver_get_latencies,
     asio_driver_get_sample_rate, asio_driver_set_sample_rate,
 };
+use super::callback::install_active_runtime;
 use super::constants::{ASE_OK, ASIO_FALSE, ASIO_TRUE};
 use super::core::{
     AsioBufferLane, AsioDirectionLane, AsioHostStreamOps, AsioStreamRuntime, asio_error,
-    install_active_runtime,
 };
 use super::host::{
     driver_by_key_name, open_session, query_channel_descriptor, resolve_buffer_size,
