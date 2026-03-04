@@ -200,4 +200,56 @@ mod tests {
             .assert_lint_count("no-sparse-arrays", 2)
             .assert_safe_fixed("const arr = [1, undefined, undefined, 4];");
     }
+
+    #[test]
+    fn test_detects_sparse_single_hole_array() {
+        let test = TestProgram::for_rule_without_prelude(NoSparseArrays);
+        let result = test.lint_ast(
+            "no_sparse_arrays/test_detects_sparse_single_hole_array.ts",
+            "const arr = [,];",
+        );
+        test.result(result).assert_lint("no-sparse-arrays");
+    }
+
+    #[test]
+    fn test_detects_sparse_array_before_trailing_comma() {
+        let test = TestProgram::for_rule_without_prelude(NoSparseArrays);
+        let result = test.lint_ast(
+            "no_sparse_arrays/test_detects_sparse_array_before_trailing_comma.ts",
+            "const arr = [1,,];",
+        );
+        test.result(result).assert_lint("no-sparse-arrays");
+    }
+
+    #[test]
+    fn test_detects_nested_sparse_arrays() {
+        let test = TestProgram::for_rule_without_prelude(NoSparseArrays);
+        let result = test.lint_ast(
+            "no_sparse_arrays/test_detects_nested_sparse_arrays.ts",
+            "const arr = [[,], [1,,2]];",
+        );
+        test.result(result).assert_lint_count("no-sparse-arrays", 2);
+    }
+
+    #[test]
+    fn test_allows_mixed_spread_without_hole() {
+        let test = TestProgram::for_rule_without_prelude(NoSparseArrays);
+        let result = test.lint_ast(
+            "no_sparse_arrays/test_allows_mixed_spread_without_hole.ts",
+            "const arr = [...values, 1];",
+        );
+        test.result(result).assert_no_lint("no-sparse-arrays");
+    }
+
+    #[test]
+    fn test_detects_mixed_spread_with_hole() {
+        let test = TestProgram::for_rule_without_prelude(NoSparseArrays);
+        let result = test.lint_ast(
+            "no_sparse_arrays/test_detects_mixed_spread_with_hole.ts",
+            "const arr = [...values, , 2];",
+        );
+        test.result(result)
+            .assert_lint("no-sparse-arrays")
+            .assert_safe_fixed("const arr = [...values, undefined, 2];");
+    }
 }
