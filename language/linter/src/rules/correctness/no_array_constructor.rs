@@ -115,7 +115,9 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
             "replace this {} with an array literal",
             constructor_call.kind
         ));
-        if let Some(fix) = self.array_constructor_fix(expression_id, constructor_call) {
+        if self.ctx.include_fixes
+            && let Some(fix) = self.array_constructor_fix(expression_id, constructor_call)
+        {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -136,22 +138,32 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
             return None;
         }
 
-        // skip single argument constructors: `Array(3)` is not `[3]`
+        // skip single non spread constructors: `Array(3)` is not `[3]`
         if constructor_call.dynamic_arguments.len() == 1 {
-            return None;
+            let argument = self.ctx.tree.get(constructor_call.dynamic_arguments[0]);
+            if !matches!(argument, dir::Argument::Spread { .. }) {
+                return None;
+            }
         }
 
-        // collect positional arguments in order
+        // collect positional and spread arguments in order
         let mut elements = Vec::new();
         for argument_id in constructor_call.dynamic_arguments {
             let argument = self.ctx.tree.get(*argument_id);
-            let dir::Argument::Positional { value, .. } = argument else {
-                return None;
+            let element = match argument {
+                dir::Argument::Positional { value, .. } => {
+                    let value_span = self.ctx.get_span(*value);
+                    let value_text = self.ctx.get_span_text(value_span);
+                    value_text.to_string()
+                }
+                dir::Argument::Spread { value, .. } => {
+                    let value_span = self.ctx.get_span(*value);
+                    let value_text = self.ctx.get_span_text(value_span);
+                    format!("...{value_text}")
+                }
+                _ => return None,
             };
-
-            let value_span = self.ctx.get_span(*value);
-            let value_text = self.ctx.get_span_text(value_span);
-            elements.push(value_text.to_string());
+            elements.push(element);
         }
 
         // build literal replacement
@@ -174,10 +186,12 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
 }
 
 impl NodeVisitor for ArrayConstructorVisitor<'_, '_> {
+    /// Return visitor options.
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
 
+    /// Visit an expression node.
     fn visit_expression(
         &mut self,
         tree: &dir::NodeTree,
@@ -372,5 +386,47 @@ let items = Array(3);
         test.result(result)
             .assert_lint("no-array-constructor")
             .assert_has_no_fix("no-array-constructor");
+    }
+
+    #[test]
+    fn test_fix_array_constructor_single_spread_argument() {
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
+            "no_array_constructor/test_fix_array_constructor_single_spread_argument.ds",
+            r#"
+let args = [1, 2, 3];
+let items = Array(...args);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-constructor")
+            .assert_has_fix("no-array-constructor")
+            .assert_safe_fixed(
+                r#"
+let args = [1, 2, 3];
+let items = [...args];
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_array_constructor_mixed_arguments_with_spread() {
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
+            "no_array_constructor/test_fix_array_constructor_mixed_arguments_with_spread.ds",
+            r#"
+let args = [2, 3];
+let items = new Array(1, ...args);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-array-constructor")
+            .assert_has_fix("no-array-constructor")
+            .assert_safe_fixed(
+                r#"
+let args = [2, 3];
+let items = [1, ...args];
+"#,
+            );
     }
 }
