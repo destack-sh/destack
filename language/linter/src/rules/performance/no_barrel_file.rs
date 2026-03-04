@@ -1,4 +1,5 @@
 use destack_ast::{self as ast, Expression};
+use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -39,56 +40,59 @@ impl LintRule for NoBarrelFile {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        let meta = self.meta();
-        let mut export_count = 0;
-        let mut reexport_count = 0;
-        let mut has_other_code = false;
-        let mut first_export_id: Option<ast::LocalNodeId<ast::Expression>> = None;
+        if module_is_declaration_file(ctx) {
+            return;
+        }
 
-        // count exports and check for other code
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        let meta = self.meta();
+        let mut first_value_reexport_id: Option<ast::LocalNodeId<ast::Expression>> = None;
+        let mut has_non_reexport_code = false;
+
+        // classify top-level expressions as value re-exports or regular module code
+        for &node_id in ctx.roots {
+            let expression_id = match ctx.tree.get(node_id) {
+                Expression::Statement(inner_expression_id) => *inner_expression_id,
+                _ => node_id,
+            };
+            let expression = ctx.tree.get(expression_id);
             match expression {
-                Expression::Export { target, .. } => {
-                    export_count += 1;
-                    if first_export_id.is_none() {
-                        first_export_id = Some(node_id);
+                Expression::Export {
+                    kind,
+                    target,
+                    items,
+                    ..
+                } => {
+                    if target.is_some() && export_is_value_reexport(ctx, *kind, items.as_slice()) {
+                        if first_value_reexport_id.is_none() {
+                            first_value_reexport_id = Some(expression_id);
+                        }
+                        continue;
                     }
-                    // re-export if it has a target (from clause)
-                    if target.is_some() {
-                        reexport_count += 1;
-                    }
+
+                    has_non_reexport_code = true;
                 }
-                Expression::Import { .. } => {
-                    // imports are fine in barrel files
-                }
+                Expression::Import { .. } => {}
                 Expression::Declaration(_) => {
                     // declarations indicate real code
-                    has_other_code = true;
+                    has_non_reexport_code = true;
                 }
                 Expression::Let { .. } => {
                     // let bindings indicate real code
-                    has_other_code = true;
+                    has_non_reexport_code = true;
                 }
                 Expression::Using { .. } => {
                     // using bindings indicate real code
-                    has_other_code = true;
+                    has_non_reexport_code = true;
                 }
                 _ => {
                     // other top-level expressions are rare but indicate non-barrel (?)
+                    has_non_reexport_code = true;
                 }
             }
         }
 
-        // a barrel file has:
-        // 1. at least 2 exports (a single re-export is fine)
-        // 2. all exports are re-exports (have a target/from clause)
-        // 3. no other code besides imports
-        if export_count >= 2
-            && export_count == reexport_count
-            && !has_other_code
-            && let Some(node_id) = first_export_id
-        {
+        // report files that only re-export value bindings from other modules
+        if !has_non_reexport_code && let Some(node_id) = first_value_reexport_id {
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 return;
@@ -99,7 +103,7 @@ impl LintRule for NoBarrelFile {
                     NO_BARREL_FILE.code,
                     NO_BARREL_FILE.category,
                     severity,
-                    format!("barrel file with {export_count} re-exports hurts tree-shaking"),
+                    "barrel file re-exporting other modules hurts tree-shaking",
                     ctx.module.file_id,
                     ctx.tree.get_span(node_id),
                 )
@@ -107,6 +111,34 @@ impl LintRule for NoBarrelFile {
             );
         }
     }
+}
+
+/// Return true when one module path points to a declaration file.
+fn module_is_declaration_file(ctx: &LintModuleAstContext<'_>) -> bool {
+    matches!(
+        ctx.file.ty,
+        FileType::DestackDeclaration | FileType::TypeScriptDeclaration
+    )
+}
+
+/// Return true when one export-from clause re-exports runtime values.
+fn export_is_value_reexport(
+    ctx: &LintModuleAstContext<'_>,
+    kind: ast::DependencyKind,
+    items: &[ast::LocalNodeId<ast::DependencyItem>],
+) -> bool {
+    if kind == ast::DependencyKind::Type {
+        return false;
+    }
+
+    if items.is_empty() {
+        return true;
+    }
+
+    items.iter().any(|item_id| {
+        let item = ctx.tree.get(*item_id);
+        item.kind != Some(ast::DependencyKind::Type)
+    })
 }
 
 #[cfg(test)]
@@ -154,8 +186,7 @@ export { bar } from "./bar"
     }
 
     #[test]
-    fn test_allows_single_reexport() {
-        // a single re-export is fine, not considered a barrel file
+    fn test_flags_single_reexport() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
         let result = test.lint_ast(
             "index.ds",
@@ -163,7 +194,7 @@ export { bar } from "./bar"
 export * from "./foo"
 "#,
         );
-        test.result(result).assert_no_lint("no-barrel-file");
+        test.result(result).assert_lint("no-barrel-file");
     }
 
     #[test]
@@ -203,6 +234,31 @@ export const bar = 42
             r#"
 export { foo } from "./foo"
 export function bar() {}
+"#,
+        );
+        test.result(result).assert_no_lint("no-barrel-file");
+    }
+
+    #[test]
+    fn test_allows_type_only_reexports() {
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
+        let result = test.lint_ast(
+            "index.ds",
+            r#"
+export type * from "./foo";
+export type { Bar } from "./bar";
+"#,
+        );
+        test.result(result).assert_no_lint("no-barrel-file");
+    }
+
+    #[test]
+    fn test_allows_declaration_file_reexports() {
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
+        let result = test.lint_ast(
+            "index.d.ts",
+            r#"
+export * from "./foo";
 "#,
         );
         test.result(result).assert_no_lint("no-barrel-file");

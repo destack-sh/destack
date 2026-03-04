@@ -6,7 +6,7 @@ use destack_dir::{
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::is_array_type;
+use crate::rules::common::{is_array_type, strip_dot_member_suffix};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -276,7 +276,19 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
                 // check that bin_left is i
                 let bin_left_expr = self.ctx.tree.get(*bin_left);
                 if bin_left_expr.target_symbol() != Some(index_symbol) {
-                    return false;
+                    let bin_right_expr = self.ctx.tree.get(*bin_right);
+                    if bin_right_expr.target_symbol() != Some(index_symbol) {
+                        return false;
+                    }
+
+                    // check that bin_left is 1
+                    let bin_left_expr = self.ctx.tree.get(*bin_left);
+                    return matches!(
+                        bin_left_expr,
+                        dir::Expression::ScalarLiteral {
+                            value: dir::ScalarLiteral::Integer(1)
+                        }
+                    );
                 }
 
                 // check that bin_right is 1
@@ -406,6 +418,12 @@ impl NodeVisitor for IndexUseCollector {
                 if left_expr.target_symbol() == Some(self.array_symbol)
                     && index_expr.target_symbol() == Some(self.index_symbol)
                 {
+                    if index_expression_is_write_target(tree, id) {
+                        self.all_uses_are_indexing = false;
+                        self.found_any_use = true;
+                        return;
+                    }
+
                     self.found_any_use = true;
                     self.index_accesses.push(id);
                     // don't descend into children, we've handled this
@@ -427,10 +445,39 @@ impl NodeVisitor for IndexUseCollector {
     }
 }
 
-/// Strip one `.member` suffix from member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
+/// Return true when one `arr[i]` expression is used as a write target.
+fn index_expression_is_write_target(
+    tree: &dir::NodeTree,
+    expression_id: LocalNodeId<dir::Expression>,
+) -> bool {
+    let Some(parent_id) = tree.get_parent_id(expression_id.id) else {
+        return false;
+    };
+    if tree.get_node_type(parent_id) != dir::NodeType::Expression {
+        return false;
+    }
+    let parent_expression_id = LocalNodeId::<dir::Expression>::new(parent_id);
+    let parent_expression = tree.get(parent_expression_id);
+
+    if let dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } =
+        parent_expression
+    {
+        return *left == expression_id;
+    }
+
+    if let dir::Expression::Unary { operator, right } = parent_expression
+        && matches!(
+            operator,
+            dir::UnaryOperator::PreIncrement
+                | dir::UnaryOperator::PostIncrement
+                | dir::UnaryOperator::PreDecrement
+                | dir::UnaryOperator::PostDecrement
+        )
+    {
+        return *right == expression_id;
+    }
+
+    false
 }
 
 impl NodeVisitor for PreferForOfVisitor<'_, '_> {
@@ -507,6 +554,22 @@ for (let i = 0; i < items.length; i++) {
         test.result(result).assert_lint("prefer-for-of");
     }
 
+    /// Flag with increment written as i = 1 + i.
+    #[test]
+    fn test_flags_with_reversed_increment_assignment() {
+        let test = TestProgram::for_rule_with_prelude(PreferForOf);
+        let result = test.lint_dir(
+            "prefer_for_of/test_flags_with_reversed_increment_assignment.ds",
+            r#"
+let items = ["a", "b", "c"];
+for (let i = 0; i < items.length; i = 1 + i) {
+    console.log(items[i]);
+}
+"#,
+        );
+        test.result(result).assert_lint("prefer-for-of");
+    }
+
     /// Allow when index is used for more than indexing.
     #[test]
     fn test_allows_index_used_otherwise() {
@@ -533,6 +596,22 @@ for (let i = 0; i < items.length; i += 1) {
 let items = [1, 2, 3];
 for (let i = 0; i < items.length; i += 1) {
     console.log(items[i], items[i + 1]);
+}
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-for-of");
+    }
+
+    /// Allow when array element access is used as an assignment target.
+    #[test]
+    fn test_allows_index_assignment_target() {
+        let test = TestProgram::for_rule_with_prelude(PreferForOf);
+        let result = test.lint_dir(
+            "prefer_for_of/test_allows_index_assignment_target.ds",
+            r#"
+let items = [1, 2, 3];
+for (let i = 0; i < items.length; i += 1) {
+    items[i] = items[i] + 1;
 }
 "#,
         );

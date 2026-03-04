@@ -3,7 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{const_i64, flip_binary_operator, is_string_type};
+use crate::rules::common::{
+    const_i64, expression_unwrap_parenthesized, flip_binary_operator, is_string_type,
+    strip_dot_member_suffix,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -112,6 +115,9 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         constant_id: dir::LocalNodeId<dir::Expression>,
         flipped: bool,
     ) -> Option<StartsWithMatch> {
+        let candidate_id = expression_unwrap_parenthesized(self.ctx.tree, candidate_id);
+        let constant_id = expression_unwrap_parenthesized(self.ctx.tree, constant_id);
+
         // resolve constant comparisons
         let Some(constant_value) = self.ctx.const_value(constant_id) else {
             return None;
@@ -181,7 +187,9 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         .with_label("use startsWith() to check the prefix");
 
         let mut diagnostic = diagnostic;
-        if let Some(fix) = self.starts_with_fix(expression_id, starts_with_match) {
+        if self.ctx.include_fixes
+            && let Some(fix) = self.starts_with_fix(expression_id, starts_with_match)
+        {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -358,12 +366,6 @@ struct StartsWithMatch {
     prefix_id: dir::LocalNodeId<dir::Expression>,
 }
 
-/// Strip one `.member` suffix from a member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -477,5 +479,19 @@ let text = "hello";
 let has = text.startsWith("he");
 "#,
             );
+    }
+
+    /// Report parenthesized indexOf prefix checks.
+    #[test]
+    fn test_flags_parenthesized_index_of_zero_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
+            "prefer_string_startswith/test_flags_parenthesized_index_of_zero_check.ds",
+            r#"
+let text = "hello";
+let has = (text.indexOf("he")) === (0);
+"#,
+        );
+        test.result(result).assert_lint("prefer-string-startswith");
     }
 }

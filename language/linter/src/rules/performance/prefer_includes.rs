@@ -3,7 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{const_i64, flip_binary_operator, is_array_type, is_string_type};
+use crate::rules::common::{
+    const_i64, expression_unwrap_parenthesized, flip_binary_operator, is_array_type,
+    is_string_type, strip_dot_member_suffix,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -163,6 +166,9 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         constant_id: dir::LocalNodeId<dir::Expression>,
         flipped: bool,
     ) -> Option<IncludesMatch> {
+        let candidate_id = expression_unwrap_parenthesized(self.ctx.tree, candidate_id);
+        let constant_id = expression_unwrap_parenthesized(self.ctx.tree, constant_id);
+
         // resolve constant comparisons
         let constant_value = self.ctx.const_value(constant_id)?;
         let constant = const_i64(&constant_value)?;
@@ -216,7 +222,9 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
             span,
         )
         .with_label(label);
-        if let Some(fix) = self.includes_fix(expression_id, includes_match) {
+        if self.ctx.include_fixes
+            && let Some(fix) = self.includes_fix(expression_id, includes_match)
+        {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -377,12 +385,6 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
     }
-}
-
-/// Strip one `.member` suffix from a member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for PreferIncludesVisitor<'_, '_> {
@@ -570,5 +572,19 @@ let has = items.lastIndexOf(2, 0) !== -1;
 "#,
         );
         test.result(result).assert_no_lint("prefer-includes");
+    }
+
+    /// Report parenthesized indexOf comparisons.
+    #[test]
+    fn test_flags_parenthesized_index_of_comparison() {
+        let test = TestProgram::for_rule_without_prelude(PreferIncludes);
+        let result = test.lint_dir(
+            "prefer_includes/test_flags_parenthesized_index_of_comparison.ds",
+            r#"
+let items = [1, 2, 3];
+let has = (items.indexOf(2)) !== (-1);
+"#,
+        );
+        test.result(result).assert_lint("prefer-includes");
     }
 }

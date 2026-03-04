@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `await` inside loops.
@@ -27,16 +27,20 @@ declare_lint! {
 }
 
 impl LintRule for NoAwaitInLoop {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoAwaitInLoop::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Await { .. } = ctx.tree.get(node_id) else {
+            let expression = ctx.tree.get(node_id);
+            if !matches!(
+                expression,
+                ast::Expression::Await { .. } | ast::Expression::AwaitMaybe { .. }
+            ) {
                 continue;
-            };
+            }
 
             // walk up the parent chain to check if we're inside a loop
             let mut current = node_id.id;
@@ -50,43 +54,95 @@ impl LintRule for NoAwaitInLoop {
                 let parent_expr_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
                 let parent = ctx.tree.get(parent_expr_id);
 
-                match parent {
-                    // found a loop: report the await
-                    ast::Expression::While { .. }
-                    | ast::Expression::For { .. }
-                    | ast::Expression::ForEach { .. }
-                    | ast::Expression::Loop { .. } => {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            break;
-                        }
-                        ctx.report(
-                            LintDiagnostic::new(
-                                NO_AWAIT_IN_LOOP.id,
-                                NO_AWAIT_IN_LOOP.code,
-                                NO_AWAIT_IN_LOOP.category,
-                                severity,
-                                "`await` inside loop runs sequentially",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("consider using `Promise.all()` for parallel execution"),
-                        );
+                // stop traversal at async loop boundaries and function declarations
+                if is_boundary(parent, current, ctx) {
+                    break;
+                }
+
+                // report await only for per-iteration loop positions
+                if is_looped_position(parent, current) {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
                         break;
                     }
-                    // found a function boundary: stop searching (await in nested async fn is fine)
-                    ast::Expression::Declaration(decl_id) => {
-                        let decl = ctx.tree.get(*decl_id);
-                        if matches!(decl, ast::Declaration::Function { .. }) {
-                            break;
-                        }
-                    }
-                    _ => {}
+                    ctx.report(
+                        LintDiagnostic::new(
+                            NO_AWAIT_IN_LOOP.id,
+                            NO_AWAIT_IN_LOOP.code,
+                            NO_AWAIT_IN_LOOP.category,
+                            severity,
+                            "`await` inside loop runs sequentially",
+                            ctx.module.file_id,
+                            ctx.tree.get_span(node_id),
+                        )
+                        .with_label("consider using `Promise.all()` for parallel execution"),
+                    );
+                    break;
                 }
 
                 current = parent_id;
             }
         }
+    }
+}
+
+/// Return true when parent traversal should stop for this await expression.
+fn is_boundary(
+    parent: &ast::Expression,
+    child_node_id: u32,
+    ctx: &LintModuleAstContext<'_>,
+) -> bool {
+    // do not report awaits within `for await (...)` loops
+    if let ast::Expression::ForEach { asynchrony, .. } = parent
+        && *asynchrony == ast::Asynchrony::Async
+    {
+        return true;
+    }
+
+    // do not cross function declaration boundaries
+    if let ast::Expression::Declaration(declaration_id) = parent {
+        let declaration = ctx.tree.get(*declaration_id);
+        if matches!(declaration, ast::Declaration::Function { .. }) {
+            return true;
+        }
+    }
+
+    // sequence expression non-tail elements are not used per iteration
+    if let ast::Expression::SequenceExpression { expressions } = parent
+        && expressions
+            .last()
+            .is_some_and(|expression_id| expression_id.id != child_node_id)
+    {
+        return true;
+    }
+
+    false
+}
+
+/// Return true when this child position executes once per loop iteration.
+fn is_looped_position(parent: &ast::Expression, child_node_id: u32) -> bool {
+    match parent {
+        ast::Expression::While {
+            condition, body, ..
+        } => condition.id == child_node_id || body.id == child_node_id,
+        ast::Expression::For {
+            condition,
+            increment,
+            body,
+            ..
+        } => {
+            condition
+                .as_ref()
+                .is_some_and(|condition_id| condition_id.id == child_node_id)
+                || increment
+                    .as_ref()
+                    .is_some_and(|increment_id| increment_id.id == child_node_id)
+                || body.id == child_node_id
+        }
+        ast::Expression::ForEach { body, .. } | ast::Expression::Loop { body } => {
+            body.id == child_node_id
+        }
+        _ => false,
     }
 }
 
@@ -186,6 +242,46 @@ function process(items: int32[]) {
             await delay(100);
         };
         handler();
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-await-in-loop");
+    }
+
+    #[test]
+    fn test_allows_await_in_for_initialization() {
+        let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
+        let result = test.lint_ast(
+            "no_await_in_loop/test_allows_await_in_for_initialization.ds",
+            r#"
+async function seed(): Promise<int32> {
+    return 0;
+}
+
+async function run(): Promise<void> {
+    for (let i = await seed(); i < 3; i += 1) {
+        console.log(i);
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-await-in-loop");
+    }
+
+    #[test]
+    fn test_allows_await_in_for_each_iterator() {
+        let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
+        let result = test.lint_ast(
+            "no_await_in_loop/test_allows_await_in_for_each_iterator.ds",
+            r#"
+async function values(): Promise<int32[]> {
+    return [1, 2, 3];
+}
+
+async function run(): Promise<void> {
+    for (const value of await values()) {
+        console.log(value);
     }
 }
 "#,

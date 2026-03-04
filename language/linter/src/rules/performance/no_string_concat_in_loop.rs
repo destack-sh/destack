@@ -459,4 +459,23 @@ for (const item of items) {
         test.result(result)
             .assert_no_lint("no-string-concat-in-loop");
     }
+
+    /// Allow concatenation in for-each iterator expressions.
+    #[test]
+    fn test_allows_concat_in_for_each_iterator() {
+        let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
+        let result = test.lint_dir(
+            "no_string_concat_in_loop/test_allows_concat_in_for_each_iterator.ds",
+            r#"
+let source = "ab";
+let suffix = "cd";
+let output = "";
+for (const char of source + suffix) {
+    output = char;
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-string-concat-in-loop");
+    }
 }

@@ -112,6 +112,13 @@ fn check_nested_quantifiers(hir: &Hir, in_unbounded_quantifier: bool) -> Option<
                 }
             }
 
+            if in_unbounded_quantifier && alts.iter().any(hir_can_match_empty) {
+                return Some(
+                    "alternation with an empty branch in quantifier can cause exponential backtracking"
+                        .to_string(),
+                );
+            }
+
             if in_unbounded_quantifier && alts.len() >= 2 && check_overlapping_alternatives(alts) {
                 return Some(
                     "overlapping alternatives in quantifier can cause exponential backtracking"
@@ -125,6 +132,18 @@ fn check_nested_quantifiers(hir: &Hir, in_unbounded_quantifier: bool) -> Option<
         HirKind::Capture(cap) => check_nested_quantifiers(&cap.sub, in_unbounded_quantifier),
 
         HirKind::Empty | HirKind::Literal(_) | HirKind::Class(_) | HirKind::Look(_) => None,
+    }
+}
+
+/// Return true when one HIR subtree can match the empty string.
+fn hir_can_match_empty(hir: &Hir) -> bool {
+    match hir.kind() {
+        HirKind::Empty | HirKind::Look(_) => true,
+        HirKind::Literal(_) | HirKind::Class(_) => false,
+        HirKind::Capture(cap) => hir_can_match_empty(&cap.sub),
+        HirKind::Concat(items) => items.iter().all(hir_can_match_empty),
+        HirKind::Alternation(alts) => alts.iter().any(hir_can_match_empty),
+        HirKind::Repetition(rep) => rep.min == 0 || hir_can_match_empty(&rep.sub),
     }
 }
 
@@ -256,6 +275,18 @@ let re = /((a+)+)+/
     }
 
     #[test]
+    fn test_detects_empty_alternative_in_unbounded_quantifier() {
+        let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
+        let result = test.lint_ast(
+            "no_super_linear_regex/test_detects_empty_alternative_in_unbounded_quantifier.ds",
+            r#"
+let re = /(a|)*/
+"#,
+        );
+        test.result(result).assert_lint("no-super-linear-regex");
+    }
+
+    #[test]
     fn test_allows_simple_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
@@ -327,6 +358,18 @@ let re = /(foo|bar)+/
 "#,
         );
         // non-overlapping alternatives are fine
+        test.result(result).assert_no_lint("no-super-linear-regex");
+    }
+
+    #[test]
+    fn test_allows_disjoint_alternation_in_quantifier() {
+        let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
+        let result = test.lint_ast(
+            "no_super_linear_regex/test_allows_disjoint_alternation_in_quantifier.ds",
+            r#"
+let re = /(ab|cd)*/
+"#,
+        );
         test.result(result).assert_no_lint("no-super-linear-regex");
     }
 }

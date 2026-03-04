@@ -52,6 +52,8 @@ struct NoObjectSpreadInReduceVisitor<'a, 'b> {
     array_symbol: dir::GlobalSymbolId,
     /// The string id for the reduce method name.
     reduce_name: StringId,
+    /// The string id for the reduceRight method name.
+    reduce_right_name: StringId,
     /// The accumulator symbol when inside a reduce callback.
     accumulator_symbol: Option<dir::GlobalSymbolId>,
     /// The visitor options.
@@ -63,12 +65,14 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let reduce_name = ctx.program.strings.intern("reduce");
+        let reduce_right_name = ctx.program.strings.intern("reduceRight");
 
         Self {
             ctx,
             meta,
             array_symbol,
             reduce_name,
+            reduce_right_name,
             accumulator_symbol: None,
             options: NodeVisitorOptions::default(),
         }
@@ -96,8 +100,10 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
             return;
         };
 
-        // check if this is reduce
-        if method_call.method_name != self.reduce_name {
+        // check if this is reduce or reduceRight
+        if method_call.method_name != self.reduce_name
+            && method_call.method_name != self.reduce_right_name
+        {
             return;
         }
 
@@ -250,6 +256,21 @@ mod tests {
             r#"
 let items = [{ id: 1 }, { id: 2 }];
 let byId = items.reduce((acc, item) => ({ ...acc, [item.id]: item }), {});
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-object-spread-in-reduce");
+    }
+
+    /// Flag object spread in reduceRight accumulators.
+    #[test]
+    fn test_flags_object_spread_in_reduce_right() {
+        let test = TestProgram::for_rule_without_prelude(NoObjectSpreadInReduce);
+        let result = test.lint_dir(
+            "no_object_spread_in_reduce/test_flags_object_spread_in_reduce_right.ds",
+            r#"
+let items = [{ id: 1 }, { id: 2 }];
+let byId = items.reduceRight((acc, item) => ({ ...acc, [item.id]: item }), {});
 "#,
         );
         test.result(result)

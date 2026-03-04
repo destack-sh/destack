@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     const_i64, expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
-    string_literal_utf16_length,
+    string_literal_utf16_length, strip_dot_member_suffix,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -158,7 +158,12 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
 
         // match member access for slice
         let member_expression = self.ctx.tree.get(*left);
-        let dir::Expression::Member { left, name, .. } = member_expression else {
+        let dir::Expression::Member {
+            left: receiver_id,
+            name,
+            ..
+        } = member_expression
+        else {
             return None;
         };
         if *name != self.slice_name {
@@ -166,12 +171,12 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         }
 
         // ensure the receiver is a string
-        if !self.is_string_receiver(*left) {
+        if !self.is_string_receiver(*receiver_id) {
             return None;
         }
 
         // ensure the slice argument matches the suffix length
-        if !self.is_suffix_length_match(*argument_expression_id, suffix_id) {
+        if !self.is_suffix_length_match(*receiver_id, *argument_expression_id, suffix_id) {
             return None;
         }
 
@@ -207,7 +212,9 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         .with_label("use endsWith() to check the suffix");
 
         let mut diagnostic = diagnostic;
-        if let Some(fix) = self.ends_with_fix(expression_id, ends_with_match) {
+        if self.ctx.include_fixes
+            && let Some(fix) = self.ends_with_fix(expression_id, ends_with_match)
+        {
             diagnostic = diagnostic.with_fix(fix);
         }
 
@@ -227,11 +234,18 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     /// Return true when the slice argument matches the suffix length.
     fn is_suffix_length_match(
         &mut self,
+        receiver_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
         suffix_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         // check for `-suffix.length` patterns
         if self.is_suffix_length_argument(argument_id, suffix_id) {
+            return true;
+        }
+
+        // check for `receiver.length - suffix.length` patterns
+        if self.is_receiver_length_minus_suffix_length_argument(receiver_id, argument_id, suffix_id)
+        {
             return true;
         }
 
@@ -339,6 +353,58 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             *value,
         ))
     }
+
+    /// Return true when the argument is `receiver.length - suffix.length`.
+    fn is_receiver_length_minus_suffix_length_argument(
+        &mut self,
+        receiver_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
+        suffix_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let argument_id = expression_unwrap_parenthesized(self.ctx.tree, argument_id);
+        let argument_expression = self.ctx.tree.get(argument_id);
+        let dir::Expression::Binary {
+            left,
+            operator: dir::BinaryOperator::Subtract,
+            right,
+        } = argument_expression
+        else {
+            return false;
+        };
+
+        self.is_length_member_of(*left, receiver_id) && self.is_length_member_of(*right, suffix_id)
+    }
+
+    /// Return true when one expression is `<target>.length`.
+    fn is_length_member_of(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let target_id = expression_unwrap_parenthesized(self.ctx.tree, target_id);
+
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Member { left, name, .. } = expression else {
+            return false;
+        };
+        if *name != self.length_name {
+            return false;
+        }
+
+        if let (Some(expected_symbol), Some(actual_symbol)) = (
+            expression_target_symbol(self.ctx.tree, *left),
+            expression_target_symbol(self.ctx.tree, target_id),
+        ) {
+            return expected_symbol == actual_symbol;
+        }
+
+        let left_span = self.ctx.get_span(*left);
+        let target_span = self.ctx.get_span(target_id);
+        let left_text = self.ctx.get_span_text(left_span);
+        let target_text = self.ctx.get_span_text(target_span);
+        left_text.trim() == target_text.trim()
+    }
 }
 
 impl NodeVisitor for PreferStringEndsWithVisitor<'_, '_> {
@@ -374,12 +440,6 @@ struct EndsWithMatch {
     call_member_id: dir::LocalNodeId<dir::Expression>,
     /// The suffix expression.
     suffix_id: dir::LocalNodeId<dir::Expression>,
-}
-
-/// Strip one `.member` suffix from a member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 #[cfg(test)]
@@ -498,5 +558,20 @@ let suffix = "lo";
 let ends = text.endsWith(suffix);
 "#,
             );
+    }
+
+    /// Report receiver length delta slice comparisons.
+    #[test]
+    fn test_flags_receiver_length_delta_suffix_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
+            "prefer_string_endswith/test_flags_receiver_length_delta_suffix_check.ds",
+            r#"
+let text = "hello";
+let suffix = "lo";
+let ends = text.slice(text.length - suffix.length) === suffix;
+"#,
+        );
+        test.result(result).assert_lint("prefer-string-endswith");
     }
 }

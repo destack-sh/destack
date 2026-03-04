@@ -3,7 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{ReferencePath, expression_reference_path, is_array_type};
+use crate::rules::common::{
+    ReferencePath, expression_reference_path, expression_unwrap_parenthesized, is_array_type,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -92,6 +94,9 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         left: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) {
+        let left = expression_unwrap_parenthesized(self.ctx.tree, left);
+        let right = expression_unwrap_parenthesized(self.ctx.tree, right);
+
         // only match equality comparisons
         if !matches!(
             operator,
@@ -160,6 +165,8 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<FilterLengthMatch> {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+
         // match `.length` member access
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Member { left, name, .. } = expression else {
@@ -220,6 +227,8 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         receiver: &ReferencePath,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+
         // match `.length` member access
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Member { left, name, .. } = expression else {
@@ -494,5 +503,19 @@ let items = [1, 2, 3];
 let all = items.every((item) => item > 1);
 "#,
             );
+    }
+
+    /// Detect parenthesized filter-length comparisons.
+    #[test]
+    fn test_flags_parenthesized_filter_length_comparison() {
+        let test = TestProgram::for_rule_without_prelude(PreferArrayEvery);
+        let result = test.lint_dir(
+            "prefer_array_every/test_flags_parenthesized_filter_length_comparison.ds",
+            r#"
+let items = [1, 2, 3];
+let all = (items.filter(item => item > 1).length) === (items.length);
+"#,
+        );
+        test.result(result).assert_lint("prefer-array-every");
     }
 }

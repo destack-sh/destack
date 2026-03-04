@@ -354,6 +354,26 @@ impl NodeVisitor for PreferArrayLiteralVisitor<'_, '_> {
             self.mark_other_use(*left);
         }
 
+        // check assignment-like writes to tracked arrays as other use
+        if let dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } =
+            expression
+        {
+            self.mark_other_use(*left);
+        }
+
+        // check update writes to tracked arrays as other use
+        if let dir::Expression::Unary { operator, right } = expression
+            && matches!(
+                operator,
+                dir::UnaryOperator::PreIncrement
+                    | dir::UnaryOperator::PostIncrement
+                    | dir::UnaryOperator::PreDecrement
+                    | dir::UnaryOperator::PostDecrement
+            )
+        {
+            self.mark_other_use(*right);
+        }
+
         // walk expression children
         walk_expression(self, tree, id, expression);
     }
@@ -480,5 +500,20 @@ items.push(...values);
         test.result(result)
             .assert_lint("prefer-array-literal")
             .assert_has_no_fix("prefer-array-literal");
+    }
+
+    /// Allow reassigned arrays after push usage.
+    #[test]
+    fn test_allows_array_reassignment_after_push() {
+        let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
+        let result = test.lint_dir(
+            "prefer_array_literal/test_allows_array_reassignment_after_push.ds",
+            r#"
+let items: number[] = [];
+items.push(1);
+items = [2, 3];
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-array-literal");
     }
 }
