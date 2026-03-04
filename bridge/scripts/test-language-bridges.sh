@@ -33,12 +33,12 @@ cleanup() {
 		rm -f "${bridge_directory}/dart/.bridge-smoke.dart"
 	fi
 
-	if [[ -d "${bridge_directory}/.bridge-python-compat-venv" ]]; then
-		rm -r "${bridge_directory}/.bridge-python-compat-venv"
+	if [[ -d "${bridge_directory}/.bridge-python-aliases-venv" ]]; then
+		rm -r "${bridge_directory}/.bridge-python-aliases-venv"
 	fi
 
-	if [[ -d "${bridge_directory}/python/compat/destack-py/dist" ]]; then
-		rm -r "${bridge_directory}/python/compat/destack-py/dist"
+	if [[ -d "${bridge_directory}/python/aliases/destack-py/dist" ]]; then
+		rm -r "${bridge_directory}/python/aliases/destack-py/dist"
 	fi
 
 	if [[ -f "${bridge_directory}/ruby/ext/destack_ext/Makefile" ]]; then
@@ -91,21 +91,21 @@ cargo build --release --manifest-path capi/Cargo.toml
 cargo check --manifest-path capi/Cargo.toml
 DESTACK_CAPI_LIB="${capi_library}" python3 -c 'import ctypes, os; path = os.environ["DESTACK_CAPI_LIB"]; lib = ctypes.CDLL(path); lib.destack_capi_abi_version.restype = ctypes.c_uint32; lib.destack_capi_is_available.restype = ctypes.c_bool; lib.destack_capi_version.restype = ctypes.c_char_p; assert lib.destack_capi_abi_version() > 0; assert lib.destack_capi_is_available() is True; assert lib.destack_capi_version().decode("utf8") != ""'
 cargo check --manifest-path rust/Cargo.toml
-cargo check --manifest-path rust/compat/destack-rs/Cargo.toml
+cargo check --manifest-path rust/aliases/destack-rs/Cargo.toml
 
 cd typescript
 bun run build
 node -e 'Promise.all([import("./dist/index.js"), import("./dist/napi.js"), import("./dist/wasm.js")]).then(async ([runtimeModule, napiModule, wasmModule]) => { const autoClient = await runtimeModule.createClient(); const napiClient = await napiModule.createNapiClient(); const wasmClient = await wasmModule.createWasmClient(); if (autoClient.backend !== "napi" && autoClient.backend !== "wasm") { throw new Error("invalid auto backend"); } if (napiClient.backend !== "napi") { throw new Error("invalid napi backend"); } if (wasmClient.backend !== "wasm") { throw new Error("invalid wasm backend"); } if (!autoClient.version() || !napiClient.version() || !wasmClient.version()) { throw new Error("missing version"); } }).catch((error) => { console.error(error); process.exit(1); });'
 cd "${bridge_directory}"
 
-npm pack --dry-run ./typescript/compat/destack-js >/dev/null
-npm pack --dry-run ./typescript/compat/destack-ts >/dev/null
+npm pack --dry-run ./typescript/aliases/destack-js >/dev/null
+npm pack --dry-run ./typescript/aliases/destack-ts >/dev/null
 
-python3 -m venv .bridge-python-compat-venv
-.bridge-python-compat-venv/bin/python -m pip install --quiet --disable-pip-version-check build
-cd python/compat/destack-py && ../../../.bridge-python-compat-venv/bin/python -m build --sdist --wheel
+python3 -m venv .bridge-python-aliases-venv
+.bridge-python-aliases-venv/bin/python -m pip install --quiet --disable-pip-version-check build
+cd python/aliases/destack-py && ../../../.bridge-python-aliases-venv/bin/python -m build --sdist --wheel
 cd "${bridge_directory}"
-PYTHONPATH="python/src:python/compat/destack-py/src" DESTACK_CAPI_LIB="${capi_library}" python3 -c 'from destack import create_client; from destack_py import create_client as create_compat_client; client = create_client(); compat_client = create_compat_client(); assert client.backend == "python"; assert compat_client.backend == "python"; assert client.version() != ""; assert client.capi_abi_version() > 0; assert client.capi_is_available() is True'
+PYTHONPATH="python/src:python/aliases/destack-py/src" DESTACK_CAPI_LIB="${capi_library}" python3 -c 'from destack import create_client; from destack_py import create_client as create_alias_client; client = create_client(); alias_client = create_alias_client(); assert client.backend == "python"; assert alias_client.backend == "python"; assert client.version() != ""; assert client.capi_abi_version() > 0; assert client.capi_is_available() is True'
 
 if command -v dotnet >/dev/null 2>&1; then
 	cd dotnet/src/Destack

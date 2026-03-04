@@ -1,15 +1,15 @@
 {
     "name": "destack-ts",
     "version": "0.55.3",
-    "description": "Destack compatibility package for TypeScript",
+    "description": "Destack legacy alias package for TypeScript",
     "license": "MIT",
     "type": "module",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/destack-sh/destack.git",
-        "directory": "bridge/typescript/compat/destack-ts"
+        "directory": "bridge/typescript/aliases/destack-ts"
     },
-    "homepage": "https://github.com/destack-sh/destack/tree/main/bridge/typescript/compat/destack-ts",
+    "homepage": "https://github.com/destack-sh/destack/tree/main/bridge/typescript/aliases/destack-ts",
     "bugs": {
         "url": "https://github.com/destack-sh/destack/issues"
     },

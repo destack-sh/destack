@@ -1,6 +1,6 @@
 # destack-js
 
-Destack compatibility package for JavaScript.
+Destack legacy alias package for JavaScript.
 This package forwards exports from `@destack/runtime`.
 
 ## Installation

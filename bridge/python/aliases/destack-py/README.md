@@ -1,6 +1,6 @@
 # destack-py
 
-Destack compatibility package for Python.
+Destack legacy alias package for Python.
 This package forwards imports from the canonical `destack` package.
 
 ## Installation

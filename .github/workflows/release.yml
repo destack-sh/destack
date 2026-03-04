@@ -511,6 +511,7 @@ jobs:
     environment: release
     permissions:
       contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -519,6 +520,25 @@ jobs:
 
       - name: Setup Rust Bun and just
         uses: ./.github/actions/setup-rust-bun-just
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@e5517072e87f198d9533967ae13d97c11b604005
+        with:
+          ruby-version: "3.4"
+
+      - name: Setup Dart for pub.dev OIDC
+        if: vars.PUB_DEV_USE_OIDC == 'true'
+        uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c
 
       - name: Download cli release assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -535,34 +555,14 @@ jobs:
       - name: Stage cli npm binaries from release artifacts
         run: just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "release-cli-assets"
 
-      - name: Validate publish secrets
+      - name: Validate publish configuration
         run: |
-          if [ -z "${NPM_TOKEN}" ]; then
-            echo "missing NPM_TOKEN secret"
-            exit 1
-          fi
           if [ -z "${CARGO_TOKEN}" ]; then
             echo "missing CARGO_TOKEN secret"
             exit 1
           fi
-          if [ -z "${PYPI_TOKEN}" ]; then
-            echo "missing PYPI_TOKEN secret"
-            exit 1
-          fi
           if [ -z "${VSCE_PAT}" ]; then
             echo "missing VSCE_PAT secret"
-            exit 1
-          fi
-          if [ -z "${NUGET_API_KEY}" ]; then
-            echo "missing NUGET_API_KEY secret"
-            exit 1
-          fi
-          if [ -z "${MAVEN_REPOSITORY_ID}" ]; then
-            echo "missing MAVEN_REPOSITORY_ID variable"
-            exit 1
-          fi
-          if [ -z "${MAVEN_REPOSITORY_URL}" ]; then
-            echo "missing MAVEN_REPOSITORY_URL variable"
             exit 1
           fi
           if [ -z "${MAVEN_REPOSITORY_USERNAME}" ]; then
@@ -585,18 +585,41 @@ jobs:
             echo "missing MAVEN_GPG_KEY_ID variable"
             exit 1
           fi
-          if [ -z "${RUBYGEMS_API_KEY}" ]; then
-            echo "missing RUBYGEMS_API_KEY secret"
-            exit 1
-          fi
           if [ -z "${HEX_API_KEY}" ]; then
             echo "missing HEX_API_KEY secret"
             exit 1
           fi
-          if [ -z "${PUB_DEV_CREDENTIALS_JSON}" ]; then
-            echo "missing PUB_DEV_CREDENTIALS_JSON secret"
+
+          if [ "${NPM_USE_TRUSTED_PUBLISHING}" != "true" ] && [ -z "${NPM_TOKEN}" ]; then
+            echo "missing npm auth: set NPM_TOKEN or enable NPM_USE_TRUSTED_PUBLISHING=true"
             exit 1
           fi
+
+          if [ "${NUGET_USE_TRUSTED_PUBLISHING}" = "true" ]; then
+            if [ -z "${NUGET_PUBLISH_USERNAME}" ]; then
+              echo "missing NUGET_PUBLISH_USERNAME variable for trusted nuget publishing"
+              exit 1
+            fi
+          elif [ -z "${NUGET_API_KEY}" ]; then
+            echo "missing NUGET_API_KEY secret"
+            exit 1
+          fi
+
+          if [ "${RUBYGEMS_USE_TRUSTED_PUBLISHING}" = "true" ]; then
+            if [ -z "${RUBYGEMS_OIDC_ROLE}" ]; then
+              echo "missing RUBYGEMS_OIDC_ROLE variable for trusted rubygems publishing"
+              exit 1
+            fi
+          elif [ -z "${RUBYGEMS_API_KEY}" ]; then
+            echo "missing RUBYGEMS_API_KEY secret"
+            exit 1
+          fi
+
+          if [ "${PUB_DEV_USE_OIDC}" != "true" ] && [ -z "${PUB_DEV_CREDENTIALS_JSON}" ]; then
+            echo "missing pub.dev auth: set PUB_DEV_CREDENTIALS_JSON or enable PUB_DEV_USE_OIDC=true"
+            exit 1
+          fi
+
           if [ "${PUBLISH_ZED}" = "true" ]; then
             if [ -z "${ZED_GITHUB_TOKEN}" ]; then
               echo "missing ZED_GITHUB_TOKEN secret"
@@ -608,13 +631,16 @@ jobs:
             fi
           fi
         env:
+          NPM_USE_TRUSTED_PUBLISHING: ${{ vars.NPM_USE_TRUSTED_PUBLISHING }}
+          NUGET_USE_TRUSTED_PUBLISHING: ${{ vars.NUGET_USE_TRUSTED_PUBLISHING }}
+          NUGET_PUBLISH_USERNAME: ${{ vars.NUGET_PUBLISH_USERNAME }}
+          RUBYGEMS_USE_TRUSTED_PUBLISHING: ${{ vars.RUBYGEMS_USE_TRUSTED_PUBLISHING }}
+          RUBYGEMS_OIDC_ROLE: ${{ vars.RUBYGEMS_OIDC_ROLE }}
+          PUB_DEV_USE_OIDC: ${{ vars.PUB_DEV_USE_OIDC }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MAVEN_REPOSITORY_ID: ${{ vars.MAVEN_REPOSITORY_ID }}
-          MAVEN_REPOSITORY_URL: ${{ vars.MAVEN_REPOSITORY_URL }}
           MAVEN_REPOSITORY_USERNAME: ${{ secrets.MAVEN_REPOSITORY_USERNAME }}
           MAVEN_REPOSITORY_PASSWORD: ${{ secrets.MAVEN_REPOSITORY_PASSWORD }}
           MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
@@ -627,30 +653,101 @@ jobs:
           ZED_GITHUB_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}
           ZED_REGISTRY_PUSH_TO: ${{ vars.ZED_REGISTRY_PUSH_TO }}
 
-      - name: Configure npm authentication
+      - name: Configure npm token authentication
+        if: vars.NPM_USE_TRUSTED_PUBLISHING != 'true'
         run: |
           printf '%s\n' "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish packages
-        run: just publish-live-packages
+      - name: Login to NuGet with OIDC
+        if: vars.NUGET_USE_TRUSTED_PUBLISHING == 'true'
+        id: nuget-login
+        uses: NuGet/login@d22cc5f58ff5b88bf9bd452535b4335137e24544
+        with:
+          user: ${{ vars.NUGET_PUBLISH_USERNAME }}
+
+      - name: Configure RubyGems credentials with OIDC
+        if: vars.RUBYGEMS_USE_TRUSTED_PUBLISHING == 'true'
+        uses: rubygems/configure-rubygems-credentials@bc6dd217f8a4f919d6835fcfefd470ef821f5c44
+        with:
+          role-to-assume: ${{ vars.RUBYGEMS_OIDC_ROLE }}
+
+      - name: Publish npm packages
+        run: |
+          just library/publish-live
+          just template/publish-create-destack-live
+          just app/publish-live
+          just bridge/publish-npm ""
+          just bridge/publish-bun ""
+          just bridge/publish-vite ""
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+          DESTACK_NPM_TRUSTED_PUBLISHING: ${{ vars.NPM_USE_TRUSTED_PUBLISHING }}
+
+      - name: Publish Cargo packages
+        run: just bridge/publish-cargo ""
+        env:
           CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish NuGet package
+        run: just bridge/publish-nuget ""
+        env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MAVEN_REPOSITORY_ID: ${{ vars.MAVEN_REPOSITORY_ID }}
-          MAVEN_REPOSITORY_URL: ${{ vars.MAVEN_REPOSITORY_URL }}
+          NUGET_OIDC_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+
+      - name: Publish Maven package
+        run: just bridge/publish-maven ""
+        env:
           MAVEN_REPOSITORY_USERNAME: ${{ secrets.MAVEN_REPOSITORY_USERNAME }}
           MAVEN_REPOSITORY_PASSWORD: ${{ secrets.MAVEN_REPOSITORY_PASSWORD }}
           MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
           MAVEN_GPG_KEY_ID: ${{ vars.MAVEN_GPG_KEY_ID }}
+
+      - name: Publish Ruby gem
+        run: just bridge/publish-rubygems ""
+        env:
           RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+
+      - name: Publish Hex package
+        run: just bridge/publish-hex ""
+        env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+
+      - name: Publish pub.dev package with OIDC
+        if: vars.PUB_DEV_USE_OIDC == 'true'
+        run: just bridge/publish-pub ""
+        env:
+          DESTACK_PUB_USE_OIDC: "1"
+
+      - name: Publish pub.dev package with credentials
+        if: vars.PUB_DEV_USE_OIDC != 'true'
+        run: just bridge/publish-pub ""
+        env:
           PUB_DEV_CREDENTIALS_JSON: ${{ secrets.PUB_DEV_CREDENTIALS_JSON }}
+
+      - name: Build PyPI distributions
+        run: |
+          python3 -m pip install --upgrade pip build twine
+          (cd bridge/python && python3 -m build && python3 -m twine check dist/*)
+          (cd bridge/python/aliases/destack-py && python3 -m build && python3 -m twine check dist/*)
+
+      - name: Publish PyPI package
+        uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0
+        with:
+          packages-dir: bridge/python/dist
+
+      - name: Publish PyPI legacy alias package
+        uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0
+        with:
+          packages-dir: bridge/python/aliases/destack-py/dist
+
+      - name: Publish VS Code extension
+        run: just bridge/publish-vscode ""
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish zed registry PR
         if: inputs.publish_zed == true

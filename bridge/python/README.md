@@ -2,7 +2,7 @@
 
 Python client for Destack.
 This package is published to PyPI as `destack`.
-Compatibility package `destack-py` is in [`compat/destack-py`](compat/destack-py/README.md).
+Legacy alias package `destack-py` is in [`aliases/destack-py`](aliases/destack-py/README.md).
 
 ## Installation
 
