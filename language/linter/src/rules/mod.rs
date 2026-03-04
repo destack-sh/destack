@@ -28,6 +28,14 @@ pub fn all_rules() -> Vec<BoxedLintRule> {
 pub fn recommended_rules() -> Vec<BoxedLintRule> {
     all_rules()
         .into_iter()
-        .filter(|r| r.meta().category.is_recommended())
+        .filter(|rule| rule.meta().is_recommended())
+        .collect()
+}
+
+/// Get all strict lint rules.
+pub fn strict_rules() -> Vec<BoxedLintRule> {
+    all_rules()
+        .into_iter()
+        .filter(|rule| rule.meta().is_strict())
         .collect()
 }

@@ -90,13 +90,13 @@ High-confidence issues that are almost always wrong.
 | `LC001` | `for-direction` | ESLint | AST | ✓ | Sometimes | Unsafe | Enforce for loop update clause moving in the correct direction |
 | `LC060` | `improper-ctypes` | Rust | DIR |  |  | None | Disallow FFI signatures with ABI-unsafe types |
 | `LC002` | `no-approx-constant` | Destack | AST | ✓ | Sometimes | Safe | Disallow approximate representations of mathematical constants |
-| `LC046` | `no-arguments-order-mismatch` | SonarQube | DIR |  |  | Suggestion | Disallow arguments that appear swapped based on parameter names |
+| `LC046` | `no-arguments-order-mismatch` | SonarQube | DIR | ✓ | No | None | Disallow arguments that appear swapped based on parameter names |
 | `LC003` | `no-array-constructor` | ESLint | DIR | ✓ | Sometimes | Safe | Disallow `new Array()` (confusing behavior) |
 | `LC004` | `no-array-delete` | TS-ESLint | DIR | ✓ | Sometimes | Unsafe | Disallow `delete` on arrays (creates holes) |
 | `LC005` | `no-async-promise-executor` | ESLint | DIR | ✓ | Sometimes | Unsafe | Disallow async functions as Promise executor |
 | `LC006` | `no-base-to-string` | TS-ESLint | DIR | ✓ | No | None | Disallow `.toString()` on objects without useful representation |
 | `LC007` | `no-compare-neg-zero` | ESLint | AST | ✓ | Sometimes | Safe | Disallow comparing against negative zero |
-| `LC068` | `no-confusing-void-expression` | TS-ESLint | DIR |  |  | Suggestion | Disallow `void` expressions in positions where values are expected |
+| `LC068` | `no-confusing-void-expression` | TS-ESLint | DIR | ✓ | No | None | Disallow `void` expressions in positions where values are expected |
 | `LC008` | `no-constant-binary-expression` | ESLint | AST | ✓ | No | None | Disallow expressions where the operation doesn't affect the value |
 | `LC009` | `no-constant-condition` | ESLint | AST | ✓ | Sometimes | Safe | Disallow constant expressions in conditions |
 | `LC010` | `no-control-regex` | ESLint | AST | ✓ | No | None | Disallow control characters in regular expressions |
@@ -251,7 +251,7 @@ Subjective preferences for consistent coding style.
 
 | Code | Rule | Source | Level | Status | Autofix Support | Fixability | Description |
 |------|------|--------|-------|--------|------------------|------------|-------------|
-| `LY070` | `array-type` | TS-ESLint | DIR |  |  | Safe | Require consistently using either `T[]` or `Array<T>` |
+| `LY070` | `array-type` | TS-ESLint | DIR | ✓ | Always | Safe | Require consistently using either `T[]` or `Array<T>` |
 | `LY001` | `catch-error-name` | Unicorn | AST | ✓ | Sometimes | Safe | Enforce a specific name for catch clause error parameters |
 | `LY002` | `comment-casing` | Destack | AST | ✓ | Sometimes | Safe | Enforce comment / doc casing |
 | `LY003` | `comment-layout` | Destack | AST | ✓ | Sometimes | Safe | Enforce comment / doc layout |

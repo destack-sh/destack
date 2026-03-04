@@ -9,6 +9,7 @@ use destack_workspace::{LintCategory, LintPreset, LinterOptions, Module, Profile
 use crate::{
     BoxedLintRule, LintDiagnostic, LintLevel, LintModuleAstContext, LintModuleDirContext,
     LintProgramAstContext, LintProgramDirContext, LintScope, all_rules, recommended_rules,
+    strict_rules,
 };
 
 /// Per lint rule performance metrics.
@@ -177,6 +178,7 @@ impl LintRunner {
         let rules = match preset {
             LintPreset::None => Vec::new(),
             LintPreset::Recommended => recommended_rules(),
+            LintPreset::Strict => strict_rules(),
             LintPreset::All => all_rules(),
         };
         Self {
@@ -187,7 +189,12 @@ impl LintRunner {
 
     /// Create a runner from linter options.
     pub fn from_options(options: &LinterOptions) -> Self {
-        Self::from_preset(options.preset)
+        if options.categories.is_empty() && options.overrides.is_empty() {
+            return Self::from_preset(options.preset);
+        }
+
+        // explicit category or rule overrides can enable any rule
+        Self::all()
     }
 
     /// Create a runner with all rules.
