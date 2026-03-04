@@ -81,7 +81,14 @@ pub(crate) unsafe fn window_focus(
     // show and focus the host window
     unsafe {
         ShowWindow(binding.hwnd, SW_SHOW);
-        let _ = SetForegroundWindow(binding.hwnd);
+    }
+    let status = unsafe { SetForegroundWindow(binding.hwnd) };
+    if status == 0 && unsafe { GetForegroundWindow() } != binding.hwnd {
+        return Err(core::io_error(
+            "destack.display.window.focus",
+            "SetForegroundWindow",
+            "failed to grant foreground focus",
+        ));
     }
 
     // refresh cached state and publish deltas

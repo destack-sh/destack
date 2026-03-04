@@ -5,6 +5,8 @@ mod monitor;
 mod resource;
 mod window;
 
+pub(crate) use event::DisplayEventRuntimeState;
 pub(super) use event::*;
 pub(super) use monitor::*;
+pub(crate) use window::WindowRuntimeState;
 pub(super) use window::*;

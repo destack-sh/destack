@@ -1200,8 +1200,15 @@ fn apply_window_message_snapshot(
     let next = binding.clone();
     drop(binding);
 
-    if monitor_topology_changed {
-        event::publish_monitor_topology_deltas(&entry.event_runtime_state);
+    if monitor_topology_changed
+        && let Err(error) = event::publish_monitor_topology_deltas(&entry.event_runtime_state)
+    {
+        entry.window_runtime_state.diagnostics.warn(
+            "display",
+            "destack.display.window.messageDispatch.monitorTopology",
+            format!("failed to publish monitor topology deltas: {error}"),
+            None,
+        );
     }
 
     event::publish_state_deltas(&entry.event_runtime_state, entry.window, &previous, &next);
@@ -1408,7 +1415,7 @@ fn restore_exclusive_mode(
         }
     }
 
-    event::refresh_monitor_topology_cache(context);
+    event::refresh_monitor_topology_cache(context)?;
     Ok(())
 }
 
@@ -1484,7 +1491,7 @@ fn apply_mode_options(
         apply_window_rect(binding, rectangle, operation)?;
     }
 
-    event::refresh_monitor_topology_cache(context);
+    event::refresh_monitor_topology_cache(context)?;
     Ok(())
 }
 

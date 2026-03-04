@@ -33,20 +33,11 @@ pub(in super::super) fn publish_descriptor_changed_event(
 }
 
 /// Refresh the cached monitor topology snapshot from the current host state.
-pub(in super::super) fn refresh_monitor_topology_cache(context: &BindingCallContext) {
-    // refresh monitor snapshots and report host errors explicitly
-    let snapshots = match monitor::enumerate_monitor_snapshots() {
-        Ok(snapshots) => snapshots,
-        Err(error) => {
-            context.warn(
-                "display",
-                "destack.display.monitor.topology.cacheRefresh",
-                format!("monitor snapshot refresh failed: {error}"),
-                None,
-            );
-            return;
-        }
-    };
+pub(in super::super) fn refresh_monitor_topology_cache(
+    context: &BindingCallContext,
+) -> RuntimeResult<()> {
+    // refresh monitor snapshots from host state
+    let snapshots = monitor::enumerate_monitor_snapshots()?;
 
     // replace cached topology snapshot atomically
     let runtime_state = display_event_runtime_state(context);
@@ -55,24 +46,15 @@ pub(in super::super) fn refresh_monitor_topology_cache(context: &BindingCallCont
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     *topology_snapshot = Some(snapshots);
+
+    Ok(())
 }
 
 /// Publish monitor topology events observed since the last cached snapshot.
 pub(in super::super) fn publish_monitor_topology_deltas(
     runtime_state: &Arc<DisplayEventRuntimeState>,
-) {
-    let next_snapshots = match monitor::enumerate_monitor_snapshots() {
-        Ok(snapshots) => snapshots,
-        Err(error) => {
-            runtime_state.diagnostics.warn(
-                "display",
-                "destack.display.monitor.topology.publishDeltas",
-                format!("monitor topology delta publish failed: {error}"),
-                None,
-            );
-            return;
-        }
-    };
+) -> RuntimeResult<()> {
+    let next_snapshots = monitor::enumerate_monitor_snapshots()?;
 
     let records = {
         let mut topology_snapshot = runtime_state
@@ -82,7 +64,7 @@ pub(in super::super) fn publish_monitor_topology_deltas(
 
         let Some(previous_snapshots) = topology_snapshot.as_ref() else {
             *topology_snapshot = Some(next_snapshots);
-            return;
+            return Ok(());
         };
 
         let records = monitor_topology_records(previous_snapshots, &next_snapshots);
@@ -93,6 +75,8 @@ pub(in super::super) fn publish_monitor_topology_deltas(
     for record in records {
         publish_monitor_event(runtime_state, record);
     }
+
+    Ok(())
 }
 
 /// Seed one monitor-event stream with current monitor snapshot events.

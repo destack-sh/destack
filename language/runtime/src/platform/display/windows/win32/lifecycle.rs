@@ -2,20 +2,25 @@ use super::drop::{register_window_drop_target, unregister_window_drop_target};
 use super::*;
 
 /// Restore any exclusive-mode host side effects after one failed open path.
-fn rollback_failed_open_mode(context: &BindingCallContext, binding: &mut Win32WindowBinding) {
+fn rollback_failed_open_mode(
+    context: &BindingCallContext,
+    binding: &mut Win32WindowBinding,
+) -> RuntimeResult<()> {
     // skip rollback when no exclusive mode restore state exists
     let Some(restore) = binding.exclusive_restore.clone() else {
-        return;
+        return Ok(());
     };
 
     // attempt host rollback and clear cached restore state
-    let _ = restore_exclusive_mode(
+    restore_exclusive_mode(
         context,
         &restore,
         "destack.display.window.open.rollback",
         false,
-    );
+    )?;
     binding.exclusive_restore = None;
+
+    Ok(())
 }
 
 /// Open one window instance.
@@ -146,20 +151,22 @@ pub(crate) unsafe fn window_open(
         "destack.display.window.open",
         true,
     ) {
-        rollback_failed_open_mode(context, &mut provisional_binding);
+        let rollback_result = rollback_failed_open_mode(context, &mut provisional_binding);
         unsafe {
             DestroyWindow(hwnd);
         }
+        rollback_result?;
         return Err(error);
     }
 
     if let Err(error) =
         apply_owner_relationship(context, &provisional_binding, "destack.display.window.open")
     {
-        rollback_failed_open_mode(context, &mut provisional_binding);
+        let rollback_result = rollback_failed_open_mode(context, &mut provisional_binding);
         unsafe {
             DestroyWindow(hwnd);
         }
+        rollback_result?;
         return Err(error);
     }
     if let Err(error) = apply_modal_owner_transition(
@@ -170,10 +177,11 @@ pub(crate) unsafe fn window_open(
         provisional_binding.modal,
         "destack.display.window.open",
     ) {
-        rollback_failed_open_mode(context, &mut provisional_binding);
+        let rollback_result = rollback_failed_open_mode(context, &mut provisional_binding);
         unsafe {
             DestroyWindow(hwnd);
         }
+        rollback_result?;
         return Err(error);
     }
 
@@ -206,7 +214,7 @@ pub(crate) unsafe fn window_open(
         return Err(error);
     }
 
-    event::refresh_monitor_topology_cache(context);
+    event::refresh_monitor_topology_cache(context)?;
     let event_runtime_state = event::display_event_runtime_state(context);
     if let Err(error) = register_runtime_window(
         hwnd,
@@ -225,7 +233,7 @@ pub(crate) unsafe fn window_open(
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .clone();
-        rollback_failed_open_mode(context, &mut snapshot);
+        let rollback_result = rollback_failed_open_mode(context, &mut snapshot);
         restore_modal_owner_on_close(context, &snapshot);
         let _ = context
             .runtime()
@@ -234,6 +242,7 @@ pub(crate) unsafe fn window_open(
         unsafe {
             DestroyWindow(hwnd);
         }
+        rollback_result?;
         return Err(error);
     }
 
@@ -256,7 +265,7 @@ pub(crate) unsafe fn window_open(
         drop(binding);
 
         unregister_runtime_window(hwnd);
-        rollback_failed_open_mode(context, &mut snapshot);
+        let rollback_result = rollback_failed_open_mode(context, &mut snapshot);
         restore_modal_owner_on_close(context, &snapshot);
         let _ = context
             .runtime()
@@ -265,6 +274,7 @@ pub(crate) unsafe fn window_open(
         unsafe {
             DestroyWindow(hwnd);
         }
+        rollback_result?;
         return Err(error);
     }
 
@@ -281,8 +291,14 @@ pub(crate) unsafe fn window_open(
 
     // force foreground when explicitly requested
     if options.focus_on_show && options.visibility == WindowVisibility::Visible {
-        unsafe {
-            let _ = SetForegroundWindow(hwnd);
+        let status = unsafe { SetForegroundWindow(hwnd) };
+        if status == 0 && unsafe { GetForegroundWindow() } != hwnd {
+            context.warn(
+                "display",
+                "destack.display.window.open",
+                "focusOnShow could not grant foreground focus",
+                Some(core_platform::last_error_code() as u32),
+            );
         }
     }
 
