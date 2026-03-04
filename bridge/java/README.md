@@ -1,12 +1,12 @@
 # Destack (Java)
 
 Java client for Destack.
-This package is intended to publish to Maven Central as `com.symbol.destack:destack-java`.
+This package is intended to publish to Maven Central as `industries.symbol.destack:destack-java`.
 
 ## Usage
 
 ```java
-import com.symbol.destack.Client;
+import industries.symbol.destack.Client;
 
 Client client = new Client();
 System.out.println(client.backend());

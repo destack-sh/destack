@@ -1,4 +1,4 @@
-package com.symbol.destack;
+package industries.symbol.destack;
 
 /**
  * Package constants for Destack.

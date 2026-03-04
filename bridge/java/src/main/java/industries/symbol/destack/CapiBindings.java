@@ -1,4 +1,4 @@
-package com.symbol.destack;
+package industries.symbol.destack;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
