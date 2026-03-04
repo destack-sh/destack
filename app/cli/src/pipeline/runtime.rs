@@ -36,7 +36,7 @@ pub fn isolate_options_for_target(target: &Target) -> IsolateOptions {
 /// Create binding policy from target configuration.
 pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
     // map execution mode into runtime binding settings
-    let mode: RuntimeExecutionMode = target.runtime_options.execution.into();
+    let mode: RuntimeExecutionMode = target.runtime_options.execution;
 
     // build the policy object
     BindingPolicy::new(mode)
