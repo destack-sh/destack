@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Declaration, DependencyMode, Expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::ast_expression_unwrap_parenthesized;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -86,8 +87,9 @@ impl LintRule for NoAnonymousDefaultExport {
                 if item.mode != DependencyMode::Default || item.value.is_none() {
                     continue;
                 }
-                let value = ctx.tree.get(item.value.unwrap());
-                if matches!(value, Expression::Path { .. }) {
+                let value_id = ast_expression_unwrap_parenthesized(ctx.tree, item.value.unwrap());
+                let value = ctx.tree.get(value_id);
+                if matches!(value, Expression::Path { .. } | Expression::Call { .. }) {
                     continue;
                 }
 
@@ -270,6 +272,19 @@ export default (x) => x * 2
         );
         test.result(result)
             .assert_lint("no-anonymous-default-export");
+    }
+
+    #[test]
+    fn test_allows_call_expression_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
+        let result = test.lint_ast(
+            "no_anonymous_default_export/test_allows_call_expression_by_default.ts",
+            r#"
+export default makeValue();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-anonymous-default-export");
     }
 
     #[test]

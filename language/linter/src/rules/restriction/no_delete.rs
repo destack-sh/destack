@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expand_span_to_statement_terminator;
+use crate::rules::common::{
+    ast_expression_statement_ancestor, expand_span_to_statement_terminator,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -81,23 +83,13 @@ fn no_delete_fix(
     ctx: &LintModuleAstContext<'_>,
     delete_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
-    let parent_id = ctx.parents.get(delete_id)?;
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
-        return None;
-    }
+    // require one standalone statement context around the delete expression
+    let statement_id = ast_expression_statement_ancestor(ctx.tree, ctx.parents, delete_id)?;
 
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
-    let ast::Expression::Statement(statement_id) = parent_expression else {
-        return None;
-    };
-    if *statement_id != delete_id {
-        return None;
-    }
-
+    // remove the full statement span, including an optional trailing terminator
     let file = ctx.program.files.get(ctx.module.file_id);
     let source = file.text();
-    let statement_span = ctx.tree.get_span(parent_expression_id);
+    let statement_span = ctx.tree.get_span(statement_id);
     let statement_span = expand_span_to_statement_terminator(source, statement_span);
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::r#unsafe("Remove delete statement").with_edits(edits))
@@ -190,6 +182,26 @@ delete items[1];
             .assert_unsafe_fixed(
                 r#"
 let items = [1, 2, 3];
+"#,
+            );
+    }
+
+    /// Unsafely remove parenthesized delete statements.
+    #[test]
+    fn test_fix_removes_parenthesized_delete_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoDelete);
+        let result = test.lint_ast(
+            "no_delete/test_fix_removes_parenthesized_delete_statement.ts",
+            r#"
+let item = { value: 1 };
+(delete item.value);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-delete")
+            .assert_unsafe_fixed(
+                r#"
+let item = { value: 1 };
 "#,
             );
     }

@@ -24,30 +24,30 @@ declare_lint! {
     "Disallow bitwise operators"
 }
 
-fn is_bitwise_binary(op: &BinaryOperator) -> bool {
-    matches!(
-        op,
-        BinaryOperator::ShiftLeft
-            | BinaryOperator::SaturatingShiftLeft
-            | BinaryOperator::ShiftRight
-            | BinaryOperator::UnsignedShiftRight
-            | BinaryOperator::ElementwiseAnd
-            | BinaryOperator::ElementwiseXor
-            | BinaryOperator::ElementwiseOr
-    )
+fn bitwise_binary_text(operator: &BinaryOperator) -> Option<&'static str> {
+    match operator {
+        BinaryOperator::ShiftLeft => Some("<<"),
+        BinaryOperator::SaturatingShiftLeft => Some("<<<"),
+        BinaryOperator::ShiftRight => Some(">>"),
+        BinaryOperator::UnsignedShiftRight => Some(">>>"),
+        BinaryOperator::ElementwiseAnd => Some("&"),
+        BinaryOperator::ElementwiseXor => Some("^"),
+        BinaryOperator::ElementwiseOr => Some("|"),
+        _ => None,
+    }
 }
 
-fn is_bitwise_assign(op: &AssignOperator) -> bool {
-    matches!(
-        op,
-        AssignOperator::ShiftLeftAssign
-            | AssignOperator::SaturatingShiftLeftAssign
-            | AssignOperator::ShiftRightAssign
-            | AssignOperator::UnsignedShiftRightAssign
-            | AssignOperator::ElementwiseAndAssign
-            | AssignOperator::ElementwiseXorAssign
-            | AssignOperator::ElementwiseOrAssign
-    )
+fn bitwise_assign_text(operator: &AssignOperator) -> Option<&'static str> {
+    match operator {
+        AssignOperator::ShiftLeftAssign => Some("<<="),
+        AssignOperator::SaturatingShiftLeftAssign => Some("<<<="),
+        AssignOperator::ShiftRightAssign => Some(">>="),
+        AssignOperator::UnsignedShiftRightAssign => Some(">>>="),
+        AssignOperator::ElementwiseAndAssign => Some("&="),
+        AssignOperator::ElementwiseXorAssign => Some("^="),
+        AssignOperator::ElementwiseOrAssign => Some("|="),
+        _ => None,
+    }
 }
 
 impl LintRule for NoBitwise {
@@ -61,18 +61,22 @@ impl LintRule for NoBitwise {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
-            let is_bitwise = match expression {
-                ast::Expression::Binary { operator, .. } => is_bitwise_binary(operator),
+            let operator = match expression {
+                ast::Expression::Binary { operator, .. } => bitwise_binary_text(operator),
                 ast::Expression::Unary { operator, .. } => {
-                    matches!(operator, UnaryOperator::ElementwiseNot)
+                    if matches!(operator, UnaryOperator::ElementwiseNot) {
+                        Some("~")
+                    } else {
+                        None
+                    }
                 }
-                ast::Expression::Assign { operator, .. } => is_bitwise_assign(operator),
-                _ => false,
+                ast::Expression::Assign { operator, .. } => bitwise_assign_text(operator),
+                _ => None,
             };
 
-            if !is_bitwise {
+            let Some(operator) = operator else {
                 continue;
-            }
+            };
 
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
@@ -85,7 +89,7 @@ impl LintRule for NoBitwise {
                     NO_BITWISE.code,
                     NO_BITWISE.category,
                     severity,
-                    "bitwise operator is not allowed",
+                    format!("bitwise operator `{operator}` is not allowed"),
                     ctx.module.file_id,
                     span,
                 )
@@ -146,6 +150,26 @@ mod tests {
     fn test_detects_bitwise_assign() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("no_bitwise/test_detects_bitwise_assign.ts", "x &= 1;");
+        test.result(result).assert_lint("no-bitwise");
+    }
+
+    #[test]
+    fn test_detects_unsigned_shift_right() {
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
+        let result = test.lint_ast(
+            "no_bitwise/test_detects_unsigned_shift_right.ts",
+            "let x = a >>> b;",
+        );
+        test.result(result).assert_lint("no-bitwise");
+    }
+
+    #[test]
+    fn test_detects_unsigned_shift_right_assign() {
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
+        let result = test.lint_ast(
+            "no_bitwise/test_detects_unsigned_shift_right_assign.ts",
+            "x >>>= 1;",
+        );
         test.result(result).assert_lint("no-bitwise");
     }
 

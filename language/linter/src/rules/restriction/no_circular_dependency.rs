@@ -234,16 +234,7 @@ fn cycle_components(adjacency: &HashMap<ModuleId, Vec<ModuleId>>) -> Vec<Vec<Mod
 
     components
         .into_iter()
-        .filter(|component| {
-            if component.len() > 1 {
-                return true;
-            }
-
-            let module_id = component[0];
-            adjacency
-                .get(&module_id)
-                .is_some_and(|dependencies| dependencies.contains(&module_id))
-        })
+        .filter(|component| component.len() > 1)
         .collect()
 }
 
@@ -401,9 +392,9 @@ export let D = C;
             .assert_lint_count("no-circular-dependency", 4);
     }
 
-    /// Report a module importing itself as a cycle.
+    /// Allow self imports to defer to no-self-import style checks.
     #[test]
-    fn test_reports_self_cycle() {
+    fn test_allows_self_import() {
         let (test, result) = lint_program_with_modules(
             &[(
                 "no_circular_dependency/self_cycle.ds",
@@ -415,9 +406,7 @@ export let value = 1;
             |_| {},
         );
 
-        test.result(result)
-            .assert_lint("no-circular-dependency")
-            .assert_lint_count("no-circular-dependency", 1);
+        test.result(result).assert_no_lint("no-circular-dependency");
     }
 
     /// Skip declaration files by default.

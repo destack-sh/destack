@@ -284,6 +284,32 @@ window.confirm("ok");
         test.result(result).assert_lint("no-alert");
     }
 
+    /// Report bracket-access alert calls on global qualifiers.
+    #[test]
+    fn test_flags_window_bracket_alert_call() {
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
+            "no_alert/test_flags_window_bracket_alert_call.ds",
+            r#"
+window["alert"]("stop");
+"#,
+        );
+        test.result(result).assert_lint("no-alert");
+    }
+
+    /// Report bracket-access confirm calls on globalThis.
+    #[test]
+    fn test_flags_global_this_bracket_confirm_call() {
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
+            "no_alert/test_flags_global_this_bracket_confirm_call.ds",
+            r#"
+globalThis["confirm"]("ok");
+"#,
+        );
+        test.result(result).assert_lint("no-alert");
+    }
+
     /// Report prompt calls.
     #[test]
     fn test_flags_prompt_call() {
@@ -305,6 +331,23 @@ prompt("name");
             "no_alert/test_allows_other_call.ds",
             r#"
 notify("ok");
+"#,
+        );
+        test.result(result).assert_no_lint("no-alert");
+    }
+
+    /// Allow bracket access on non-global objects.
+    #[test]
+    fn test_allows_non_global_bracket_alert_call() {
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
+            "no_alert/test_allows_non_global_bracket_alert_call.ds",
+            r#"
+const helper = {
+    alert(value) {}
+};
+
+helper["alert"]("ok");
 "#,
         );
         test.result(result).assert_no_lint("no-alert");

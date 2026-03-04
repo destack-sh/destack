@@ -215,6 +215,19 @@ impl NodeVisitor for NoConsoleVisitor<'_, '_> {
             return;
         }
 
+        // check computed console member usage
+        if let dir::Expression::Index { left, .. } = expression {
+            if self.is_console_reference(*left) {
+                self.report_console(id);
+            }
+
+            // track index left to avoid double reporting
+            self.member_left_stack.push(*left);
+            walk_expression(self, tree, id, expression);
+            self.member_left_stack.pop();
+            return;
+        }
+
         // check direct console references
         if self.is_console_reference(id) && !self.is_member_left(id) {
             self.report_console(id);
@@ -331,5 +344,35 @@ console.warn("warning");
         test.result(result)
             .assert_lint("no-console")
             .assert_unsafe_fixed(r#""#);
+    }
+
+    /// Report computed console method calls.
+    #[test]
+    fn test_flags_computed_console_call() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
+            "no_console/test_flags_computed_console_call.ds",
+            r#"
+console["log"]("debug");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-console")
+            .assert_has_fix("no-console");
+    }
+
+    /// Report global computed console method calls.
+    #[test]
+    fn test_flags_global_computed_console_call() {
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
+            "no_console/test_flags_global_computed_console_call.ds",
+            r#"
+globalThis["console"]["warn"]("warning");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-console")
+            .assert_has_fix("no-console");
     }
 }

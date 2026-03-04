@@ -18,7 +18,8 @@ declare_lint! {
         requires_any = [],
         fixable = No,
         recommended = Off,
-        stability = Stable
+        stability = Stable,
+        declarations = Exclude
     )]
     pub NoClass,
     "Disallow class declarations"
@@ -144,5 +145,35 @@ function myFunction() {}
 "#,
         );
         test.result(result).assert_no_lint("no-class");
+    }
+
+    #[test]
+    fn test_skips_declaration_file_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoClass);
+        let result = test.lint_ast(
+            "no_class/test_skips_declaration_file_by_default.d.ts",
+            r#"
+declare class ExternalClass {
+    foo(): void;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-class");
+    }
+
+    #[test]
+    fn test_includes_declaration_file_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoClass).with_options(|options| {
+            options.include_declaration_files = true;
+        });
+        let result = test.lint_ast(
+            "no_class/test_includes_declaration_file_when_enabled.d.ts",
+            r#"
+declare class ExternalClass {
+    foo(): void;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-class");
     }
 }

@@ -1,8 +1,8 @@
 use destack_base::StringId;
-use destack_dir as dir;
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::glob_matches;
+use crate::rules::common::{expression_static_string_literal, glob_matches};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -34,66 +34,136 @@ impl LintRule for NoBannedImport {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        // collect configured restricted patterns
+        // walk the module expression tree
+        let mut visitor = NoBannedImportVisitor::new(ctx, meta);
+        visitor.run();
+    }
+}
+
+/// Node visitor that reports banned import targets.
+struct NoBannedImportVisitor<'a, 'b> {
+    /// The lint context.
+    ctx: &'a mut LintModuleDirContext<'b>,
+    /// The lint metadata.
+    meta: &'a LintMeta,
+    /// The restricted import patterns for this run.
+    restricted_patterns: Vec<String>,
+    /// The visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
+    /// Build a visitor for no-banned-import checks.
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let restricted_patterns = ctx
             .options
             .restricted_imports
             .iter()
             .map(|pattern| pattern.trim())
             .filter(|pattern| !pattern.is_empty())
+            .map(ToOwned::to_owned)
             .collect::<Vec<_>>();
-        if restricted_patterns.is_empty() {
+
+        Self {
+            ctx,
+            meta,
+            restricted_patterns,
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Walk the DIR tree roots.
+    fn run(&mut self) {
+        // skip when no patterns are configured
+        if self.restricted_patterns.is_empty() {
             return;
         }
 
-        // inspect module import and re export expressions
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
-            let Some(specifier_id) = expression_target_specifier(expression) else {
-                continue;
-            };
-            let specifier_text = ctx.program.strings.get(specifier_id).to_string();
+        // capture roots and tree references
+        let roots = self.ctx.roots.clone();
+        let tree = self.ctx.tree;
 
-            // match specifier or resolved target identity against restricted patterns
-            let Some(matched_target) =
-                matching_target(ctx, expression, &specifier_text, &restricted_patterns)
-            else {
-                continue;
-            };
-
-            let severity = ctx.get_effective_severity(meta, expression_id);
-            if !severity.is_enabled() {
-                continue;
-            }
-
-            // report one banned import target
-            let span = ctx.get_span(expression_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_BANNED_IMPORT.id,
-                    NO_BANNED_IMPORT.code,
-                    NO_BANNED_IMPORT.category,
-                    severity,
-                    format!("banned import target `{specifier_text}`"),
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("this import target is restricted by project configuration")
-                .with_note(format!(
-                    "matched restricted pattern `{}` against {} `{}`",
-                    matched_target.pattern,
-                    matched_target.surface.label(),
-                    matched_target.target
-                )),
-            );
+        // walk the module expression tree
+        for root_id in roots {
+            let expression = tree.get(root_id);
+            self.visit_expression(tree, root_id, expression);
         }
+    }
+
+    /// Check one expression for banned import targets.
+    fn check_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // resolve the static module specifier
+        let Some(specifier_id) = expression_target_specifier(self.ctx.tree, expression) else {
+            return;
+        };
+        let specifier_text = self.ctx.program.strings.get(specifier_id).to_string();
+
+        // match specifier or resolved target identity against restricted patterns
+        let Some(matched_target) = matching_target(
+            self.ctx,
+            expression,
+            &specifier_text,
+            &self.restricted_patterns,
+        ) else {
+            return;
+        };
+
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // report one banned import target
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                NO_BANNED_IMPORT.id,
+                NO_BANNED_IMPORT.code,
+                NO_BANNED_IMPORT.category,
+                severity,
+                format!("banned import target `{specifier_text}`"),
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("this import target is restricted by project configuration")
+            .with_note(format!(
+                "matched restricted pattern `{}` against {} `{}`",
+                matched_target.pattern,
+                matched_target.surface.label(),
+                matched_target.target
+            )),
+        );
+    }
+}
+
+impl NodeVisitor for NoBannedImportVisitor<'_, '_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // inspect this expression for import targets
+        self.check_expression(id, expression);
+
+        // walk expression children
+        walk_expression(self, tree, id, expression);
     }
 }
 
 /// A matched import target and match source details.
-struct MatchedTarget<'a> {
+struct MatchedTarget {
     /// The restricted pattern that matched.
-    pattern: &'a str,
+    pattern: String,
     /// The text that matched the restricted pattern.
     target: String,
     /// The semantic surface used for matching.
@@ -124,8 +194,8 @@ impl TargetSurface {
     }
 }
 
-/// Return the target module specifier text for an import like expression.
-fn expression_target_specifier(expression: &dir::Expression) -> Option<StringId> {
+/// Return the static target module specifier text for an import-like expression.
+fn expression_target_static_specifier(expression: &dir::Expression) -> Option<StringId> {
     let target = match expression {
         dir::Expression::Import { target, .. }
         | dir::Expression::ReExport { target, .. }
@@ -140,6 +210,26 @@ fn expression_target_specifier(expression: &dir::Expression) -> Option<StringId>
     Some(target)
 }
 
+/// Return the target module specifier text for an import-like expression.
+fn expression_target_specifier(
+    tree: &dir::NodeTree,
+    expression: &dir::Expression,
+) -> Option<StringId> {
+    // match direct static module targets
+    if let Some(target) = expression_target_static_specifier(expression) {
+        return Some(target);
+    }
+
+    // match dynamic import targets when the expression is a static string
+    let dir::Expression::UnresolvedImport { target, .. } = expression else {
+        return None;
+    };
+    let dir::ImportTarget::Expression { target } = target else {
+        return None;
+    };
+    expression_static_string_literal(tree, *target)
+}
+
 /// Return the resolved module target for an import like expression.
 fn expression_target_module(expression: &dir::Expression) -> Option<dir::ModuleTarget> {
     match expression {
@@ -150,20 +240,20 @@ fn expression_target_module(expression: &dir::Expression) -> Option<dir::ModuleT
 }
 
 /// Return the first restricted pattern that matches a target specifier.
-fn matching_pattern<'a>(target: &str, patterns: &'a [&str]) -> Option<&'a str> {
+fn matching_pattern(target: &str, patterns: &[String]) -> Option<String> {
     patterns
         .iter()
-        .copied()
-        .find(|pattern| glob_matches(pattern, target))
+        .find(|pattern| glob_matches(pattern.as_str(), target))
+        .cloned()
 }
 
 /// Return the first restricted target match for one import expression.
-fn matching_target<'a>(
+fn matching_target(
     ctx: &LintModuleDirContext<'_>,
     expression: &dir::Expression,
     specifier_text: &str,
-    patterns: &'a [&str],
-) -> Option<MatchedTarget<'a>> {
+    patterns: &[String],
+) -> Option<MatchedTarget> {
     // check the explicit specifier first
     if let Some(pattern) = matching_pattern(specifier_text, patterns) {
         return Some(MatchedTarget {
@@ -339,5 +429,38 @@ import { service } from "internal/service";
         );
 
         test.result(diagnostics).assert_lint("no-banned-import");
+    }
+
+    /// Report dynamic imports with static string targets.
+    #[test]
+    fn test_flags_dynamic_import_with_static_string_target() {
+        let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
+            options.restricted_imports = vec!["internal/*".to_string()];
+        });
+        let diagnostics = test.lint_dir(
+            "no_banned_import/test_flags_dynamic_import_with_static_string_target.ds",
+            r#"
+await import("internal/cache");
+"#,
+        );
+
+        test.result(diagnostics).assert_lint("no-banned-import");
+    }
+
+    /// Allow dynamic imports with non-static targets.
+    #[test]
+    fn test_allows_dynamic_import_with_non_static_target() {
+        let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
+            options.restricted_imports = vec!["internal/*".to_string()];
+        });
+        let diagnostics = test.lint_dir(
+            "no_banned_import/test_allows_dynamic_import_with_non_static_target.ds",
+            r#"
+const moduleName = "internal/cache";
+await import(moduleName);
+"#,
+        );
+
+        test.result(diagnostics).assert_no_lint("no-banned-import");
     }
 }
