@@ -36,13 +36,17 @@ const CONSTANTS: &[(&str, f64, &str)] = &[
 ];
 
 impl LintRule for NoApproxConstant {
+    /// Return lint metadata.
     fn meta(&self) -> &'static crate::LintMeta {
         NoApproxConstant::meta()
     }
 
+    /// Check module AST nodes for approximate math constants.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata
         let meta = self.meta();
 
+        // walk scalar float literals
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -50,14 +54,19 @@ impl LintRule for NoApproxConstant {
                 continue;
             };
 
-            // check if this float approximates any known constant
-            if let Some((name, _constant)) = find_approximate_constant(*value) {
+            // resolve literal source text for precision aware matching
+            let span = ctx.tree.get_span(node_id);
+            let literal_text = ctx.get_span_text(span);
+
+            // match literal against known constants
+            if let Some((name, _constant)) = find_approximate_constant(*value, literal_text) {
+                // resolve effective severity
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
                 }
 
-                let span = ctx.tree.get_span(node_id);
+                // build diagnostic
                 let mut diagnostic = LintDiagnostic::new(
                     NO_APPROX_CONSTANT.id,
                     NO_APPROX_CONSTANT.code,
@@ -69,7 +78,7 @@ impl LintRule for NoApproxConstant {
                 )
                 .with_label(format!("use `Math.{name}` instead"));
 
-                // rewrite to the canonical Math constant when fixes are enabled
+                // attach canonical replacement fix when enabled
                 if ctx.compute_fixes {
                     let replacement = format!("Math.{name}");
                     let edits = ctx.edit_builder().replace(span, replacement).into_edits();
@@ -78,6 +87,7 @@ impl LintRule for NoApproxConstant {
                     diagnostic = diagnostic.with_fix(fix);
                 }
 
+                // report lint
                 ctx.report(diagnostic);
             }
         }
@@ -85,20 +95,66 @@ impl LintRule for NoApproxConstant {
 }
 
 /// find if a float value approximates a known mathematical constant
-fn find_approximate_constant(value: f64) -> Option<(&'static str, f64)> {
-    // format the value as a string for prefix matching
-    let value_str = format!("{value}");
+fn find_approximate_constant(value: f64, literal_text: &str) -> Option<(&'static str, f64)> {
+    // normalize literal text and derive precision threshold
+    let normalized_mantissa = normalize_float_mantissa(literal_text)?;
+    let precision_threshold = literal_precision_threshold(&normalized_mantissa)?;
+
+    // match against known constants by prefix and precision distance
     for &(name, constant, prefix) in CONSTANTS {
-        // check if the value string starts with the constant's prefix
-        if value_str.starts_with(prefix) {
-            // also verify the value is <= the constant (it's a truncation)
-            if value <= constant {
-                return Some((name, constant));
-            }
+        if !normalized_mantissa.starts_with(prefix) {
+            continue;
+        }
+
+        let distance = (value - constant).abs();
+        if distance <= precision_threshold {
+            return Some((name, constant));
         }
     }
 
     None
+}
+
+/// Normalize one float literal mantissa for prefix and precision checks.
+fn normalize_float_mantissa(literal_text: &str) -> Option<String> {
+    // trim and reject signed constants
+    let trimmed = literal_text.trim();
+    if trimmed.starts_with('-') {
+        return None;
+    }
+
+    // remove leading plus for explicit positive literals
+    let trimmed = trimmed.strip_prefix('+').unwrap_or(trimmed);
+
+    // split off exponent and remove separators
+    let mantissa = trimmed
+        .split_once(['e', 'E'])
+        .map_or(trimmed, |(base, _)| base);
+    let normalized: String = mantissa
+        .chars()
+        .filter(|character| *character != '_')
+        .collect();
+    if normalized.is_empty() {
+        return None;
+    }
+
+    Some(normalized)
+}
+
+/// Return one threshold from decimal precision of the literal mantissa.
+fn literal_precision_threshold(normalized_mantissa: &str) -> Option<f64> {
+    // require fractional precision
+    let (_, fractional_part) = normalized_mantissa.split_once('.')?;
+    let fractional_digits = fractional_part
+        .chars()
+        .filter(|character| character.is_ascii_digit())
+        .count();
+    if fractional_digits == 0 {
+        return None;
+    }
+
+    // allow one unit in the final fractional place
+    Some(10f64.powi(-(fractional_digits as i32)))
 }
 
 #[cfg(test)]
@@ -190,6 +246,30 @@ let sqrt2 = 1.414
 "#,
         );
         test.result(result).assert_lint("no-approx-constant");
+    }
+
+    #[test]
+    fn test_detects_trailing_zero_precision() {
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
+        let result = test.lint_ast(
+            "no_approx_constant/test_detects_trailing_zero_precision.ds",
+            r#"
+let ln10 = 2.30
+"#,
+        );
+        test.result(result).assert_lint("no-approx-constant");
+    }
+
+    #[test]
+    fn test_allows_far_prefix_match_outside_precision_threshold() {
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
+        let result = test.lint_ast(
+            "no_approx_constant/test_allows_far_prefix_match_outside_precision_threshold.ds",
+            r#"
+let maybePi = 3.149
+"#,
+        );
+        test.result(result).assert_no_lint("no-approx-constant");
     }
 
     #[test]
