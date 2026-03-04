@@ -20,6 +20,24 @@ pub fn normalized_flow_type_id(
     )
 }
 
+/// Return true when two types are equivalent after flow normalization.
+///
+/// This also treats `any` and `unknown` as compatible escape hatches.
+pub fn types_are_equivalent_or_any(
+    types: &dir::TypeTable,
+    left_type_id: dir::LocalTypeId,
+    right_type_id: dir::LocalTypeId,
+) -> bool {
+    let left_normalized = normalized_flow_type_id(types, left_type_id);
+    let right_normalized = normalized_flow_type_id(types, right_type_id);
+
+    if left_normalized == right_normalized {
+        return true;
+    }
+
+    is_any_type(types, left_normalized) || is_any_type(types, right_normalized)
+}
+
 /// Shared traversal state for recursive type queries.
 struct TypeQueryState {
     /// Type ids in the active recursion stack.
@@ -793,6 +811,89 @@ pub fn is_array_type(
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Array { array_symbol })
 }
 
+/// Return true when the type is an array or tuple whose elements are strings.
+pub fn is_string_array_type(
+    types: &dir::TypeTable,
+    type_id: dir::LocalTypeId,
+    array_symbol: Option<dir::GlobalSymbolId>,
+    string_symbol: Option<dir::GlobalSymbolId>,
+) -> bool {
+    let mut state = TypeQueryState::new();
+    is_string_array_type_inner(types, type_id, array_symbol, string_symbol, &mut state)
+}
+
+/// Evaluate string-array compatibility recursively.
+fn is_string_array_type_inner(
+    types: &dir::TypeTable,
+    type_id: dir::LocalTypeId,
+    array_symbol: Option<dir::GlobalSymbolId>,
+    string_symbol: Option<dir::GlobalSymbolId>,
+    state: &mut TypeQueryState,
+) -> bool {
+    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    if !state.enter_type_id(normalized_type_id) {
+        return false;
+    }
+
+    let ty = types.get_type(normalized_type_id);
+    let result = match ty {
+        dir::Type::Array { element, .. } => element
+            .is_some_and(|element_type_id| is_string_type(types, element_type_id, string_symbol)),
+        dir::Type::ArraySized { element, .. } => is_string_type(types, *element, string_symbol),
+        dir::Type::Tuple { elements, .. } => elements
+            .iter()
+            .all(|element| is_string_type(types, element.ty, string_symbol)),
+        dir::Type::Reference {
+            symbol,
+            static_arguments,
+        } => {
+            if !array_symbol.is_some_and(|array_symbol| *symbol == array_symbol) {
+                false
+            } else {
+                static_arguments.as_ref().is_some_and(|static_arguments| {
+                    static_arguments.first().is_some_and(|static_argument| {
+                        static_argument_type_id(types, static_argument).is_some_and(
+                            |element_type_id| is_string_type(types, element_type_id, string_symbol),
+                        )
+                    })
+                })
+            }
+        }
+        dir::Type::Union { elements } => elements.iter().all(|element_type_id| {
+            is_string_array_type_inner(types, *element_type_id, array_symbol, string_symbol, state)
+        }),
+        dir::Type::Intersection { elements } => elements.iter().any(|element_type_id| {
+            is_string_array_type_inner(types, *element_type_id, array_symbol, string_symbol, state)
+        }),
+        dir::Type::Value { value } => {
+            is_string_array_type_inner(types, *value, array_symbol, string_symbol, state)
+        }
+        dir::Type::ValueOf { right, .. }
+        | dir::Type::ReferenceOf { right, .. }
+        | dir::Type::PointerOf { right, .. } => {
+            is_string_array_type_inner(types, *right, array_symbol, string_symbol, state)
+        }
+        _ => false,
+    };
+
+    state.leave_type_id(normalized_type_id);
+    result
+}
+
+/// Resolve one static argument into a concrete type id when available.
+fn static_argument_type_id(
+    types: &dir::TypeTable,
+    static_argument: &dir::StaticArgument,
+) -> Option<dir::LocalTypeId> {
+    match static_argument {
+        dir::StaticArgument::Evaluated { value, .. } => match value {
+            dir::StaticExpression::Type { ty } => Some(*ty),
+            _ => None,
+        },
+        dir::StaticArgument::Unevaluated { node } => types.get_declared_or_inferred_type_id(*node),
+    }
+}
+
 /// Return true when the type may behave as array-like in `for-in` iteration.
 ///
 /// This returns true for direct arrays, tuples, and any union or intersection
@@ -804,13 +905,7 @@ pub fn is_array_like_iteration_type(
     array_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     let mut visited_type_ids = HashSet::new();
-    is_array_like_iteration_type_inner(
-        types,
-        strings,
-        type_id,
-        array_symbol,
-        &mut visited_type_ids,
-    )
+    is_array_like_iteration_type_inner(types, strings, type_id, array_symbol, &mut visited_type_ids)
 }
 
 /// Evaluate array-like iteration compatibility recursively.
@@ -831,9 +926,8 @@ fn is_array_like_iteration_type_inner(
 
     let type_node = types.get_type(type_id);
     match type_node {
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
-            .iter()
-            .any(|element_type_id| {
+        dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
+            elements.iter().any(|element_type_id| {
                 is_array_like_iteration_type_inner(
                     types,
                     strings,
@@ -841,7 +935,8 @@ fn is_array_like_iteration_type_inner(
                     array_symbol,
                     visited_type_ids,
                 )
-            }),
+            })
+        }
         dir::Type::Value { value } => is_array_like_iteration_type_inner(
             types,
             strings,
@@ -938,6 +1033,56 @@ pub fn is_infer_var_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> b
 /// Return true when one type declares a `this` parameter.
 pub fn has_this_parameter_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::HasThisParameter)
+}
+
+/// Return true when one type declares a non-void `this` parameter.
+pub fn has_non_void_this_parameter_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+    let mut visited_type_ids = HashSet::new();
+    has_non_void_this_parameter_type_inner(types, type_id, &mut visited_type_ids)
+}
+
+/// Evaluate non-void `this` parameter compatibility recursively.
+fn has_non_void_this_parameter_type_inner(
+    types: &dir::TypeTable,
+    type_id: dir::LocalTypeId,
+    visited_type_ids: &mut HashSet<dir::LocalTypeId>,
+) -> bool {
+    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    if !visited_type_ids.insert(normalized_type_id) {
+        return false;
+    }
+
+    let ty = types.get_type(normalized_type_id);
+    match ty {
+        dir::Type::Function { this_parameter, .. } => {
+            this_parameter.is_some_and(|this_parameter_type_id| {
+                !is_void_or_never_type(types, this_parameter_type_id)
+            })
+        }
+        dir::Type::Object {
+            call_signatures, ..
+        } => call_signatures.iter().any(|signature_type_id| {
+            has_non_void_this_parameter_type_inner(types, *signature_type_id, visited_type_ids)
+        }),
+        dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
+            elements.iter().any(|element_type_id| {
+                has_non_void_this_parameter_type_inner(types, *element_type_id, visited_type_ids)
+            })
+        }
+        dir::Type::Value { value } => {
+            has_non_void_this_parameter_type_inner(types, *value, visited_type_ids)
+        }
+        dir::Type::ValueOf { right, .. }
+        | dir::Type::ReferenceOf { right, .. }
+        | dir::Type::PointerOf { right, .. } => {
+            has_non_void_this_parameter_type_inner(types, *right, visited_type_ids)
+        }
+        dir::Type::Reference { symbol, .. } => primary_reference_target_type_id(types, *symbol)
+            .is_some_and(|target_type_id| {
+                has_non_void_this_parameter_type_inner(types, target_type_id, visited_type_ids)
+            }),
+        _ => false,
+    }
 }
 
 /// Return true when one type has a useful `toString` representation.

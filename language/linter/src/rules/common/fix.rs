@@ -1,5 +1,11 @@
 use destack_source::Span;
 
+/// Strip one `.member` suffix from a member expression text.
+pub fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
+    let suffix = format!(".{member}");
+    text.strip_suffix(&suffix).map(str::trim_end)
+}
+
 /// Expand a statement span to include a trailing semicolon and one line break.
 pub fn expand_span_to_statement_terminator(source: &str, span: Span) -> Span {
     let bytes = source.as_bytes();
