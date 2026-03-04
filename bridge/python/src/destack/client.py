@@ -6,7 +6,7 @@ import platform
 from importlib.metadata import PackageNotFoundError, version as package_version
 from typing import Final
 
-FALLBACK_VERSION: Final = "0.55.3"
+FALLBACK_VERSION: Final = "0.55.4"
 BACKEND = "python"
 
 

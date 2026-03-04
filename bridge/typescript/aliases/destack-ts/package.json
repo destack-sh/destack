@@ -1,6 +1,6 @@
 {
     "name": "destack-ts",
-    "version": "0.55.3",
+    "version": "0.55.4",
     "description": "Destack legacy alias package for TypeScript",
     "license": "MIT",
     "type": "module",
@@ -36,6 +36,6 @@
         "access": "public"
     },
     "dependencies": {
-        "@destack/runtime": "0.55.3"
+        "@destack/runtime": "0.55.4"
     }
 }

@@ -101,12 +101,12 @@ static ERL_NIF_TERM nif_capi_is_available(ErlNifEnv *env, int argc, const ERL_NI
 // return capi version
 static ERL_NIF_TERM nif_capi_version(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
   if (capi_version == NULL) {
-    return enif_make_string(env, "0.55.3", ERL_NIF_LATIN1);
+    return enif_make_string(env, "0.55.4", ERL_NIF_LATIN1);
   }
 
   const char *value = capi_version();
   if (value == NULL || value[0] == '\0') {
-    return enif_make_string(env, "0.55.3", ERL_NIF_LATIN1);
+    return enif_make_string(env, "0.55.4", ERL_NIF_LATIN1);
   }
 
   return enif_make_string(env, value, ERL_NIF_LATIN1);

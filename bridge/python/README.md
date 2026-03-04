@@ -17,7 +17,7 @@ from destack import create_client
 
 client = create_client()
 assert client.backend == "python"
-assert client.version() == "0.55.3"
+assert client.version() == "0.55.4"
 assert client.capi_abi_version() > 0
 assert client.capi_is_available() is True
 ```

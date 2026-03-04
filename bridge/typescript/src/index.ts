@@ -1,4 +1,4 @@
-const PACKAGE_VERSION = "0.55.3";
+const PACKAGE_VERSION = "0.55.4";
 
 /** Supported backend kinds. */
 export type ClientBackend = "napi" | "wasm";

@@ -8,7 +8,7 @@ Legacy alias crate `destack-rs` is in [`aliases/destack-rs`](aliases/destack-rs/
 
 ```toml
 [dependencies]
-destack = "0.55.3"
+destack = "0.55.4"
 ```
 
 ## API
@@ -18,5 +18,5 @@ let client = destack::Client::new();
 assert_eq!(client.backend(), "rust");
 assert!(client.capi_abi_version() > 0);
 assert!(client.capi_is_available());
-assert_eq!(destack::version(), "0.55.3");
+assert_eq!(destack::version(), "0.55.4");
 ```

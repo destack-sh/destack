@@ -57,7 +57,7 @@ const (
 	// Backend is the static backend marker for this package.
 	Backend = "go"
 	// Version is the package version fallback.
-	Version = "0.55.3"
+	Version = "0.55.4"
 )
 
 type capiState struct {

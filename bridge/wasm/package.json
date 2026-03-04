@@ -1,6 +1,6 @@
 {
     "name": "@destack/wasm",
-    "version": "0.55.3",
+    "version": "0.55.4",
     "description": "WebAssembly bindings for Destack",
     "license": "MIT",
     "type": "module",

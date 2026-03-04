@@ -33,5 +33,5 @@ defmodule Destack.Native do
 
   def capi_is_available, do: false
 
-  def capi_version, do: "0.55.3"
+  def capi_version, do: "0.55.4"
 end

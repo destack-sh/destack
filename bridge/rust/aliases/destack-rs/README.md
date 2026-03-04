@@ -7,7 +7,7 @@ This crate re-exports the canonical `destack` crate.
 
 ```toml
 [dependencies]
-destack-rs = "0.55.3"
+destack-rs = "0.55.4"
 ```
 
 ## API

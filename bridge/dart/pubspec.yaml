@@ -1,6 +1,6 @@
 name: destack
 description: Dart client for Destack.
-version: 0.55.3
+version: 0.55.4
 homepage: https://github.com/destack-sh/destack
 repository: https://github.com/destack-sh/destack
 issue_tracker: https://github.com/destack-sh/destack/issues

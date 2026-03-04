@@ -1,6 +1,6 @@
 {
     "name": "@destack/runtime",
-    "version": "0.55.3",
+    "version": "0.55.4",
     "description": "Destack runtime client for JavaScript and TypeScript",
     "license": "MIT",
     "type": "module",

@@ -98,12 +98,12 @@ static VALUE rb_destack_native_capi_is_available(VALUE self) {
 static VALUE rb_destack_native_capi_version(VALUE self) {
   load_capi_symbols();
   if (capi_version == NULL) {
-    return rb_utf8_str_new_cstr("0.55.3");
+    return rb_utf8_str_new_cstr("0.55.4");
   }
 
   const char *value = capi_version();
   if (value == NULL || value[0] == '\0') {
-    return rb_utf8_str_new_cstr("0.55.3");
+    return rb_utf8_str_new_cstr("0.55.4");
   }
 
   return rb_utf8_str_new_cstr(value);
