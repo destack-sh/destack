@@ -161,7 +161,7 @@ base64 = "0.22"
 cfg-if = "1.0.4"
 foreign-types-shared = "0.1.1"
 getrandom = "0.4.0"
-keyring = "3.6.3"
+keyring = { version = "3.6.3", default-features = false }
 io-uring = "0.7.11"
 core-foundation-sys = "0.8.7"
 openssl = "0.10.74"
@@ -199,6 +199,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5.8"
 pnp = "0.12.8"
+x11rb = "0.13.2"
 windows = { version = "0.60.0", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 windows-sys = "0.52.0"
 zeroize = "1.8.1"
