@@ -9,7 +9,7 @@ use crate::command::DevCommand;
 use crate::command::{
     BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DaemonArgs,
     DocArgs, DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs,
-    QueryArgs, ReplArgs, RunArgs, TargetsArgs, TaskArgs, TestArgs, VersionArgs,
+    QueryArgs, ReplArgs, RunArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
 };
 use crate::common::TracingArgs;
 
@@ -90,6 +90,9 @@ pub enum Command {
 
     /// Show version information.
     Version(VersionArgs),
+
+    /// Update the installed Destack CLI binaries.
+    Update(UpdateArgs),
 
     /// Generate shell completions.
     Completions(CompletionsArgs),
@@ -329,6 +332,12 @@ fn build_commands_help(color_enabled: bool) -> String {
             name: "version",
             example: "",
             help: "Show version information",
+            group: 3,
+        },
+        CommandEntry {
+            name: "update",
+            example: "",
+            help: "Update installed Destack CLI binaries",
             group: 3,
         },
         CommandEntry {

@@ -66,6 +66,17 @@ Release artifacts also include a machine-readable update manifest.
 The manifest maps target triples to archive names and sha256 hashes.
 Future in-cli auto-update uses this file as the canonical release metadata source.
 
+Release CI publishes detached signatures for all metadata and installer scripts.
+
+- `manifest.json.asc`
+- `SHA256SUMS.asc`
+- `install.sh.asc`
+- `install.ps1.asc`
+- `release-signing-public.asc`
+
+The cli `destack update` standalone lane verifies `manifest.json.asc`, `SHA256SUMS.asc`, and the installer script signature against this key during update apply.
+Use `destack update --check --verify` to run metadata signature verification without applying the update.
+
 ## release wiring
 
 The scripts are source controlled here and should be deployed by release automation.
@@ -73,9 +84,10 @@ A production `destack.sh/install` endpoint should serve or redirect to `install.
 
 ## ci publish prerequisites
 
-The `release.yml` publish job requires `NPM_TOKEN` and `VSCE_PAT` secrets in the `release` environment.
+The `release.yml` publish job requires trusted publishing to stay enabled for npm, NuGet, RubyGems, and pub.dev.
 The job stages npm binaries from `release-cli-assets` and then publishes npm packages through `just publish ""`.
-If `publish_zed` is enabled for workflow dispatch, the job also requires `ZED_GITHUB_TOKEN` and `ZED_REGISTRY_PUSH_TO`.
+If `RELEASE_PUBLISH_ZED` is enabled for tag releases, the job also requires `ZED_GITHUB_TOKEN` and `ZED_REGISTRY_PUSH_TO`.
+The create-release lane signs `manifest.json` and `SHA256SUMS` with the dedicated `RELEASE_GPG_*` key.
 
 ## local secret loading
 
