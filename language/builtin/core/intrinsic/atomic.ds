@@ -176,7 +176,7 @@ export declare function atomicExchange<T>(
 /// Atomically adds `value` to the value at `ptr`.
 /// Returns the previous value before the addition.
 @intrinsic("atomic.fetch.add")
-export declare function atomicFetchAdd<T extends int>(
+export declare function atomicFetchAdd<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -193,7 +193,7 @@ export declare function atomicFetchAdd<T extends int>(
 /// Atomically subtracts `value` from the value at `ptr`.
 /// Returns the previous value before the subtraction.
 @intrinsic("atomic.fetch.sub")
-export declare function atomicFetchSub<T extends int>(
+export declare function atomicFetchSub<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -210,7 +210,7 @@ export declare function atomicFetchSub<T extends int>(
 /// Atomically performs bitwise AND of `value` with the value at `ptr`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.and")
-export declare function atomicFetchAnd<T extends int>(
+export declare function atomicFetchAnd<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -227,7 +227,7 @@ export declare function atomicFetchAnd<T extends int>(
 /// Atomically performs bitwise OR of `value` with the value at `ptr`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.or")
-export declare function atomicFetchOr<T extends int>(
+export declare function atomicFetchOr<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -244,7 +244,7 @@ export declare function atomicFetchOr<T extends int>(
 /// Atomically performs bitwise XOR of `value` with the value at `ptr`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.xor")
-export declare function atomicFetchXor<T extends int>(
+export declare function atomicFetchXor<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -261,7 +261,7 @@ export declare function atomicFetchXor<T extends int>(
 /// Atomically stores the minimum of the current value and `value`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.min")
-export declare function atomicFetchMin<T extends int>(
+export declare function atomicFetchMin<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -278,7 +278,7 @@ export declare function atomicFetchMin<T extends int>(
 /// Atomically stores the maximum of the current value and `value`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.max")
-export declare function atomicFetchMax<T extends int>(
+export declare function atomicFetchMax<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -295,7 +295,7 @@ export declare function atomicFetchMax<T extends int>(
 /// Atomically stores the unsigned minimum of the current value and `value`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.umin")
-export declare function atomicFetchUmin<T extends int>(
+export declare function atomicFetchUmin<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -312,7 +312,7 @@ export declare function atomicFetchUmin<T extends int>(
 /// Atomically stores the unsigned maximum of the current value and `value`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.umax")
-export declare function atomicFetchUmax<T extends int>(
+export declare function atomicFetchUmax<T: int>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -329,7 +329,7 @@ export declare function atomicFetchUmax<T extends int>(
 /// Atomically adds `value` to the value at `ptr`.
 /// Returns the previous value before the addition.
 @intrinsic("atomic.fetch.fadd")
-export declare function atomicFetchFadd<T extends float>(
+export declare function atomicFetchFadd<T: float>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -346,7 +346,7 @@ export declare function atomicFetchFadd<T extends float>(
 /// Atomically stores the minimum of the current value and `value`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.fmin")
-export declare function atomicFetchFmin<T extends float>(
+export declare function atomicFetchFmin<T: float>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,
@@ -363,7 +363,7 @@ export declare function atomicFetchFmin<T extends float>(
 /// Atomically stores the maximum of the current value and `value`.
 /// Returns the previous value before the operation.
 @intrinsic("atomic.fetch.fmax")
-export declare function atomicFetchFmax<T extends float>(
+export declare function atomicFetchFmax<T: float>(
     ptr: *T,
     value: T,
     order: MemoryOrdering,

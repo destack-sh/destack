@@ -58,15 +58,13 @@
 /// Try branch result for the `?` and `??` operators.
 ///
 /// Implementations may return this shape directly or any compatible union.
-export type TryBranch<T, E> =
-    | { kind: "ok", value: T }
-    | { kind: "err", error: E };
+export type TryBranch<T, E> = { kind: "ok"; value: T } | { kind: "err"; error: E };
 
 export newtype interface Try<T, E> {
     /// Branch on success or failure.
     /// Returns a TryBranch value to continue or break.
-    branch(): TryBranch<T, E>
+    branch(): TryBranch<T, E>;
 
     /// Construct the implementing type from an error (for early return with `?`).
-    static fromError(error: E): this
+    static fromError(error: E): this;
 }

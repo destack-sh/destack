@@ -2,49 +2,49 @@
 ///
 /// `a + b` becomes `a.add(b)`.
 export newtype interface Add<T, R = this> {
-    add(other: T): R
+    add(other: T): R;
 }
 
 /// Interface for the `-` operator.
 ///
 /// `a - b` becomes `a.subtract(b)`.
 export newtype interface Subtract<T, R = this> {
-    subtract(other: T): R
+    subtract(other: T): R;
 }
 
 /// Interface for the `*` operator.
 ///
 /// `a * b` becomes `a.multiply(b)`.
 export newtype interface Multiply<T, R = this> {
-    multiply(other: T): R
+    multiply(other: T): R;
 }
 
 /// Interface for the `/` operator.
 ///
 /// `a / b` becomes `a.divide(b)`.
 export newtype interface Divide<T, R = this> {
-    divide(other: T): R
+    divide(other: T): R;
 }
 
 /// Interface for the `%` operator (remainder/modulo).
 ///
 /// `a % b` becomes `a.remainder(b)`.
 export newtype interface Remainder<T, R = this> {
-    remainder(other: T): R
+    remainder(other: T): R;
 }
 
 /// Interface for the `**` operator (exponentiation).
 ///
 /// `a ** b` becomes `a.power(b)`.
 export newtype interface Power<T, R = this> {
-    power(other: T): R
+    power(other: T): R;
 }
 
 /// Interface for unary `-` (negation).
 ///
 /// `-a` becomes `a.negate()`.
 export newtype interface Negate<R = this> {
-    negate(): R
+    negate(): R;
 }
 
 /// Interface for unary `+`.
@@ -53,7 +53,7 @@ export newtype interface Negate<R = this> {
 ///
 /// Rarely overloaded; mainly for symmetry with Negate.
 export newtype interface Plus<R = this> {
-    plus(): R
+    plus(): R;
 }
 
 /// Interface for the `&` operator (bitwise/elementwise AND).
@@ -65,7 +65,7 @@ export newtype interface Plus<R = this> {
 /// - Set intersection
 /// - Boolean array elementwise AND
 export newtype interface And<T, R = this> {
-    and(other: T): R
+    and(other: T): R;
 }
 
 /// Interface for the `|` operator (bitwise/elementwise OR).
@@ -77,28 +77,28 @@ export newtype interface And<T, R = this> {
 /// - Set union
 /// - Boolean array elementwise OR
 export newtype interface Or<T, R = this> {
-    or(other: T): R
+    or(other: T): R;
 }
 
 /// Interface for the `^` operator (bitwise/elementwise XOR).
 ///
 /// `a ^ b` becomes `a.xor(b)`.
 export newtype interface Xor<T, R = this> {
-    xor(other: T): R
+    xor(other: T): R;
 }
 
 /// Interface for the `~` operator (bitwise/elementwise NOT).
 ///
 /// `~a` becomes `a.not()`.
 export newtype interface Not<R = this> {
-    not(): R
+    not(): R;
 }
 
 /// Interface for the `<<` operator (shift left).
 ///
 /// `a << b` becomes `a.shiftLeft(b)`.
 export newtype interface ShiftLeft<T, R = this> {
-    shiftLeft(other: T): R
+    shiftLeft(other: T): R;
 }
 
 /// Interface for the `>>` operator (arithmetic shift right).
@@ -107,7 +107,7 @@ export newtype interface ShiftLeft<T, R = this> {
 ///
 /// For signed integers, this is an arithmetic shift (preserves sign).
 export newtype interface ShiftRight<T, R = this> {
-    shiftRight(other: T): R
+    shiftRight(other: T): R;
 }
 
 /// Interface for the `>>>` operator (logical/unsigned shift right).
@@ -116,7 +116,7 @@ export newtype interface ShiftRight<T, R = this> {
 ///
 /// Always shifts in zeros from the left.
 export newtype interface ShiftRightUnsigned<T, R = this> {
-    shiftRightUnsigned(other: T): R
+    shiftRightUnsigned(other: T): R;
 }
 
 /// Interface for concatenation operations.
@@ -131,5 +131,5 @@ export newtype interface ShiftRightUnsigned<T, R = this> {
 /// - Array concatenation
 /// - Other sequence types
 export newtype interface Concatenate<T, R = this> {
-    concat(other: T): R
+    concat(other: T): R;
 }

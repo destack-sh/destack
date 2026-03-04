@@ -113,10 +113,12 @@ export type CapturePolicy = "byValue" | "byReference" | "byMove";
 export type CaptureKind = CapturePolicy;
 
 /// Capture directive value for the capture decorator.
-export type CaptureDirective = CapturePolicy | {
-    default?: CapturePolicy;
-    [name: string]: CaptureKind;
-};
+export type CaptureDirective =
+    | CapturePolicy
+    | {
+        default?: CapturePolicy;
+        [name: string]: CaptureKind;
+    };
 
 /// Configure closure capture policy for a lambda.
 ///

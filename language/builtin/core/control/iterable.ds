@@ -13,19 +13,17 @@ declare const Symbol: SymbolConstructor;
 /// The result of producing a value from an iterator.
 export interface IteratorYieldResult<TYield> {
     /// Whether the iterator is complete.
-    done?: false
-
+    done?: false;
     /// The yielded value.
-    value: TYield
+    value: TYield;
 }
 
 /// The result of completing an iterator.
 export interface IteratorReturnResult<TReturn> {
     /// Whether the iterator is complete.
-    done: true
-
+    done: true;
     /// The return value.
-    value: TReturn
+    value: TReturn;
 }
 
 /// The union of iterator yield and return results.
@@ -36,25 +34,25 @@ export type IteratorResult<T, TReturn = any> =
 /// A protocol for producing a sequence of values.
 export interface Iterator<T, TReturn = any, TNext = any> {
     /// Advance the iterator and return the next result.
-    next(...[value]: [] | [TNext]): IteratorResult<T, TReturn>
-
+    next(...value: [] | [TNext]): IteratorResult<T, TReturn>;
     /// Finalize the iterator and return the completion value.
-    return?(value?: TReturn): IteratorResult<T, TReturn>
-
+    return?(value?: TReturn): IteratorResult<T, TReturn>;
     /// Signal an error to the iterator.
-    throw?(error?: any): IteratorResult<T, TReturn>
+    throw?(error?: any): IteratorResult<T, TReturn>;
 }
 
 /// A value that can produce an iterator.
 export interface Iterable<T, TReturn = any, TNext = any> {
     /// Return a new iterator for this value.
-    [Symbol.iterator](): Iterator<T, TReturn, TNext>
+    [Symbol.iterator](): Iterator<T, TReturn, TNext>;
 }
 
 /// A value that is both iterable and its own iterator.
-export interface IterableIterator<T, TReturn = any, TNext = any>
-    extends Iterator<T, TReturn, TNext>
-{
+export interface IterableIterator<
+    T,
+    TReturn = any,
+    TNext = any,
+> extends Iterator<T, TReturn, TNext> {
     /// Return an iterator for this value.
-    [Symbol.iterator](): IterableIterator<T, TReturn, TNext>
+    [Symbol.iterator](): IterableIterator<T, TReturn, TNext>;
 }

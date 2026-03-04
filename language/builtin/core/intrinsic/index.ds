@@ -1,21 +1,3 @@
-/// Compiler intrinsics - features provided by the compiler.
-///
-/// These are "magic" features that the compiler knows about and provides
-/// specialized implementations for. They cannot be implemented in user code.
-///
-/// # What's Here
-///
-/// - **import-meta.ds** - `import.meta` compile-time module information
-/// - **binding.ds** - Binding decorators and capability types
-/// - **decorator.ds** - Compiler-recognized decorator markers (@intrinsic, @inline, etc.)
-/// - **bit.ds** - Bit manipulation (clz, ctz, popcnt, rotates)
-/// - **arithmetic.ds** - Checked, unchecked, and saturating arithmetic
-/// - **memory.ds** - Memory operations (memcpy, volatile, transmute)
-/// - **atomic.ds** - Atomic operations with memory ordering
-/// - **math.ds** - Floating-point math functions
-/// - **control.ds** - Control flow (unreachable, breakpoint, abort, panic)
-/// - **simd.ds** - SIMD vector operations
-
 export * from "./import-meta.ds";
 export * from "./binding.ds";
 export * from "./decorator.ds";

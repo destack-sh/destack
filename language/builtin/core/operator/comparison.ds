@@ -6,7 +6,7 @@
 /// `===` and `!==` (strict identity) are not overloadable.
 /// They always compare by reference identity (where allowed).
 export newtype interface Equal<T = this> {
-    equal(other: T): boolean
+    equal(other: T): boolean;
 }
 
 /// Result of a comparison operation.
@@ -27,7 +27,7 @@ export const enum Ordering {
 ///
 /// Types that implement `Compare` should also implement `Equal` for consistency.
 export newtype interface Compare<T = this> {
-    compare(other: T): Ordering
+    compare(other: T): Ordering;
 }
 
 /// Interface for partial comparison (when comparison might fail).
@@ -39,12 +39,12 @@ export newtype interface Compare<T = this> {
 /// - If `a.partialCompare(b)` is `null`, result is `false`
 /// - Otherwise, checks if result is `Ordering.Less`
 export newtype interface PartialCompare<T = this> {
-    partialCompare(other: T): Ordering | null
+    partialCompare(other: T): Ordering | null;
 }
 
 /// Interface for partial equality (when equality might fail).
 ///
 /// For types where `a == a` might be false (like float NaN).
 export newtype interface PartialEqual<T = this> {
-    partialEqual(other: T): boolean | null
+    partialEqual(other: T): boolean | null;
 }

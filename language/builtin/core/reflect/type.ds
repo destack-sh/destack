@@ -3,20 +3,20 @@ import { type DecoratorInfo } from "./decorator.ds";
 import { intrinsic } from "../intrinsic/decorator.ds";
 
 /// Stable unique identifier for a type.
-/// 
+///
 /// Format: "module/path:TypeName" (e.g., "myapp/models:User")
-export newtype TypeId = string;;
+export newtype TypeId = string;
 
 /// Common interface implemented by all type descriptor variants.
 export interface TypeBase<T> {
     /// The name of this type (e.g., "User", "int", "string[]").
-    readonly name: string,
+    readonly name: string;
 
     /// Stable unique identifier for this type.
-    readonly id: TypeId,
+    readonly id: TypeId;
 
     /// Type guard - checks if a value is of this type.
-    is(input: unknown): boolean
+    is(input: unknown): boolean;
 }
 
 /// Primitive type descriptor (string, int, float, boolean, null).
@@ -30,7 +30,8 @@ export struct PrimitiveType<T> implements TypeBase<T> {
 }
 
 /// The specific kind of primitive type.
-export type PrimitiveKind = "string"
+export type PrimitiveKind =
+    | "string"
     | "boolean"
     | "null"
     | "undefined"
@@ -224,11 +225,12 @@ export struct ObjectType<T> implements TypeBase<T> {
 
 /// A type descriptor.
 /// Type is the union of all possible type variants.
-/// 
+///
 /// This is the primary type for working with type reflection.
 /// All variants implement `TypeBase<T>`, so common operations like
 /// `.name`, `.id`, `.is()`, and `.validate()` work on any `Type<T>`.
-export newtype Type<T> = PrimitiveType<T>
+export newtype Type<T> =
+    | PrimitiveType<T>
     | StructType<T>
     | ClassType<T>
     | EnumType<T>
@@ -242,7 +244,7 @@ export newtype Type<T> = PrimitiveType<T>
     | ObjectType<T>;
 
 /// Get the type descriptor for a value.
-/// 
+///
 /// Unlike JavaScript's `typeof` (which returns a coarse string like "object"),
 /// this returns the full `Type<T>` descriptor.
 @intrinsic

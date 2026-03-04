@@ -27,7 +27,6 @@
 ///     Result.ok(y)
 /// }
 /// ```
-
 import { type Try, type TryBranch } from "./try.ds";
 import { type Equal } from "../operator/comparison.ds";
 import { type Display, type Debug } from "../operator/format.ds";
@@ -37,22 +36,22 @@ import { type Display, type Debug } from "../operator/format.ds";
 /// Minimal Promise type used by core async helpers.
 declare interface Promise<T> {
     /// Chain a success callback and return a new Promise.
-    then<U>(f: (T) => U): Promise<U>
+    then<U>(f: (T) => U): Promise<U>;
 
     /// Chain an error callback and return a new Promise.
-    "catch"<F>(f: (any) => F): Promise<T | F>
+    catch<F>(f: (any) => F): Promise<T | F>;
 }
 
 /// Constructor for Promise values.
 declare interface PromiseConstructor {
     /// Resolve a value into a Promise.
-    resolve<T>(value: T): Promise<T>
+    resolve<T>(value: T): Promise<T>;
 
     /// Wait for all values to resolve.
-    all(values: any): Promise<any>
+    all(values: any): Promise<any>;
 
     /// Resolve or reject on the first completion.
-    race(values: any): Promise<any>
+    race(values: any): Promise<any>;
 }
 
 /// Global Promise constructor.
@@ -80,22 +79,22 @@ export newtype Result<T, E> = Ok<T> | Err<E>;
 extension<T, E> for Result<T, E> {
     /// Create a success result.
     static ok(value: T): Result<T, E> {
-        Result(Ok { kind: "ok", value })
+        Result(Ok { kind: "ok", value });
     }
 
     /// Create an error result.
     static err(error: E): Result<T, E> {
-        Result(Err { kind: "err", error })
+        Result(Err { kind: "err", error });
     }
 
     /// Returns true if this is Ok.
     isOk(): boolean {
-        this.kind == "ok"
+        this.kind == "ok";
     }
 
     /// Returns true if this is Err.
     isErr(): boolean {
-        this.kind == "err"
+        this.kind == "err";
     }
 
     /// Returns the contained Ok value, or panics if Err.
@@ -208,7 +207,7 @@ extension<T, E> for Result<T, E> implements Try<T, E> {
     }
 
     static fromError(error: E): Result<T, E> {
-        Result.err(error)
+        Result.err(error);
     }
 }
 
@@ -270,17 +269,17 @@ export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 extension<T, E> for AsyncResult<T, E> {
     /// Create a successful async result.
     static ok(value: T): AsyncResult<T, E> {
-        AsyncResult(Promise.resolve(Result.ok(value)))
+        AsyncResult(Promise.resolve(Result.ok(value)));
     }
 
     /// Create a failed async result.
     static err(error: E): AsyncResult<T, E> {
-        AsyncResult(Promise.resolve(Result.err(error)))
+        AsyncResult(Promise.resolve(Result.err(error)));
     }
 
     /// Wrap a Result as an AsyncResult.
     static from(result: Result<T, E>): AsyncResult<T, E> {
-        AsyncResult(Promise.resolve(result))
+        AsyncResult(Promise.resolve(result));
     }
 
     /// Wrap a Promise<T> that might reject into AsyncResult<T, unknown>.
@@ -288,9 +287,8 @@ extension<T, E> for AsyncResult<T, E> {
     /// Catches any rejection and converts it to an Err.
     static fromPromise<T2>(promise: Promise<T2>): AsyncResult<T2, unknown> {
         AsyncResult(
-            promise
-                .then(value => Result.ok(value))["catch"](error => Result.err(error))
-        )
+            promise.then((value) => Result.ok(value))["catch"]((error) => Result.err(error)),
+        );
     }
 
     /// Run an async function and catch any thrown errors.
@@ -301,18 +299,18 @@ extension<T, E> for AsyncResult<T, E> {
     ///     return response.json();
     /// });
     /// ```
-    static "try"<T2>(f: () => Promise<T2>): AsyncResult<T2, unknown> {
-        AsyncResult.fromPromise(f())
+    static try<T2>(f: () => Promise<T2>): AsyncResult<T2, unknown> {
+        AsyncResult.fromPromise(f());
     }
 
     /// Maps the success value.
     map<U>(f: (T) => U): AsyncResult<U, E> {
-        AsyncResult(this.then(result => result.map(f)))
+        AsyncResult(this.then((result) => result.map(f)));
     }
 
     /// Maps the error value.
     mapErr<F>(f: (E) => F): AsyncResult<T, F> {
-        AsyncResult(this.then(result => result.mapErr(f)))
+        AsyncResult(this.then((result) => result.mapErr(f)));
     }
 
     /// Chains another async Result-returning operation.
@@ -320,57 +318,61 @@ extension<T, E> for AsyncResult<T, E> {
     /// If this succeeds, applies `f` to the value and returns its result.
     /// If this fails, returns the error unchanged.
     andThen<U>(f: (T) => AsyncResult<U, E>): AsyncResult<U, E> {
-        AsyncResult(this.then(async result => {
-            match (result) {
-                Ok { value } => await f(value)
-                Err { error } => Result.err(error)
-            }
-        }))
+        AsyncResult(
+            this.then(async (result) => {
+                match (result) {
+                    Ok { value } => await f(value)
+                    Err { error } => Result.err(error)
+                }
+            }),
+        );
     }
 
     /// Like andThen but for sync functions returning Result.
     andThenSync<U>(f: (T) => Result<U, E>): AsyncResult<U, E> {
-        AsyncResult(this.then(result => result.andThen(f)))
+        AsyncResult(this.then((result) => result.andThen(f)));
     }
 
     /// Returns this if Ok, otherwise calls f with the error.
     orElse<F>(f: (E) => AsyncResult<T, F>): AsyncResult<T, F> {
-        AsyncResult(this.then(async result => {
-            match (result) {
-                Ok { value } => Result.ok(value)
-                Err { error } => await f(error)
-            }
-        }))
+        AsyncResult(
+            this.then(async (result) => {
+                match (result) {
+                    Ok { value } => Result.ok(value)
+                    Err { error } => await f(error)
+                }
+            }),
+        );
     }
 
     /// Returns the Ok value, or panics if Err.
     async unwrap(): Promise<T> {
         const result = await this;
-        result.unwrap()
+        result.unwrap();
     }
 
     /// Returns the Ok value, or a default if Err.
     async unwrapOr(default: T): Promise<T> {
         const result = await this;
-        result.unwrapOr(default)
+        result.unwrapOr(default);
     }
 
     /// Returns the Ok value, or computes it from the error.
     async unwrapOrElse(f: (E) => T): Promise<T> {
         const result = await this;
-        result.unwrapOrElse(f)
+        result.unwrapOrElse(f);
     }
 
     /// Returns true if this is Ok.
     async isOk(): Promise<boolean> {
         const result = await this;
-        result.isOk()
+        result.isOk();
     }
 
     /// Returns true if this is Err.
     async isErr(): Promise<boolean> {
         const result = await this;
-        result.isErr()
+        result.isErr();
     }
 
     /// Wait for all AsyncResults, returning first error or all successes.
@@ -385,7 +387,7 @@ extension<T, E> for AsyncResult<T, E> {
     /// ```
     static all<T2, E2>(results: AsyncResult<T2, E2>[]): AsyncResult<T2[], E2> {
         AsyncResult(
-            Promise.all(results).then(resultArray => {
+            Promise.all(results).then((resultArray) => {
                 const values: T2[] = [];
                 for (const result of resultArray) {
                     match (result) {
@@ -393,22 +395,23 @@ extension<T, E> for AsyncResult<T, E> {
                         Err { error } => return Result.err(error)
                     }
                 }
-                Result.ok(values)
-            })
-        )
+                Result.ok(values);
+            }),
+        );
     }
 
     /// Race all AsyncResults, returning first to complete (success or error).
     static race<T2, E2>(results: AsyncResult<T2, E2>[]): AsyncResult<T2, E2> {
-        AsyncResult(Promise.race(results))
+        AsyncResult(Promise.race(results));
     }
 
     /// Run all AsyncResults, collecting all results (both Ok and Err).
     ///
     /// Unlike `all`, this doesn't short-circuit on error.
-    static allSettled<T2, E2>(results: AsyncResult<T2, E2>[]): AsyncResult<Result<T2, E2>[], never> {
-        AsyncResult(
-            Promise.all(results).then(resultArray => Result.ok(resultArray))
-        )
+    static allSettled<T2, E2>(results: AsyncResult<T2, E2>[]): AsyncResult<
+        Result<T2, E2>[],
+        never
+    > {
+        AsyncResult(Promise.all(results).then((resultArray) => Result.ok(resultArray)));
     }
 }

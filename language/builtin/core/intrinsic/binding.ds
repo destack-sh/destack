@@ -224,30 +224,24 @@ export type PlatformCapability =
     | "tty.write";
 
 /// Platform selector tags for runtime binding availability.
-export type PlatformTag =
-    | "windows"
-    | "unix"
-    | "wasi"
-    | "linux"
-    | "macos"
-    | "bsd";
+export type PlatformTag = "windows" | "unix" | "wasi" | "linux" | "macos" | "bsd";
 
 /// Options for runtime bindings.
 export type BindingOptions = {
     /// Effect classification for the binding.
-    effect: "pure" | "deterministic" | "external" | "io",
+    effect: "pure" | "deterministic" | "external" | "io";
     /// Replay policy for external effects.
-    replay?: "recordable" | "nonrecordable",
+    replay?: "recordable" | "nonrecordable";
     /// Replay payload policy for the binding.
-    payload?: "results" | "argumentsAndResults",
+    payload?: "results" | "argumentsAndResults";
     /// Capability requirements for this binding.
-    capabilities?: PlatformCapability[],
+    capabilities?: PlatformCapability[];
     /// Platform availability tags for this binding.
-    platforms?: PlatformTag[],
+    platforms?: PlatformTag[];
     /// Platform scope for this binding.
-    scope?: "host" | "runtime",
+    scope?: "host" | "runtime";
     /// Blocking behavior classification for this binding.
-    blocking?: "always" | "never" | "sometimes",
+    blocking?: "always" | "never" | "sometimes";
 };
 
 /// Marks something as a runtime binding.
@@ -260,7 +254,7 @@ export type BindingOptions = {
 /// })
 /// function open() { }
 /// ```
-export newtype binding = (string, BindingOptions);
+export newtype binding = (string, BindingOptions,);
 
 /// Require one or more platform capabilities.
 ///
