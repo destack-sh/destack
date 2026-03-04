@@ -1,14 +1,18 @@
+use std::collections::{HashMap, HashSet};
+
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_target_symbol;
+use crate::rules::common::{
+    expression_target_symbol, find_cycle_path, strongly_connected_components,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow functions that unconditionally call themselves.
+    /// Disallow functions that recurse without conditional guards.
     ///
-    /// A function that calls itself without any conditional guard will recurse
-    /// infinitely and cause a stack overflow.
+    /// Unconditional self recursion or unconditional mutual recursion cycles
+    /// lead to non-terminating call paths and eventual stack overflows.
     #[lint(
         id = "no-infinite-recursion",
         code = "LC019",
@@ -31,119 +35,135 @@ impl LintRule for NoInfiniteRecursion {
 
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let module_id = ctx.module.id;
 
-        // collect functions to check (avoid borrowing ctx during iteration)
-        let functions: Vec<_> = ctx
-            .tree
-            .iter_nodes_of_type::<dir::Declaration>()
-            .filter_map(|(decl_id, decl)| {
-                if let dir::Declaration::Function {
-                    descriptor,
-                    body: Some(body_id),
-                    ..
-                } = decl
-                {
-                    let function_symbol = dir::GlobalSymbolId::new(module_id, descriptor.symbol);
-                    Some((decl_id, function_symbol, *body_id))
-                } else {
-                    None
+        // collect all function declarations with bodies in this module
+        let function_infos = collect_function_infos(ctx);
+        if function_infos.is_empty() {
+            return;
+        }
+
+        // index functions by symbol for graph construction and reporting
+        let function_symbols = function_infos
+            .iter()
+            .map(|function| function.symbol)
+            .collect::<HashSet<_>>();
+        let function_by_symbol = function_infos
+            .iter()
+            .map(|function| (function.symbol, function))
+            .collect::<HashMap<_, _>>();
+
+        // build one call graph from unconditional call edges only
+        let mut adjacency = HashMap::new();
+        for function in &function_infos {
+            let profile = analyze_function_calls(ctx.tree, function.body_id);
+            let mut neighbors = Vec::new();
+
+            // keep the current conservative guard behavior:
+            // if a function contains conditionals, skip recursion reporting for it
+            if !profile.has_conditional {
+                for called_symbol in profile.called_symbols {
+                    if function_symbols.contains(&called_symbol) {
+                        neighbors.push(called_symbol);
+                    }
                 }
-            })
-            .collect();
+            }
 
-        // check each function
-        for (decl_id, function_symbol, body_id) in functions {
-            let mut visitor = InfiniteRecursionVisitor::new(ctx, meta, function_symbol, decl_id);
-            visitor.run(body_id);
+            neighbors.sort_unstable();
+            neighbors.dedup();
+            adjacency.insert(function.symbol, neighbors);
+        }
+
+        // report one diagnostic for each function in each recursive SCC
+        let components = strongly_connected_components(&adjacency);
+        for component in components {
+            let Some(cycle_path) = find_cycle_path(&adjacency, &component) else {
+                continue;
+            };
+
+            let cycle_label = format_cycle_path(&cycle_path, &function_by_symbol);
+            let is_self_cycle = component.len() == 1;
+
+            for symbol in component {
+                let Some(function) = function_by_symbol.get(&symbol).copied() else {
+                    continue;
+                };
+
+                let severity = ctx.get_effective_severity(meta, function.decl_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                let message = if is_self_cycle {
+                    "function unconditionally calls itself"
+                } else {
+                    "functions form an unconditional recursion cycle"
+                };
+                let diagnostic = LintDiagnostic::new(
+                    NO_INFINITE_RECURSION.id,
+                    NO_INFINITE_RECURSION.code,
+                    NO_INFINITE_RECURSION.category,
+                    severity,
+                    message,
+                    ctx.module.file_id,
+                    ctx.get_span(function.decl_id),
+                )
+                .with_label(format!("recursive cycle path: {cycle_label}"));
+
+                ctx.report(diagnostic);
+            }
         }
     }
 }
 
-/// Visitor that detects unconditional recursive calls.
-struct InfiniteRecursionVisitor<'a, 'b> {
-    /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
-    /// The lint metadata.
-    meta: &'a LintMeta,
-    /// The function's own symbol.
-    function_symbol: dir::GlobalSymbolId,
-    /// The declaration node id for span reporting.
+/// Function metadata for recursion checks.
+struct FunctionInfo {
+    /// The function declaration node.
     decl_id: dir::LocalNodeId<dir::Declaration>,
-    /// Whether we've seen any conditional (if/match).
+    /// The function symbol.
+    symbol: dir::GlobalSymbolId,
+    /// The function body expression.
+    body_id: dir::LocalNodeId<dir::Expression>,
+    /// Display name used in cycle labels.
+    display_name: String,
+}
+
+/// Collected call profile for one function body.
+#[derive(Default)]
+struct FunctionCallProfile {
+    /// Whether the body contains conditional control flow.
     has_conditional: bool,
-    /// The visitor options.
+    /// Called function symbols observed in this body.
+    called_symbols: HashSet<dir::GlobalSymbolId>,
+}
+
+/// Visitor that collects function call symbols and conditional markers.
+#[derive(Default)]
+struct FunctionCallCollector {
+    /// Whether conditionals were seen while traversing this body.
+    has_conditional: bool,
+    /// Called function symbols in this body.
+    called_symbols: HashSet<dir::GlobalSymbolId>,
+    /// Visitor options.
     options: NodeVisitorOptions,
 }
 
-impl<'a, 'b> InfiniteRecursionVisitor<'a, 'b> {
-    /// Build a new visitor.
-    fn new(
-        ctx: &'a mut LintModuleDirContext<'b>,
-        meta: &'a LintMeta,
-        function_symbol: dir::GlobalSymbolId,
-        decl_id: dir::LocalNodeId<dir::Declaration>,
-    ) -> Self {
-        Self {
-            ctx,
-            meta,
-            function_symbol,
-            decl_id,
-            has_conditional: false,
-            options: NodeVisitorOptions::default(),
-        }
-    }
-
-    /// Walk the function body.
-    fn run(&mut self, body_id: dir::LocalNodeId<dir::Expression>) {
-        let tree = self.ctx.tree;
+impl FunctionCallCollector {
+    /// Walk one function body and collect call profile data.
+    fn run(&mut self, tree: &dir::NodeTree, body_id: dir::LocalNodeId<dir::Expression>) {
         let body = tree.get(body_id);
         self.visit_expression(tree, body_id, body);
     }
 
-    /// Check if a call expression is a recursive call.
-    fn check_call(
-        &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
-    ) {
-        // if we've seen any conditional, assume the recursion might be guarded
-        if self.has_conditional {
-            return;
+    /// Finish collection and return profile data.
+    fn finish(self) -> FunctionCallProfile {
+        FunctionCallProfile {
+            has_conditional: self.has_conditional,
+            called_symbols: self.called_symbols,
         }
-
-        // check if the call target is the current function
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, left) else {
-            return;
-        };
-        if target_symbol != self.function_symbol {
-            return;
-        }
-
-        // check effective severity
-        let severity = self.ctx.get_effective_severity(self.meta, self.decl_id);
-        if !severity.is_enabled() {
-            return;
-        }
-
-        // report
-        let span = self.ctx.get_span(expression_id);
-        self.ctx.report(
-            LintDiagnostic::new(
-                NO_INFINITE_RECURSION.id,
-                NO_INFINITE_RECURSION.code,
-                NO_INFINITE_RECURSION.category,
-                severity,
-                "function unconditionally calls itself",
-                self.ctx.module.file_id,
-                span,
-            )
-            .with_label("this recursive call has no base case"),
-        );
     }
 }
 
-impl NodeVisitor for InfiniteRecursionVisitor<'_, '_> {
+impl NodeVisitor for FunctionCallCollector {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -154,7 +174,7 @@ impl NodeVisitor for InfiniteRecursionVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // track if we've seen any conditional control flow
+        // detect conditional control flow in this function body
         if matches!(
             expression,
             dir::Expression::If { .. } | dir::Expression::Match { .. }
@@ -162,14 +182,83 @@ impl NodeVisitor for InfiniteRecursionVisitor<'_, '_> {
             self.has_conditional = true;
         }
 
-        // check call expressions
-        if let dir::Expression::Call { left, .. } = expression {
-            self.check_call(id, *left);
+        // collect call targets for call graph edges
+        if let dir::Expression::Call { left, .. } = expression
+            && let Some(target_symbol) = expression_target_symbol(tree, *left)
+        {
+            self.called_symbols.insert(target_symbol);
         }
 
-        // walk children
         walk_expression(self, tree, id, expression);
     }
+
+    fn visit_declaration(
+        &mut self,
+        _tree: &dir::NodeTree,
+        _id: dir::LocalNodeId<dir::Declaration>,
+        _declaration: &dir::Declaration,
+    ) {
+        // skip nested function declarations
+    }
+}
+
+/// Collect all function declarations with bodies in the current module.
+fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
+    let module_id = ctx.module.id;
+    let mut functions = Vec::new();
+
+    for (decl_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+        let dir::Declaration::Function {
+            descriptor,
+            body: Some(body_id),
+            ..
+        } = declaration
+        else {
+            continue;
+        };
+
+        let display_name = descriptor
+            .name
+            .map(|name| ctx.program.strings.get(name.string()).as_ref().to_string())
+            .unwrap_or_else(|| "<anonymous>".to_string());
+        let symbol = dir::GlobalSymbolId::new(module_id, descriptor.symbol);
+        functions.push(FunctionInfo {
+            decl_id,
+            symbol,
+            body_id: *body_id,
+            display_name,
+        });
+    }
+
+    functions
+}
+
+/// Analyze one function body and return call profile data.
+fn analyze_function_calls(
+    tree: &dir::NodeTree,
+    body_id: dir::LocalNodeId<dir::Expression>,
+) -> FunctionCallProfile {
+    let mut collector = FunctionCallCollector::default();
+    collector.run(tree, body_id);
+    collector.finish()
+}
+
+/// Format one cycle path for diagnostics.
+fn format_cycle_path(
+    cycle_path: &[dir::GlobalSymbolId],
+    function_by_symbol: &HashMap<dir::GlobalSymbolId, &FunctionInfo>,
+) -> String {
+    let mut names = Vec::with_capacity(cycle_path.len());
+
+    for symbol in cycle_path {
+        let name = function_by_symbol
+            .get(symbol)
+            .map(|function| function.display_name.clone())
+            .unwrap_or_else(|| "<function>".to_string());
+        names.push(name);
+    }
+
+    names.join(" -> ")
 }
 
 #[cfg(test)]
@@ -209,6 +298,27 @@ function process(x: number) {
         test.result(result).assert_lint("no-infinite-recursion");
     }
 
+    /// Flag unconditional mutual recursion.
+    #[test]
+    fn test_flags_mutual_recursion_cycle() {
+        let test = TestProgram::for_rule_without_prelude(NoInfiniteRecursion);
+        let result = test.lint_dir(
+            "no_infinite_recursion/test_flags_mutual_recursion_cycle.ds",
+            r#"
+function first() {
+    second();
+}
+
+function second() {
+    first();
+}
+"#,
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint_count("no-infinite-recursion", 2);
+    }
+
     /// Allow recursion guarded by if statement.
     #[test]
     fn test_allows_conditional_recursion() {
@@ -240,6 +350,28 @@ function count(n: number): number {
         0 => 0
         _ => 1 + count(n - 1)
     }
+}
+"#,
+        );
+        test.check_clean();
+        test.result(result).assert_no_lint("no-infinite-recursion");
+    }
+
+    /// Allow conditional mutual recursion.
+    #[test]
+    fn test_allows_conditional_mutual_recursion() {
+        let test = TestProgram::for_rule_without_prelude(NoInfiniteRecursion);
+        let result = test.lint_dir(
+            "no_infinite_recursion/test_allows_conditional_mutual_recursion.ds",
+            r#"
+function first(value: number) {
+    if (value > 0) {
+        second(value - 1);
+    }
+}
+
+function second(value: number) {
+    first(value);
 }
 "#,
         );
