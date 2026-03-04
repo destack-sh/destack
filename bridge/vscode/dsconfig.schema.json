@@ -53,6 +53,9 @@
       "description": "Runtime options.",
       "$ref": "#/$defs/DsConfigRuntimeOptionsJson",
       "default": {
+        "name": null,
+        "labels": null,
+        "primaryAgent": null,
         "execution": null,
         "world": null,
         "access": null,
@@ -62,6 +65,7 @@
         "random": null,
         "scheduler": null,
         "gc": null,
+        "diagnostic": null,
         "fs": null,
         "net": null,
         "process": null,
@@ -939,6 +943,34 @@
       "description": "Runtime options (top-level).",
       "type": "object",
       "properties": {
+        "name": {
+          "description": "Stable runtime name for policy selection.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Runtime labels for policy selection.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "primaryAgent": {
+          "description": "Default primary agent identity for policy selection.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeAgentOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "execution": {
           "description": "Execution mode for runtime scheduling and replay.",
           "anyOf": [
@@ -1031,6 +1063,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/GcOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostic": {
+          "description": "Runtime diagnostics configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeDiagnosticOptionsJson"
             },
             {
               "type": "null"
@@ -1281,6 +1324,29 @@
         }
       }
     },
+    "RuntimeAgentOptionsJson": {
+      "description": "Primary runtime agent options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Primary agent name for policy selection.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Primary agent labels for policy selection.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "ExecutionModeJson": {
       "description": "Execution mode for JSON deserialization.",
       "oneOf": [
@@ -1342,7 +1408,7 @@
       "properties": {
         "when": {
           "description": "Rule filter clause.",
-          "$ref": "#/$defs/RuntimeFilterJson"
+          "$ref": "#/$defs/RuntimeSelectorJson"
         },
         "action": {
           "description": "Rule action payload.",
@@ -1354,8 +1420,8 @@
         "action"
       ]
     },
-    "RuntimeFilterJson": {
-      "description": "Runtime rule filter clause for JSON deserialization.",
+    "RuntimeSelectorJson": {
+      "description": "Runtime rule selector clause for JSON deserialization.",
       "type": "object",
       "properties": {
         "binding": {
@@ -1449,6 +1515,28 @@
               "type": "null"
             }
           ]
+        },
+        "runtime": {
+          "description": "Runtime identity selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeIdentitySelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agent": {
+          "description": "Agent identity selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeIdentitySelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -1524,6 +1612,107 @@
           "description": "Match non-recordable external bindings.",
           "type": "string",
           "const": "externalnonrecordable"
+        }
+      ]
+    },
+    "RuntimeIdentitySelectorJson": {
+      "description": "Runtime identity selector for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name selector for one runtime or one agent.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Label selector for one runtime or one agent.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeLabelSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeLabelSelectorJson": {
+      "description": "Kubernetes-style runtime label selector for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "matchLabels": {
+          "description": "Exact-match labels that must all be present.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "matchExpressions": {
+          "description": "Additional set-based label requirements.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/RuntimeLabelRequirementJson"
+          }
+        }
+      }
+    },
+    "RuntimeLabelRequirementJson": {
+      "description": "Runtime label requirement for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Label key to evaluate.",
+          "type": "string"
+        },
+        "operator": {
+          "description": "Label requirement operator.",
+          "$ref": "#/$defs/RuntimeLabelOperatorJson"
+        },
+        "values": {
+          "description": "Label values for set-based operators.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "operator",
+        "values"
+      ]
+    },
+    "RuntimeLabelOperatorJson": {
+      "description": "Runtime label operator for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Match labels whose value is in the supplied value set.",
+          "type": "string",
+          "const": "in"
+        },
+        {
+          "description": "Match labels whose value is not in the supplied value set.",
+          "type": "string",
+          "const": "notIn"
+        },
+        {
+          "description": "Match labels where the key exists regardless of value.",
+          "type": "string",
+          "const": "exists"
+        },
+        {
+          "description": "Match labels where the key does not exist.",
+          "type": "string",
+          "const": "doesNotExist"
         }
       ]
     },
@@ -1981,6 +2170,67 @@
         }
       ]
     },
+    "RuntimeDiagnosticOptionsJson": {
+      "description": "Runtime diagnostics options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "Minimum diagnostic level recorded by the runtime.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeDiagnosticLevelJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "capacity": {
+          "description": "Maximum number of diagnostic entries retained in the runtime ring buffer.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "RuntimeDiagnosticLevelJson": {
+      "description": "Runtime diagnostic level for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Disable runtime diagnostics collection.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Record only error diagnostics.",
+          "type": "string",
+          "const": "error"
+        },
+        {
+          "description": "Record warning and error diagnostics.",
+          "type": "string",
+          "const": "warn"
+        },
+        {
+          "description": "Record informational diagnostics and above.",
+          "type": "string",
+          "const": "info"
+        },
+        {
+          "description": "Record debug diagnostics and above.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Record trace diagnostics and above.",
+          "type": "string",
+          "const": "trace"
+        }
+      ]
+    },
     "PlatformFsOptionsJson": {
       "description": "Filesystem runtime options.",
       "type": "object",
@@ -2065,6 +2315,24 @@
           "items": {
             "type": "string"
           }
+        },
+        "waitPollInitialBackoffNs": {
+          "description": "Optional initial backoff interval for timeout polling in process wait lanes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "waitPollMaxBackoffNs": {
+          "description": "Optional maximum backoff interval for timeout polling in process wait lanes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         }
       }
     },
@@ -2110,6 +2378,69 @@
           ],
           "format": "uint32",
           "minimum": 0
+        },
+        "workerPollIntervalNs": {
+          "description": "Optional poll interval override for backend worker loops.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "eventMonitorPollIntervalNs": {
+          "description": "Optional poll interval override for monitor event watcher loops.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "streamWaitSliceNs": {
+          "description": "Optional wait-slice override used by blocking stream reads and writes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "eventQueueCapacity": {
+          "description": "Optional default queue capacity for audio event stream opens with zero queue capacity.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "defaultEventPollIntervalNs": {
+          "description": "Optional default poll interval for audio event stream opens with zero poll interval.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxStreamReadBytes": {
+          "description": "Optional maximum bytes accepted per audio stream read call.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxQueuedFrames": {
+          "description": "Optional maximum queued stream frames budget.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         }
       }
     },
@@ -2126,6 +2457,87 @@
         },
         "eventQueueCapacity": {
           "description": "Optional input event queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "monitorPollIntervalNs": {
+          "description": "Optional monitor wait poll interval override for blocking monitor reads.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "xinputPollIntervalNs": {
+          "description": "Optional xinput poll interval override for blocking xinput reads on Windows.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "macosEventQueueCapacity": {
+          "description": "Optional macOS event tap queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "windowsConsoleRecordQueueCapacity": {
+          "description": "Optional Windows console record queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "windowsConsoleCompositionQueueCapacity": {
+          "description": "Optional Windows console composition queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "windowsRawInputQueueCapacity": {
+          "description": "Optional Windows raw-input queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "windowsRawMonitorQueueCapacity": {
+          "description": "Optional Windows raw-monitor queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "windowsRawHidQueueCapacity": {
+          "description": "Optional Windows raw-hid queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "windowsRawTouchQueueCapacity": {
+          "description": "Optional Windows raw-touch queue capacity override.",
           "type": [
             "integer",
             "null"
@@ -2310,6 +2722,24 @@
             "string",
             "null"
           ]
+        },
+        "defaultKeyListLimit": {
+          "description": "Optional default key list page size for zero-limit key listing requests.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "defaultCertificateListLimit": {
+          "description": "Optional default certificate list page size for zero-limit certificate listing requests.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         }
       }
     },
@@ -2339,7 +2769,27 @@
     },
     "PlatformDisplayOptionsJson": {
       "description": "Display runtime options.",
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "defaultEventQueueCapacity": {
+          "description": "Optional default queue capacity for display event stream opens with zero queue capacity.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "windowEventWaitSliceNs": {
+          "description": "Optional wait-slice interval for blocking window event reads.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
     },
     "PlatformErrorOptionsJson": {
       "description": "Error runtime options.",
@@ -2351,11 +2801,33 @@
     },
     "PlatformIoOptionsJson": {
       "description": "I/O runtime options.",
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "windowsIocpPendingPollSliceNs": {
+          "description": "Optional wait-slice interval for pending-poll checks in Windows IOCP poll loops.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
     },
     "PlatformIpcOptionsJson": {
       "description": "IPC runtime options.",
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "unixSemaphorePollIntervalNs": {
+          "description": "Optional poll interval for timed semaphore waits on Unix hosts.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
     },
     "PlatformMemoryOptionsJson": {
       "description": "Memory runtime options.",
