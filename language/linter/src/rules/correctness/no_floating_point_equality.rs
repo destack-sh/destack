@@ -1,7 +1,9 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::is_float_type;
+use crate::rules::common::{
+    expression_method_call, expression_unwrap_parenthesized, is_float_type,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -45,6 +47,8 @@ struct FloatEqualityVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
+    /// The member name `signum`.
+    signum_name: destack_ast::StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -52,9 +56,11 @@ struct FloatEqualityVisitor<'a, 'b> {
 impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
     /// Build a visitor for float equality checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+        let signum_name = ctx.program.strings.intern("signum");
         Self {
             ctx,
             meta,
+            signum_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -94,6 +100,18 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
             return;
         }
 
+        // allow exact comparisons against stable constants like zero and infinity
+        if self.expression_is_allowed_float_constant(left)
+            || self.expression_is_allowed_float_constant(right)
+        {
+            return;
+        }
+
+        // allow signum result comparisons
+        if self.expression_is_signum_result(left) && self.expression_is_signum_result(right) {
+            return;
+        }
+
         // honor per node severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
@@ -114,6 +132,53 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
             )
             .with_label("use an epsilon-based comparison instead"),
         );
+    }
+
+    /// Return true when an expression is an allowed exact float constant.
+    fn expression_is_allowed_float_constant(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let Some(constant_value) = self.ctx.const_value(expression_id) else {
+            return false;
+        };
+
+        match constant_value {
+            crate::ConstValue::Float(value) => value == 0.0 || value.is_infinite(),
+            crate::ConstValue::Integer(value) | crate::ConstValue::Bigint(value) => value == 0,
+            _ => false,
+        }
+    }
+
+    /// Return true when an expression is the result of `signum()` on a float.
+    fn expression_is_signum_result(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+
+        // unary negation preserves signum semantics
+        if let dir::Expression::Unary {
+            operator: dir::UnaryOperator::Negate,
+            right,
+        } = expression
+        {
+            return self.expression_is_signum_result(*right);
+        }
+
+        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+            return false;
+        };
+        if method_call.method_name != self.signum_name {
+            return false;
+        }
+
+        let Some(receiver_type_id) = self.ctx.expression_type_id(method_call.receiver_id) else {
+            return false;
+        };
+
+        is_float_type(self.ctx.types, receiver_type_id)
     }
 }
 
@@ -236,5 +301,32 @@ let less = a < b;
         );
         test.result(result)
             .assert_no_lint("no-floating-point-equality");
+    }
+
+    #[test]
+    fn test_allows_float_equality_with_zero_constant() {
+        let test = TestProgram::for_rule_without_prelude(NoFloatingPointEquality);
+        let result = test.lint_dir(
+            "no_floating_point_equality/test_allows_float_equality_with_zero_constant.ds",
+            r#"
+let value: float64 = read();
+let isZero = value == 0.0;
+"#,
+        );
+        test.result(result).assert_no_lint("no-floating-point-equality");
+    }
+
+    #[test]
+    fn test_allows_signum_comparison() {
+        let test = TestProgram::for_rule_with_prelude(NoFloatingPointEquality);
+        let result = test.lint_dir(
+            "no_floating_point_equality/test_allows_signum_comparison.ds",
+            r#"
+let left: float64 = getLeft();
+let right: float64 = getRight();
+let sameSign = left.signum() == right.signum();
+"#,
+        );
+        test.result(result).assert_no_lint("no-floating-point-equality");
     }
 }
