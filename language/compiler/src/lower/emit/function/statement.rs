@@ -4,7 +4,7 @@ use destack_dir::{
 };
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{LowerError, LowerResult, ScalarType};
 
 use crate::lower::item::lower_mutability;
 
@@ -168,22 +168,20 @@ impl FunctionContext<'_> {
         for declarator_id in declarators {
             let declarator = self.env.dir_tree.get(*declarator_id);
 
-            // require an initializer for native lowering
-            let value_id = declarator
-                .value
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                    message: "missing let initializer".to_string(),
-                })?;
-
-            // lower the initializer value first
-            let (value, value_type) = self.lower_value_expression(value_id)?;
-
-            // lower the binding pattern
             let pattern_id = declarator.pattern;
-            self.bind_pattern_value(pattern_id, value, value_type, Some(mutability))?;
+            if let Some(value_id) = declarator.value {
+                // lower initialized declarators directly
+                let (value, value_type) = self.lower_value_expression(value_id)?;
+                self.bind_pattern_value(pattern_id, value, value_type, Some(mutability))?;
+            } else {
+                // create uninitialized locals for transformed value statements
+                self.bind_uninitialized_pattern(
+                    expression_id,
+                    pattern_id,
+                    declarator.ty,
+                    Some(mutability),
+                )?;
+            }
         }
 
         Ok(Terminates::No)
@@ -831,6 +829,171 @@ impl FunctionContext<'_> {
                 message: "unsupported let pattern".to_string(),
             }),
         }
+    }
+
+    /// Bind a pattern to uninitialized storage in the current block.
+    fn bind_uninitialized_pattern(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        pattern_id: LocalNodeId<Pattern>,
+        type_expression: Option<LocalNodeId<Expression>>,
+        mutability: Option<dir::Mutability>,
+    ) -> LowerResult<()> {
+        // read the pattern
+        let pattern = self.env.dir_tree.get(pattern_id);
+        match pattern {
+            Pattern::Wildcard => Ok(()),
+            Pattern::Binding {
+                symbol, pattern, ..
+            } => {
+                if pattern.is_some() {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: pattern_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "unsupported binding pattern".to_string(),
+                    });
+                }
+
+                // resolve the local type and allocate storage without an initializer
+                let value_type = self.uninitialized_binding_type(
+                    expression_id,
+                    pattern_id,
+                    *symbol,
+                    type_expression,
+                )?;
+                self.define_uninitialized_local_binding(
+                    pattern_id.into_any(),
+                    *symbol,
+                    mutability,
+                    value_type,
+                )
+            }
+            _ => Err(LowerError::UnsupportedConstruct {
+                node: pattern_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "unsupported let pattern".to_string(),
+            }),
+        }
+    }
+
+    /// Resolve the MIR type for an uninitialized local binding.
+    fn uninitialized_binding_type(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        pattern_id: LocalNodeId<Pattern>,
+        symbol_id: dir::LocalSymbolId,
+        type_expression: Option<LocalNodeId<Expression>>,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // resolve the analyzed value type for the symbol
+        let symbol = symbol_id.into_global(self.env.module_id);
+        let type_id = self.value_type_id_for_symbol_or_error(pattern_id.into_any(), symbol)?;
+        let type_id = self.unwrap_value_type_id(type_id);
+
+        // use prelowered aggregate/reference types when available
+        if let Some(mir_type) = self.env.type_lowerer.cached_type(type_id) {
+            return Ok(mir_type);
+        }
+
+        // use explicit annotation when available
+        if let Some(type_expression) = type_expression
+            && let Ok(mir_type) = self.lower_type_for_expression(type_expression)
+        {
+            return Ok(mir_type);
+        }
+
+        // fall back to scalar and string builtins
+        let dir_type = self.env.types.get_type(type_id);
+        if let Some(scalar_type) = self.env.type_lowerer.scalar_type_for_dir_type(dir_type) {
+            return match scalar_type {
+                ScalarType::Bool => Ok(self.env.type_lowerer.ty_bool),
+                ScalarType::SignedInt { width: 32 } => Ok(self.env.type_lowerer.ty_i32),
+                ScalarType::SignedInt { width: 64 } => Ok(self.env.type_lowerer.ty_i64),
+                ScalarType::UnsignedInt { width: 32 } => Ok(self.env.type_lowerer.ty_u32),
+                ScalarType::UnsignedInt { width }
+                    if width == self.env.type_lowerer.pointer_width_bits() =>
+                {
+                    Ok(self.env.type_lowerer.ty_usize)
+                }
+                ScalarType::Float { width: 32 } => Ok(self.env.type_lowerer.ty_f32),
+                ScalarType::Float { width: 64 } => Ok(self.env.type_lowerer.ty_f64),
+                _ => Err(self.missing_type_error(expression_id)),
+            };
+        }
+        if matches!(
+            dir_type,
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
+            }
+        ) && let Some(string_type) = self.env.type_lowerer.string_type()
+        {
+            return Ok(string_type);
+        }
+
+        Err(self.missing_type_error(expression_id))
+    }
+
+    /// Define a local binding without an initializer value.
+    fn define_uninitialized_local_binding(
+        &mut self,
+        node_id: LocalNodeIdAny,
+        symbol_id: dir::LocalSymbolId,
+        mutability: Option<dir::Mutability>,
+        value_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<()> {
+        // convert the symbol id for lookup
+        let global_symbol_id = symbol_id.into_global(self.env.module_id);
+
+        // reject duplicate bindings
+        if self
+            .state
+            .bindings
+            .locals_by_symbol
+            .contains_key(&global_symbol_id)
+        {
+            return Err(LowerError::UnsupportedConstruct {
+                node: node_id.into_anchored(self.env.module_id, Some(self.env.profile)),
+                message: "duplicate local binding".to_string(),
+            });
+        }
+
+        // use boxed capture cell for by-reference locals
+        if self.symbol_needs_reference_cell(global_symbol_id) {
+            // allocate a reference cell and defer pointee initialization
+            let mir_mutability = mutability
+                .map(lower_mutability)
+                .unwrap_or(mir::Mutability::Immutable);
+            let reference_type = self.state.builder.type_reference(
+                mir::ReferenceKind::Managed,
+                value_type,
+                mir_mutability,
+                mir::AddressSpace::Generic,
+                false,
+            );
+            let reference_value = self.state.builder.managed_alloc(value_type, reference_type);
+
+            let variable = self.state.builder.variable(reference_type);
+            self.state
+                .builder
+                .define_variable(variable, reference_value);
+            self.state.bindings.locals_by_symbol.insert(
+                global_symbol_id,
+                LocalBinding::indirect_binding(variable, reference_type, value_type),
+            );
+            return Ok(());
+        }
+
+        // use local storage so later assignments can initialize the value
+        let local_mutability = mutability
+            .map(lower_mutability)
+            .unwrap_or(mir::Mutability::Immutable);
+        let local = self.state.builder.local(value_type, local_mutability);
+        self.state
+            .bindings
+            .locals_by_symbol
+            .insert(global_symbol_id, LocalBinding::local(local, value_type));
+        Ok(())
     }
 
     /// Define a local binding for a symbol.

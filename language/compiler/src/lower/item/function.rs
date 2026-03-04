@@ -395,6 +395,36 @@ impl ModuleLowerer<'_> {
                 }
                 type_sources.entry(*value).or_insert(node_id);
             }
+
+            // include local binding symbol types for uninitialized lets
+            if let Expression::Let { declarators, .. } | Expression::Using { declarators, .. } =
+                self.dir_tree.get(*expression_id)
+            {
+                for declarator_id in declarators {
+                    let declarator = self.dir_tree.get(*declarator_id);
+                    let Some(symbol_id) = self.dir_tree.get(declarator.pattern).symbol() else {
+                        continue;
+                    };
+
+                    let symbol = symbol_id.into_global(self.module_id);
+                    let Some(type_id) = self.types.get_value_type_id(symbol) else {
+                        continue;
+                    };
+                    let type_id = self.types.unwrap_value_type_id(type_id);
+                    let dir_type = self.types.get_type(type_id);
+                    if matches!(
+                        dir_type,
+                        dir::Type::TypeLiteral {
+                            value: dir::TypeLiteral::Never
+                        } | dir::Type::Value { .. }
+                    ) {
+                        continue;
+                    }
+
+                    let type_node = declarator.pattern.into_global_any(self.module_id);
+                    type_sources.entry(type_id).or_insert(type_node);
+                }
+            }
         }
 
         // lower each type in deterministic order
