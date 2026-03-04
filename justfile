@@ -383,8 +383,8 @@ publish-live-local:
     just app/validate-cli-publish
     just publish-live-packages
 
-# create a new release (bump, commit, tag, push)
-release kind message:
+# create a new release (bump, validate, changelog, commit, tag)
+release kind:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -395,8 +395,9 @@ release kind message:
     just release-validate "v${VERSION}"
 
     # stage and commit
+    release_commit_message="chore(all): bump version to ${VERSION}"
     git add -A
-    git commit -m "{{ message }}"
+    git commit -m "${release_commit_message}"
 
     # create tag
     git tag -a "v${VERSION}" -m "Release v${VERSION}"
@@ -404,6 +405,16 @@ release kind message:
     echo ""
     echo "Release v${VERSION} created locally."
     echo "To publish:"
-    echo "  git push origin main --tags"
+    echo "  just release-push {{ kind }}"
     echo "  just publish-live"
     echo "  just publish-live-local   # uses release-cli-assets when present, else host target"
+
+# create and push a release in one command
+release-push kind:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    just release {{ kind }}
+    version="$(cat VERSION.txt)"
+    git push origin main
+    git push origin "v${version}"
