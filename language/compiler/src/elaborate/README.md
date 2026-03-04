@@ -539,6 +539,8 @@ function greet(pet: Cat | Dog): string {
 }
 ```
 
+When dynamic call candidates have different parameter types, each static branch reifies its own call argument casts.
+
 #### Member access
 
 Field access on union types where fields have different offsets or types.
@@ -661,11 +663,34 @@ function build(): (UserId, Point) {
 }
 ```
 
-### Desugar Try (and related Maybe, Must, and Coalesce)
+### Reify must (`!`) into explicit downcasts
 
-Overload resolution is reified in all profiles, using the same resolution machinery as operator overloading.
-If no overload exists, explicit control flow is inserted.
-Coalesce uses Try semantics when the left side implements Try and nullish semantics otherwise.
+Must assertions are reified to explicit cast nodes.
+For nullable unions this becomes a nullable or union downcast, which Lower can emit with runtime checks.
+
+```ds
+// source
+function requireName(name: string | null): string {
+    return name!;
+}
+```
+
+```ds
+// after reify
+function requireName(name: string | null): string {
+    return (name as string);
+}
+```
+
+### Planned: desugar Try (and related Maybe and Coalesce)
+
+This section describes the target shape, not current completed behavior.
+Elaborate does not yet fully rewrite `Maybe` and `Coalesce` nodes into canonical control flow.
+Lower does not currently accept leftover `Maybe` nodes, so this path remains an active Elaborate gap.
+
+When this is implemented, overload resolution will be reified in all profiles using the same resolution machinery as operator overloading.
+If no overload exists, explicit control flow will be inserted.
+Coalesce will use Try semantics when the left side implements Try and nullish semantics otherwise.
 
 ```ds
 // source
@@ -677,7 +702,7 @@ function loadCount(): Result<int32, Error> {
 ```
 
 ```ds
-// after reify
+// target after reify
 function loadCount(): Result<int32, Error> {
     let __try0 = readCount();
     let value;
@@ -699,7 +724,7 @@ function loadCount(): Result<int32, Error> {
 }
 ```
 
-Profiles with native nullish operators may keep them instead of rewriting (TBD).
+Profiles with native nullish operators may keep them instead of rewriting.
 
 ```ds
 // source
@@ -709,37 +734,17 @@ function nameOrDefault(name: string | undefined, fallback: string): string {
 ```
 
 ```ds
-// JS/TS profile reify
+// target JS/TS profile reify
 function nameOrDefault(name: string | undefined, fallback: string): string {
     return name ?? fallback;
 }
 ```
 
 ```ds
-// native profile reify
+// target native profile reify
 function nameOrDefault(name: string | undefined, fallback: string): string {
     if (name == null || name == undefined) {
         return fallback;
-    } else {
-        return name;
-    }
-}
-```
-
-THe same goes for the must (`!`) operator:
-
-```ds
-// source
-function requireName(name: string | null): string {
-    return name!;
-}
-```
-
-```ds
-// after reify
-function requireName(name: string | null): string {
-    if (name == null || name == undefined) {
-        throw "nullish value"; // TODO #Cleanup: revisit try-related reification
     } else {
         return name;
     }
