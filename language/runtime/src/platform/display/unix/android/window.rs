@@ -1,8 +1,9 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    WindowAttentionLevel, WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowLogicalSize,
-    WindowModeOptions, WindowOptions, WindowPhysicalSize, WindowPosition, WindowSizeConstraints,
-    WindowState, WindowVisibility, unsupported,
+    WindowAspectRatio, WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode,
+    WindowDescriptor, WindowIconSet, WindowLogicalSize, WindowModeOptions, WindowOptions,
+    WindowPhysicalSize, WindowPosition, WindowResizeEdge, WindowSizeConstraints, WindowState,
+    WindowVisibility, unsupported,
 };
 use crate::platform::resource;
 use crate::runtime::{BindingCallContext, NativeStringRef};
@@ -185,4 +186,153 @@ pub(in crate::platform::display::host::unix) unsafe fn window_state(
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { unsupported::destack_display_window_state(context, out, window) }
+}
+
+/// Set one window aspect-ratio lock.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_aspect_ratio(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    aspectratio: Option<WindowAspectRatio>,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_set_aspect_ratio(context, window, aspectratio) }
+}
+
+/// Set one window chrome kind.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_chrome(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    chrome: WindowChromeKind,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_set_chrome(context, window, chrome) }
+}
+
+/// Set one window icon set.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_icons(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    icons: Option<WindowIconSet>,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_set_icons(context, window, icons) }
+}
+
+/// Set one window modal state.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_modal(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    modal: bool,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_set_modal(context, window, modal) }
+}
+
+/// Set one window mouse passthrough state.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_mouse_passthrough(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    passthrough: bool,
+) -> RuntimeResult<()> {
+    unsafe {
+        unsupported::destack_display_window_set_mouse_passthrough(context, window, passthrough)
+    }
+}
+
+/// Set one window opacity.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_opacity(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    opacity: f64,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_set_opacity(context, window, opacity) }
+}
+
+/// Read one window opacity.
+pub(in crate::platform::display::host::unix) unsafe fn window_opacity(
+    context: &BindingCallContext,
+    out: *mut f64,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_opacity(context, out, window) }
+}
+
+/// Focus one window.
+pub(in crate::platform::display::host::unix) unsafe fn window_focus(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_focus(context, window) }
+}
+
+/// Raise one window.
+pub(in crate::platform::display::host::unix) unsafe fn window_raise(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_raise(context, window) }
+}
+
+/// Minimize one window.
+pub(in crate::platform::display::host::unix) unsafe fn window_minimize(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_minimize(context, window) }
+}
+
+/// Maximize one window.
+pub(in crate::platform::display::host::unix) unsafe fn window_maximize(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_maximize(context, window) }
+}
+
+/// Restore one window.
+pub(in crate::platform::display::host::unix) unsafe fn window_restore(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_restore(context, window) }
+}
+
+/// Set one window parent relationship.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_parent(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    parent: Option<resource::WindowHandle>,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_set_parent(context, window, parent) }
+}
+
+/// Set one window transient relationship.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_transient_for(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    transientfor: Option<resource::WindowHandle>,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_set_transient_for(context, window, transientfor) }
+}
+
+/// Set one window taskbar visibility state.
+pub(in crate::platform::display::host::unix) unsafe fn window_set_taskbar_visible(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    visible: bool,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_set_taskbar_visible(context, window, visible) }
+}
+
+/// Begin one native window move drag.
+pub(in crate::platform::display::host::unix) unsafe fn window_begin_move_drag(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_begin_move_drag(context, window) }
+}
+
+/// Begin one native window resize drag.
+pub(in crate::platform::display::host::unix) unsafe fn window_begin_resize_drag(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    edge: WindowResizeEdge,
+) -> RuntimeResult<()> {
+    unsafe { unsupported::destack_display_window_begin_resize_drag(context, window, edge) }
 }

@@ -46,6 +46,7 @@ pub(crate) unsafe fn monitor_event_open(
             .monitor_topology_snapshot
             .lock()
             .unwrap_or_else(|error| error.into_inner());
+        // evaluate this condition
         if topology_snapshot.is_none() {
             *topology_snapshot = Some(seeded_snapshots);
         }
@@ -92,6 +93,7 @@ pub(crate) unsafe fn monitor_event_close(
         .resources
         .remove(handle.0, Some(context.engine()))
         .is_some();
+    // evaluate this condition
     if !removed {
         return Err(core_platform::io_not_found(
             "destack.display.monitor.eventClose",
@@ -124,6 +126,7 @@ pub(crate) unsafe fn monitor_event_read(
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
+    // loop until one branch exits
     loop {
         // surface overflow policy as explicit runtime error
         consume_overflow_error(&mut *state, "destack.display.monitor.eventRead")?;
@@ -138,6 +141,7 @@ pub(crate) unsafe fn monitor_event_read(
 
         // abort on timeout
         let now = core_platform::monotonic_now_ns();
+        // evaluate this condition
         if now >= deadline {
             return Err(core_platform::io_would_block(
                 "destack.display.monitor.eventRead",
@@ -181,6 +185,7 @@ pub(crate) unsafe fn monitor_event_read_batch(
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
+    // loop until one branch exits
     loop {
         // surface overflow policy as explicit runtime error
         consume_overflow_error(&mut *state, "destack.display.monitor.eventReadBatch")?;
@@ -189,7 +194,9 @@ pub(crate) unsafe fn monitor_event_read_batch(
         if !state.pending.is_empty() {
             let take = maxevents.min(state.pending.len());
             let mut events = Vec::with_capacity(take);
+            // iterate this sequence
             for _ in 0..take {
+                // evaluate this condition
                 if let Some(record) = state.pending.pop_front() {
                     events.push(display_event_from_record(context, record));
                 }
@@ -203,6 +210,7 @@ pub(crate) unsafe fn monitor_event_read_batch(
 
         // abort on timeout
         let now = core_platform::monotonic_now_ns();
+        // evaluate this condition
         if now >= deadline {
             return Err(core_platform::io_would_block(
                 "destack.display.monitor.eventReadBatch",
@@ -285,6 +293,7 @@ pub(crate) unsafe fn monitor_event_try_read_batch(
 
     // encode drained records
     let mut events = Vec::with_capacity(records.len());
+    // iterate this sequence
     for record in records {
         events.push(display_event_from_record(context, record));
     }
@@ -372,6 +381,7 @@ pub(crate) unsafe fn window_event_close(
         .resources
         .remove(handle.0, Some(context.engine()))
         .is_some();
+    // evaluate this condition
     if !removed {
         return Err(core_platform::io_not_found(
             "destack.display.window.eventClose",
@@ -403,6 +413,7 @@ pub(crate) unsafe fn window_event_read(
 
     // wait until one event is available or timeout expires
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
+    // loop until one branch exits
     loop {
         // pump native window messages before reading queue state
         window::pump_window_messages(context)?;
@@ -425,6 +436,7 @@ pub(crate) unsafe fn window_event_read(
 
         // abort on timeout
         let now = core_platform::monotonic_now_ns();
+        // evaluate this condition
         if now >= deadline {
             return Err(core_platform::io_would_block(
                 "destack.display.window.eventRead",
@@ -465,6 +477,7 @@ pub(crate) unsafe fn window_event_read_batch(
 
     // wait until one or more events are available or timeout expires
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
+    // loop until one branch exits
     loop {
         // pump native window messages before reading queue state
         window::pump_window_messages(context)?;
@@ -481,7 +494,9 @@ pub(crate) unsafe fn window_event_read_batch(
         if !state.pending.is_empty() {
             let take = maxevents.min(state.pending.len());
             let mut events = Vec::with_capacity(take);
+            // iterate this sequence
             for _ in 0..take {
+                // evaluate this condition
                 if let Some(record) = state.pending.pop_front() {
                     events.push(window_event_from_record(record, context));
                 }
@@ -495,6 +510,7 @@ pub(crate) unsafe fn window_event_read_batch(
 
         // abort on timeout
         let now = core_platform::monotonic_now_ns();
+        // evaluate this condition
         if now >= deadline {
             return Err(core_platform::io_would_block(
                 "destack.display.window.eventReadBatch",
@@ -589,6 +605,7 @@ pub(crate) unsafe fn window_event_try_read_batch(
 
     // encode drained records
     let mut events = Vec::with_capacity(records.len());
+    // iterate this sequence
     for record in records {
         events.push(window_event_from_record(record, context));
     }

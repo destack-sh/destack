@@ -1,0 +1,99 @@
+use crate::diagnostic::RuntimeResult;
+use crate::platform::display::{
+    DisplayBackend, WindowDescriptor, WindowOcclusionState, WindowState,
+};
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::BindingCallContext;
+
+use super::super::super::resource as display_resource;
+
+/// Read descriptor metadata for one window.
+pub(crate) unsafe fn window_descriptor(
+    context: &BindingCallContext,
+    out: *mut WindowDescriptor,
+    window_handle: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    // validate out pointer and refresh host event state
+    core_platform::ensure_out(out, "out")?;
+    super::pump_window_messages(context)?;
+
+    // resolve one binding snapshot and encode descriptor payload
+    let binding = display_resource::resolve_window_binding(
+        context,
+        window_handle,
+        "destack.display.window.descriptor",
+    )?;
+    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&binding, "destack.display.window.descriptor")?;
+    let descriptor = WindowDescriptor {
+        backend: DisplayBackend::X11,
+        id: context.store_string(&binding.id),
+        title: context.store_string(&binding.title),
+        mode: binding.mode,
+        display: binding.display,
+        resizable: binding.resizable,
+        decorated: binding.decorated,
+        chrome: binding.chrome,
+        taskbar_visible: binding.taskbar_visible,
+        transparent: binding.transparent,
+        opacity: binding.opacity,
+        always_on_top: binding.always_on_top,
+        parent: binding.parent,
+        transient_for: binding.transient_for,
+        modal: binding.modal,
+        mouse_passthrough: binding.mouse_passthrough,
+        aspect_ratio: binding.aspect_ratio,
+    };
+    unsafe {
+        *out = descriptor;
+    }
+
+    Ok(())
+}
+
+/// Read one window state snapshot.
+pub(crate) unsafe fn window_state(
+    context: &BindingCallContext,
+    out: *mut WindowState,
+    window_handle: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    // validate out pointer and refresh host event state
+    core_platform::ensure_out(out, "out")?;
+    super::pump_window_messages(context)?;
+
+    // resolve one binding snapshot and encode state payload
+    let binding = display_resource::resolve_window_binding(
+        context,
+        window_handle,
+        "destack.display.window.state",
+    )?;
+    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&binding, "destack.display.window.state")?;
+    let state = WindowState {
+        backend: DisplayBackend::X11,
+        position: binding.position,
+        size_logical: binding.size_logical,
+        size_physical: binding.size_physical,
+        scale_factor_milli: binding.scale_factor_milli,
+        visibility: binding.visibility,
+        display: binding.display,
+        focused: binding.focused,
+        occlusion: WindowOcclusionState::Unknown,
+        safe_area_insets: binding.safe_area_insets,
+        theme: binding.theme,
+        chrome: binding.chrome,
+        taskbar_visible: binding.taskbar_visible,
+        opacity: binding.opacity,
+        always_on_top: binding.always_on_top,
+        parent: binding.parent,
+        transient_for: binding.transient_for,
+        modal: binding.modal,
+        mouse_passthrough: binding.mouse_passthrough,
+        aspect_ratio: binding.aspect_ratio,
+    };
+    unsafe {
+        *out = state;
+    }
+
+    Ok(())
+}

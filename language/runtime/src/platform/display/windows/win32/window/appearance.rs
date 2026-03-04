@@ -21,6 +21,7 @@ pub(crate) unsafe fn window_set_title(
 
     // apply host title update
     let status = unsafe { SetWindowTextW(binding.hwnd, title_wide.as_ptr()) };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.setTitle",
@@ -62,6 +63,7 @@ pub(crate) unsafe fn window_set_icons(
             let small_icon =
                 create_hicon(&decoded[small_index], "destack.display.window.setIcons")?;
             let big_icon =
+                // resolve this variant
                 match create_hicon(&decoded[big_index], "destack.display.window.setIcons") {
                     Ok(icon) => icon,
                     Err(error) => {
@@ -162,6 +164,7 @@ pub(crate) unsafe fn window_set_resizable(
     // apply cached mutation and rollback on host failure
     let previous_resizable = binding.resizable;
     binding.resizable = resizable;
+    // evaluate this condition
     if let Err(error) = apply_window_style(&binding, "destack.display.window.setResizable") {
         binding.resizable = previous_resizable;
         return Err(error);
@@ -188,6 +191,7 @@ pub(crate) unsafe fn window_set_decorated(
     // apply cached mutation and rollback on host failure
     let previous_decorated = binding.decorated;
     binding.decorated = decorated;
+    // evaluate this condition
     if let Err(error) = apply_window_style(&binding, "destack.display.window.setDecorated") {
         binding.decorated = previous_decorated;
         return Err(error);
@@ -215,6 +219,7 @@ pub(crate) unsafe fn window_set_always_on_top(
     let status = unsafe {
         SetWindowPos(
             binding.hwnd,
+            // evaluate this condition
             if alwaysontop {
                 HWND_TOPMOST
             } else {
@@ -227,6 +232,7 @@ pub(crate) unsafe fn window_set_always_on_top(
             SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE,
         )
     };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.setAlwaysOnTop",
@@ -261,6 +267,7 @@ pub(crate) unsafe fn window_set_chrome(
 
     // apply cached mutation and rollback on host failure
     binding.chrome = chrome;
+    // evaluate this condition
     if let Err(error) = apply_window_style(&binding, "destack.display.window.setChrome") {
         binding.chrome = previous.chrome;
         return Err(error);
@@ -297,6 +304,7 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
 
     // apply cached mutation and rollback on host failure
     binding.mouse_passthrough = passthrough;
+    // evaluate this condition
     if let Err(error) = apply_window_style(&binding, "destack.display.window.setMousePassthrough") {
         binding.mouse_passthrough = previous.mouse_passthrough;
         return Err(error);
@@ -336,6 +344,7 @@ pub(crate) unsafe fn window_set_opacity(
 
     // apply cached mutation and rollback on host failure
     binding.opacity = opacity;
+    // evaluate this condition
     if let Err(error) = apply_window_style(&binding, "destack.display.window.setOpacity") {
         binding.opacity = previous.opacity;
         return Err(error);
@@ -398,6 +407,7 @@ pub(crate) unsafe fn window_set_taskbar_visible(
 
     // apply cached mutation and rollback on host failure
     binding.taskbar_visible = visible;
+    // evaluate this condition
     if let Err(error) = apply_window_style(&binding, "destack.display.window.setTaskbarVisible") {
         binding.taskbar_visible = previous.taskbar_visible;
         return Err(error);

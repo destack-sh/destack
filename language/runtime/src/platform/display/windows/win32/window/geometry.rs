@@ -50,6 +50,7 @@ pub(crate) unsafe fn window_set_position(
             SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER,
         )
     };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.setPosition",
@@ -117,6 +118,7 @@ pub(crate) unsafe fn window_set_size_logical(
             SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOZORDER,
         )
     };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.setSizeLogical",
@@ -186,6 +188,7 @@ pub(crate) unsafe fn window_set_size_physical(
             SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOZORDER,
         )
     };
+    // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
             "destack.display.window.setSizePhysical",
@@ -250,6 +253,7 @@ pub(crate) unsafe fn window_set_mode(
 
     // apply transition and rollback in-memory state on host failure
     let previous = binding.clone();
+    // evaluate this condition
     if let Err(error) = apply_mode_options(
         context,
         &mut binding,
@@ -278,9 +282,11 @@ pub(crate) unsafe fn window_set_mode(
     drop(binding);
 
     let event_runtime_state = event::display_event_runtime_state(context);
+    // evaluate this condition
     if !same_window_mode(previous.mode, next.mode) {
         event::publish_window_mode_event(&event_runtime_state, window, previous.mode, next.mode);
     }
+    // evaluate this condition
     if previous.display != next.display {
         event::publish_window_display_event(
             &event_runtime_state,

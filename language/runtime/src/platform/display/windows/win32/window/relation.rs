@@ -92,6 +92,7 @@ pub(crate) unsafe fn window_set_parent(
 
     // apply relationship update and rollback host owner lane on failure
     binding.parent = parent;
+    // evaluate this condition
     if let Err(error) =
         apply_owner_relationship(context, &binding, "destack.display.window.setParent")
     {
@@ -99,6 +100,7 @@ pub(crate) unsafe fn window_set_parent(
         return Err(error);
     }
 
+    // evaluate this condition
     if let Err(error) = apply_modal_owner_transition(
         context,
         previous_owner,
@@ -185,6 +187,7 @@ pub(crate) unsafe fn window_set_transient_for(
 
     // apply relationship update and rollback host owner lane on failure
     binding.transient_for = transientfor;
+    // evaluate this condition
     if let Err(error) =
         apply_owner_relationship(context, &binding, "destack.display.window.setTransientFor")
     {
@@ -192,6 +195,7 @@ pub(crate) unsafe fn window_set_transient_for(
         return Err(error);
     }
 
+    // evaluate this condition
     if let Err(error) = apply_modal_owner_transition(
         context,
         previous_owner,

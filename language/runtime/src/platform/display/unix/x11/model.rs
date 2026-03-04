@@ -1,4 +1,6 @@
-use windows_sys::Win32::Foundation::HWND;
+use std::thread::ThreadId;
+
+use x11rb::protocol::xproto::Window;
 
 use crate::platform::display::{
     DisplayBackend, DisplayMode, DisplayOrientation, DisplaySupportStatus, WindowAspectRatio,
@@ -51,7 +53,7 @@ pub(super) struct DisplayDescriptorSnapshot {
     pub(super) hdr_support: DisplaySupportStatus,
 }
 
-/// Snapshot payload for one Win32 monitor endpoint.
+/// Snapshot payload for one x11 monitor endpoint.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct MonitorSnapshot {
     /// Descriptor payload for this monitor.
@@ -64,35 +66,39 @@ pub(super) struct MonitorSnapshot {
     pub(super) modes: Vec<DisplayMode>,
 }
 
-/// Resource payload for one opened monitor handle.
+/// Resource payload for one opened display handle.
 #[derive(Debug, Clone)]
-pub(super) struct Win32DisplayBinding {
+pub(super) struct X11DisplayBinding {
     /// Stable monitor identifier.
     pub(super) id: String,
 }
 
-/// Captured desktop mode snapshot used to restore exclusive fullscreen transitions.
-#[derive(Debug, Clone)]
+/// Stored exclusive-mode restore payload for one window lifecycle.
+#[derive(Debug, Clone, PartialEq)]
 pub(super) struct ExclusiveModeRestore {
-    /// Monitor identifier associated with this restore snapshot.
+    /// Display identifier that was switched into exclusive mode.
     pub(super) display_id: String,
-    /// Mode to apply when leaving exclusive fullscreen.
-    pub(super) mode: DisplayMode,
+    /// Display mode captured before exclusive-mode apply.
+    pub(super) previous_mode: DisplayMode,
 }
 
-/// Resource payload for one opened window handle.
+/// Resource payload for one opened x11 window handle.
 #[derive(Debug, Clone)]
-pub(super) struct Win32WindowBinding {
+pub(super) struct X11WindowBinding {
     /// Stable runtime identifier.
     pub(super) id: String,
-    /// Native Win32 window handle.
-    pub(super) hwnd: HWND,
+    /// Native x11 window id.
+    pub(super) window: Window,
+    /// Optional native x11 cursor id currently applied to this window.
+    pub(super) cursor_handle: Option<u32>,
     /// Owner thread identifier that created this window.
-    pub(super) owner_thread_id: u32,
+    pub(super) owner_thread_id: ThreadId,
     /// Current host-visible title.
     pub(super) title: String,
     /// Current mode configuration.
     pub(super) mode: WindowModeOptions,
+    /// Captured restore payload for active exclusive fullscreen transitions.
+    pub(super) exclusive_restore: Option<ExclusiveModeRestore>,
     /// Current display association.
     pub(super) display: Option<resource::DisplayHandle>,
     /// Whether this window is resizable.
@@ -129,10 +135,6 @@ pub(super) struct Win32WindowBinding {
     pub(super) cursor_mode: WindowCursorMode,
     /// Current cursor icon selector.
     pub(super) cursor_icon: WindowCursorIcon,
-    /// Owned small icon handle currently attached to this window.
-    pub(super) icon_small: isize,
-    /// Owned big icon handle currently attached to this window.
-    pub(super) icon_big: isize,
     /// Current desktop position.
     pub(super) position: WindowPosition,
     /// Current logical size.
@@ -147,14 +149,33 @@ pub(super) struct Win32WindowBinding {
     pub(super) safe_area_insets: Option<WindowSafeAreaInsets>,
     /// Current theme value.
     pub(super) theme: WindowTheme,
-    /// Optional restore snapshot for exclusive fullscreen transitions.
-    pub(super) exclusive_restore: Option<ExclusiveModeRestore>,
     /// Whether closeRequested was already emitted for this window lifetime.
     pub(super) close_requested_emitted: bool,
     /// Whether destroyed was already emitted for this window lifetime.
     pub(super) destroyed_emitted: bool,
-    /// Registered Win32 drop-target callback object pointer value when drag and drop is active.
-    pub(super) drop_target_callback: usize,
-    /// Whether OLE apartment init was acquired for this window drop target.
-    pub(super) drop_target_ole_initialized: bool,
+    /// Current drag source window for one xdnd session.
+    pub(super) xdnd_source_window: Option<u32>,
+    /// Current xdnd protocol version for one drag session.
+    pub(super) xdnd_version: Option<u32>,
+    /// Current offered xdnd data types.
+    pub(super) xdnd_types: Vec<u32>,
+    /// Current accepted xdnd target type.
+    pub(super) xdnd_target_type: Option<u32>,
+    /// Current desktop-space drop position.
+    pub(super) xdnd_position: Option<WindowPosition>,
+    /// Current parsed drop payload snapshot.
+    pub(super) xdnd_payload: Option<XdndPayload>,
+    /// Whether one drop-started event was emitted for this drag session.
+    pub(super) xdnd_dragging: bool,
+    /// Last hovered file path for hover-leave payloads.
+    pub(super) xdnd_last_hovered_path: Option<String>,
+}
+
+/// Parsed payload snapshot for one xdnd selection transfer.
+#[derive(Debug, Clone, PartialEq)]
+pub(super) enum XdndPayload {
+    /// File-list payload parsed from `text/uri-list`.
+    Files(Vec<String>),
+    /// Text payload parsed from `UTF8_STRING` or `TEXT`.
+    Text(String),
 }

@@ -21,8 +21,7 @@ use crate::platform::display::{
     WindowFileHoverLeftEvent, WindowFileHoveredEvent, WindowFocusChangedEvent, WindowFocusPayload,
     WindowLogicalSize, WindowModalChangedEvent, WindowModalPayload, WindowModeChangedEvent,
     WindowModeOptions, WindowModePayload, WindowMousePassthroughChangedEvent,
-    WindowMousePassthroughPayload, WindowOcclusionChangedEvent, WindowOcclusionPayload,
-    WindowOcclusionState, WindowOpacityChangedEvent, WindowOpacityPayload,
+    WindowMousePassthroughPayload, WindowOpacityChangedEvent, WindowOpacityPayload,
     WindowParentChangedEvent, WindowParentPayload, WindowPhysicalSize, WindowPosition,
     WindowPositionChangedEvent, WindowPositionPayload, WindowRefreshRequestedEvent,
     WindowScaleFactorChangedEvent, WindowScaleFactorPayload, WindowSizeChangedEvent,
@@ -35,8 +34,23 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::model::{DisplayDescriptorOwned, MonitorSnapshot, Win32WindowBinding};
-use super::{core, monitor, resource as display_resource, window};
+use super::super::model::{DisplayDescriptorSnapshot, MonitorSnapshot, Win32WindowBinding};
+use super::super::{core, monitor, resource as display_resource, window};
+
+#[path = "codec.rs"]
+mod codec;
+#[path = "publish.rs"]
+mod publish;
+#[path = "queue.rs"]
+mod queue;
+#[path = "stream.rs"]
+mod stream;
+
+pub(in super::super) use publish::*;
+pub(crate) use stream::*;
+
+use self::codec::*;
+use self::queue::*;
 
 /// Stored monitor-event record payload.
 #[derive(Debug, Clone)]
@@ -57,14 +71,14 @@ enum DisplayEventRecordKind {
     /// Added-event payload.
     Added {
         /// Added descriptor payload.
-        descriptor: DisplayDescriptorOwned,
+        descriptor: DisplayDescriptorSnapshot,
     },
     /// Removed-event payload.
     Removed {
         /// Removed display identifier.
         id: String,
         /// Last known descriptor before removal.
-        descriptor: Option<DisplayDescriptorOwned>,
+        descriptor: Option<DisplayDescriptorSnapshot>,
     },
     /// Primary-changed payload.
     PrimaryChanged {
@@ -76,9 +90,9 @@ enum DisplayEventRecordKind {
     /// Descriptor-changed payload.
     DescriptorChanged {
         /// Descriptor payload before mutation.
-        previous: Option<DisplayDescriptorOwned>,
+        previous: Option<DisplayDescriptorSnapshot>,
         /// Descriptor payload after mutation.
-        current: DisplayDescriptorOwned,
+        current: DisplayDescriptorSnapshot,
         /// Changed-field bit mask.
         changed_mask: u32,
     },
@@ -141,15 +155,6 @@ enum WindowEventRecordKind {
         previous_visibility: WindowVisibility,
         /// Visibility state after this event.
         current_visibility: WindowVisibility,
-    },
-    /// Occlusion-changed payload.
-    OcclusionChanged {
-        /// Associated runtime window handle.
-        window: resource::WindowHandle,
-        /// Occlusion state before this event.
-        previous_occlusion: WindowOcclusionState,
-        /// Occlusion state after this event.
-        current_occlusion: WindowOcclusionState,
     },
     /// Position-changed payload.
     PositionChanged {
@@ -389,9 +394,6 @@ impl WindowEventRecordKind {
             WindowEventRecordKind::VisibilityChanged { .. } => {
                 core::WINDOW_EVENT_KIND_VISIBILITY_CHANGED
             }
-            WindowEventRecordKind::OcclusionChanged { .. } => {
-                core::WINDOW_EVENT_KIND_OCCLUSION_CHANGED
-            }
             WindowEventRecordKind::PositionChanged { .. } => {
                 core::WINDOW_EVENT_KIND_POSITION_CHANGED
             }
@@ -440,7 +442,6 @@ impl WindowEventRecordKind {
             | WindowEventRecordKind::Destroyed { window }
             | WindowEventRecordKind::FocusChanged { window, .. }
             | WindowEventRecordKind::VisibilityChanged { window, .. }
-            | WindowEventRecordKind::OcclusionChanged { window, .. }
             | WindowEventRecordKind::PositionChanged { window, .. }
             | WindowEventRecordKind::SizeChanged { window, .. }
             | WindowEventRecordKind::ScaleFactorChanged { window, .. }
@@ -561,6 +562,7 @@ unsafe fn parse_monitor_event_filter(
     let kind_mask = filter
         .kind_mask
         .map(|value: DisplayMonitorEventKindMask| value.0);
+    // evaluate this condition
     if let Some(kind_mask) = kind_mask {
         core::validate_monitor_event_kind_mask(kind_mask, "options.filter.kindMask")?;
     }
@@ -610,7 +612,7 @@ fn window_event_record(kind: WindowEventRecordKind) -> WindowEventRecord {
 
 /// Resource payload for one monitor-event stream.
 #[derive(Debug)]
-pub(super) struct MonitorEventBinding {
+pub(in super::super) struct MonitorEventBinding {
     /// Shared mutable stream state.
     state: Mutex<MonitorEventState>,
     /// Stream-level event filter payload.
@@ -638,7 +640,7 @@ pub(super) struct MonitorEventState {
 
 /// Resource payload for one window-event stream.
 #[derive(Debug)]
-pub(super) struct WindowEventBinding {
+pub(in super::super) struct WindowEventBinding {
     /// Shared mutable stream state.
     state: Mutex<WindowEventState>,
     /// Stream-level event filter payload.
@@ -763,6 +765,7 @@ pub(crate) struct DisplayEventRuntimeState {
 }
 
 impl Default for DisplayEventRuntimeState {
+    /// Create one default display-event runtime state.
     fn default() -> Self {
         Self::new()
     }
@@ -780,7 +783,7 @@ impl DisplayEventRuntimeState {
 }
 
 /// Return runtime-owned display-event state.
-pub(super) fn display_event_runtime_state(
+pub(in super::super) fn display_event_runtime_state(
     context: &BindingCallContext,
 ) -> Arc<DisplayEventRuntimeState> {
     context
@@ -789,21 +792,6 @@ pub(super) fn display_event_runtime_state(
         .display
         .display_event_runtime_state(DisplayEventRuntimeState::new)
 }
-
-#[path = "codec.rs"]
-mod codec;
-#[path = "publish.rs"]
-mod publish;
-#[path = "queue.rs"]
-mod queue;
-#[path = "stream.rs"]
-mod stream;
-
-pub(super) use publish::*;
-pub(in super::super) use stream::*;
-
-use codec::*;
-use queue::*;
 
 #[cfg(test)]
 mod tests {
@@ -823,7 +811,7 @@ mod tests {
     };
     use crate::platform::resource::{ResourceId, WindowHandle};
 
-    use super::super::model::{DisplayDescriptorOwned, MonitorSnapshot};
+    use super::super::super::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
 
     /// Build one test descriptor payload with explicit geometry fields.
     fn descriptor(
@@ -831,8 +819,8 @@ mod tests {
         primary: bool,
         width_px: u32,
         height_px: u32,
-    ) -> DisplayDescriptorOwned {
-        DisplayDescriptorOwned {
+    ) -> DisplayDescriptorSnapshot {
+        DisplayDescriptorSnapshot {
             backend: DisplayBackend::Win32,
             id: id.to_string(),
             name: id.to_string(),
@@ -867,7 +855,7 @@ mod tests {
     }
 
     /// Build one monitor snapshot payload for tests.
-    fn snapshot(descriptor: DisplayDescriptorOwned, mode: DisplayMode) -> MonitorSnapshot {
+    fn snapshot(descriptor: DisplayDescriptorSnapshot, mode: DisplayMode) -> MonitorSnapshot {
         MonitorSnapshot {
             descriptor,
             current_mode: mode,
@@ -925,11 +913,13 @@ mod tests {
         assert!(records.iter().any(|record| matches!(
             record.kind,
             DisplayEventRecordKind::DescriptorChanged { ref current, changed_mask, .. }
+                // evaluate this condition
                 if current.id == r"\\.\DISPLAY1" && (changed_mask & super::core::DISPLAY_CHANGED_MASK_BOUNDS) != 0
         )));
         assert!(records.iter().any(|record| matches!(
             record.kind,
             DisplayEventRecordKind::ModeChanged { ref id, current: mode, .. }
+                // evaluate this condition
                 if id == r"\\.\DISPLAY1" && mode.refresh_milli_hz == 120_000
         )));
     }

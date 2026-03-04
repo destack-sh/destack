@@ -205,6 +205,7 @@ pub(super) fn default_event_queue_capacity(context: &BindingCallContext) -> usiz
 
 /// Resolve queue capacity for one event stream open request.
 pub(super) fn resolved_queue_capacity(context: &BindingCallContext, value: u32) -> usize {
+    // evaluate this condition
     if value == 0 {
         return default_event_queue_capacity(context);
     }
@@ -224,6 +225,7 @@ pub(super) fn window_event_wait_slice_ns(context: &BindingCallContext) -> u64 {
 
 /// Validate one batch-size payload.
 pub(super) fn validate_max_events(maxevents: u32, field: &'static str) -> RuntimeResult<usize> {
+    // evaluate this condition
     if maxevents == 0 {
         return Err(core_platform::invalid_argument(
             field,
@@ -240,6 +242,7 @@ pub(super) fn validate_monitor_event_kind_mask(
     field: &'static str,
 ) -> RuntimeResult<()> {
     let unsupported_bits = kind_mask & !DISPLAY_MONITOR_EVENT_KIND_MASK_ALL;
+    // evaluate this condition
     if unsupported_bits == 0 {
         return Ok(());
     }
@@ -256,6 +259,7 @@ pub(super) fn validate_window_event_kind_mask(
     field: &'static str,
 ) -> RuntimeResult<()> {
     let unsupported_bits = kind_mask & !WINDOW_EVENT_KIND_MASK_ALL;
+    // evaluate this condition
     if unsupported_bits == 0 {
         return Ok(());
     }
