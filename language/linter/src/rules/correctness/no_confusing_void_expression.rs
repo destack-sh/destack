@@ -44,6 +44,9 @@ impl LintRule for NoConfusingVoidExpression {
             if is_statement_void_discard(ctx.tree, expression_id) {
                 continue;
             }
+            if is_non_tail_sequence_operand(ctx.tree, expression_id) {
+                continue;
+            }
 
             let severity = ctx.get_effective_severity(meta, expression_id);
             if !severity.is_enabled() {
@@ -65,6 +68,25 @@ impl LintRule for NoConfusingVoidExpression {
             );
         }
     }
+}
+
+/// Return true when this void expression is a non-tail sequence operand.
+fn is_non_tail_sequence_operand(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let outer_expression_id = outer_passthrough_expression_id(tree, expression_id);
+    let Some(parent_id) = parent_expression_id(tree, outer_expression_id) else {
+        return false;
+    };
+    let parent_expression = tree.get(parent_id);
+    let dir::Expression::SequenceExpression { expressions } = parent_expression else {
+        return false;
+    };
+
+    expressions
+        .last()
+        .is_some_and(|last_expression_id| *last_expression_id != outer_expression_id)
 }
 
 /// Return true when the expression is a `void` unary expression.
@@ -258,6 +280,42 @@ function consume(value: unknown): void {
 }
 
 consume(void sideEffect());
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-void-expression");
+    }
+
+    /// Allow void in non-tail sequence positions.
+    #[test]
+    fn test_allows_void_in_non_tail_sequence() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression);
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_allows_void_in_non_tail_sequence.ts",
+            r#"
+function sideEffect(): unknown {
+    return 1;
+}
+
+const value = (void sideEffect(), 1);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-confusing-void-expression");
+    }
+
+    /// Flag void in tail sequence positions.
+    #[test]
+    fn test_flags_void_in_tail_sequence() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression);
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_flags_void_in_tail_sequence.ts",
+            r#"
+function sideEffect(): unknown {
+    return 1;
+}
+
+const value = (1, void sideEffect());
 "#,
         );
         test.result(result)

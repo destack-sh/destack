@@ -4,7 +4,7 @@ use destack_ast::{
 };
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow control flow statements in finally blocks.
@@ -27,7 +27,7 @@ declare_lint! {
 }
 
 impl LintRule for NoUnsafeFinally {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoUnsafeFinally::meta()
     }
 
@@ -54,7 +54,9 @@ impl LintRule for NoUnsafeFinally {
                 severity,
                 file_id: ctx.module.file_id,
                 diagnostics: Vec::new(),
-                in_function: false,
+                breakable_scope_depth: 0,
+                continuable_scope_depth: 0,
+                labels: Vec::new(),
             };
 
             let finally_expression = ctx.tree.get(*finally_id);
@@ -68,11 +70,91 @@ impl LintRule for NoUnsafeFinally {
 }
 
 struct FinallyVisitor {
+    /// The visitor options.
     options: NodeVisitorOptions,
+    /// The lint severity.
     severity: LintSeverity,
+    /// The source file id.
     file_id: destack_source::FileId,
+    /// Collected diagnostics.
     diagnostics: Vec<LintDiagnostic>,
-    in_function: bool,
+    /// The count of breakable scopes entered within the finally traversal.
+    breakable_scope_depth: usize,
+    /// The count of continuable loop scopes entered within the finally traversal.
+    continuable_scope_depth: usize,
+    /// Label targets declared within the finally traversal.
+    labels: Vec<LabelScope>,
+}
+
+/// One labeled scope entered while walking a finally block.
+#[derive(Clone, Copy)]
+struct LabelScope {
+    /// The declared label.
+    name: ast::StringId,
+    /// Whether `continue <label>` is valid for this label.
+    can_continue: bool,
+}
+
+impl FinallyVisitor {
+    /// Return true when one break target is inside the current finally traversal.
+    fn break_is_local_target(&self, label: Option<ast::StringId>) -> bool {
+        // unlabeled breaks target the nearest breakable scope
+        if label.is_none() {
+            return self.breakable_scope_depth > 0;
+        }
+
+        // labeled breaks are local only when label exists in this finally traversal
+        let label = label.expect("label is checked above");
+        self.labels.iter().rev().any(|scope| scope.name == label)
+    }
+
+    /// Return true when one continue target is inside the current finally traversal.
+    fn continue_is_local_target(&self, label: Option<ast::StringId>) -> bool {
+        // unlabeled continues target the nearest loop scope
+        if label.is_none() {
+            return self.continuable_scope_depth > 0;
+        }
+
+        // labeled continues are local only for in finally loop labels
+        let label = label.expect("label is checked above");
+        self.labels
+            .iter()
+            .rev()
+            .any(|scope| scope.name == label && scope.can_continue)
+    }
+
+    /// Report one unsafe control-flow expression in a finally block.
+    fn report_unsafe(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Expression>,
+        message: &'static str,
+        label: &'static str,
+    ) {
+        self.diagnostics.push(
+            LintDiagnostic::new(
+                NO_UNSAFE_FINALLY.id,
+                NO_UNSAFE_FINALLY.code,
+                NO_UNSAFE_FINALLY.category,
+                self.severity,
+                message,
+                self.file_id,
+                tree.get_span(id),
+            )
+            .with_label(label),
+        );
+    }
+
+    /// Return true when one expression is a loop that can be a continue target.
+    fn expression_is_loop_target(expression: &Expression) -> bool {
+        matches!(
+            expression,
+            Expression::While { .. }
+                | Expression::ForEach { .. }
+                | Expression::For { .. }
+                | Expression::Loop { .. }
+        )
+    }
 }
 
 impl NodeVisitor for FinallyVisitor {
@@ -86,79 +168,104 @@ impl NodeVisitor for FinallyVisitor {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        match expression {
-            // don't traverse into nested functions, as their control flow is local
-            Expression::Declaration(declaration_id) => {
-                let declaration = tree.get(*declaration_id);
-                if matches!(declaration, ast::Declaration::Function { .. }) {
-                    // skip function bodies
-                    return;
-                }
-            }
-            // return in finally is unsafe
-            Expression::Return { .. } if !self.in_function => {
-                self.diagnostics.push(
-                    LintDiagnostic::new(
-                        NO_UNSAFE_FINALLY.id,
-                        NO_UNSAFE_FINALLY.code,
-                        NO_UNSAFE_FINALLY.category,
-                        self.severity,
-                        "`return` in finally block",
-                        self.file_id,
-                        tree.get_span(id),
-                    )
-                    .with_label("this may override a thrown exception"),
-                );
-            }
-            // throw in finally is unsafe
-            Expression::Throw { .. } if !self.in_function => {
-                self.diagnostics.push(
-                    LintDiagnostic::new(
-                        NO_UNSAFE_FINALLY.id,
-                        NO_UNSAFE_FINALLY.code,
-                        NO_UNSAFE_FINALLY.category,
-                        self.severity,
-                        "`throw` in finally block",
-                        self.file_id,
-                        tree.get_span(id),
-                    )
-                    .with_label("this may override a thrown exception"),
-                );
-            }
-            // break in finally is unsafe
-            Expression::Break { .. } if !self.in_function => {
-                self.diagnostics.push(
-                    LintDiagnostic::new(
-                        NO_UNSAFE_FINALLY.id,
-                        NO_UNSAFE_FINALLY.code,
-                        NO_UNSAFE_FINALLY.category,
-                        self.severity,
-                        "`break` in finally block",
-                        self.file_id,
-                        tree.get_span(id),
-                    )
-                    .with_label("this may disrupt expected control flow"),
-                );
-            }
-            // continue in finally is unsafe
-            Expression::Continue { .. } if !self.in_function => {
-                self.diagnostics.push(
-                    LintDiagnostic::new(
-                        NO_UNSAFE_FINALLY.id,
-                        NO_UNSAFE_FINALLY.code,
-                        NO_UNSAFE_FINALLY.category,
-                        self.severity,
-                        "`continue` in finally block",
-                        self.file_id,
-                        tree.get_span(id),
-                    )
-                    .with_label("this may disrupt expected control flow"),
-                );
-            }
-            _ => {}
+        // don't traverse declaration bodies, as their control flow is local
+        if matches!(expression, Expression::Declaration(..)) {
+            return;
+        }
+
+        // enter local breakable and continuable scopes
+        let mut entered_break_scope = false;
+        let mut entered_continuable_scope = false;
+        let mut entered_label = false;
+
+        // label scopes are local break targets and may be local continue targets for loops
+        if let Expression::Labelled { label, body } = expression {
+            let body_expression = tree.get(*body);
+            let can_continue = Self::expression_is_loop_target(body_expression);
+
+            self.labels.push(LabelScope {
+                name: *label,
+                can_continue,
+            });
+            entered_label = true;
+        }
+
+        // any loop is both breakable and continuable
+        if matches!(
+            expression,
+            Expression::While { .. }
+                | Expression::ForEach { .. }
+                | Expression::For { .. }
+                | Expression::Loop { .. }
+        ) {
+            self.breakable_scope_depth += 1;
+            entered_break_scope = true;
+
+            self.continuable_scope_depth += 1;
+            entered_continuable_scope = true;
+        }
+        // match is breakable like switch in JavaScript
+        else if matches!(expression, Expression::Match { .. }) {
+            self.breakable_scope_depth += 1;
+            entered_break_scope = true;
+        }
+
+        // return in finally is unsafe
+        if matches!(expression, Expression::Return { .. }) {
+            self.report_unsafe(
+                tree,
+                id,
+                "`return` in finally block",
+                "this may override a thrown exception",
+            );
+        }
+
+        // throw in finally is unsafe
+        if matches!(expression, Expression::Throw { .. }) {
+            self.report_unsafe(
+                tree,
+                id,
+                "`throw` in finally block",
+                "this may override a thrown exception",
+            );
+        }
+
+        // break is unsafe only when the target is outside this finally
+        if let Expression::Break { label, .. } = expression
+            && !self.break_is_local_target(*label)
+        {
+            self.report_unsafe(
+                tree,
+                id,
+                "`break` in finally block",
+                "this may disrupt expected control flow",
+            );
+        }
+
+        // continue is unsafe only when the target is outside this finally
+        if let Expression::Continue { label } = expression
+            && !self.continue_is_local_target(*label)
+        {
+            self.report_unsafe(
+                tree,
+                id,
+                "`continue` in finally block",
+                "this may disrupt expected control flow",
+            );
         }
 
         walk_expression(self, tree, id, expression);
+
+        // restore traversal scopes after children
+        if entered_label {
+            self.labels.pop();
+        }
+        if entered_continuable_scope {
+            self.continuable_scope_depth -= 1;
+        }
+        if entered_break_scope {
+            self.breakable_scope_depth -= 1;
+        }
     }
 }
 
@@ -271,6 +378,106 @@ function foo() {
             return 1;
         };
         inner();
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-unsafe-finally");
+    }
+
+    #[test]
+    fn test_allows_return_in_nested_class_method() {
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
+        let result = test.lint_ast(
+            "no_unsafe_finally/test_allows_return_in_nested_class_method.ds",
+            r#"
+function foo() {
+    try {
+        throw "error";
+    } finally {
+        class Helper {
+            run() {
+                return 1;
+            }
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-unsafe-finally");
+    }
+
+    #[test]
+    fn test_allows_break_inside_finally_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
+        let result = test.lint_ast(
+            "no_unsafe_finally/test_allows_break_inside_finally_loop.ds",
+            r#"
+function foo() {
+    try {
+        throw "error";
+    } finally {
+        while (true) {
+            break;
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-unsafe-finally");
+    }
+
+    #[test]
+    fn test_allows_continue_inside_finally_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
+        let result = test.lint_ast(
+            "no_unsafe_finally/test_allows_continue_inside_finally_loop.ds",
+            r#"
+function foo() {
+    try {
+        throw "error";
+    } finally {
+        for (;;) {
+            continue;
+        }
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-unsafe-finally");
+    }
+
+    #[test]
+    fn test_flags_break_to_outer_label_from_finally() {
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
+        let result = test.lint_ast(
+            "no_unsafe_finally/test_flags_break_to_outer_label_from_finally.ds",
+            r#"
+outer: while (true) {
+    try {
+        throw "error";
+    } finally {
+        break outer;
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("no-unsafe-finally");
+    }
+
+    #[test]
+    fn test_allows_break_to_inner_label_in_finally() {
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
+        let result = test.lint_ast(
+            "no_unsafe_finally/test_allows_break_to_inner_label_in_finally.ds",
+            r#"
+function foo() {
+    try {
+        throw "error";
+    } finally {
+        inner: while (true) {
+            break inner;
+        }
     }
 }
 "#,

@@ -3,9 +3,7 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    collect_pattern_value_binding_symbols, is_any_type, is_infer_var_type,
-};
+use crate::rules::common::{collect_pattern_value_binding_symbols, is_any_type, is_infer_var_type};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {

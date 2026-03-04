@@ -42,7 +42,9 @@ impl LintRule for NoConstantCondition {
                     ast::IfCondition::Expression { condition } => *condition,
                     ast::IfCondition::Let { .. } => continue,
                 },
-                ast::Expression::While { kind, condition, .. } => {
+                ast::Expression::While {
+                    kind, condition, ..
+                } => {
                     // align source defaults: allow `while (true)` as an explicit infinite loop
                     if *kind == ast::WhileKind::While && ctx.const_bool(*condition) == Some(true) {
                         continue;
@@ -239,8 +241,7 @@ if (false) { foo(); }
 while (true) { foo(); }
 "#,
         );
-        test.result(result)
-            .assert_no_lint("no-constant-condition");
+        test.result(result).assert_no_lint("no-constant-condition");
     }
 
     #[test]

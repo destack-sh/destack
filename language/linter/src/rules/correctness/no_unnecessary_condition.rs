@@ -205,6 +205,16 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
             .with_label(label),
         );
     }
+
+    /// Check one loop condition, allowing intentional `while (true)` forms.
+    fn check_loop_condition(&mut self, condition_id: dir::LocalNodeId<dir::Expression>) {
+        // allow explicit constant true loop conditions
+        if self.ctx.const_bool(condition_id) == Some(true) {
+            return;
+        }
+
+        self.check_condition(condition_id, "loop condition");
+    }
 }
 
 impl NodeVisitor for UnnecessaryConditionVisitor<'_, '_> {
@@ -228,13 +238,13 @@ impl NodeVisitor for UnnecessaryConditionVisitor<'_, '_> {
                 condition: Some(condition),
                 ..
             } => {
-                self.check_condition(*condition, "loop condition");
+                self.check_loop_condition(*condition);
             }
             dir::Expression::For {
                 condition: Some(condition),
                 ..
             } => {
-                self.check_condition(*condition, "for condition");
+                self.check_loop_condition(*condition);
             }
             dir::Expression::Binary {
                 left,
@@ -504,6 +514,54 @@ let output = value || "fallback";
 let value: boolean = true;
 let a = value && "ok";
 let b = value || "fallback";
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-unnecessary-condition");
+    }
+
+    /// Allow explicit `while (true)` loop conditions.
+    #[test]
+    fn test_allows_loop_condition_true_literal() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryCondition);
+        let result = test.lint_dir(
+            "no_unnecessary_condition/test_allows_loop_condition_true_literal.ts",
+            r#"
+while (true) {
+    break;
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-unnecessary-condition");
+    }
+
+    /// Flag explicit `while (false)` loop conditions.
+    #[test]
+    fn test_flags_loop_condition_false_literal() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryCondition);
+        let result = test.lint_dir(
+            "no_unnecessary_condition/test_flags_loop_condition_false_literal.ts",
+            r#"
+while (false) {
+    break;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-unnecessary-condition");
+    }
+
+    /// Allow maybe truthy match guards.
+    #[test]
+    fn test_allows_maybe_truthy_match_guard() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryCondition);
+        let result = test.lint_dir(
+            "no_unnecessary_condition/test_allows_maybe_truthy_match_guard.ts",
+            r#"
+let value: string | null = null;
+match value {
+    _ if value => {}
+}
 "#,
         );
         test.result(result)

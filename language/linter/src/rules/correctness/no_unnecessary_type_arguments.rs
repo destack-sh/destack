@@ -2,7 +2,9 @@ use destack_source::{ModuleId, Span};
 use destack_workspace::LintSeverity;
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::rules::common::{expression_structural_signature, symbol_primary_declaration_for};
+use crate::rules::common::{
+    argument_expression_id, expression_structural_signature, symbol_primary_declaration_for,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -40,6 +42,9 @@ impl LintRule for NoUnnecessaryTypeArguments {
                 continue;
             };
             if static_arguments.is_empty() {
+                continue;
+            }
+            if !static_arguments_are_plain_positional(ctx.tree, static_arguments) {
                 continue;
             }
 
@@ -82,12 +87,14 @@ impl LintRule for NoUnnecessaryTypeArguments {
             )
             .with_label("these trailing type arguments repeat declared defaults");
 
-            if let Some(fix) = redundant_type_arguments_fix(
-                ctx,
-                expression_id,
-                static_arguments,
-                first_redundant_index,
-            ) {
+            if ctx.include_fixes
+                && let Some(fix) = redundant_type_arguments_fix(
+                    ctx,
+                    expression_id,
+                    static_arguments,
+                    first_redundant_index,
+                )
+            {
                 diagnostic = diagnostic.with_fix(fix);
             }
 
@@ -208,7 +215,7 @@ fn first_redundant_trailing_argument_index(
     // walk trailing arguments backwards while they match parameter defaults
     while index > 0 {
         let argument_id = static_arguments[index - 1];
-        let Some(argument_expression) = argument_value_expression(ctx.tree, argument_id) else {
+        let Some(argument_expression) = argument_expression_id(ctx.tree, argument_id) else {
             break;
         };
         let parameter_default = static_parameter_defaults[index - 1];
@@ -229,6 +236,17 @@ fn first_redundant_trailing_argument_index(
     }
 
     (index < static_arguments.len()).then_some(index)
+}
+
+/// Return true when all static arguments are plain positional arguments.
+fn static_arguments_are_plain_positional(
+    tree: &dir::NodeTree,
+    static_arguments: &[dir::LocalNodeId<dir::Argument>],
+) -> bool {
+    static_arguments.iter().all(|argument_id| {
+        let argument = tree.get(*argument_id);
+        matches!(argument, dir::Argument::Positional { .. })
+    })
 }
 
 /// Return true when one explicit type argument matches one declared default.
@@ -309,20 +327,6 @@ fn expression_ast_signature_for_module(
         &ast.strings,
         ast_expression_id,
     ))
-}
-
-/// Resolve the expression value of one static argument.
-fn argument_value_expression(
-    tree: &dir::NodeTree,
-    argument_id: dir::LocalNodeId<dir::Argument>,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let argument = tree.get(argument_id);
-    match argument {
-        dir::Argument::Named { value, .. }
-        | dir::Argument::Labeled { value, .. }
-        | dir::Argument::Positional { value, .. }
-        | dir::Argument::Spread { value, .. } => Some(*value),
-    }
 }
 
 /// Resolve the default expression for one static parameter.

@@ -70,7 +70,9 @@ impl LintRule for NoUnusedImports {
                 )
                 .with_label("this import is never used");
 
-                if let Some(fix) = unused_import_fix(ctx, clause, index) {
+                if ctx.include_fixes
+                    && let Some(fix) = unused_import_fix(ctx, clause, index)
+                {
                     diagnostic = diagnostic.with_fix(fix);
                 }
 

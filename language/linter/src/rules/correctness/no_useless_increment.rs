@@ -69,7 +69,7 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
         }
     }
 
-    /// Check if an update expression is useless (in return position).
+    /// Check if a postfix update in return position is useless.
     fn check_useless_in_return(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -164,8 +164,10 @@ impl NodeVisitor for UselessIncrementVisitor<'_, '_> {
     ) {
         // check return statements with postfix increment/decrement
         if let dir::Expression::Return { value: Some(value) } = expression {
-            let inner_expr = tree.get(*value);
-            self.check_useless_in_return(*value, inner_expr);
+            if let Some(postfix_update_id) = unwrap_return_postfix_update(tree, *value) {
+                let postfix_update = tree.get(postfix_update_id);
+                self.check_useless_in_return(postfix_update_id, postfix_update);
+            }
         }
 
         // walk expression children
@@ -248,6 +250,24 @@ function count(): int32 {
         test.result(result).assert_no_lint("no-useless-increment");
     }
 
+    /// Flag parenthesized postfix updates in return.
+    #[test]
+    fn test_flags_parenthesized_postfix_increment_in_return() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessIncrement);
+        let result = test.lint_dir(
+            "no_useless_increment/test_flags_parenthesized_postfix_increment_in_return.ds",
+            r#"
+function getAndIncrement(): int32 {
+    let x = 0;
+    return (x++);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-increment")
+            .assert_has_fix("no-useless-increment");
+    }
+
     /// Unsafely rewrite postfix increment returns to prefix updates.
     #[test]
     fn test_fix_rewrites_postfix_increment_in_return() {
@@ -319,5 +339,35 @@ function next(items: int32[], index: int32): int32 {
 }
 "#,
             );
+    }
+}
+
+/// Unwrap one return value down to a postfix update expression when present.
+fn unwrap_return_postfix_update(
+    tree: &dir::NodeTree,
+    mut expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    loop {
+        let expression = tree.get(expression_id);
+        match expression {
+            dir::Expression::Parenthesized { expression } => {
+                expression_id = *expression;
+            }
+            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
+                expression_id = *value;
+            }
+            dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
+                expression_id = *left;
+            }
+            dir::Expression::Unary {
+                operator: dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PostDecrement,
+                ..
+            } => {
+                return Some(expression_id);
+            }
+            _ => {
+                return None;
+            }
+        }
     }
 }

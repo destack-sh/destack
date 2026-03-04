@@ -66,9 +66,6 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
 
         for root_id in roots {
             let expression = tree.get(root_id);
-            if matches!(expression, dir::Expression::Block { .. }) {
-                self.check_statement(root_id, root_id);
-            }
             self.visit_expression(tree, root_id, expression);
         }
     }
@@ -95,7 +92,7 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
             expression_id,
             expression,
             |decorators| decorators.is_must_use,
-        );
+        ) || call_like_callee_has_must_use(self.ctx, expression);
         if !has_must_use {
             return;
         }
@@ -126,6 +123,29 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
 
         self.ctx.report(diagnostic);
     }
+}
+
+/// Return true when the callee of one call-like expression is decorated with `@mustUse`.
+fn call_like_callee_has_must_use(
+    ctx: &LintModuleDirContext<'_>,
+    expression: &dir::Expression,
+) -> bool {
+    let callee_id = match expression {
+        dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => *left,
+        _ => return false,
+    };
+    let callee_expression = ctx.tree.get(callee_id);
+
+    expression_has_decorator(
+        &ctx.program,
+        ctx.profile_id,
+        ctx.module_id(),
+        ctx.symbols,
+        ctx.types,
+        callee_id,
+        callee_expression,
+        |decorators| decorators.is_must_use,
+    )
 }
 
 /// Build a safe fix that explicitly discards the ignored result.
@@ -163,6 +183,9 @@ impl NodeVisitor for UnusedMustUseVisitor<'_, '_> {
     ) {
         if let dir::Expression::Statement { statement } = expression {
             self.check_statement(id, *statement);
+        }
+        if matches!(expression, dir::Expression::Block { .. }) {
+            self.check_statement(id, id);
         }
 
         walk_expression(self, tree, id, expression);
@@ -252,6 +275,26 @@ ping()
         test.result(result).assert_no_lint("unused-must-use");
     }
 
+    /// Flag ignored awaited must-use calls.
+    #[test]
+    fn test_flags_ignored_awaited_must_use_call() {
+        let test = TestProgram::for_rule_with_prelude(UnusedMustUse);
+        let result = test.lint_dir(
+            "unused_must_use/test_flags_ignored_awaited_must_use_call.ds",
+            r#"
+@mustUse
+function parse(): Promise<Result<int32, string>> {
+    return Promise.resolve(Result.ok(1))
+}
+
+async function run(): Promise<void> {
+    await parse()
+}
+"#,
+        );
+        test.result(result).assert_lint("unused-must-use");
+    }
+
     /// Safely prefix ignored must-use calls with `void`.
     #[test]
     fn test_fix_prefixes_ignored_must_use_call_with_void() {
@@ -314,6 +357,39 @@ class Token {
 }
 
 void new Token(1);
+"#,
+            );
+    }
+
+    /// Safely prefix ignored awaited must-use calls with `void`.
+    #[test]
+    fn test_fix_prefixes_ignored_awaited_must_use_call_with_void() {
+        let test = TestProgram::for_rule_with_prelude(UnusedMustUse);
+        let result = test.lint_dir(
+            "unused_must_use/test_fix_prefixes_ignored_awaited_must_use_call_with_void.ds",
+            r#"
+@mustUse
+function parse(): Promise<Result<int32, string>> {
+    return Promise.resolve(Result.ok(1))
+}
+
+async function run(): Promise<void> {
+    await parse()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("unused-must-use")
+            .assert_safe_fixed(
+                r#"
+@mustUse
+function parse(): Promise<Result<int32, string>> {
+    return Promise.resolve(Result.ok(1));
+}
+
+async function run(): Promise<void> {
+    void await parse()
+}
 "#,
             );
     }

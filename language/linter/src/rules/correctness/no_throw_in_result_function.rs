@@ -37,8 +37,8 @@ impl LintRule for NoThrowInResultFunction {
         // (though supporting any type that contains "Result" isn't actually that bad?)
         let result_name = ctx.program.strings.intern("Result");
 
-        // collect functions with Result return type
-        let functions: Vec<_> = ctx
+        // collect declaration functions with Result return type
+        let mut callables: Vec<_> = ctx
             .tree
             .iter_nodes_of_type::<dir::Declaration>()
             .filter_map(|(decl_id, decl)| {
@@ -50,16 +50,34 @@ impl LintRule for NoThrowInResultFunction {
                 {
                     // check if return type is Result
                     if is_result_return_type(ctx.tree, signature, result_name) {
-                        return Some((decl_id, *body_id));
+                        return Some((CallableOwner::Declaration(decl_id), *body_id));
                     }
                 }
                 None
             })
             .collect();
 
-        // check each Result-returning function for throws
-        for (decl_id, body_id) in functions {
-            let mut visitor = ThrowInResultVisitor::new(ctx, meta, decl_id);
+        // collect member methods with Result return type
+        for (member_id, member) in ctx.tree.iter_nodes_of_type::<dir::Member>() {
+            let dir::Member::Method {
+                signature,
+                body: Some(body_id),
+                ..
+            } = member
+            else {
+                continue;
+            };
+
+            if !is_result_return_type(ctx.tree, signature, result_name) {
+                continue;
+            }
+
+            callables.push((CallableOwner::Member(member_id), *body_id));
+        }
+
+        // check each Result returning callable for throws
+        for (owner, body_id) in callables {
+            let mut visitor = ThrowInResultVisitor::new(ctx, meta, owner);
             visitor.run(body_id);
         }
     }
@@ -76,7 +94,7 @@ fn is_result_return_type(
         return false;
     };
 
-    // check if it's a reference to Result
+    // check if it's a reference that resolves to one Result terminal segment
     let return_type = tree.get(return_type_id);
     match return_type {
         // match Result<T, E> via reference with static arguments
@@ -94,13 +112,11 @@ fn is_result_return_type(
             path,
             static_arguments: Some(_),
             ..
-        } => path.first_segment() == Some(result_name),
+        } => path.last_segment() == Some(result_name),
         // match bare Result (unlikely but possible)
         dir::Expression::LocalReference { path, .. }
         | dir::Expression::ModuleReference { path, .. }
-        | dir::Expression::GlobalReference { path, .. } => {
-            path.first_segment() == Some(result_name)
-        }
+        | dir::Expression::GlobalReference { path, .. } => path.last_segment() == Some(result_name),
         _ => false,
     }
 }
@@ -111,8 +127,8 @@ struct ThrowInResultVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The declaration node id for severity checking.
-    decl_id: dir::LocalNodeId<dir::Declaration>,
+    /// The callable owner node for severity checking.
+    owner: CallableOwner,
     /// Current depth in nested functions (to avoid checking nested functions).
     function_depth: usize,
     /// The visitor options.
@@ -124,12 +140,12 @@ impl<'a, 'b> ThrowInResultVisitor<'a, 'b> {
     fn new(
         ctx: &'a mut LintModuleDirContext<'b>,
         meta: &'a LintMeta,
-        decl_id: dir::LocalNodeId<dir::Declaration>,
+        owner: CallableOwner,
     ) -> Self {
         Self {
             ctx,
             meta,
-            decl_id,
+            owner,
             function_depth: 0,
             options: NodeVisitorOptions::default(),
         }
@@ -145,7 +161,14 @@ impl<'a, 'b> ThrowInResultVisitor<'a, 'b> {
     /// Report a throw in Result function.
     fn report(&mut self, throw_id: dir::LocalNodeId<dir::Expression>) {
         // check effective severity
-        let severity = self.ctx.get_effective_severity(self.meta, self.decl_id);
+        let severity = match self.owner {
+            CallableOwner::Declaration(declaration_id) => {
+                self.ctx.get_effective_severity(self.meta, declaration_id)
+            }
+            CallableOwner::Member(member_id) => {
+                self.ctx.get_effective_severity(self.meta, member_id)
+            }
+        };
         if !severity.is_enabled() {
             return;
         }
@@ -167,6 +190,15 @@ impl<'a, 'b> ThrowInResultVisitor<'a, 'b> {
     }
 }
 
+/// One callable owner node for severity lookup.
+#[derive(Clone, Copy)]
+enum CallableOwner {
+    /// One declaration function.
+    Declaration(dir::LocalNodeId<dir::Declaration>),
+    /// One member method.
+    Member(dir::LocalNodeId<dir::Member>),
+}
+
 impl NodeVisitor for ThrowInResultVisitor<'_, '_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
@@ -178,12 +210,10 @@ impl NodeVisitor for ThrowInResultVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // track nested function/class declarations (which can contain functions)
+        // track nested declarations, their control flow is local to that declaration
         if let dir::Expression::Declaration { declaration } = expression {
-            let decl = tree.get(*declaration);
-            if matches!(decl, dir::Declaration::Function { .. }) {
-                self.function_depth += 1;
-            }
+            let _declaration = tree.get(*declaration);
+            self.function_depth += 1;
         }
 
         // only check throws in the top-level function, not nested functions
@@ -196,10 +226,8 @@ impl NodeVisitor for ThrowInResultVisitor<'_, '_> {
 
         // restore function depth
         if let dir::Expression::Declaration { declaration } = expression {
-            let decl = tree.get(*declaration);
-            if matches!(decl, dir::Declaration::Function { .. }) {
-                self.function_depth -= 1;
-            }
+            let _declaration = tree.get(*declaration);
+            self.function_depth -= 1;
         }
     }
 }
@@ -275,6 +303,66 @@ function outer(): Result<number, string> {
         throw "nested throw is ok";
     };
     Result.ok(42)
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-throw-in-result-function");
+    }
+
+    /// Flag throw when using a qualified Result type path.
+    #[test]
+    fn test_flags_throw_in_qualified_result_function() {
+        let test = TestProgram::for_rule_without_prelude(NoThrowInResultFunction);
+        let result = test.lint_dir(
+            "no_throw_in_result_function/test_flags_throw_in_qualified_result_function.ds",
+            r#"
+namespace core {
+    export type Result<T, E> = T | E;
+}
+
+function parse(input: string): core.Result<number, string> {
+    throw "bad";
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-throw-in-result-function");
+    }
+
+    /// Flag throw in Result returning class methods.
+    #[test]
+    fn test_flags_throw_in_result_method() {
+        let test = TestProgram::for_rule_with_prelude(NoThrowInResultFunction);
+        let result = test.lint_dir(
+            "no_throw_in_result_function/test_flags_throw_in_result_method.ds",
+            r#"
+class Parser {
+    parse(): Result<number, string> {
+        throw "bad";
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-throw-in-result-function");
+    }
+
+    /// Allow throw in nested declarations inside Result functions.
+    #[test]
+    fn test_allows_throw_in_nested_class_method() {
+        let test = TestProgram::for_rule_with_prelude(NoThrowInResultFunction);
+        let result = test.lint_dir(
+            "no_throw_in_result_function/test_allows_throw_in_nested_class_method.ds",
+            r#"
+function parse(): Result<number, string> {
+    class Nested {
+        run() {
+            throw "nested throw is ok";
+        }
+    }
+
+    return Result.ok(1);
 }
 "#,
         );

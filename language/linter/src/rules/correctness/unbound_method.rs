@@ -3,7 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    has_this_parameter_type, resolution_target_symbols, symbol_primary_declaration_for,
+    has_non_void_this_parameter_type, resolution_target_symbols, symbol_primary_declaration_for,
     symbol_value_type_id_for,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -241,6 +241,67 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 {
                     return true;
                 }
+                dir::Expression::TaggedTemplateExpression { tag, .. } if *tag == current_id => {
+                    return true;
+                }
+                dir::Expression::If { condition, .. }
+                    if if_condition_expression_id(condition) == Some(current_id) =>
+                {
+                    return true;
+                }
+                dir::Expression::Loop {
+                    condition: Some(condition_id),
+                    ..
+                } if *condition_id == current_id => {
+                    return true;
+                }
+                dir::Expression::For {
+                    condition: Some(condition_id),
+                    ..
+                } if *condition_id == current_id => {
+                    return true;
+                }
+                dir::Expression::Match { value, .. } if *value == current_id => {
+                    return true;
+                }
+                dir::Expression::Delete { value } if *value == current_id => {
+                    return true;
+                }
+                dir::Expression::Unary {
+                    operator:
+                        dir::UnaryOperator::Not | dir::UnaryOperator::Typeof | dir::UnaryOperator::Void,
+                    right,
+                } if *right == current_id => {
+                    return true;
+                }
+                dir::Expression::Binary {
+                    left,
+                    operator,
+                    right,
+                } if *left == current_id || *right == current_id => {
+                    if binary_operator_is_safe_receiver_test(*operator) {
+                        return true;
+                    }
+
+                    if *operator == dir::BinaryOperator::And && *left == current_id {
+                        return true;
+                    }
+
+                    if matches!(
+                        operator,
+                        dir::BinaryOperator::And
+                            | dir::BinaryOperator::Or
+                            | dir::BinaryOperator::Coalesce
+                    ) {
+                        current_id = parent_id;
+                        continue;
+                    }
+
+                    return false;
+                }
+                dir::Expression::Assign { left, .. } if *left == current_id => {
+                    return true;
+                }
                 dir::Expression::Member { left, name, .. } if *left == current_id => {
                     if *name == self.bind_name
                         || *name == self.call_name
@@ -250,7 +311,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                         continue;
                     }
 
-                    return false;
+                    return true;
                 }
                 dir::Expression::PrivateMember { left, name, .. } if *left == current_id => {
                     if *name == self.bind_name
@@ -261,7 +322,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                         continue;
                     }
 
-                    return false;
+                    return true;
                 }
                 _ => return false,
             }
@@ -361,7 +422,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         };
 
         if symbol_type_id.module_id == self.ctx.module_id() {
-            return has_this_parameter_type(self.ctx.types, symbol_type_id.type_id);
+            return has_non_void_this_parameter_type(self.ctx.types, symbol_type_id.type_id);
         }
 
         let module_ref = self.ctx.program.modules.get(symbol_type_id.module_id);
@@ -370,7 +431,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             return false;
         };
         let types = module_dir.types.read();
-        has_this_parameter_type(&types, symbol_type_id.type_id)
+        has_non_void_this_parameter_type(&types, symbol_type_id.type_id)
     }
 }
 
@@ -430,6 +491,28 @@ fn parent_is_receiver_helper(
             | dir::Expression::PrivateMember { left, name, .. }
             if *left == expression_id
                 && (*name == bind_name || *name == call_name || *name == apply_name)
+    )
+}
+
+/// Return one expression id when an if condition is a plain expression.
+fn if_condition_expression_id(
+    condition: &dir::IfCondition,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    match condition {
+        dir::IfCondition::Expression { condition } => Some(*condition),
+        dir::IfCondition::Let { .. } => None,
+    }
+}
+
+/// Return true when one binary operator uses a value only as a safe receiver test.
+fn binary_operator_is_safe_receiver_test(operator: dir::BinaryOperator) -> bool {
+    matches!(
+        operator,
+        dir::BinaryOperator::Equal
+            | dir::BinaryOperator::NotEqual
+            | dir::BinaryOperator::EqualStrict
+            | dir::BinaryOperator::NotEqualStrict
+            | dir::BinaryOperator::InstanceOf
     )
 }
 
@@ -616,6 +699,66 @@ class Counter {
 
 let counter = new Counter();
 counter.increment.apply(counter, []);
+"#,
+        );
+        test.result(result).assert_no_lint("unbound-method");
+    }
+
+    /// Allow method references in if conditions.
+    #[test]
+    fn test_allows_method_reference_in_if_condition() {
+        let test = TestProgram::for_rule_with_prelude(UnboundMethod);
+        let result = test.lint_dir(
+            "unbound_method/test_allows_method_reference_in_if_condition.ts",
+            r#"
+class Counter {
+    value: number = 0;
+
+    increment() {
+        this.value += 1;
+    }
+}
+
+let counter = new Counter();
+if (counter.increment) {
+    counter.increment();
+}
+"#,
+        );
+        test.result(result).assert_no_lint("unbound-method");
+    }
+
+    /// Allow method references in equality comparisons.
+    #[test]
+    fn test_allows_method_reference_in_equality_comparison() {
+        let test = TestProgram::for_rule_with_prelude(UnboundMethod);
+        let result = test.lint_dir(
+            "unbound_method/test_allows_method_reference_in_equality_comparison.ts",
+            r#"
+class Counter {
+    increment() {}
+}
+
+let counter = new Counter();
+if (counter.increment === undefined) {}
+"#,
+        );
+        test.result(result).assert_no_lint("unbound-method");
+    }
+
+    /// Allow property access on method references.
+    #[test]
+    fn test_allows_member_access_on_method_reference() {
+        let test = TestProgram::for_rule_with_prelude(UnboundMethod);
+        let result = test.lint_dir(
+            "unbound_method/test_allows_member_access_on_method_reference.ts",
+            r#"
+class Counter {
+    increment() {}
+}
+
+let counter = new Counter();
+const functionName = counter.increment.name;
 "#,
         );
         test.result(result).assert_no_lint("unbound-method");

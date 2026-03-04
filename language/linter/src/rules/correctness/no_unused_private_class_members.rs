@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::collect_module_symbol_usage;
+use crate::rules::common::{
+    collect_module_symbol_usage, expression_is_standalone_statement, resolution_target_symbols,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -54,8 +56,11 @@ impl LintRule for NoUnusedPrivateClassMembers {
                     continue;
                 }
 
-                // skip referenced members
-                if usage.references_local_symbol(ctx.module_id(), symbol_id) {
+                // skip non-referenced members quickly
+                let global_symbol = symbol_id.into_global(ctx.module_id());
+                if usage.references_symbol(global_symbol)
+                    && member_symbol_has_read_usage(ctx, global_symbol)
+                {
                     continue;
                 }
 
@@ -85,6 +90,108 @@ impl LintRule for NoUnusedPrivateClassMembers {
                 }
 
                 ctx.report(diagnostic);
+            }
+        }
+    }
+}
+
+/// Return true when one symbol has at least one read usage in this module.
+fn member_symbol_has_read_usage(
+    ctx: &LintModuleDirContext<'_>,
+    symbol_id: dir::GlobalSymbolId,
+) -> bool {
+    for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
+        if !expression_references_symbol(ctx, expression_id, symbol_id) {
+            continue;
+        }
+
+        if expression_reference_is_read(ctx.tree, expression_id) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return true when one expression resolves to the requested symbol.
+fn expression_references_symbol(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    symbol_id: dir::GlobalSymbolId,
+) -> bool {
+    let expression = ctx.tree.get(expression_id);
+    if expression.target_symbol() == Some(symbol_id) {
+        return true;
+    }
+
+    let global_expression_id = expression_id.into_global_any(ctx.module_id());
+    let Some(resolution_id) = ctx.types.get_resolution_for_node(global_expression_id) else {
+        return false;
+    };
+    let resolution = ctx.types.get_resolution(resolution_id);
+
+    resolution_target_symbols(resolution).contains(&symbol_id)
+}
+
+/// Return true when one symbol reference expression is used in a read context.
+fn expression_reference_is_read(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+
+    loop {
+        let Some(parent) = tree.get_parent(current_id.id) else {
+            return true;
+        };
+        if parent.ty != dir::NodeType::Expression {
+            return true;
+        }
+
+        let parent_id = parent.into_typed::<dir::Expression>();
+        let parent_expression = tree.get(parent_id);
+
+        match parent_expression {
+            // unwrap transparent wrappers and continue
+            dir::Expression::Parenthesized { expression } if *expression == current_id => {
+                current_id = parent_id;
+            }
+            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. }
+                if *value == current_id =>
+            {
+                current_id = parent_id;
+            }
+            dir::Expression::Maybe { left } | dir::Expression::Must { left }
+                if *left == current_id =>
+            {
+                current_id = parent_id;
+            }
+
+            // plain assignment left side is write only
+            dir::Expression::Assign { left, .. } if *left == current_id => {
+                return false;
+            }
+
+            // update assignments read previous value only when the result is consumed
+            dir::Expression::AssignBinary { left, .. } if *left == current_id => {
+                return !expression_is_standalone_statement(tree, parent_id);
+            }
+
+            // standalone increments and decrements are treated as write only
+            dir::Expression::Unary {
+                operator:
+                    dir::UnaryOperator::PreIncrement
+                    | dir::UnaryOperator::PostIncrement
+                    | dir::UnaryOperator::PreDecrement
+                    | dir::UnaryOperator::PostDecrement,
+                right,
+            } if *right == current_id => {
+                return !expression_is_standalone_statement(tree, parent_id);
+            }
+
+            // all other parent contexts consume this value
+            _ => {
+                return true;
             }
         }
     }
@@ -389,5 +496,25 @@ class Service {
         test.result(result)
             .assert_lint("no-unused-private-class-members")
             .assert_has_no_fix("no-unused-private-class-members");
+    }
+
+    /// Keep write only assignments as unused private members.
+    #[test]
+    fn test_flags_write_only_private_field() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedPrivateClassMembers);
+        let result = test.lint_dir(
+            "no_unused_private_class_members/test_flags_write_only_private_field.ds",
+            r#"
+class Service {
+    private token: int32 = 0;
+
+    touch(): void {
+        this.token = 1;
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unused-private-class-members");
     }
 }
