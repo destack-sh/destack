@@ -155,7 +155,7 @@ if command -v mvn >/dev/null 2>&1; then
 	runtime_classpath="$(cat target/runtime.classpath)"
 	mkdir -p target/smoke
 	cat >target/smoke/BridgeSmoke.java <<'EOF'
-import com.symbol.destack.Client;
+import industries.symbol.destack.Client;
 
 public final class BridgeSmoke {
     public static void main(String[] args) {

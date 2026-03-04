@@ -305,6 +305,18 @@ publish-maven dry="--dry-run":
             echo "missing MAVEN_REPOSITORY_PASSWORD env var for live maven publish"; \
             exit 1; \
         fi; \
+        if [ -z "${MAVEN_GPG_KEY_ID:-}" ]; then \
+            echo "missing MAVEN_GPG_KEY_ID env var for live maven publish"; \
+            exit 1; \
+        fi; \
+        maven_gpg_private_key="${MAVEN_GPG_PRIVATE_KEY:-}"; \
+        if [ -z "${maven_gpg_private_key}" ] && [ -n "${MAVEN_GPG_PRIVATE_KEY_FILE:-}" ]; then \
+            if [ ! -f "${MAVEN_GPG_PRIVATE_KEY_FILE}" ]; then \
+                echo "missing MAVEN_GPG_PRIVATE_KEY_FILE path: ${MAVEN_GPG_PRIVATE_KEY_FILE}"; \
+                exit 1; \
+            fi; \
+            maven_gpg_private_key="$(cat "${MAVEN_GPG_PRIVATE_KEY_FILE}")"; \
+        fi; \
         settings_path=".maven-settings.xml"; \
         printf '%s\n' \
             '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">' \
@@ -312,10 +324,10 @@ publish-maven dry="--dry-run":
             "    <server><id>${MAVEN_REPOSITORY_ID}</id><username>${MAVEN_REPOSITORY_USERNAME}</username><password>${MAVEN_REPOSITORY_PASSWORD}</password></server>" \
             '  </servers>' \
             '</settings>' > "${settings_path}"; \
-        if [ -n "${MAVEN_GPG_PRIVATE_KEY:-}" ]; then \
-            printf '%s\n' "${MAVEN_GPG_PRIVATE_KEY}" | gpg --batch --import; \
+        if [ -n "${maven_gpg_private_key}" ]; then \
+            printf '%s\n' "${maven_gpg_private_key}" | gpg --batch --import; \
         fi; \
-        (cd java && mvn -q -DskipTests -P release-signing -Dgpg.passphrase="${MAVEN_GPG_PASSPHRASE:-}" -DaltDeploymentRepository="${MAVEN_REPOSITORY_ID}::default::${MAVEN_REPOSITORY_URL}" --settings "../${settings_path}" deploy); \
+        (cd java && mvn -q -DskipTests -P release-signing -Dgpg.keyname="${MAVEN_GPG_KEY_ID}" -Dgpg.passphrase="${MAVEN_GPG_PASSPHRASE:-}" -DaltDeploymentRepository="${MAVEN_REPOSITORY_ID}::default::${MAVEN_REPOSITORY_URL}" --settings "../${settings_path}" deploy); \
         rm -f "${settings_path}"; \
     fi
 

@@ -16,7 +16,7 @@ This layer provides publishable SDK surfaces, editor extensions, and host toolch
 | `python` | Python client package published as `destack`. | [python/README.md](python/README.md) |
 | `go` | Go client module intended for `go.destack.sh/destack`. | [go/README.md](go/README.md) |
 | `dotnet` | .NET client intended for NuGet as `Destack`. | [dotnet/README.md](dotnet/README.md) |
-| `java` | Java client intended for Maven Central as `com.symbol.destack:destack-java`. | [java/README.md](java/README.md) |
+| `java` | Java client intended for Maven Central as `industries.symbol.destack:destack-java`. | [java/README.md](java/README.md) |
 | `ruby` | Ruby client intended for RubyGems as `destack`. | [ruby/README.md](ruby/README.md) |
 | `dart` | Dart client intended for pub.dev as `destack`. | [dart/README.md](dart/README.md) |
 | `elixir` | Elixir client intended for Hex as `destack`. | [elixir/README.md](elixir/README.md) |
