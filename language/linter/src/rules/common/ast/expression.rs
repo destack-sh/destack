@@ -1,7 +1,128 @@
 use destack_ast::{self as ast};
 
-use crate::LintModuleAstContext;
 use crate::rules::common::{stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value};
+use crate::{ConstValue, LintModuleAstContext};
+
+/// Return the AST expression id with parenthesized nodes unwrapped.
+pub fn ast_expression_unwrap_parenthesized(
+    tree: &ast::NodeTree,
+    mut expression_id: ast::LocalNodeId<ast::Expression>,
+) -> ast::LocalNodeId<ast::Expression> {
+    // follow parenthesized wrappers until a non parenthesized expression is found
+    loop {
+        let expression = tree.get(expression_id);
+        let ast::Expression::Parenthesized { expression } = expression else {
+            return expression_id;
+        };
+
+        expression_id = *expression;
+    }
+}
+
+/// Return path segments when the expression is a non-generic path.
+pub fn expression_path_segments(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<Vec<ast::StringId>> {
+    // normalize expression shape
+    let expression_id = ast_expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // require a non generic path expression
+    let ast::Expression::Path {
+        path,
+        static_arguments,
+    } = expression
+    else {
+        return None;
+    };
+
+    if static_arguments.is_some() {
+        return None;
+    }
+
+    // return path segments in source order
+    Some(path.segments.to_vec())
+}
+
+/// Convert a constant value into an f64 when possible.
+pub fn const_value_f64(value: ConstValue) -> Option<f64> {
+    match value {
+        ConstValue::Boolean(value) => Some(if value { 1.0 } else { 0.0 }),
+        ConstValue::Integer(value) => Some(value as f64),
+        ConstValue::Bigint(value) => Some(value as f64),
+        ConstValue::Float(value) => Some(value),
+        ConstValue::Null => Some(0.0),
+        ConstValue::Undefined => None,
+    }
+}
+
+/// Evaluate an expression as a numeric constant when possible.
+pub fn expression_numeric_value(
+    ctx: &mut LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<f64> {
+    // resolve direct constant values first
+    if let Some(value) = ctx.const_value(expression_id) {
+        return const_value_f64(value);
+    }
+
+    // normalize expression shape and require a binary expression
+    let expression_id = ast_expression_unwrap_parenthesized(ctx.tree, expression_id);
+    let expression = ctx.tree.get(expression_id);
+    let ast::Expression::Binary {
+        operator,
+        left,
+        right,
+    } = expression
+    else {
+        return None;
+    };
+
+    // evaluate both sides recursively
+    let left_value = expression_numeric_value(ctx, *left)?;
+    let right_value = expression_numeric_value(ctx, *right)?;
+
+    // apply numeric operator semantics
+    match operator {
+        ast::BinaryOperator::Add
+        | ast::BinaryOperator::WrappingAdd
+        | ast::BinaryOperator::SaturatingAdd => Some(left_value + right_value),
+        ast::BinaryOperator::Subtract
+        | ast::BinaryOperator::WrappingSubtract
+        | ast::BinaryOperator::SaturatingSubtract => Some(left_value - right_value),
+        ast::BinaryOperator::Multiply
+        | ast::BinaryOperator::WrappingMultiply
+        | ast::BinaryOperator::SaturatingMultiply => Some(left_value * right_value),
+        ast::BinaryOperator::Divide => Some(left_value / right_value),
+        ast::BinaryOperator::Remainder => Some(left_value % right_value),
+        ast::BinaryOperator::Exponent
+        | ast::BinaryOperator::WrappingExponent
+        | ast::BinaryOperator::SaturatingExponent => Some(left_value.powf(right_value)),
+        _ => None,
+    }
+}
+
+/// Evaluate an expression as a signed numeric constant when possible.
+pub fn expression_numeric_sign(
+    ctx: &mut LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<i8> {
+    // resolve numeric value
+    let value = expression_numeric_value(ctx, expression_id)?;
+
+    // classify positive values
+    if value > 0.0 {
+        return Some(1);
+    }
+
+    // classify negative values
+    if value < 0.0 {
+        return Some(-1);
+    }
+
+    None
+}
 
 /// Return whether two expressions are structurally equal.
 ///
@@ -12,12 +133,10 @@ pub fn expression_is_equal(
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
+    let left_id = ast_expression_unwrap_parenthesized(ctx.tree, left_id);
+    let right_id = ast_expression_unwrap_parenthesized(ctx.tree, right_id);
     let left = ctx.tree.get(left_id);
     let right = ctx.tree.get(right_id);
-
-    // unwrap parentheses
-    let left = expression_unwrap_parentheses(ctx, left);
-    let right = expression_unwrap_parentheses(ctx, right);
     match (left, right) {
         // paths: compare segments
         (
@@ -326,22 +445,6 @@ pub fn blocks_equal(
     true
 }
 
-/// Unwrap parenthesized expressions to get the inner expression.
-fn expression_unwrap_parentheses<'a>(
-    ctx: &'a LintModuleAstContext<'_>,
-    expression: &'a ast::Expression,
-) -> &'a ast::Expression {
-    match expression {
-        ast::Expression::Parenthesized {
-            expression: inner_id,
-        } => {
-            let inner = ctx.tree.get(*inner_id);
-            expression_unwrap_parentheses(ctx, inner)
-        }
-        _ => expression,
-    }
-}
-
 /// Return whether two paths are equal.
 pub fn paths_equal(ctx: &LintModuleAstContext<'_>, left: &ast::Path, right: &ast::Path) -> bool {
     if left.segments.len() != right.segments.len() {
@@ -551,7 +654,7 @@ pub fn expression_has_side_effects(
         | ast::Expression::ValueOf { right, .. }
         | ast::Expression::PointerOf { right, .. } => expression_has_side_effects(ctx, *right),
 
-        // side effects: calls, assignments, new, await, yield, etc.
+        // side effects: calls, assignments, new, await, yield, etc
         ast::Expression::Call { .. }
         | ast::Expression::Assign { .. }
         | ast::Expression::New { .. }
@@ -759,14 +862,17 @@ impl<'a> ExpressionSignatureCollector<'a> {
 }
 
 impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
+    /// Return visitor options.
     fn options(&self) -> &ast::NodeVisitorOptions {
         &self.visitor_options
     }
 
+    /// Visit any AST node and record its node type.
     fn visit_any(&mut self, _tree: &ast::NodeTree, ty: ast::NodeType, _id: u32) {
         self.push_debug("node", ty);
     }
 
+    /// Visit one expression node and record expression specific signature tokens.
     fn visit_expression(
         &mut self,
         tree: &ast::NodeTree,
@@ -926,6 +1032,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         ast::walk_expression(self, tree, id, expression);
     }
 
+    /// Visit one declaration node and record declaration signature tokens.
     fn visit_declaration(
         &mut self,
         tree: &ast::NodeTree,
@@ -936,6 +1043,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         ast::walk_declaration(self, tree, id, declaration);
     }
 
+    /// Visit one property node and record property signature tokens.
     fn visit_property(
         &mut self,
         tree: &ast::NodeTree,
@@ -946,6 +1054,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         ast::walk_property(self, tree, id, property);
     }
 
+    /// Visit one member node and record member signature tokens.
     fn visit_member(
         &mut self,
         tree: &ast::NodeTree,
@@ -956,6 +1065,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         ast::walk_member(self, tree, id, member);
     }
 
+    /// Visit one parameter node and record parameter signature tokens.
     fn visit_parameter(
         &mut self,
         tree: &ast::NodeTree,
@@ -966,6 +1076,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         ast::walk_parameter(self, tree, id, parameter);
     }
 
+    /// Visit one argument node and record argument signature tokens.
     fn visit_argument(
         &mut self,
         tree: &ast::NodeTree,
@@ -976,6 +1087,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         ast::walk_argument(self, tree, id, argument);
     }
 
+    /// Visit one pattern node and record pattern signature tokens.
     fn visit_pattern(
         &mut self,
         tree: &ast::NodeTree,
@@ -986,6 +1098,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         ast::walk_pattern(self, tree, id, pattern);
     }
 
+    /// Visit one pattern field node and record field signature tokens.
     fn visit_pattern_field(
         &mut self,
         tree: &ast::NodeTree,
@@ -996,6 +1109,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
         ast::walk_pattern_field(self, tree, id, pattern_field);
     }
 
+    /// Visit one match case node and record case signature tokens.
     fn visit_match_case(
         &mut self,
         tree: &ast::NodeTree,
