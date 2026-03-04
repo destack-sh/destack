@@ -4,6 +4,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
 
 use crate::ConstValue;
+use crate::LintModuleDirContext;
 
 use super::{
     function_return_type, is_any_type, is_async_function_type, is_promise_type,
@@ -56,6 +57,34 @@ pub fn expression_reference_path(
     members.reverse();
 
     Some(ReferencePath { base, members })
+}
+
+/// Return true when two expressions have equivalent syntax ignoring parentheses and spacing.
+pub fn expressions_have_equivalent_syntax(
+    ctx: &LintModuleDirContext<'_>,
+    left_id: dir::LocalNodeId<dir::Expression>,
+    right_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    // normalize parenthesized wrappers before comparisons
+    let left_id = expression_unwrap_parenthesized(ctx.tree, left_id);
+    let right_id = expression_unwrap_parenthesized(ctx.tree, right_id);
+
+    // compare canonicalized reference paths first
+    let left_path = expression_reference_path(ctx.tree, left_id);
+    let right_path = expression_reference_path(ctx.tree, right_id);
+    if left_path.is_some() || right_path.is_some() {
+        return left_path == right_path;
+    }
+
+    // compare syntax text with spacing removed
+    let left_text = ctx.get_span_text(ctx.get_span(left_id));
+    let right_text = ctx.get_span_text(ctx.get_span(right_id));
+    normalize_expression_syntax(left_text.as_ref()) == normalize_expression_syntax(right_text.as_ref())
+}
+
+/// Normalize expression syntax for token style equality checks.
+fn normalize_expression_syntax(source: &str) -> String {
+    source.chars().filter(|character| !character.is_whitespace()).collect()
 }
 
 /// Return true when the expression is a global qualified member access.

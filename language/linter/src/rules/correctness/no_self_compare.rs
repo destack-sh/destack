@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expressions_have_equivalent_syntax;
 use crate::{LintDiagnostic, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -59,34 +60,29 @@ impl LintRule for NoSelfCompare {
                 continue;
             }
 
-            // get the target symbols for both sides
-            let left_expr = ctx.tree.get(*left);
-            let right_expr = ctx.tree.get(*right);
-            let left_symbol = left_expr.target_symbol();
-            let right_symbol = right_expr.target_symbol();
-
-            // if both sides reference the same symbol, it's a self-compare
-            if let (Some(left_sym), Some(right_sym)) = (left_symbol, right_symbol)
-                && left_sym == right_sym
-            {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                let span = ctx.get_span(node_id);
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_SELF_COMPARE.id,
-                        NO_SELF_COMPARE.code,
-                        NO_SELF_COMPARE.category,
-                        severity,
-                        "comparing a value to itself",
-                        ctx.module.file_id,
-                        span,
-                    )
-                    .with_label("both sides of this comparison are identical"),
-                );
+            // require equivalent syntax on both sides
+            if !expressions_have_equivalent_syntax(ctx, *left, *right) {
+                continue;
             }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            let span = ctx.get_span(node_id);
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_SELF_COMPARE.id,
+                    NO_SELF_COMPARE.code,
+                    NO_SELF_COMPARE.category,
+                    severity,
+                    "comparing a value to itself",
+                    ctx.module.file_id,
+                    span,
+                )
+                .with_label("both sides of this comparison are identical"),
+            );
         }
     }
 }
@@ -161,6 +157,63 @@ x == y;
             r#"
 let x = 1;
 x + x;
+"#,
+        );
+        test.check_clean();
+        test.result(result).assert_no_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_detects_parenthesized_self_compare() {
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
+            "no_self_compare/test_detects_parenthesized_self_compare.ds",
+            r#"
+let x = 1;
+(x) == x;
+"#,
+        );
+        test.check_clean();
+        test.result(result).assert_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_detects_member_self_compare_with_spacing() {
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
+            "no_self_compare/test_detects_member_self_compare_with_spacing.ds",
+            r#"
+let container = { value: 1 };
+container.value >= container .value;
+"#,
+        );
+        test.check_clean();
+        test.result(result).assert_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_detects_index_self_compare() {
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
+            "no_self_compare/test_detects_index_self_compare.ds",
+            r#"
+let values = [1, 2, 3];
+let index = 1;
+values[index] === values[index];
+"#,
+        );
+        test.check_clean();
+        test.result(result).assert_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_allows_different_member_compare() {
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
+            "no_self_compare/test_allows_different_member_compare.ds",
+            r#"
+let container = { left: 1, right: 2 };
+container.left >= container.right;
 "#,
         );
         test.check_clean();
