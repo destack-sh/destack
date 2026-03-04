@@ -1,13 +1,12 @@
-use destack_dir::{
-    BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    Declarator, Expression, IfCondition, IfKind, LocalNodeId, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, Name, NodeTree, NodeType,
-    Pattern, PatternField, ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator, TypeTable,
+use destack_dir as dir;
+use dir::{
+    BinaryOperator, Block, Expression, IfCondition, IfKind, LocalNodeId, LocalSymbolId,
+    LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeType, Pattern,
+    PatternField, ScalarLiteral, StringId,
 };
-use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
 
 use crate::analyze::common::TypeContext;
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -29,21 +28,15 @@ impl Compiler {
     ///     else { nonPositive(v) }
     /// } else { zero() }
     /// ```
-    pub(super) fn transform_match(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &mut NodeTree,
-        symbols: &SymbolTable,
-        types: &mut destack_dir::TypeTable,
-    ) -> ElaborateResult<()> {
-        let match_ids: Vec<_> = tree
+    pub(super) fn transform_match(&self, state: &mut ElaborateState<'_>) -> ElaborateResult<()> {
+        let match_ids: Vec<_> = state
+            .tree
             .iter_node_ids_of_type::<Expression>()
             .into_iter()
-            .filter(|id| self.is_node_active(tree, symbols, id.into_any()))
+            .filter(|id| self.is_active_in_state(state, id.into_any()))
             .filter(|id| {
                 matches!(
-                    tree.get(*id),
+                    state.tree.get(*id),
                     Expression::Match {
                         kind: MatchKind::Match,
                         source: MatchSource::Match,
@@ -54,7 +47,7 @@ impl Compiler {
             .collect();
 
         for match_id in match_ids {
-            self.transform_single_match(match_id, module, profile, tree, symbols, types)?;
+            self.transform_single_match(state, match_id)?;
         }
 
         Ok(())
@@ -63,42 +56,27 @@ impl Compiler {
     /// Transform a single match expression into an if else chain.
     fn transform_single_match(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        tree: &mut NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
-        let Expression::Match { value, cases, .. } = tree.get(match_id).clone() else {
+        let Expression::Match { value, cases, .. } = state.tree.get(match_id).clone() else {
             return Ok(());
         };
         if cases.is_empty() {
             return Ok(());
         }
 
-        let match_type_id = self.match_expression_type_id(match_id, tree, types)?;
+        let match_type_id = self.match_expression_type_id(state, match_id)?;
 
         // build the if else chain from the cases, in reverse order
-        let scope = tree.get_scope(match_id);
-        let result = self.build_match_chain(
-            match_id,
-            module,
-            profile,
-            symbols,
-            value,
-            &cases,
-            0,
-            tree,
-            scope,
-            types,
-            match_type_id,
-        )?;
+        let scope = state.tree.get_scope(match_id);
+        let result =
+            self.build_match_chain(state, match_id, value, &cases, 0, scope, match_type_id)?;
 
         // replace the match with the generated if else chain
         if let Some(replacement) = result {
-            let replacement = tree.get(replacement).clone();
-            tree.replace(match_id, replacement);
+            let replacement = state.tree.get(replacement).clone();
+            state.tree.replace(match_id, replacement);
         }
 
         Ok(())
@@ -107,30 +85,32 @@ impl Compiler {
     /// Resolve or derive the match expression type id.
     fn match_expression_type_id(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        types: &mut TypeTable,
     ) -> ElaborateResult<LocalTypeId> {
-        if let Some(type_id) =
-            types.get_declared_or_inferred_type_id(match_id.into_global_any(tree.module_id))
+        if let Some(type_id) = state
+            .types
+            .get_declared_or_inferred_type_id(match_id.into_global_any(state.tree.module_id))
         {
             return Ok(type_id);
         }
 
-        let Expression::Match { cases, .. } = tree.get(match_id) else {
+        let Expression::Match { cases, .. } = state.tree.get(match_id) else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: match_id.into_global_any(tree.module_id).into_anchored(None),
+                node: match_id
+                    .into_global_any(state.tree.module_id)
+                    .into_anchored(None),
             });
         };
 
         let mut case_type_id = None;
         for case_id in cases {
-            let body_id = match tree.get(*case_id) {
-                MatchCase::Expression { body, .. } => body.into_global_any(tree.module_id),
-                MatchCase::Block { body, .. } => body.into_global_any(tree.module_id),
+            let body_id = match state.tree.get(*case_id) {
+                MatchCase::Expression { body, .. } => body.into_global_any(state.tree.module_id),
+                MatchCase::Block { body, .. } => body.into_global_any(state.tree.module_id),
             };
 
-            let Some(body_type_id) = types.get_declared_or_inferred_type_id(body_id) else {
+            let Some(body_type_id) = state.types.get_declared_or_inferred_type_id(body_id) else {
                 return Err(ElaborateError::UnsupportedConstruct {
                     node: body_id.into_anchored(None),
                 });
@@ -139,7 +119,9 @@ impl Compiler {
             if let Some(expected) = case_type_id {
                 if expected != body_type_id {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: match_id.into_global_any(tree.module_id).into_anchored(None),
+                        node: match_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
                     });
                 }
             } else {
@@ -149,11 +131,15 @@ impl Compiler {
 
         let Some(case_type_id) = case_type_id else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: match_id.into_global_any(tree.module_id).into_anchored(None),
+                node: match_id
+                    .into_global_any(state.tree.module_id)
+                    .into_anchored(None),
             });
         };
 
-        types.set_inferred_type(match_id.into_global_any(tree.module_id), case_type_id);
+        state
+            .types
+            .set_inferred_type(match_id.into_global_any(state.tree.module_id), case_type_id);
 
         Ok(case_type_id)
     }
@@ -161,16 +147,12 @@ impl Compiler {
     /// Build the if else chain for match cases starting at the given index.
     fn build_match_chain(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // stop when the case list is exhausted
@@ -179,21 +161,32 @@ impl Compiler {
         }
 
         // resolve the current case selector and body
-        let case = tree.get(cases[index]).clone();
+        let case = state.tree.get(cases[index]).clone();
         let (selector, body) = match &case {
             MatchCase::Expression { selector, body, .. } => (selector.clone(), *body),
             MatchCase::Block { selector, body, .. } => {
                 // wrap block in a block expression
                 let block_expr_id =
-                    tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-                let block_expr: LocalNodeId<Expression> =
-                    tree.insert(block_expr_id, Expression::Block { block: *body });
-                let block_type_id = types
-                    .get_declared_or_inferred_type_id(body.into_global_any(tree.module_id))
+                    state
+                        .tree
+                        .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+                let block_expr: LocalNodeId<Expression> = state
+                    .tree
+                    .insert(block_expr_id, Expression::Block { block: *body });
+                let block_type_id = state
+                    .types
+                    .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
                     .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                        node: body.into_global_any(tree.module_id).into_anchored(None),
+                        node: body
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
                     })?;
-                self.set_expression_type(types, tree.module_id, block_expr, block_type_id);
+                self.set_expression_type(
+                    state.types,
+                    state.tree.module_id,
+                    block_expr,
+                    block_type_id,
+                );
                 (selector.clone(), block_expr)
             }
         };
@@ -207,8 +200,11 @@ impl Compiler {
             return Ok(Some(body));
         };
 
+        // unwrap transparent pattern wrappers before lowering
+        let pattern_id = self.unwrap_pattern_wrappers(state, pattern_id);
+
         // load the pattern node
-        let pattern = tree.get(pattern_id).clone();
+        let pattern = state.tree.get(pattern_id).clone();
 
         // wildcard: return the body directly unless there is a guard
         if matches!(pattern, Pattern::Wildcard) {
@@ -218,18 +214,14 @@ impl Compiler {
 
             let guard_expr = guard.unwrap();
             let if_expr = self.build_case_if(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 guard_expr,
                 body,
                 value,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             )?;
 
@@ -244,10 +236,8 @@ impl Compiler {
         } = &pattern
         {
             return self.handle_binding_pattern(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 value,
                 body,
                 *name,
@@ -256,9 +246,7 @@ impl Compiler {
                 guard,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             );
         }
@@ -268,29 +256,23 @@ impl Compiler {
         } = &pattern
         {
             return self.handle_expression_pattern(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 value,
                 body,
                 *pattern_value,
                 guard,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             );
         }
         // tagged tuple patterns: emit type check and index access
         else if let Pattern::TaggedTuple { ty, fields } = &pattern {
             return self.handle_tagged_tuple_pattern(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 value,
                 body,
                 *ty,
@@ -298,19 +280,15 @@ impl Compiler {
                 guard,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             );
         }
         // tagged object patterns: emit type check and member access
         else if let Pattern::TaggedObject { ty, fields } = &pattern {
             return self.handle_tagged_object_pattern(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 value,
                 body,
                 *ty,
@@ -318,110 +296,93 @@ impl Compiler {
                 guard,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             );
         }
         // anonymous tuple patterns: use index access
         else if let Pattern::Tuple { fields } = &pattern {
             return self.handle_tuple_pattern(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 value,
                 body,
                 fields,
                 guard,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             );
         }
         // anonymous object patterns: use member access
         else if let Pattern::Object { fields } = &pattern {
             return self.handle_object_pattern(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 value,
                 body,
                 fields,
                 guard,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             );
         }
         // union patterns: emit or check
         else if let Pattern::Union { patterns } = &pattern {
             return self.handle_union_pattern(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 value,
                 body,
                 patterns,
                 guard,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             );
         }
         // array patterns: use index access
         else if let Pattern::Array { fields } = &pattern {
             return self.handle_array_pattern(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 value,
                 body,
                 fields,
                 guard,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             );
         }
 
         // fallback to block wrapped body
-        self.handle_fallback_pattern(match_id, body, tree, scope, types)
+        self.handle_fallback_pattern(state, match_id, body, scope)
     }
 
     /// Build an if expression for a match case.
     fn build_if_expression(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         condition: LocalNodeId<Expression>,
         then_expression: LocalNodeId<Expression>,
         else_expression: Option<LocalNodeId<Expression>>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> LocalNodeId<Expression> {
         // allocate the if expression node
-        let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let if_id = state
+            .tree
+            .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
 
         // insert the if expression
-        let if_expr: LocalNodeId<Expression> = tree.insert(
+        let if_expr: LocalNodeId<Expression> = state.tree.insert(
             if_id,
             Expression::If {
                 kind: IfKind::If,
@@ -432,7 +393,7 @@ impl Compiler {
         );
 
         // record the match type on the expression
-        self.set_expression_type(types, tree.module_id, if_expr, match_type_id);
+        self.set_expression_type(state.types, state.tree.module_id, if_expr, match_type_id);
 
         if_expr
     }
@@ -440,47 +401,38 @@ impl Compiler {
     /// Build an if expression that falls through to the next match case.
     fn build_case_if(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         condition: LocalNodeId<Expression>,
         then_expression: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // build the else branch from remaining cases
         let else_expr = self.build_match_chain(
+            state,
             match_id,
-            module,
-            profile,
-            symbols,
             value,
             cases,
             index + 1,
-            tree,
             scope,
-            types,
             match_type_id,
         )?;
 
         // wrap the else branch as needed
-        let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree, types)?;
+        let else_block = self.wrap_else_branch(state, match_id, else_expr, scope)?;
 
         // build the if expression
         let if_expr = self.build_if_expression(
+            state,
             match_id,
             condition,
             then_expression,
             else_block,
-            tree,
             scope,
-            types,
             match_type_id,
         );
 
@@ -488,13 +440,10 @@ impl Compiler {
     }
 
     /// Handle a binding pattern without a nested pattern.
-    #[allow(clippy::too_many_arguments)]
     fn handle_binding_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         name: StringId,
@@ -503,9 +452,7 @@ impl Compiler {
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // bind the matched value before evaluating the body
@@ -513,39 +460,28 @@ impl Compiler {
 
         // handle bindings without a guard
         if guard.is_none() {
-            let body = self.wrap_with_let_bindings(match_id, bindings, body, tree, scope, types)?;
+            let body = self.wrap_with_let_bindings(state, match_id, bindings, body, scope)?;
             return Ok(Some(body));
         }
 
         // evaluate the guard with the binding in scope
         let guard_expr = guard.unwrap();
-        let guard_condition = self.wrap_with_let_bindings(
-            match_id,
-            bindings.clone(),
-            guard_expr,
-            tree,
-            scope,
-            types,
-        )?;
+        let guard_condition =
+            self.wrap_with_let_bindings(state, match_id, bindings.clone(), guard_expr, scope)?;
 
         // evaluate the then branch with the binding in scope
-        let then_body =
-            self.wrap_with_let_bindings(match_id, bindings, body, tree, scope, types)?;
+        let then_body = self.wrap_with_let_bindings(state, match_id, bindings, body, scope)?;
 
         // build the if expression for the guard
         let if_expr = self.build_case_if(
+            state,
             match_id,
-            module,
-            profile,
-            symbols,
             guard_condition,
             then_body,
             value,
             cases,
             index,
-            tree,
             scope,
-            types,
             match_type_id,
         )?;
 
@@ -553,65 +489,54 @@ impl Compiler {
     }
 
     /// Handle an expression pattern by emitting an equality check.
-    #[allow(clippy::too_many_arguments)]
     fn handle_expression_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         pattern_value: LocalNodeId<Expression>,
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // build the else chain from the remaining cases
         let else_expr = self.build_match_chain(
+            state,
             match_id,
-            module,
-            profile,
-            symbols,
             value,
             cases,
             index + 1,
-            tree,
             scope,
-            types,
             match_type_id,
         )?;
 
         // skip the condition when this is the last case and has no guard
         if else_expr.is_none() && guard.is_none() {
-            let body = self.wrap_in_block(match_id, body, scope, tree, types)?;
+            let body = self.wrap_in_block(state, match_id, body, scope)?;
             return Ok(Some(body));
         }
 
         // build the equality check
-        let condition =
-            self.build_equality_check(match_id, value, pattern_value, tree, scope, types)?;
+        let condition = self.build_equality_check(state, match_id, value, pattern_value, scope)?;
 
         // combine the condition with the guard
-        let condition = self.combine_with_guard(match_id, condition, guard, tree, scope, types)?;
+        let condition = self.combine_with_guard(state, match_id, condition, guard, scope)?;
 
         // wrap then and else branches
-        let then_block = self.wrap_in_block(match_id, body, scope, tree, types)?;
-        let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree, types)?;
+        let then_block = self.wrap_in_block(state, match_id, body, scope)?;
+        let else_block = self.wrap_else_branch(state, match_id, else_expr, scope)?;
 
         // build the if expression
         let if_expr = self.build_if_expression(
+            state,
             match_id,
             condition,
             then_block,
             else_block,
-            tree,
             scope,
-            types,
             match_type_id,
         );
 
@@ -619,13 +544,10 @@ impl Compiler {
     }
 
     /// Handle a tagged tuple pattern by emitting type and field checks.
-    #[allow(clippy::too_many_arguments)]
     fn handle_tagged_tuple_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         ty: LocalNodeId<Expression>,
@@ -633,33 +555,33 @@ impl Compiler {
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // start with the type check for the tag
-        let mut condition = self.build_type_check(
-            match_id, module, profile, symbols, value, ty, tree, scope, types,
-        )?;
+        let mut condition = self.build_type_check(state, match_id, value, ty, scope)?;
 
-        // refine the condition with field checks
+        // extend the condition with field checks
         for (index, field_id) in fields.iter().enumerate() {
             // resolve the field pattern id
-            let field = tree.get(*field_id).clone();
+            let field = state.tree.get(*field_id).clone();
             let pattern_id = match field {
                 PatternField::Positional { pattern, .. } => Some(pattern),
                 PatternField::Named { pattern, .. } => pattern,
                 PatternField::Alias { .. } => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id.into_global_any(tree.module_id).into_anchored(None),
+                        node: field_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
                     });
                 }
                 PatternField::Computed { .. }
                 | PatternField::Spread { .. }
                 | PatternField::Elision => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id.into_global_any(tree.module_id).into_anchored(None),
+                        node: field_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
                     });
                 }
             };
@@ -670,7 +592,8 @@ impl Compiler {
             };
 
             // evaluate the field pattern
-            let field_pattern = tree.get(pattern_id).clone();
+            let pattern_id = self.unwrap_pattern_wrappers(state, pattern_id);
+            let field_pattern = state.tree.get(pattern_id).clone();
             match field_pattern {
                 Pattern::Wildcard => {}
                 Pattern::Binding { pattern, .. } => {
@@ -678,7 +601,7 @@ impl Compiler {
                     if pattern.is_some() {
                         return Err(ElaborateError::UnsupportedConstruct {
                             node: pattern_id
-                                .into_global_any(tree.module_id)
+                                .into_global_any(state.tree.module_id)
                                 .into_anchored(None),
                         });
                     }
@@ -687,57 +610,51 @@ impl Compiler {
                     value: pattern_value,
                 } => {
                     // check equality for literal patterns
-                    let access =
-                        self.build_index_access(match_id, value, index, tree, scope, types)?;
-                    let check = self.build_equality_check(
-                        match_id,
-                        access,
-                        pattern_value,
-                        tree,
-                        scope,
-                        types,
-                    )?;
-                    condition = self.combine_with_guard(
-                        match_id,
-                        condition,
-                        Some(check),
-                        tree,
-                        scope,
-                        types,
-                    )?;
+                    let access = self.build_index_access(state, match_id, value, index, scope)?;
+                    let check =
+                        self.build_equality_check(state, match_id, access, pattern_value, scope)?;
+                    condition =
+                        self.combine_with_guard(state, match_id, condition, Some(check), scope)?;
                 }
                 _ => {
                     // reject unsupported field patterns
                     return Err(ElaborateError::UnsupportedConstruct {
                         node: pattern_id
-                            .into_global_any(tree.module_id)
+                            .into_global_any(state.tree.module_id)
                             .into_anchored(None),
                     });
                 }
             }
         }
 
-        // apply the guard if present
-        let condition = self.combine_with_guard(match_id, condition, guard, tree, scope, types)?;
-
         // wrap body with field bindings
         let body_with_bindings =
-            self.wrap_with_tuple_bindings(match_id, value, fields, body, tree, scope, types)?;
+            self.wrap_with_tuple_bindings(state, match_id, value, fields, body, scope)?;
+
+        // apply the guard with tuple bindings in scope
+        let guard = match guard {
+            Some(guard_expression) => Some(self.wrap_with_tuple_bindings(
+                state,
+                match_id,
+                value,
+                fields,
+                guard_expression,
+                scope,
+            )?),
+            None => None,
+        };
+        let condition = self.combine_with_guard(state, match_id, condition, guard, scope)?;
 
         // build the if expression
         let if_expr = self.build_case_if(
+            state,
             match_id,
-            module,
-            profile,
-            symbols,
             condition,
             body_with_bindings,
             value,
             cases,
             index,
-            tree,
             scope,
-            types,
             match_type_id,
         )?;
 
@@ -745,13 +662,10 @@ impl Compiler {
     }
 
     /// Handle a tagged object pattern by emitting type and field checks.
-    #[allow(clippy::too_many_arguments)]
     fn handle_tagged_object_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         ty: LocalNodeId<Expression>,
@@ -759,33 +673,33 @@ impl Compiler {
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // start with the type check for the tag
-        let mut condition = self.build_type_check(
-            match_id, module, profile, symbols, value, ty, tree, scope, types,
-        )?;
+        let mut condition = self.build_type_check(state, match_id, value, ty, scope)?;
 
-        // refine the condition with field checks
+        // extend the condition with field checks
         for field_id in fields.iter() {
             // resolve the field name and pattern
-            let field = tree.get(*field_id).clone();
+            let field = state.tree.get(*field_id).clone();
             let (field_name, pattern_id) = match field {
                 PatternField::Named { name, pattern, .. } => (Some(name), pattern),
                 PatternField::Alias { name, .. } => (Some(name), None),
                 PatternField::Positional { .. } => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id.into_global_any(tree.module_id).into_anchored(None),
+                        node: field_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
                     });
                 }
                 PatternField::Computed { .. }
                 | PatternField::Spread { .. }
                 | PatternField::Elision => {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: field_id.into_global_any(tree.module_id).into_anchored(None),
+                        node: field_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
                     });
                 }
             };
@@ -801,7 +715,8 @@ impl Compiler {
             };
 
             // evaluate the field pattern
-            let field_pattern = tree.get(pattern_id).clone();
+            let pattern_id = self.unwrap_pattern_wrappers(state, pattern_id);
+            let field_pattern = state.tree.get(pattern_id).clone();
             match field_pattern {
                 Pattern::Wildcard => {}
                 Pattern::Binding { pattern, .. } => {
@@ -809,7 +724,7 @@ impl Compiler {
                     if pattern.is_some() {
                         return Err(ElaborateError::UnsupportedConstruct {
                             node: pattern_id
-                                .into_global_any(tree.module_id)
+                                .into_global_any(state.tree.module_id)
                                 .into_anchored(None),
                         });
                     }
@@ -819,56 +734,51 @@ impl Compiler {
                 } => {
                     // check equality for literal patterns
                     let access =
-                        self.build_member_access(match_id, value, field_name, tree, scope, types)?;
-                    let check = self.build_equality_check(
-                        match_id,
-                        access,
-                        pattern_value,
-                        tree,
-                        scope,
-                        types,
-                    )?;
-                    condition = self.combine_with_guard(
-                        match_id,
-                        condition,
-                        Some(check),
-                        tree,
-                        scope,
-                        types,
-                    )?;
+                        self.build_member_access(state, match_id, value, field_name, scope)?;
+                    let check =
+                        self.build_equality_check(state, match_id, access, pattern_value, scope)?;
+                    condition =
+                        self.combine_with_guard(state, match_id, condition, Some(check), scope)?;
                 }
                 _ => {
                     // reject unsupported field patterns
                     return Err(ElaborateError::UnsupportedConstruct {
                         node: pattern_id
-                            .into_global_any(tree.module_id)
+                            .into_global_any(state.tree.module_id)
                             .into_anchored(None),
                     });
                 }
             }
         }
 
-        // apply the guard if present
-        let condition = self.combine_with_guard(match_id, condition, guard, tree, scope, types)?;
-
         // wrap body with field bindings
         let body_with_bindings =
-            self.wrap_with_object_bindings(match_id, value, fields, body, tree, scope, types)?;
+            self.wrap_with_object_bindings(state, match_id, value, fields, body, scope)?;
+
+        // apply the guard with object bindings in scope
+        let guard = match guard {
+            Some(guard_expression) => Some(self.wrap_with_object_bindings(
+                state,
+                match_id,
+                value,
+                fields,
+                guard_expression,
+                scope,
+            )?),
+            None => None,
+        };
+        let condition = self.combine_with_guard(state, match_id, condition, guard, scope)?;
 
         // build the if expression
         let if_expr = self.build_case_if(
+            state,
             match_id,
-            module,
-            profile,
-            symbols,
             condition,
             body_with_bindings,
             value,
             cases,
             index,
-            tree,
             scope,
-            types,
             match_type_id,
         )?;
 
@@ -876,43 +786,36 @@ impl Compiler {
     }
 
     /// Handle a tuple pattern by using index access bindings.
-    #[allow(clippy::too_many_arguments)]
     fn handle_tuple_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // wrap the body with tuple bindings
         let body_with_bindings =
-            self.wrap_with_tuple_bindings(match_id, value, fields, body, tree, scope, types)?;
+            self.wrap_with_tuple_bindings(state, match_id, value, fields, body, scope)?;
 
-        // handle guard if present
+        // handle guard with tuple bindings in scope
         if let Some(guard_expr) = guard {
+            let guard_expr =
+                self.wrap_with_tuple_bindings(state, match_id, value, fields, guard_expr, scope)?;
             let if_expr = self.build_case_if(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 guard_expr,
                 body_with_bindings,
                 value,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             )?;
             return Ok(Some(if_expr));
@@ -922,43 +825,36 @@ impl Compiler {
     }
 
     /// Handle an object pattern by using member access bindings.
-    #[allow(clippy::too_many_arguments)]
     fn handle_object_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // wrap the body with object bindings
         let body_with_bindings =
-            self.wrap_with_object_bindings(match_id, value, fields, body, tree, scope, types)?;
+            self.wrap_with_object_bindings(state, match_id, value, fields, body, scope)?;
 
-        // handle guard if present
+        // handle guard with object bindings in scope
         if let Some(guard_expr) = guard {
+            let guard_expr =
+                self.wrap_with_object_bindings(state, match_id, value, fields, guard_expr, scope)?;
             let if_expr = self.build_case_if(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 guard_expr,
                 body_with_bindings,
                 value,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             )?;
             return Ok(Some(if_expr));
@@ -968,49 +864,38 @@ impl Compiler {
     }
 
     /// Handle a union pattern by ORing the individual checks.
-    #[allow(clippy::too_many_arguments)]
     fn handle_union_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         patterns: &[LocalNodeId<Pattern>],
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // build the union check
-        let condition = self.build_union_check(
-            match_id, module, profile, symbols, value, patterns, tree, scope, types,
-        )?;
+        let condition = self.build_union_check(state, match_id, value, patterns, scope)?;
 
         // combine the union check with the guard
-        let condition = self.combine_with_guard(match_id, condition, guard, tree, scope, types)?;
+        let condition = self.combine_with_guard(state, match_id, condition, guard, scope)?;
 
         // wrap the body for the then branch
-        let then_block = self.wrap_in_block(match_id, body, scope, tree, types)?;
+        let then_block = self.wrap_in_block(state, match_id, body, scope)?;
 
         // build the if expression
         let if_expr = self.build_case_if(
+            state,
             match_id,
-            module,
-            profile,
-            symbols,
             condition,
             then_block,
             value,
             cases,
             index,
-            tree,
             scope,
-            types,
             match_type_id,
         )?;
 
@@ -1018,43 +903,36 @@ impl Compiler {
     }
 
     /// Handle an array pattern by using index access bindings.
-    #[allow(clippy::too_many_arguments)]
     fn handle_array_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // wrap the body with array bindings
         let body_with_bindings =
-            self.wrap_with_tuple_bindings(match_id, value, fields, body, tree, scope, types)?;
+            self.wrap_with_tuple_bindings(state, match_id, value, fields, body, scope)?;
 
-        // handle guard if present
+        // handle guard with array bindings in scope
         if let Some(guard_expr) = guard {
+            let guard_expr =
+                self.wrap_with_tuple_bindings(state, match_id, value, fields, guard_expr, scope)?;
             let if_expr = self.build_case_if(
+                state,
                 match_id,
-                module,
-                profile,
-                symbols,
                 guard_expr,
                 body_with_bindings,
                 value,
                 cases,
                 index,
-                tree,
                 scope,
-                types,
                 match_type_id,
             )?;
             return Ok(Some(if_expr));
@@ -1066,14 +944,13 @@ impl Compiler {
     /// Handle unimplemented patterns by returning the body in a block.
     fn handle_fallback_pattern(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // wrap the body in a block expression
-        let body = self.wrap_in_block(match_id, body, scope, tree, types)?;
+        let body = self.wrap_in_block(state, match_id, body, scope)?;
 
         Ok(Some(body))
     }
@@ -1081,71 +958,18 @@ impl Compiler {
     /// Build a union check: matches any of the patterns.
     fn build_union_check(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         patterns: &[LocalNodeId<Pattern>],
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // collect checks for each union pattern
         let mut checks: Vec<LocalNodeId<Expression>> = Vec::new();
 
         // build a check for each pattern
         for pattern_id in patterns {
-            let pattern = tree.get(*pattern_id).clone();
-
-            let check = match pattern {
-                Pattern::Expression { value: pat_val } => {
-                    // equality check
-                    self.build_equality_check(match_id, value, pat_val, tree, scope, types)?
-                }
-                Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
-                    // type check
-                    self.build_type_check(
-                        match_id, module, profile, symbols, value, ty, tree, scope, types,
-                    )?
-                }
-                Pattern::Wildcard => {
-                    // always matches, emit true literal
-                    let lit_id =
-                        tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-                    let expr_id = tree.insert(
-                        lit_id,
-                        Expression::ScalarLiteral {
-                            value: ScalarLiteral::Boolean(true),
-                        },
-                    );
-                    self.set_scalar_literal_type(
-                        types,
-                        tree.module_id,
-                        expr_id,
-                        ScalarLiteral::Boolean(true),
-                    );
-                    expr_id
-                }
-                _ => {
-                    // #Incomplete: other pattern types in union
-                    let lit_id =
-                        tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-                    let expr_id = tree.insert(
-                        lit_id,
-                        Expression::ScalarLiteral {
-                            value: ScalarLiteral::Boolean(true),
-                        },
-                    );
-                    self.set_scalar_literal_type(
-                        types,
-                        tree.module_id,
-                        expr_id,
-                        ScalarLiteral::Boolean(true),
-                    );
-                    expr_id
-                }
-            };
+            let check = self.build_pattern_check(state, match_id, value, *pattern_id, scope)?;
 
             checks.push(check);
         }
@@ -1153,125 +977,308 @@ impl Compiler {
         // combine all checks with or
         if checks.is_empty() {
             // empty union: emit false, should not happen in practice
-            let lit_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-            let expr_id = tree.insert(
-                lit_id,
-                Expression::ScalarLiteral {
-                    value: ScalarLiteral::Boolean(false),
-                },
-            );
-            self.set_scalar_literal_type(
-                types,
-                tree.module_id,
-                expr_id,
-                ScalarLiteral::Boolean(false),
-            );
-            return Ok(expr_id);
+            return Ok(self.insert_boolean_literal_expression(state, match_id, false, scope));
         }
 
         // fold the checks into a single disjunction
         let mut result = checks[0];
         for check in checks.into_iter().skip(1) {
-            // build the or node for the next check
-            let or_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-            result = tree.insert(
-                or_id,
-                Expression::Binary {
-                    left: result,
-                    operator: destack_dir::BinaryOperator::Or,
-                    right: check,
-                },
+            // combine with one additional or check
+            result = self.insert_boolean_binary_expression(
+                state,
+                match_id,
+                result,
+                BinaryOperator::Or,
+                check,
+                scope,
             );
-            self.set_boolean_expression_type(types, tree.module_id, result);
         }
 
         Ok(result)
     }
 
+    /// Build a runtime boolean check for one pattern against a value.
+    fn build_pattern_check(
+        &self,
+        state: &mut ElaborateState<'_>,
+        match_id: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
+        pattern_id: LocalNodeId<Pattern>,
+        scope: dir::LocalScope,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        let pattern_id = self.unwrap_pattern_wrappers(state, pattern_id);
+        let pattern = state.tree.get(pattern_id).clone();
+        match pattern {
+            // wildcard always matches
+            Pattern::Wildcard => {
+                Ok(self.insert_boolean_literal_expression(state, match_id, true, scope))
+            }
+
+            // plain bindings are irrefutable
+            Pattern::Binding { pattern: None, .. } => {
+                Ok(self.insert_boolean_literal_expression(state, match_id, true, scope))
+            }
+
+            // nested bindings defer to their inner pattern
+            Pattern::Binding {
+                pattern: Some(inner),
+                ..
+            } => self.build_pattern_check(state, match_id, value, inner, scope),
+
+            // literal/path expression patterns use equality
+            Pattern::Expression {
+                value: pattern_value,
+            } => self.build_equality_check(state, match_id, value, pattern_value, scope),
+
+            // tagged tuple: type check plus constrained slot checks
+            Pattern::TaggedTuple { ty, fields } => {
+                let type_check = self.build_type_check(state, match_id, value, ty, scope)?;
+                self.extend_sequence_pattern_check(
+                    state,
+                    match_id,
+                    value,
+                    &fields,
+                    Some(type_check),
+                    scope,
+                )
+            }
+
+            // tagged object: type check plus constrained field checks
+            Pattern::TaggedObject { ty, fields } => {
+                let type_check = self.build_type_check(state, match_id, value, ty, scope)?;
+                self.extend_object_pattern_check(
+                    state,
+                    match_id,
+                    value,
+                    &fields,
+                    Some(type_check),
+                    scope,
+                )
+            }
+
+            // untagged sequence patterns use constrained slot checks
+            Pattern::Tuple { fields } | Pattern::Array { fields } => {
+                self.extend_sequence_pattern_check(state, match_id, value, &fields, None, scope)
+            }
+
+            // untagged object patterns use constrained field checks
+            Pattern::Object { fields } => {
+                self.extend_object_pattern_check(state, match_id, value, &fields, None, scope)
+            }
+
+            // nested union patterns fold recursively
+            Pattern::Union { patterns } => {
+                self.build_union_check(state, match_id, value, &patterns, scope)
+            }
+
+            // transparent wrappers recurse to their inner pattern
+            Pattern::Must(inner)
+            | Pattern::ReferenceOf { right: inner, .. }
+            | Pattern::ValueOf { right: inner, .. } => {
+                self.build_pattern_check(state, match_id, value, inner, scope)
+            }
+        }
+    }
+
+    /// Extend one condition with tuple or array field checks.
+    fn extend_sequence_pattern_check(
+        &self,
+        state: &mut ElaborateState<'_>,
+        match_id: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
+        fields: &[LocalNodeId<PatternField>],
+        condition: Option<LocalNodeId<Expression>>,
+        scope: dir::LocalScope,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        let mut condition = condition;
+
+        // combine constrained field checks in order
+        for (index, field_id) in fields.iter().enumerate() {
+            let field = state.tree.get(*field_id).clone();
+            let pattern_id = match field {
+                PatternField::Positional { pattern, .. } => Some(pattern),
+                PatternField::Named { pattern, .. } => pattern,
+                PatternField::Elision => None,
+                PatternField::Alias { .. }
+                | PatternField::Computed { .. }
+                | PatternField::Spread { .. } => {
+                    return Err(ElaborateError::UnsupportedConstruct {
+                        node: field_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
+                    });
+                }
+            };
+
+            let Some(pattern_id) = pattern_id else {
+                continue;
+            };
+            let pattern_id = self.unwrap_pattern_wrappers(state, pattern_id);
+            let nested = state.tree.get(pattern_id).clone();
+            if matches!(
+                nested,
+                Pattern::Wildcard | Pattern::Binding { pattern: None, .. }
+            ) {
+                continue;
+            }
+
+            let access = self.build_index_access(state, match_id, value, index, scope)?;
+            let nested_check =
+                self.build_pattern_check(state, match_id, access, pattern_id, scope)?;
+
+            condition = Some(self.merge_condition_with_check(
+                state,
+                match_id,
+                condition,
+                nested_check,
+                scope,
+            )?);
+        }
+
+        if let Some(condition) = condition {
+            Ok(condition)
+        } else {
+            Ok(self.insert_boolean_literal_expression(state, match_id, true, scope))
+        }
+    }
+
+    /// Extend one condition with object field checks.
+    fn extend_object_pattern_check(
+        &self,
+        state: &mut ElaborateState<'_>,
+        match_id: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
+        fields: &[LocalNodeId<PatternField>],
+        condition: Option<LocalNodeId<Expression>>,
+        scope: dir::LocalScope,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        let mut condition = condition;
+
+        // combine constrained field checks in declaration order
+        for field_id in fields {
+            let field = state.tree.get(*field_id).clone();
+            let (field_name, pattern_id) = match field {
+                PatternField::Named { name, pattern, .. } => (Some(name), pattern),
+                PatternField::Alias { .. } => (None, None),
+                PatternField::Positional { .. }
+                | PatternField::Computed { .. }
+                | PatternField::Spread { .. }
+                | PatternField::Elision => {
+                    return Err(ElaborateError::UnsupportedConstruct {
+                        node: field_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
+                    });
+                }
+            };
+
+            let Some(pattern_id) = pattern_id else {
+                continue;
+            };
+            let Some(field_name) = field_name else {
+                continue;
+            };
+            let pattern_id = self.unwrap_pattern_wrappers(state, pattern_id);
+            let nested = state.tree.get(pattern_id).clone();
+            if matches!(
+                nested,
+                Pattern::Wildcard | Pattern::Binding { pattern: None, .. }
+            ) {
+                continue;
+            }
+
+            let access = self.build_member_access(state, match_id, value, field_name, scope)?;
+            let nested_check =
+                self.build_pattern_check(state, match_id, access, pattern_id, scope)?;
+
+            condition = Some(self.merge_condition_with_check(
+                state,
+                match_id,
+                condition,
+                nested_check,
+                scope,
+            )?);
+        }
+
+        if let Some(condition) = condition {
+            Ok(condition)
+        } else {
+            Ok(self.insert_boolean_literal_expression(state, match_id, true, scope))
+        }
+    }
+
     /// Build equality check expression: `value == pattern_value`.
     fn build_equality_check(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         pattern_value: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
-        // reserve the equality node
-        let eq_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-
-        // insert the equality expression
-        let expr_id = tree.insert(
-            eq_id,
-            Expression::Binary {
-                left: value,
-                operator: destack_dir::BinaryOperator::Equal,
-                right: pattern_value,
-            },
+        // build `value == pattern_value`
+        let expression_id = self.insert_boolean_binary_expression(
+            state,
+            match_id,
+            value,
+            BinaryOperator::Equal,
+            pattern_value,
+            scope,
         );
 
-        // assign the boolean result type
-        self.set_boolean_expression_type(types, tree.module_id, expr_id);
-        Ok(expr_id)
+        Ok(expression_id)
     }
 
     /// Build type check expression: `value is Type`.
     fn build_type_check(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         ty: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
-        // reserve the type check node
-        let is_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-
-        // insert the type check expression
-        let expr_id = tree.insert(
-            is_id,
-            Expression::TypeBinary {
-                left: value,
-                operator: TypeBinaryOperator::Is,
-                right: ty,
-            },
-        );
-
-        // assign the boolean result type
-        self.set_boolean_expression_type(types, tree.module_id, expr_id);
+        // build `value is ty`
+        let expr_id = self.insert_is_type_check_expression(state, match_id, value, ty, scope);
 
         // resolve the value type for runtime checks
-        let Some(value_type_id) =
-            types.get_declared_or_inferred_type_id(value.into_global_any(tree.module_id))
+        let Some(value_type_id) = state
+            .types
+            .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))
         else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: value.into_global_any(tree.module_id).into_anchored(None),
+                node: value
+                    .into_global_any(state.tree.module_id)
+                    .into_anchored(None),
             });
         };
 
         // resolve the target type for runtime checks
-        let target_type_id = match tree.get(ty) {
+        let target_type_id = match state.tree.get(ty) {
             Expression::Type { value } => *value,
             _ => {
-                let Some(type_id) =
-                    types.get_declared_or_inferred_type_id(ty.into_global_any(tree.module_id))
+                let Some(type_id) = state
+                    .types
+                    .get_declared_or_inferred_type_id(ty.into_global_any(state.tree.module_id))
                 else {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: ty.into_global_any(tree.module_id).into_anchored(None),
+                        node: ty.into_global_any(state.tree.module_id).into_anchored(None),
                     });
                 };
-                types.unwrap_value_type_id(type_id)
+                state.types.unwrap_value_type_id(type_id)
             }
         };
 
         // derive and record the runtime check kind
-        let options = self.analyze_context_options_for_module(module.id);
-        let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
+        let options = self.analyze_context_options_for_module(state.ctx.module.id);
+        let mut ctx = TypeContext::new(
+            state.ctx.module,
+            state.ctx.profile,
+            &options,
+            state.tree,
+            state.symbols,
+            state.types,
+        );
         let runtime_check_kind = self.runtime_check_kind_for_relation(
             &mut ctx.reborrow(),
             value_type_id,
@@ -1279,78 +1286,95 @@ impl Compiler {
         );
         let Some(runtime_check_kind) = runtime_check_kind else {
             return Err(ElaborateError::UnsupportedConstruct {
-                node: expr_id.into_global_any(tree.module_id).into_anchored(None),
+                node: expr_id
+                    .into_global_any(state.tree.module_id)
+                    .into_anchored(None),
             });
         };
-        ctx.types
-            .set_runtime_check_kind(expr_id.into_global_any(tree.module_id), runtime_check_kind);
+        ctx.types.set_runtime_check_kind(
+            expr_id.into_global_any(state.tree.module_id),
+            runtime_check_kind,
+        );
         Ok(expr_id)
     }
 
     /// Combine a condition with an optional guard using `&&`.
     fn combine_with_guard(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         condition: LocalNodeId<Expression>,
         guard: Option<LocalNodeId<Expression>>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // merge the guard into the condition when present
         match guard {
             Some(guard_expression) => {
-                // allocate the and node
-                let and_id =
-                    tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-
-                // insert the and expression
-                let expr_id = tree.insert(
-                    and_id,
-                    Expression::Binary {
-                        left: condition,
-                        operator: destack_dir::BinaryOperator::And,
-                        right: guard_expression,
-                    },
+                // build `condition && guard_expression`
+                let expr_id = self.insert_boolean_binary_expression(
+                    state,
+                    match_id,
+                    condition,
+                    BinaryOperator::And,
+                    guard_expression,
+                    scope,
                 );
-
-                // assign the boolean result type
-                self.set_boolean_expression_type(types, tree.module_id, expr_id);
                 Ok(expr_id)
             }
             None => Ok(condition),
         }
     }
 
+    /// Merge one optional condition with a required check.
+    fn merge_condition_with_check(
+        &self,
+        state: &mut ElaborateState<'_>,
+        match_id: LocalNodeId<Expression>,
+        condition: Option<LocalNodeId<Expression>>,
+        check: LocalNodeId<Expression>,
+        scope: dir::LocalScope,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        match condition {
+            Some(condition) => {
+                self.combine_with_guard(state, match_id, condition, Some(check), scope)
+            }
+            None => Ok(check),
+        }
+    }
+
     /// Build an index access expression: `value[index]`.
     fn build_index_access(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // create index literal
         let index_lit_id =
-            tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-        let index_expr: LocalNodeId<Expression> = tree.insert(
+            state
+                .tree
+                .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let index_expr: LocalNodeId<Expression> = state.tree.insert(
             index_lit_id,
             Expression::ScalarLiteral {
                 value: ScalarLiteral::Integer(index as i64),
             },
         );
         self.set_scalar_literal_type(
-            types,
-            tree.module_id,
+            state.types,
+            state.tree.module_id,
             index_expr,
             ScalarLiteral::Integer(index as i64),
         );
 
         // create index expression: value[index]
-        let idx_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-        let expr_id = tree.insert(
+        let idx_id =
+            state
+                .tree
+                .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let expr_id = state.tree.insert(
             idx_id,
             Expression::Index {
                 left: value,
@@ -1360,31 +1384,35 @@ impl Compiler {
 
         // resolve the element type
         let element_type_id = self
-            .index_access_type_id(types, tree.module_id, value, index)
+            .index_access_type_id(state, value, index)
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: expr_id.into_global_any(tree.module_id).into_anchored(None),
+                node: expr_id
+                    .into_global_any(state.tree.module_id)
+                    .into_anchored(None),
             })?;
 
         // assign the element type
-        self.set_expression_type(types, tree.module_id, expr_id, element_type_id);
+        self.set_expression_type(state.types, state.tree.module_id, expr_id, element_type_id);
         Ok(expr_id)
     }
 
     /// Build a member access expression: `value.name`.
     fn build_member_access(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         name: StringId,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // reserve the member access node
-        let member_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let member_id =
+            state
+                .tree
+                .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
 
         // insert the member access expression
-        let expr_id = tree.insert(
+        let expr_id = state.tree.insert(
             member_id,
             Expression::Member {
                 left: value,
@@ -1395,23 +1423,26 @@ impl Compiler {
 
         // resolve the field type
         let field_type_id = self
-            .member_access_type_id(types, tree.module_id, value, name)
+            .member_access_type_id(state, value, name)
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: expr_id.into_global_any(tree.module_id).into_anchored(None),
+                node: expr_id
+                    .into_global_any(state.tree.module_id)
+                    .into_anchored(None),
             })?;
 
         // assign the field type
-        self.set_expression_type(types, tree.module_id, expr_id, field_type_id);
+        self.set_expression_type(state.types, state.tree.module_id, expr_id, field_type_id);
         Ok(expr_id)
     }
 
     /// Resolve a direct binding tuple or object field pattern.
     fn direct_binding_from_pattern(
         &self,
+        state: &ElaborateState<'_>,
         pattern_id: LocalNodeId<Pattern>,
-        tree: &NodeTree,
     ) -> Option<(StringId, LocalSymbolId, Option<Mutability>)> {
-        let pattern = tree.get(pattern_id);
+        let pattern_id = self.unwrap_pattern_wrappers(state, pattern_id);
+        let pattern = state.tree.get(pattern_id);
 
         // extract direct binding patterns without nested sub-patterns
         if let Pattern::Binding {
@@ -1434,45 +1465,52 @@ impl Compiler {
     /// Returns a block containing the bindings followed by the body.
     fn wrap_with_tuple_bindings(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
         body: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // collect bindings to emit
         let mut bindings = Vec::new();
 
         // walk each field in order
         for (i, field_id) in fields.iter().enumerate() {
-            let field = tree.get(*field_id).clone();
+            let field = state.tree.get(*field_id).clone();
             match field {
                 PatternField::Positional { pattern, .. } => {
-                    // check if the pattern introduces a binding
-                    let pat = tree.get(pattern).clone();
-                    if let Pattern::Binding {
-                        name,
-                        symbol,
-                        mutability,
-                        ..
-                    } = pat
+                    if let Some((name, symbol, mutability)) =
+                        self.direct_binding_from_pattern(state, pattern)
                     {
-                        let access =
-                            self.build_index_access(match_id, value, i, tree, scope, types)?;
+                        let access = self.build_index_access(state, match_id, value, i, scope)?;
                         bindings.push((name, symbol, mutability, access));
+                        continue;
                     }
-                    // #Incomplete: handle nested patterns in positional fields
+
+                    let pattern_id = self.unwrap_pattern_wrappers(state, pattern);
+                    if let Pattern::Binding {
+                        name: _,
+                        symbol: _,
+                        mutability: _,
+                        pattern: Some(_),
+                    } = state.tree.get(pattern_id)
+                    {
+                        return Err(ElaborateError::UnsupportedConstruct {
+                            node: pattern_id
+                                .into_global_any(state.tree.module_id)
+                                .into_anchored(None),
+                        });
+                    }
                 }
                 PatternField::Named { pattern, .. } => {
                     // named field in tuple position, use index access
-                    let access = self.build_index_access(match_id, value, i, tree, scope, types)?;
+                    let access = self.build_index_access(state, match_id, value, i, scope)?;
 
                     // bind only direct nested binding patterns
                     if let Some(pattern_id) = pattern
                         && let Some((name, symbol, mutability)) =
-                            self.direct_binding_from_pattern(pattern_id, tree)
+                            self.direct_binding_from_pattern(state, pattern_id)
                     {
                         bindings.push((name, symbol, mutability, access));
                     }
@@ -1481,12 +1519,36 @@ impl Compiler {
                 | PatternField::Alias { .. }
                 | PatternField::Computed { .. }
                 | PatternField::Elision => {
-                    // #Incomplete: handle spread, alias, computed, elision in tuple patterns
+                    return Err(ElaborateError::UnsupportedConstruct {
+                        node: field_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
+                    });
                 }
             }
         }
 
-        self.wrap_with_let_bindings(match_id, bindings, body, tree, scope, types)
+        self.wrap_with_let_bindings(state, match_id, bindings, body, scope)
+    }
+
+    /// Unwrap transparent pattern wrappers and return the innermost pattern.
+    fn unwrap_pattern_wrappers(
+        &self,
+        state: &ElaborateState<'_>,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> LocalNodeId<Pattern> {
+        let mut current = pattern_id;
+
+        loop {
+            match state.tree.get(current) {
+                Pattern::Must(inner)
+                | Pattern::ReferenceOf { right: inner, .. }
+                | Pattern::ValueOf { right: inner, .. } => {
+                    current = *inner;
+                }
+                _ => return current,
+            }
+        }
     }
 
     /// Wrap body with let bindings for object field extractions.
@@ -1495,29 +1557,27 @@ impl Compiler {
     /// Returns a block containing the bindings followed by the body.
     fn wrap_with_object_bindings(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
         body: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // collect bindings to emit
         let mut bindings = Vec::new();
 
         // walk each field in order
         for field_id in fields.iter() {
-            let field = tree.get(*field_id).clone();
+            let field = state.tree.get(*field_id).clone();
             match field {
                 PatternField::Named { name, pattern, .. } => {
-                    let access =
-                        self.build_member_access(match_id, value, name, tree, scope, types)?;
+                    let access = self.build_member_access(state, match_id, value, name, scope)?;
 
                     // bind only direct nested binding patterns
                     if let Some(pattern_id) = pattern
                         && let Some((binding_name, symbol, mutability)) =
-                            self.direct_binding_from_pattern(pattern_id, tree)
+                            self.direct_binding_from_pattern(state, pattern_id)
                     {
                         bindings.push((binding_name, symbol, mutability, access));
                     }
@@ -1530,20 +1590,23 @@ impl Compiler {
                     ..
                 } => {
                     // `field: binding`, access by field name, bind to alias
-                    let access =
-                        self.build_member_access(match_id, value, name, tree, scope, types)?;
+                    let access = self.build_member_access(state, match_id, value, name, scope)?;
                     bindings.push((alias, symbol, mutability, access));
                 }
                 PatternField::Positional { .. }
                 | PatternField::Spread { .. }
                 | PatternField::Computed { .. }
                 | PatternField::Elision => {
-                    // #Incomplete: handle positional, spread, computed, elision in object patterns
+                    return Err(ElaborateError::UnsupportedConstruct {
+                        node: field_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
+                    });
                 }
             }
         }
 
-        self.wrap_with_let_bindings(match_id, bindings, body, tree, scope, types)
+        self.wrap_with_let_bindings(state, match_id, bindings, body, scope)
     }
 
     /// Wrap body in a block with the given let bindings.
@@ -1553,6 +1616,7 @@ impl Compiler {
     /// 2. The original body expression
     fn wrap_with_let_bindings(
         &self,
+        state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
         bindings: Vec<(
             StringId,
@@ -1561,72 +1625,31 @@ impl Compiler {
             LocalNodeId<Expression>,
         )>,
         body: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // if no bindings, just wrap body in a block
         if bindings.is_empty() {
-            return self.wrap_in_block(match_id, body, scope, tree, types);
+            return self.wrap_in_block(state, match_id, body, scope);
         }
 
         // build let expressions for each binding
         let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
 
         for (name, symbol, mutability, value) in bindings {
-            // create Pattern::Binding for the declarator
-            let pattern_id = tree.reserve_from(NodeType::Pattern, match_id.into_any(), scope, None);
-            let pattern: LocalNodeId<Pattern> = tree.insert(
-                pattern_id,
-                Pattern::Binding {
-                    mutability,
-                    name,
-                    pattern: None,
-                    symbol,
-                },
-            );
-
-            // create Declarator with the pattern and value
-            let declarator_id =
-                tree.reserve_from(NodeType::Declarator, match_id.into_any(), scope, None);
-            let declarator: LocalNodeId<Declarator> = tree.insert(
-                declarator_id,
-                Declarator {
-                    pattern,
-                    ty: None,
-                    value: Some(value),
-                },
-            );
-
-            // create DeclarationDescriptor for the let
-            let descriptor = DeclarationDescriptor {
-                kind: DeclarationKind::Definition,
-                abstraction: DeclarationAbstraction::Concrete,
-                anchor: BindingAnchor::Instance,
-                name: Some(Name::Identifier(name)),
-                export: None,
+            // create one local let binding for this extracted value
+            let let_expr = self.insert_single_binding_let_expression(
+                state,
+                match_id,
+                scope,
+                name,
                 symbol,
-            };
-
-            // create Expression::Let
-            let let_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-            let let_expr: LocalNodeId<Expression> = tree.insert(
-                let_id,
-                Expression::Let {
-                    descriptor,
-                    mutability: mutability.unwrap_or(Mutability::Immutable),
-                    declarators: vec![declarator],
-                },
+                mutability,
+                mutability.unwrap_or(Mutability::Immutable),
+                Some(value),
             );
 
             // wrap in statement
-            let stmt_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-            let stmt: LocalNodeId<Expression> = tree.insert(
-                stmt_id,
-                Expression::Statement {
-                    statement: let_expr,
-                },
-            );
+            let stmt = self.insert_statement_expression(state, match_id, let_expr, scope);
 
             expressions.push(stmt);
         }
@@ -1635,8 +1658,10 @@ impl Compiler {
         expressions.push(body);
 
         // create Block containing all expressions
-        let block_id = tree.reserve_from(NodeType::Block, match_id.into_any(), scope, None);
-        let block: LocalNodeId<Block> = tree.insert(
+        let block_id = state
+            .tree
+            .reserve_from(NodeType::Block, match_id.into_any(), scope, None);
+        let block: LocalNodeId<Block> = state.tree.insert(
             block_id,
             Block {
                 scope: scope.0,
@@ -1646,15 +1671,24 @@ impl Compiler {
 
         // wrap in Expression::Block
         let block_expr_id =
-            tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-        let expr_id = tree.insert(block_expr_id, Expression::Block { block });
-        let body_type_id = types
-            .get_declared_or_inferred_type_id(body.into_global_any(tree.module_id))
+            state
+                .tree
+                .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+        let expr_id = state
+            .tree
+            .insert(block_expr_id, Expression::Block { block });
+        let body_type_id = state
+            .types
+            .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: body.into_global_any(tree.module_id).into_anchored(None),
+                node: body
+                    .into_global_any(state.tree.module_id)
+                    .into_anchored(None),
             })?;
-        types.set_inferred_type(block.into_global_any(tree.module_id), body_type_id);
-        self.set_expression_type(types, tree.module_id, expr_id, body_type_id);
+        state
+            .types
+            .set_inferred_type(block.into_global_any(state.tree.module_id), body_type_id);
+        self.set_expression_type(state.types, state.tree.module_id, expr_id, body_type_id);
         Ok(expr_id)
     }
 
@@ -1663,33 +1697,38 @@ impl Compiler {
     /// If the expression is already a block, returns it unchanged.
     fn wrap_in_block(
         &self,
+        state: &mut ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        tree: &mut NodeTree,
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // don't double wrap if already a block
-        if let Expression::Block { block } = tree.get(body) {
-            let body_type_id =
-                types.get_declared_or_inferred_type_id(body.into_global_any(tree.module_id));
+        if let Expression::Block { block } = state.tree.get(body) {
+            let body_type_id = state
+                .types
+                .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id));
             if let Some(_body_type_id) = body_type_id {
                 return Ok(body);
             }
 
-            let block_type_id = types
-                .get_declared_or_inferred_type_id(block.into_global_any(tree.module_id))
+            let block_type_id = state
+                .types
+                .get_declared_or_inferred_type_id(block.into_global_any(state.tree.module_id))
                 .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                    node: block.into_global_any(tree.module_id).into_anchored(None),
+                    node: block
+                        .into_global_any(state.tree.module_id)
+                        .into_anchored(None),
                 })?;
-            self.set_expression_type(types, tree.module_id, body, block_type_id);
+            self.set_expression_type(state.types, state.tree.module_id, body, block_type_id);
 
             return Ok(body);
         }
 
         // create the Block node
-        let block_id = tree.reserve_from(NodeType::Block, origin_id.into_any(), scope, None);
-        let block: LocalNodeId<Block> = tree.insert(
+        let block_id = state
+            .tree
+            .reserve_from(NodeType::Block, origin_id.into_any(), scope, None);
+        let block: LocalNodeId<Block> = state.tree.insert(
             block_id,
             Block {
                 scope: scope.0,
@@ -1699,15 +1738,24 @@ impl Compiler {
 
         // create the Expression::Block wrapper
         let block_expr_id =
-            tree.reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let expr_id = tree.insert(block_expr_id, Expression::Block { block });
-        let body_type_id = types
-            .get_declared_or_inferred_type_id(body.into_global_any(tree.module_id))
+            state
+                .tree
+                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let expr_id = state
+            .tree
+            .insert(block_expr_id, Expression::Block { block });
+        let body_type_id = state
+            .types
+            .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
-                node: body.into_global_any(tree.module_id).into_anchored(None),
+                node: body
+                    .into_global_any(state.tree.module_id)
+                    .into_anchored(None),
             })?;
-        types.set_inferred_type(block.into_global_any(tree.module_id), body_type_id);
-        self.set_expression_type(types, tree.module_id, expr_id, body_type_id);
+        state
+            .types
+            .set_inferred_type(block.into_global_any(state.tree.module_id), body_type_id);
+        self.set_expression_type(state.types, state.tree.module_id, expr_id, body_type_id);
         Ok(expr_id)
     }
 
@@ -1715,18 +1763,17 @@ impl Compiler {
     /// This keeps else if chains flat.
     fn wrap_else_branch(
         &self,
+        state: &mut ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
         else_expr: Option<LocalNodeId<Expression>>,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        tree: &mut NodeTree,
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         let else_expr = else_expr.map(|e| {
             // don't wrap if it's an If expression, creates flat else if chain
-            if matches!(tree.get(e), Expression::If { .. }) {
+            if matches!(state.tree.get(e), Expression::If { .. }) {
                 Ok(e)
             } else {
-                self.wrap_in_block(origin_id, e, scope, tree, types)
+                self.wrap_in_block(state, origin_id, e, scope)
             }
         });
         else_expr.transpose()
@@ -1735,28 +1782,28 @@ impl Compiler {
     /// Resolve the inferred type for a synthesized index access.
     fn index_access_type_id(
         &self,
-        types: &TypeTable,
-        module_id: ModuleId,
+        state: &ElaborateState<'_>,
         value: LocalNodeId<Expression>,
         index: usize,
     ) -> Option<LocalTypeId> {
-        let value_type_id =
-            types.get_declared_or_inferred_type_id(value.into_global_any(module_id))?;
-        let value_type_id = types.unwrap_value_type_id(value_type_id);
-        types.get_index_access_type(value_type_id, index)
+        let value_type_id = state
+            .types
+            .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
+        let value_type_id = state.types.unwrap_value_type_id(value_type_id);
+        state.types.get_index_access_type(value_type_id, index)
     }
 
     /// Resolve the inferred type for a synthesized member access.
     fn member_access_type_id(
         &self,
-        types: &TypeTable,
-        module_id: ModuleId,
+        state: &ElaborateState<'_>,
         value: LocalNodeId<Expression>,
         name: StringId,
     ) -> Option<LocalTypeId> {
-        let value_type_id =
-            types.get_declared_or_inferred_type_id(value.into_global_any(module_id))?;
-        let value_type_id = types.unwrap_value_type_id(value_type_id);
-        types.get_member_access_type(value_type_id, name)
+        let value_type_id = state
+            .types
+            .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
+        let value_type_id = state.types.unwrap_value_type_id(value_type_id);
+        state.types.get_member_access_type(value_type_id, name)
     }
 }

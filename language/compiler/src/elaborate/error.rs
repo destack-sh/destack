@@ -3,8 +3,9 @@ use crate::{
     TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
-use destack_dir::AnchoredGlobalNodeId;
+use destack_dir as dir;
 use destack_workspace::Program;
+use dir::AnchoredGlobalNodeId;
 
 /// Errors during the elaborate phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]

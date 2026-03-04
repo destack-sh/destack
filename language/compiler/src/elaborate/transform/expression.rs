@@ -1,6 +1,7 @@
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
+use crate::elaborate::common::{ElaborateContext, ElaborateState};
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
 impl Compiler {
@@ -40,37 +41,39 @@ impl Compiler {
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
+        let ctx = ElaborateContext::new(module_id, &module, profile);
+        let mut state = ElaborateState::new(ctx, &mut tree, &mut symbols, &mut types);
 
         // 0. split multi-declarators into individual lets
         if self.options.elaborate_split_declarators {
-            self.transform_split_declarators(&mut tree, &symbols, &mut types)?;
+            self.transform_split_declarators(&mut state)?;
         }
 
         // 1. unwrap single-expression blocks in SOURCE if/else
         // this must happen BEFORE match transform so match-generated blocks stay
-        self.unwrap_single_expression_blocks(&mut tree, &symbols)?;
+        self.unwrap_single_expression_blocks(&mut state)?;
 
         // 2. lower if let expressions into match
-        self.transform_if_let(&mut tree, &mut symbols, &mut types)?;
+        self.transform_if_let(&mut state)?;
 
         // 3. match → decision trees (creates proper blocks)
-        self.transform_match(&module, profile, &mut tree, &symbols, &mut types)?;
+        self.transform_match(&mut state)?;
 
         // 4. ternary optimization (only for source if/else that were unwrapped)
         if self.options.elaborate_with_ternary {
-            self.transform_if_to_ternary(&mut tree, &symbols)?;
+            self.transform_if_to_ternary(&mut state)?;
         }
 
         // 5. implicit returns → explicit return statements
         if self.options.elaborate_explicit_return {
-            self.transform_explicit_return(&mut tree, &symbols, &mut types)?;
+            self.transform_explicit_return(&mut state)?;
         }
 
         // 6. drop parenthesized expressions
-        self.transform_drop_parenthesized(&mut tree, &symbols)?;
+        self.transform_drop_parenthesized(&mut state)?;
 
         // 7. normalize value expressions into statement form
-        self.transform_normalize_value_expressions(&mut tree, &symbols, &mut types, module_id)?;
+        self.transform_normalize_value_expressions(&mut state)?;
 
         Ok(())
     }
