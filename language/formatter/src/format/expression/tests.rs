@@ -18,7 +18,7 @@ use destack_ast::{
 use destack_source::{FileType, LanguageType};
 use destack_workspace::{FormatterOptions, QuoteProperty, QuoteStyle};
 
-/// Build a formatter context for expression classifier assertions.
+/// Build a formatter ctx for expression classifier assertions.
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
     DestackFormatContext::new(
         DestackFormatOptions::default(),
@@ -245,7 +245,7 @@ fn test_assignment_target_detection() {
         TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
             .expect("parse assignment target source");
 
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let mut found_assignment_target = false;
     for raw_node_id in 0..formatter.tree.next_id() {
@@ -264,7 +264,7 @@ fn test_assignment_target_detection() {
             continue;
         }
 
-        if is_assignment_left_target(&context, object_expression_id) {
+        if is_assignment_left_target(&ctx, object_expression_id) {
             found_assignment_target = true;
             break;
         }
@@ -427,12 +427,12 @@ fn test_parenthesis_rules_reject_member_object_boundary_comment() {
     let source = "(value /* boundary */).member";
     let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
         .expect("parse member expression");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
 
     assert!(!should_unwrap_parenthesized(
-        &context,
+        &ctx,
         parenthesized_id,
         inner_expression_id,
         ParenthesizedUnwrapMode::MemberObject,
@@ -445,12 +445,12 @@ fn test_parenthesis_rules_allow_closure_cast_member_object_unwrap() {
     let source = "(/** @type {array} */ numberOrString).map((x) => x)";
     let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
         .expect("parse member expression");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
 
     assert!(should_unwrap_parenthesized(
-        &context,
+        &ctx,
         parenthesized_id,
         inner_expression_id,
         ParenthesizedUnwrapMode::MemberObject,
@@ -463,12 +463,12 @@ fn test_parenthesis_rules_allow_ordinary_comment_member_object_unwrap() {
     let source = "(/* ordinary */ source).next()";
     let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
         .expect("parse member expression");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
 
     assert!(should_unwrap_parenthesized(
-        &context,
+        &ctx,
         parenthesized_id,
         inner_expression_id,
         ParenthesizedUnwrapMode::MemberObject,
@@ -704,7 +704,7 @@ fn test_call_argument_profile_detects_decorated_class_argument() {
             p.eat_expression(Default::default())
         })
         .expect("parse decorated class argument expression");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let Expression::Call {
         dynamic_arguments, ..
@@ -714,7 +714,7 @@ fn test_call_argument_profile_detects_decorated_class_argument() {
     };
     assert_eq!(dynamic_arguments.len(), 1);
 
-    let profile = context.argument_annotation_cache(dynamic_arguments[0]);
+    let profile = ctx.argument_annotation_cache(dynamic_arguments[0]);
     assert!(
         profile.has_prefix_annotation,
         "expected decorated class argument to report prefix annotation"
@@ -727,7 +727,7 @@ fn test_parenthesis_rules_reject_optional_new_callee_unwrap() {
     let source = "new (value?.member)()";
     let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
         .expect("parse new expression");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |inner_expression| {
             matches!(
@@ -737,7 +737,7 @@ fn test_parenthesis_rules_reject_optional_new_callee_unwrap() {
         });
 
     assert!(!should_unwrap_parenthesized(
-        &context,
+        &ctx,
         parenthesized_id,
         inner_expression_id,
         ParenthesizedUnwrapMode::NewMemberCallee,
@@ -823,10 +823,10 @@ fn test_tree_child_map_callback_breaks() {
         panic!("expected positional child");
     };
 
-    // build a context to run the helper on
-    let context = context_from_formatter(&formatter);
+    // build a ctx to run the helper on
+    let ctx = context_from_formatter(&formatter);
 
-    assert!(expression_has_complex_callback(&context, *value));
+    assert!(expression_has_complex_callback(&ctx, *value));
 }
 
 /// Const on borrows normalizes to readonly in type formatting.
@@ -1628,7 +1628,7 @@ fn test_template_literal_union_span_newline_signal() {
             p.eat_expression(Default::default())
         })
         .expect("parse template literal union");
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
 
     let Expression::Declaration(declaration_id) = formatter.tree.get(expression_id) else {
         panic!("expected declaration expression");
@@ -1642,11 +1642,11 @@ fn test_template_literal_union_span_newline_signal() {
 
     assert_eq!(spans.len(), 2);
     assert!(
-        context.node_has_newline(spans[0]),
+        ctx.node_has_newline(spans[0]),
         "first template span should keep multiline source signal"
     );
     assert!(
-        !context.node_has_newline(spans[1]),
+        !ctx.node_has_newline(spans[1]),
         "second template span should stay single-line in source signal"
     );
 }
@@ -2550,7 +2550,6 @@ fn test_format_semicolon_guard_with_inline_comment_before_bracket_is_idempotent(
 
 /// Semicolon guard seams should remain stable with inline trivia before unary-plus heads.
 #[test]
-#[ignore = "unresolved seam-order drift with inline block trivia before unary plus guard heads"]
 fn test_format_semicolon_guard_with_inline_comment_before_unary_plus_is_idempotent() {
     let source = r#"{
   foo
@@ -3083,9 +3082,9 @@ fn test_parse_member_chain_ignore_comment_inside_call_argument_is_call_expressio
         formatter.tree.get(*left)
     );
 
-    let context = context_from_formatter(&formatter);
+    let ctx = context_from_formatter(&formatter);
     let has_argument_ignore_range =
-        any_ignore_range_for_nodes(&context, dynamic_arguments, context.comment_tokens());
+        any_ignore_range_for_nodes(&ctx, dynamic_arguments, ctx.comment_tokens());
     assert!(
         !has_argument_ignore_range,
         "expected call argument list to avoid ignore-range short-circuit"
@@ -3683,8 +3682,8 @@ fn test_parse_typescript_union_single_type_line_comment_keeps_binary_arms() {
     };
     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
 
-    let context = context_from_formatter(&formatter);
-    let flattened = flatten_type_binary_expression(&context, *value, *operator);
+    let ctx = context_from_formatter(&formatter);
+    let flattened = flatten_type_binary_expression(&ctx, *value, *operator);
     assert_eq!(flattened.len(), 2);
 
     let Expression::Path { path, .. } = formatter.tree.get(*left) else {
@@ -4123,7 +4122,7 @@ fn test_format_no_semi_asi_guard_comment_is_idempotent() {
     );
 }
 
-/// No-semi guard comments after declarations should stay stable in program context.
+/// No-semi guard comments after declarations should stay stable in program ctx.
 #[test]
 fn test_format_no_semi_program_guard_comment_after_declaration_is_idempotent() {
     let source = "let error = new Error(response.statusText);\n// comment\n[].response = response\n\nx;\n\n{\n  let foo\n\n  // comment\n  ;[foo] = [1]\n}\n";
@@ -4493,22 +4492,22 @@ KEYPAD_NUMBERS.map(num => ( // Buttons 0-9
     let (first_formatter, first_roots) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
             .expect("parse first-pass source");
-    let first_context = context_from_formatter(&first_formatter);
-    let marker_annotation_id = first_context
+    let first_ctx = context_from_formatter(&first_formatter);
+    let marker_annotation_id = first_ctx
         .formatter_annotation_entries
         .iter()
         .enumerate()
         .find_map(|(entry_index, _)| {
             let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
-            let Annotation::Comment { node, .. } = first_context.annotation(annotation_id) else {
+            let Annotation::Comment { node, .. } = first_ctx.annotation(annotation_id) else {
                 return None;
             };
 
-            (first_context.comment_text(node).trim() == "Buttons 0-9").then_some(annotation_id)
+            (first_ctx.comment_text(node).trim() == "Buttons 0-9").then_some(annotation_id)
         });
     let marker_annotation_id = marker_annotation_id
         .expect("expected formatter annotation for callback head line comment marker");
-    let marker_owner_node = first_context
+    let marker_owner_node = first_ctx
         .formatter_annotation_ids_by_node_id
         .iter()
         .enumerate()
@@ -4519,8 +4518,8 @@ KEYPAD_NUMBERS.map(num => ( // Buttons 0-9
                 .then_some(node_index)
         })
         .expect("expected owner node for callback head line comment marker");
-    let marker_owner_node_type = first_context.tree.get_node_type(marker_owner_node as u32);
-    let marker_position = first_context.annotation(marker_annotation_id).position();
+    let marker_owner_node_type = first_ctx.tree.get_node_type(marker_owner_node as u32);
+    let marker_position = first_ctx.annotation(marker_annotation_id).position();
 
     let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
     assert!(
