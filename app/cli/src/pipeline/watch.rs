@@ -372,11 +372,9 @@ where
         let updated = result.updated;
 
         // refresh caller state when a rescan is requested
-        if requires_rescan {
-            if let Err(error) = on_rescan(state) {
-                emit_watch_warning(reporter, &error.to_string());
-                continue;
-            }
+        if requires_rescan && let Err(error) = on_rescan(state) {
+            emit_watch_warning(reporter, &error.to_string());
+            continue;
         }
 
         // compile on updates or rescans

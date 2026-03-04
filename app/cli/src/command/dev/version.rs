@@ -333,9 +333,7 @@ fn update_readme_badge_version(text: &str, new_version: &str) -> Option<String> 
     let version_end = version_start + badge_suffix_start;
     let current_badge_version = &text[version_start..version_end];
 
-    if SemVer::parse(current_badge_version).is_none() {
-        return None;
-    }
+    SemVer::parse(current_badge_version)?;
 
     let mut updated = String::with_capacity(text.len() + new_version.len());
     updated.push_str(&text[..version_start]);
