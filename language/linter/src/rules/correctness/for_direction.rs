@@ -1,6 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    ast_expression_unwrap_parenthesized, expression_numeric_sign, expression_path_segments,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -26,18 +29,32 @@ declare_lint! {
 /// Direction of loop iteration.
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Direction {
+    /// The counter moves upward.
     Increasing,
+    /// The counter moves downward.
     Decreasing,
 }
 
+/// Expected loop direction for one condition counter.
+struct CounterExpectation {
+    /// The counter path segments.
+    counter_segments: Vec<ast::StringId>,
+    /// The expected update direction for this counter.
+    expected_direction: Direction,
+}
+
 impl LintRule for ForDirection {
+    /// Return lint metadata.
     fn meta(&self) -> &'static crate::LintMeta {
         ForDirection::meta()
     }
 
+    /// Check module AST nodes for for-loop direction mismatches.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata
         let meta = self.meta();
 
+        // walk expression nodes and inspect for loops
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::For {
                 condition: Some(condition_id),
@@ -48,49 +65,61 @@ impl LintRule for ForDirection {
                 continue;
             };
 
-            // get direction from condition (e.g., `i < 10` -> Increasing, `i > 0` -> Decreasing)
-            let condition_direction = get_condition_direction(ctx, *condition_id);
-            let Some(condition_direction) = condition_direction else {
+            // collect counter expectations from the loop condition
+            let expectations = condition_counter_expectations(ctx, *condition_id);
+            if expectations.is_empty() {
                 continue;
-            };
-
-            // get direction from increment (e.g., `i++` -> Increasing, `i--` -> Decreasing)
-            let increment_direction = get_increment_direction(ctx, *increment_id);
-            let Some(increment_direction) = increment_direction else {
-                continue;
-            };
-
-            // report if directions don't match
-            if condition_direction != increment_direction {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                let direction_word = match condition_direction {
-                    Direction::Increasing => "increase",
-                    Direction::Decreasing => "decrease",
-                };
-                let mut diagnostic = LintDiagnostic::new(
-                    FOR_DIRECTION.id,
-                    FOR_DIRECTION.code,
-                    FOR_DIRECTION.category,
-                    severity,
-                    format!("for loop counter should {direction_word} to match condition"),
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label("counter moves in wrong direction");
-
-                // invert increment direction when the update expression is a known form
-                if ctx.compute_fixes
-                    && let Some(fix) =
-                        build_for_direction_fix(ctx, *increment_id, condition_direction)
-                {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
             }
+
+            // find the first mismatched counter update direction
+            let mut mismatch_direction = None;
+            for expectation in expectations {
+                let increment_direction =
+                    update_direction_for_counter(ctx, *increment_id, &expectation.counter_segments);
+                let Some(increment_direction) = increment_direction else {
+                    continue;
+                };
+
+                if increment_direction != expectation.expected_direction {
+                    mismatch_direction = Some(expectation.expected_direction);
+                    break;
+                }
+            }
+            let Some(expected_direction) = mismatch_direction else {
+                continue;
+            };
+
+            // resolve effective severity for this loop
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            // build the direction specific diagnostic text
+            let direction_word = match expected_direction {
+                Direction::Increasing => "increase",
+                Direction::Decreasing => "decrease",
+            };
+            let mut diagnostic = LintDiagnostic::new(
+                FOR_DIRECTION.id,
+                FOR_DIRECTION.code,
+                FOR_DIRECTION.category,
+                severity,
+                format!("for loop counter should {direction_word} to match condition"),
+                ctx.module.file_id,
+                ctx.tree.get_span(node_id),
+            )
+            .with_label("counter moves in wrong direction");
+
+            // attach a direction flip fix when supported
+            if ctx.compute_fixes
+                && let Some(fix) = build_for_direction_fix(ctx, *increment_id, expected_direction)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            // report the lint
+            ctx.report(diagnostic);
         }
     }
 }
@@ -106,6 +135,7 @@ fn build_for_direction_fix(
         .edit_builder()
         .replace(ctx.tree.get_span(increment_id), replacement)
         .into_edits();
+
     Some(LintFix::r#unsafe("Flip loop update direction").with_edits(edits))
 }
 
@@ -115,10 +145,16 @@ fn increment_with_expected_direction(
     increment_id: ast::LocalNodeId<ast::Expression>,
     expected_direction: Direction,
 ) -> Option<String> {
+    // inspect the increment expression shape
     let increment = ctx.tree.get(increment_id);
+
+    // render a direction corrected update form
     match increment {
         ast::Expression::Unary { operator, right } => {
+            // resolve operand source text
             let operand_text = ctx.get_span_text(ctx.tree.get_span(*right));
+
+            // map unary operator to the opposite direction form
             let replacement = match (operator, expected_direction) {
                 (ast::UnaryOperator::PostIncrement, Direction::Decreasing) => {
                     format!("{operand_text}--")
@@ -134,6 +170,7 @@ fn increment_with_expected_direction(
                 }
                 _ => return None,
             };
+
             Some(replacement)
         }
         ast::Expression::Assign {
@@ -141,14 +178,20 @@ fn increment_with_expected_direction(
             left,
             right,
         } => {
+            // map assignment operator to target direction
             let replacement_operator =
                 assign_operator_with_expected_direction(*operator, expected_direction)?;
+
+            // preserve original left and right expression text
             let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
             let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
+
             Some(format!("{left_text} {replacement_operator} {right_text}"))
         }
         ast::Expression::Parenthesized { expression } => {
+            // preserve parenthesized wrapper around rewritten update
             let inner = increment_with_expected_direction(ctx, *expression, expected_direction)?;
+
             Some(format!("({inner})"))
         }
         _ => None,
@@ -171,59 +214,148 @@ fn assign_operator_with_expected_direction(
     }
 }
 
-/// Determine the expected direction from the loop condition.
-fn get_condition_direction(
+/// Determine counter expectations from the loop condition.
+fn condition_counter_expectations(
     ctx: &LintModuleAstContext<'_>,
     condition_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<Direction> {
+) -> Vec<CounterExpectation> {
+    let condition_id = ast_expression_unwrap_parenthesized(ctx.tree, condition_id);
     let condition = ctx.tree.get(condition_id);
-    match condition {
-        ast::Expression::Binary { operator, .. } => match operator {
-            // i < n or i <= n: counter should increase
-            ast::BinaryOperator::LessThan | ast::BinaryOperator::LessThanOrEqual => {
-                Some(Direction::Increasing)
+
+    // require a binary comparison condition
+    let ast::Expression::Binary {
+        operator,
+        left,
+        right,
+    } = condition
+    else {
+        return Vec::new();
+    };
+
+    // resolve expected direction for each comparison side
+    let (left_direction, right_direction) = match operator {
+        ast::BinaryOperator::LessThan | ast::BinaryOperator::LessThanOrEqual => {
+            (Direction::Increasing, Direction::Decreasing)
+        }
+        ast::BinaryOperator::GreaterThan | ast::BinaryOperator::GreaterThanOrEqual => {
+            (Direction::Decreasing, Direction::Increasing)
+        }
+        _ => return Vec::new(),
+    };
+
+    // collect expectations for counter paths found on either side
+    let mut expectations = Vec::new();
+    if let Some(counter_segments) = expression_path_segments(ctx.tree, *left) {
+        expectations.push(CounterExpectation {
+            counter_segments,
+            expected_direction: left_direction,
+        });
+    }
+    if let Some(counter_segments) = expression_path_segments(ctx.tree, *right) {
+        expectations.push(CounterExpectation {
+            counter_segments,
+            expected_direction: right_direction,
+        });
+    }
+
+    expectations
+}
+
+/// Determine update direction for a specific counter.
+fn update_direction_for_counter(
+    ctx: &mut LintModuleAstContext<'_>,
+    increment_id: ast::LocalNodeId<ast::Expression>,
+    counter_segments: &[ast::StringId],
+) -> Option<Direction> {
+    // normalize increment expression shape
+    let increment_id = ast_expression_unwrap_parenthesized(ctx.tree, increment_id);
+    let increment = ctx.tree.get(increment_id);
+
+    // resolve update direction only for matching counter updates
+    match increment {
+        ast::Expression::Unary { operator, right } => {
+            // require unary update target to match the counter path
+            if !expression_matches_counter(ctx, *right, counter_segments) {
+                return None;
             }
-            // i > n or i >= n: counter should decrease
-            ast::BinaryOperator::GreaterThan | ast::BinaryOperator::GreaterThanOrEqual => {
-                Some(Direction::Decreasing)
+
+            // map unary increment operators to direction
+            match operator {
+                ast::UnaryOperator::PostIncrement | ast::UnaryOperator::PreIncrement => {
+                    Some(Direction::Increasing)
+                }
+                ast::UnaryOperator::PostDecrement | ast::UnaryOperator::PreDecrement => {
+                    Some(Direction::Decreasing)
+                }
+                _ => None,
             }
-            _ => None,
-        },
-        ast::Expression::Parenthesized { expression } => get_condition_direction(ctx, *expression),
+        }
+        ast::Expression::Assign {
+            operator,
+            left,
+            right,
+        } => {
+            // require assignment target to match the counter path
+            if !expression_matches_counter(ctx, *left, counter_segments) {
+                return None;
+            }
+
+            // resolve direction from operator and right side sign
+            assignment_direction(ctx, *operator, *right)
+        }
         _ => None,
     }
 }
 
-/// Determine the direction from the loop increment expression.
-fn get_increment_direction(
-    ctx: &LintModuleAstContext<'_>,
-    increment_id: ast::LocalNodeId<ast::Expression>,
+/// Determine assignment update direction using operator and step sign.
+fn assignment_direction(
+    ctx: &mut LintModuleAstContext<'_>,
+    operator: ast::AssignOperator,
+    right_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Direction> {
-    let increment = ctx.tree.get(increment_id);
-    match increment {
-        // i++ or ++i
-        ast::Expression::Unary { operator, .. } => match operator {
-            ast::UnaryOperator::PostIncrement | ast::UnaryOperator::PreIncrement => {
-                Some(Direction::Increasing)
-            }
-            ast::UnaryOperator::PostDecrement | ast::UnaryOperator::PreDecrement => {
-                Some(Direction::Decreasing)
-            }
-            _ => None,
-        },
-        // i += n (assume positive n means increasing)
-        ast::Expression::Assign { operator, .. } => match operator {
-            ast::AssignOperator::AddAssign
-            | ast::AssignOperator::WrappingAddAssign
-            | ast::AssignOperator::SaturatingAddAssign => Some(Direction::Increasing),
-            ast::AssignOperator::SubtractAssign
-            | ast::AssignOperator::WrappingSubtractAssign
-            | ast::AssignOperator::SaturatingSubtractAssign => Some(Direction::Decreasing),
-            _ => None,
-        },
-        ast::Expression::Parenthesized { expression } => get_increment_direction(ctx, *expression),
+    // resolve the signed step value
+    let step_sign = expression_numeric_sign(ctx, right_id)?;
+
+    // map assignment operator and sign to update direction
+    match operator {
+        ast::AssignOperator::AddAssign
+        | ast::AssignOperator::WrappingAddAssign
+        | ast::AssignOperator::SaturatingAddAssign => direction_from_sign(step_sign),
+        ast::AssignOperator::SubtractAssign
+        | ast::AssignOperator::WrappingSubtractAssign
+        | ast::AssignOperator::SaturatingSubtractAssign => direction_from_sign(-step_sign),
         _ => None,
     }
+}
+
+/// Return update direction for a signed step.
+fn direction_from_sign(sign: i8) -> Option<Direction> {
+    // resolve positive steps
+    if sign > 0 {
+        return Some(Direction::Increasing);
+    }
+
+    // resolve negative steps
+    if sign < 0 {
+        return Some(Direction::Decreasing);
+    }
+
+    None
+}
+
+/// Return true when an expression resolves to the target counter path.
+fn expression_matches_counter(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    counter_segments: &[ast::StringId],
+) -> bool {
+    // resolve expression path segments
+    let Some(path_segments) = expression_path_segments(ctx.tree, expression_id) else {
+        return false;
+    };
+
+    // compare path segments directly
+    path_segments == counter_segments
 }
 
 #[cfg(test)]
@@ -397,6 +529,94 @@ for (let i = 10; i > 0; i -= 2) {
             r#"
 for (;;) {
     break;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("for-direction");
+    }
+
+    #[test]
+    fn test_allows_update_on_other_variable() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_allows_update_on_other_variable.ds",
+            r#"
+let j = 10;
+for (let i = 0; i < 10; j--) {
+    console.log(i);
+}
+"#,
+        );
+        test.result(result).assert_no_lint("for-direction");
+    }
+
+    #[test]
+    fn test_detects_wrong_direction_with_counter_on_right() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_detects_wrong_direction_with_counter_on_right.ds",
+            r#"
+for (let i = 0; 10 > i; i--) {
+    console.log(i);
+}
+"#,
+        );
+        test.result(result).assert_lint("for-direction");
+    }
+
+    #[test]
+    fn test_allows_correct_direction_with_counter_on_right() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_allows_correct_direction_with_counter_on_right.ds",
+            r#"
+for (let i = 0; 10 > i; i++) {
+    console.log(i);
+}
+"#,
+        );
+        test.result(result).assert_no_lint("for-direction");
+    }
+
+    #[test]
+    fn test_detects_negative_step_add_assign() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_detects_negative_step_add_assign.ds",
+            r#"
+for (let i = 0; i < 10; i += -1) {
+    console.log(i);
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("for-direction")
+            .assert_has_no_fix("for-direction");
+    }
+
+    #[test]
+    fn test_detects_folded_negative_step_add_assign() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_detects_folded_negative_step_add_assign.ds",
+            r#"
+for (let i = 0; i < 10; i += (2 - 3)) {
+    console.log(i);
+}
+"#,
+        );
+        test.result(result).assert_lint("for-direction");
+    }
+
+    #[test]
+    fn test_allows_unknown_step_add_assign() {
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
+        let result = test.lint_ast(
+            "for_direction/test_allows_unknown_step_add_assign.ds",
+            r#"
+let step = -1;
+for (let i = 0; i < 10; i += step) {
+    console.log(i);
 }
 "#,
         );
