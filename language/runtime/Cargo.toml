@@ -139,7 +139,8 @@ security-framework-sys = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { workspace = true }
-keyring = { workspace = true, features = ["linux-native-sync-persistent", "crypto-rust"] }
+keyring = { workspace = true, features = ["linux-native-sync-persistent", "crypto-rust", "vendored"] }
+x11rb = { workspace = true, features = ["randr", "shape", "xfixes"] }
 
 [dev-dependencies]
 rustls-native-certs = { workspace = true }

@@ -5,17 +5,17 @@ use crate::platform::os::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::super::core::{
+use super::super::super::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
-    OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists, invalid_data,
-    permission_denied, with_no_replace_write_guard,
+    OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists,
+    with_no_replace_write_guard,
 };
 use super::core::{map_keyring_error, open_keyring_entry, write_entry_secret};
 
 /// Read one credential record from the Linux keyring backend.
-pub(super) fn read_credentials(
+pub(crate) fn read_credentials(
     _context: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
@@ -52,7 +52,7 @@ pub(super) fn read_credentials(
 }
 
 /// Write one credential record to the Linux keyring backend.
-pub(super) fn write_credentials(
+pub(crate) fn write_credentials(
     context: &BindingCallContext,
     options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
@@ -103,7 +103,7 @@ pub(super) fn write_credentials(
 }
 
 /// Delete one credential record from the Linux keyring backend.
-pub(super) fn delete_credentials(
+pub(crate) fn delete_credentials(
     _context: &BindingCallContext,
     service: &str,
     account: &str,
@@ -133,7 +133,7 @@ pub(super) fn delete_credentials(
 }
 
 /// Return whether one credential record exists in the Linux keyring backend.
-pub(super) fn contains_credentials(
+pub(crate) fn contains_credentials(
     _context: &BindingCallContext,
     service: &str,
     account: &str,
@@ -173,7 +173,7 @@ pub(super) fn contains_credentials(
 }
 
 /// Run one host authentication challenge on Linux keyring backend.
-pub(super) fn authenticate_credentials(
+pub(crate) fn authenticate_credentials(
     _context: &BindingCallContext,
     _options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {

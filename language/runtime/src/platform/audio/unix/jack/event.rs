@@ -215,7 +215,7 @@ fn run_device_monitor_thread(
     };
 
     let client_name = format!("destack-monitor-{}", std::process::id());
-    let client = match open_jack_client(library, "destack.audio.event.open", &client_name) {
+    let client = match open_jack_client(&library, "destack.audio.event.open", &client_name) {
         Ok(client) => client,
         Err(error) => {
             let _ = ready_sender.send(Err(error));
@@ -223,15 +223,15 @@ fn run_device_monitor_thread(
         }
     };
 
-    if let Err(error) = install_monitor_callbacks(library, client, &pending) {
-        close_jack_client(library, client);
+    if let Err(error) = install_monitor_callbacks(&library, client, &pending) {
+        close_jack_client(&library, client);
         let _ = ready_sender.send(Err(error));
         return;
     }
 
     let activate_status = unsafe { (library.api.jack_activate)(client) };
     if !jack_succeeded(activate_status) {
-        close_jack_client(library, client);
+        close_jack_client(&library, client);
         let _ = ready_sender.send(Err(jack_error(
             "destack.audio.event.open",
             format!("failed to activate JACK monitor client (status {activate_status})"),
@@ -256,7 +256,7 @@ fn run_device_monitor_thread(
     unsafe {
         let _ = (library.api.jack_deactivate)(client);
     }
-    close_jack_client(library, client);
+    close_jack_client(&library, client);
 }
 
 /// Install callback hooks for JACK monitor-side graph notifications.

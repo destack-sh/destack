@@ -39,7 +39,7 @@ pub(super) fn jack_available() -> bool {
 pub(super) fn probe_jack_endpoints(operation: &'static str) -> RuntimeResult<JackEndpointSnapshot> {
     let library = require_jack_library(operation)?;
     let client_name = probe_client_name();
-    let client = open_jack_client(library, operation, &client_name)?;
+    let client = open_jack_client(&library, operation, &client_name)?;
 
     // query graph-level sample rate and period size while one probe client is active
     let sample_rate = unsafe { (library.api.jack_get_sample_rate)(client) }.max(1);
@@ -47,12 +47,12 @@ pub(super) fn probe_jack_endpoints(operation: &'static str) -> RuntimeResult<Jac
         .max(audio_core::MIN_STREAM_PERIOD_FRAMES);
 
     // enumerate one stable list of physical capture source ports
-    let capture_sources = list_ports(library, client, capture_source_flags(), operation)?;
+    let capture_sources = list_ports(&library, client, capture_source_flags(), operation)?;
 
     // enumerate one stable list of physical playback sink ports
-    let playback_sinks = list_ports(library, client, playback_sink_flags(), operation)?;
+    let playback_sinks = list_ports(&library, client, playback_sink_flags(), operation)?;
 
-    close_jack_client(library, client);
+    close_jack_client(&library, client);
 
     Ok(JackEndpointSnapshot {
         playback_sinks,
