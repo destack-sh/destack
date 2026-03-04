@@ -2,9 +2,10 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    ExpressionDuplicateTracker, match_case_selector, match_selector_expression_id,
+    ExpressionDuplicateTracker, expression_numeric_value, match_case_selector,
+    match_selector_expression_id,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{ConstValue, LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate case labels in switch statements.
@@ -46,6 +47,8 @@ impl LintRule for NoDuplicateCase {
 
             // collect case expression IDs and check for duplicates
             let mut seen = ExpressionDuplicateTracker::new();
+            let mut seen_constant_values: Vec<ConstValue> = Vec::new();
+            let mut seen_number_values: Vec<f64> = Vec::new();
             for case_id in cases {
                 let case = ctx.tree.get(*case_id);
                 let selector = match_case_selector(case);
@@ -54,7 +57,50 @@ impl LintRule for NoDuplicateCase {
                 };
 
                 // check against all previously seen expressions
-                if seen.find_duplicate_or_insert(ctx, expr_id).is_some() {
+                let mut has_duplicate = seen.find_duplicate_or_insert(ctx, expr_id).is_some();
+                let mut constant_value: Option<ConstValue> = None;
+
+                // cache exact constant value lookup
+                if !has_duplicate {
+                    constant_value = ctx.const_value(expr_id);
+                }
+
+                // check exact constant value duplicates
+                if !has_duplicate && let Some(constant_value) = constant_value {
+                    if seen_constant_values.contains(&constant_value)
+                        || matches!(
+                            constant_value,
+                            ConstValue::Integer(value)
+                                if seen_number_values.contains(&(value as f64))
+                        )
+                        || matches!(
+                            constant_value,
+                            ConstValue::Float(value) if seen_number_values.contains(&value)
+                        )
+                    {
+                        has_duplicate = true;
+                    } else {
+                        seen_constant_values.push(constant_value);
+
+                        if let Some(number_value) = number_const_value(constant_value) {
+                            seen_number_values.push(number_value);
+                        }
+                    }
+                }
+
+                // check numeric-folded duplicate values for arithmetic expressions
+                if !has_duplicate
+                    && constant_value.is_none()
+                    && let Some(number_value) = expression_numeric_value(ctx, expr_id)
+                {
+                    if seen_number_values.contains(&number_value) {
+                        has_duplicate = true;
+                    } else {
+                        seen_number_values.push(number_value);
+                    }
+                }
+
+                if has_duplicate {
                     let severity = ctx.get_effective_severity(meta, expr_id);
                     if !severity.is_enabled() {
                         continue;
@@ -81,6 +127,15 @@ impl LintRule for NoDuplicateCase {
                 }
             }
         }
+    }
+}
+
+/// Return numeric representation for number-like constant values.
+fn number_const_value(value: ConstValue) -> Option<f64> {
+    match value {
+        ConstValue::Integer(value) => Some(value as f64),
+        ConstValue::Float(value) => Some(value),
+        _ => None,
     }
 }
 
@@ -235,5 +290,21 @@ switch (x) {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_detects_duplicate_constant_folded_case() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
+        let result = test.lint_ast(
+            "no_duplicate_case/test_detects_duplicate_constant_folded_case.ds",
+            r#"
+let x = 2;
+switch (x) {
+    case 1 + 1: break;
+    case 2: break;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-duplicate-case");
     }
 }
