@@ -10,6 +10,10 @@ changelog_path="${repository_root}/CHANGELOG.md"
 release_date="$(date -u +%Y-%m-%d)"
 current_tag="v${version}"
 max_commits_per_group="${DESTACK_CHANGELOG_MAX_COMMITS_PER_GROUP:-25}"
+dart_package_directory="${repository_root}/bridge/dart"
+dart_changelog_path="${dart_package_directory}/CHANGELOG.md"
+root_license_path="${repository_root}/LICENSE.txt"
+dart_license_path="${dart_package_directory}/LICENSE"
 
 # require strict semver format
 if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -201,3 +205,24 @@ fi
 
 mv "${temp_file}" "${changelog_path}"
 echo "updated changelog entry for ${version}"
+
+# keep dart package metadata aligned with the monorepo release
+if [ -d "${dart_package_directory}" ]; then
+	cat >"${dart_changelog_path}" <<EOF
+# Changelog
+
+This changelog is for the pub.dev \`destack\` package.
+For full monorepo release notes, see the root \`CHANGELOG.md\`.
+
+## ${version} - ${release_date}
+
+- Synchronize Dart package metadata with monorepo release ${version}.
+- See the root changelog for complete release details.
+EOF
+	echo "updated dart package changelog for ${version}"
+
+	if [ -f "${root_license_path}" ]; then
+		cp "${root_license_path}" "${dart_license_path}"
+		echo "synced dart package license from LICENSE.txt"
+	fi
+fi
