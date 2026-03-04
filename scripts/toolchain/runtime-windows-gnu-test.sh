@@ -11,6 +11,8 @@ source "${script_directory}/lib/runtime-windows-gnu.sh"
 target="$(runtime_windows_gnu_target)"
 test_filter="${DESTACK_WINDOWS_GNU_TEST_FILTER:-}"
 test_timeout_seconds="${DESTACK_WINDOWS_GNU_TEST_TIMEOUT_SECONDS:-0}"
+skip_audio_tests="${DESTACK_WINDOWS_GNU_SKIP_AUDIO_TESTS:-0}"
+disable_wine_audio="${DESTACK_WINDOWS_GNU_DISABLE_WINE_AUDIO:-0}"
 extra_test_arguments=()
 
 if [ "$#" -gt 0 ]; then
@@ -25,6 +27,10 @@ if [ "$#" -gt 0 ]; then
 		shift
 	fi
 	extra_test_arguments=("$@")
+fi
+
+if [ "${skip_audio_tests}" = "1" ]; then
+    extra_test_arguments+=("--skip" "platform::audio::tests::")
 fi
 
 # ensure target std is available before cargo test
@@ -71,15 +77,25 @@ fi
 # run all runtime test executables through wine
 for runtime_test_executable in "${runtime_test_executables[@]}"; do
 	runtime_test_command=(wine "${runtime_test_executable}")
+
+	runtime_test_environment=(env WINEDEBUG="${WINEDEBUG:--all}")
+	if [ "${disable_wine_audio}" = "1" ]; then
+		wine_audio_overrides="winecoreaudio.drv=d;winepulse.drv=d;winealsa.drv=d;xaudio2_7=d;winmm=d"
+		if [ -n "${WINEDLLOVERRIDES:-}" ]; then
+			wine_audio_overrides="${wine_audio_overrides};${WINEDLLOVERRIDES}"
+		fi
+		runtime_test_environment+=("WINEDLLOVERRIDES=${wine_audio_overrides}")
+	fi
+
 	if [ -n "${test_filter}" ]; then
 		runtime_test_command+=("${test_filter}")
 	fi
 	if [ "${#extra_test_arguments[@]}" -gt 0 ]; then
-		runtime_test_command+=("--" "${extra_test_arguments[@]}")
+		runtime_test_command+=("${extra_test_arguments[@]}")
 	fi
 
 	runtime_run_with_optional_timeout \
 		"${test_timeout_seconds}" \
 		"windows gnu runtime test command" \
-		env WINEDEBUG="${WINEDEBUG:--all}" "${runtime_test_command[@]}"
+		"${runtime_test_environment[@]}" "${runtime_test_command[@]}"
 done
