@@ -57,6 +57,15 @@ Both installers verify checksums from a shared file.
 
 - `SHA256SUMS`
 
+### update manifest
+
+Release artifacts also include a machine-readable update manifest.
+
+- `manifest.json`
+
+The manifest maps target triples to archive names and sha256 hashes.
+Future in-cli auto-update uses this file as the canonical release metadata source.
+
 ## release wiring
 
 The scripts are source controlled here and should be deployed by release automation.
