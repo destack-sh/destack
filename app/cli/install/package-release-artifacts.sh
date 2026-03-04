@@ -9,6 +9,7 @@ DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_OUTPUT_DIRECTORY="${2:-}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
 DESTACK_BINARY_NAMES="destack ds dsc dsx"
+DESTACK_MANIFEST_NAME="manifest.json"
 
 # print an error message and exit
 fail() {
@@ -133,6 +134,16 @@ create_target_archive() {
     )
 }
 
+# resolve the archive file name for a target
+resolve_archive_name() {
+    local version_value="$1"
+    local target_triple="$2"
+    local archive_extension
+    archive_extension="$(resolve_archive_extension "${target_triple}")"
+
+    printf '%s\n' "destack-${version_value}-${target_triple}.${archive_extension}"
+}
+
 # compute sha256 for a file
 sha256_file() {
     local file_path="$1"
@@ -170,6 +181,58 @@ write_checksums() {
     done
 }
 
+# write the release update manifest
+write_manifest() {
+    local version_value="$1"
+    local output_directory="$2"
+    local checksums_path="${output_directory}/SHA256SUMS"
+    local manifest_path="${output_directory}/${DESTACK_MANIFEST_NAME}"
+    local targets_count
+    targets_count="$(printf '%s\n' ${DESTACK_TARGETS_INPUT} | wc -l | tr -d '[:space:]')"
+    local target_index=0
+
+    {
+        printf '{\n'
+        printf '  "version": "%s",\n' "${version_value}"
+        printf '  "releaseTag": "v%s",\n' "${version_value}"
+        printf '  "checksumsFile": "SHA256SUMS",\n'
+        printf '  "assets": [\n'
+
+        local target_triple
+        for target_triple in ${DESTACK_TARGETS_INPUT}; do
+            target_index="$((target_index + 1))"
+
+            local archive_name
+            archive_name="$(resolve_archive_name "${version_value}" "${target_triple}")"
+            local archive_format
+            archive_format="$(resolve_archive_extension "${target_triple}")"
+            local checksum_line
+            checksum_line="$(grep -E "(\\*| )${archive_name}\$" "${checksums_path}" | head -n 1 || true)"
+            if [ -z "${checksum_line}" ]; then
+                fail "checksum entry not found for ${archive_name}"
+            fi
+            local archive_sha256
+            archive_sha256="$(printf '%s' "${checksum_line}" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')"
+
+            printf '    {\n'
+            printf '      "targetTriple": "%s",\n' "${target_triple}"
+            printf '      "archiveName": "%s",\n' "${archive_name}"
+            printf '      "archiveFormat": "%s",\n' "${archive_format}"
+            printf '      "archiveSha256": "%s",\n' "${archive_sha256}"
+            printf '      "binaries": ["destack", "ds", "dsc", "dsx"]\n'
+
+            if [ "${target_index}" -lt "${targets_count}" ]; then
+                printf '    },\n'
+            else
+                printf '    }\n'
+            fi
+        done
+
+        printf '  ]\n'
+        printf '}\n'
+    } > "${manifest_path}"
+}
+
 # clear stale artifacts for the same version
 clear_version_artifacts() {
     local version_value="$1"
@@ -203,6 +266,7 @@ main() {
     done
 
     write_checksums "${output_directory}"
+    write_manifest "${version_value}" "${output_directory}"
 }
 
 main "$@"

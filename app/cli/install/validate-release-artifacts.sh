@@ -9,6 +9,7 @@ DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_ARTIFACTS_DIRECTORY="${2:-app/cli/install/artifacts}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
 DESTACK_CHECKSUMS_NAME="SHA256SUMS"
+DESTACK_MANIFEST_NAME="manifest.json"
 
 # print an error message and exit
 fail() {
@@ -115,6 +116,85 @@ main() {
     for target_triple in ${DESTACK_TARGETS_INPUT}; do
         validate_target_archive "${version_value}" "${target_triple}" "${checksums_path}"
     done
+
+    local manifest_path="${DESTACK_ARTIFACTS_DIRECTORY}/${DESTACK_MANIFEST_NAME}"
+    if [ ! -f "${manifest_path}" ]; then
+        fail "missing manifest file: ${manifest_path}"
+    fi
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        fail "python3 is required to validate ${DESTACK_MANIFEST_NAME}"
+    fi
+
+    python3 - "${manifest_path}" "${checksums_path}" "${version_value}" ${DESTACK_TARGETS_INPUT} <<'PY'
+import json
+import pathlib
+import sys
+
+manifest_path = pathlib.Path(sys.argv[1])
+checksums_path = pathlib.Path(sys.argv[2])
+version_value = sys.argv[3]
+targets = sys.argv[4:]
+
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+if manifest.get("version") != version_value:
+    raise SystemExit(f"error: manifest version mismatch: {manifest.get('version')} != {version_value}")
+
+if manifest.get("releaseTag") != f"v{version_value}":
+    raise SystemExit(
+        f"error: manifest releaseTag mismatch: {manifest.get('releaseTag')} != v{version_value}"
+    )
+
+if manifest.get("checksumsFile") != "SHA256SUMS":
+    raise SystemExit(
+        f"error: manifest checksumsFile mismatch: {manifest.get('checksumsFile')} != SHA256SUMS"
+    )
+
+assets = manifest.get("assets")
+if not isinstance(assets, list):
+    raise SystemExit("error: manifest assets must be a list")
+
+assets_by_target = {}
+for asset in assets:
+    target = asset.get("targetTriple")
+    if not isinstance(target, str):
+        raise SystemExit("error: manifest asset missing targetTriple")
+    assets_by_target[target] = asset
+
+checksum_map = {}
+for line in checksums_path.read_text(encoding="utf-8").splitlines():
+    line = line.strip()
+    if not line:
+        continue
+    parts = line.split()
+    if len(parts) < 2:
+        raise SystemExit(f"error: invalid checksum line: {line}")
+    checksum_map[parts[-1]] = parts[0].lower()
+
+for target in targets:
+    asset = assets_by_target.get(target)
+    if asset is None:
+        raise SystemExit(f"error: manifest missing target asset: {target}")
+
+    archive_name = asset.get("archiveName")
+    archive_sha256 = asset.get("archiveSha256")
+    binaries = asset.get("binaries")
+    if not isinstance(archive_name, str) or not archive_name:
+        raise SystemExit(f"error: manifest archiveName missing for {target}")
+    if not isinstance(archive_sha256, str) or not archive_sha256:
+        raise SystemExit(f"error: manifest archiveSha256 missing for {target}")
+    if binaries != ["destack", "ds", "dsc", "dsx"]:
+        raise SystemExit(f"error: manifest binaries mismatch for {target}: {binaries}")
+
+    checksum_value = checksum_map.get(archive_name)
+    if checksum_value is None:
+        raise SystemExit(f"error: checksum entry missing for {archive_name}")
+    if checksum_value != archive_sha256.lower():
+        raise SystemExit(
+            f"error: manifest checksum mismatch for {archive_name}: {archive_sha256} != {checksum_value}"
+        )
+PY
 }
 
 main "$@"
