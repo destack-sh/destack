@@ -1,27 +1,25 @@
-use destack_dir::{
-    Block, Expression, IfCondition, LocalNodeId, LocalScopeId, MatchCase, MatchKind, MatchSelector,
-    MatchSource, NodeTree, NodeType, Pattern, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
-    SymbolType, Type, TypeLiteral, TypeTable,
+use destack_dir as dir;
+use dir::{
+    Block, Expression, IfCondition, LocalNodeId, LocalScope, LocalScopeId, MatchCase, MatchKind,
+    MatchSelector, MatchSource, NodeType, Pattern, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolType, Type, TypeLiteral,
 };
 
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
 impl Compiler {
     /// Normalize if let expressions into match expressions.
-    pub(super) fn transform_if_let(
-        &self,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-        types: &mut TypeTable,
-    ) -> ElaborateResult<()> {
+    pub(super) fn transform_if_let(&self, state: &mut ElaborateState<'_>) -> ElaborateResult<()> {
         // collect if let expressions to transform
-        let if_ids: Vec<_> = tree
+        let if_ids: Vec<_> = state
+            .tree
             .iter_node_ids_of_type::<Expression>()
             .into_iter()
-            .filter(|id| self.is_node_active(tree, symbols, id.into_any()))
+            .filter(|id| self.is_active_in_state(state, id.into_any()))
             .filter(|id| {
                 matches!(
-                    tree.get(*id),
+                    state.tree.get(*id),
                     Expression::If {
                         condition: IfCondition::Let { .. },
                         ..
@@ -38,7 +36,7 @@ impl Compiler {
                 then_expression,
                 else_expression,
                 ..
-            } = tree.get(if_id).clone()
+            } = state.tree.get(if_id).clone()
             else {
                 continue;
             };
@@ -49,36 +47,36 @@ impl Compiler {
             };
 
             // read the declarator and matched value
-            let declarator = tree.get(declarator).clone();
+            let declarator = state.tree.get(declarator).clone();
             let Some(value_id) = declarator.value else {
                 continue;
             };
 
             // resolve the match metadata for the new expression
-            let match_scope = tree.get_scope(declarator.pattern);
-            let match_symbol = self.match_symbol_for_scope(match_scope.0, symbols)?;
+            let match_scope = state.tree.get_scope(declarator.pattern);
+            let match_symbol = self.match_symbol_for_scope(state, match_scope.0)?;
 
             // build the then case from the pattern and then expression
             let then_case = self.insert_if_let_case(
-                tree,
+                state,
                 if_id,
                 declarator.pattern,
                 then_expression,
-                tree.get_scope(then_expression).0,
+                state.tree.get_scope(then_expression).0,
             );
 
             // build the else case with a wildcard pattern
             let else_expression = match else_expression {
                 Some(else_expression) => else_expression,
-                None => self.insert_empty_block_expression(tree, types, if_id, match_scope),
+                None => self.insert_empty_block_expression(state, if_id, match_scope),
             };
-            let else_pattern = self.insert_if_let_wildcard(tree, if_id, match_scope);
+            let else_pattern = self.insert_if_let_wildcard(state, if_id, match_scope);
             let else_case = self.insert_if_let_case(
-                tree,
+                state,
                 if_id,
                 else_pattern,
                 else_expression,
-                tree.get_scope(else_expression).0,
+                state.tree.get_scope(else_expression).0,
             );
 
             // replace the if let with a match expression
@@ -90,32 +88,39 @@ impl Compiler {
                 scope: match_scope.0,
                 symbol: match_symbol,
             };
-            tree.replace(if_id, match_expression);
+            state.tree.replace(if_id, match_expression);
 
             // preserve the original if expression type on the match node
-            let match_type_id =
-                types.get_declared_or_inferred_type_id(if_id.into_global_any(tree.module_id));
+            let match_type_id = state
+                .types
+                .get_declared_or_inferred_type_id(if_id.into_global_any(state.tree.module_id));
             if let Some(match_type_id) = match_type_id {
-                self.set_expression_type(types, tree.module_id, if_id, match_type_id);
+                self.set_expression_type(state.types, state.tree.module_id, if_id, match_type_id);
             } else {
-                let then_type_id = types.get_declared_or_inferred_type_id(
-                    then_expression.into_global_any(tree.module_id),
+                let then_type_id = state.types.get_declared_or_inferred_type_id(
+                    then_expression.into_global_any(state.tree.module_id),
                 );
-                let else_type_id = types.get_declared_or_inferred_type_id(
-                    else_expression.into_global_any(tree.module_id),
+                let else_type_id = state.types.get_declared_or_inferred_type_id(
+                    else_expression.into_global_any(state.tree.module_id),
                 );
                 let (Some(then_type_id), Some(else_type_id)) = (then_type_id, else_type_id) else {
                     return Err(ElaborateError::UnsupportedConstruct {
-                        node: if_id.into_global_any(tree.module_id).into_anchored(None),
+                        node: if_id
+                            .into_global_any(state.tree.module_id)
+                            .into_anchored(None),
                     });
                 };
 
                 let match_type_id = if then_type_id == else_type_id {
                     then_type_id
                 } else {
-                    self.union_type_from_list(vec![then_type_id, else_type_id], then_type_id, types)
+                    self.union_type_from_list(
+                        vec![then_type_id, else_type_id],
+                        then_type_id,
+                        state.types,
+                    )
                 };
-                self.set_expression_type(types, tree.module_id, if_id, match_type_id);
+                self.set_expression_type(state.types, state.tree.module_id, if_id, match_type_id);
             }
         }
 
@@ -125,11 +130,11 @@ impl Compiler {
     /// Pick a match symbol from the current scope chain.
     fn match_symbol_for_scope(
         &self,
+        state: &mut ElaborateState<'_>,
         scope_id: LocalScopeId,
-        symbols: &mut SymbolTable,
-    ) -> ElaborateResult<destack_dir::LocalSymbolId> {
-        let scope_mark = symbols.get_scope_mark(scope_id);
-        let (symbol_id, _) = symbols.insert_symbol(
+    ) -> ElaborateResult<dir::LocalSymbolId> {
+        let scope_mark = state.symbols.get_scope_mark(scope_id);
+        let (symbol_id, _) = state.symbols.insert_symbol(
             SymbolKind::Item,
             SymbolType::Void,
             SymbolSpace::Value,
@@ -144,28 +149,32 @@ impl Compiler {
     /// Insert a wildcard pattern node for the implicit else case.
     fn insert_if_let_wildcard(
         &self,
-        tree: &mut NodeTree,
+        state: &mut ElaborateState<'_>,
         if_id: LocalNodeId<Expression>,
-        scope: (LocalScopeId, destack_dir::LocalScopeMark),
+        scope: LocalScope,
     ) -> LocalNodeId<Pattern> {
         // allocate and insert the wildcard pattern
-        let pattern_id = tree.reserve_from(NodeType::Pattern, if_id.into_any(), scope, None);
-        tree.insert(pattern_id, Pattern::Wildcard)
+        let pattern_id = state
+            .tree
+            .reserve_from(NodeType::Pattern, if_id.into_any(), scope, None);
+        state.tree.insert(pattern_id, Pattern::Wildcard)
     }
 
     /// Insert a match case for an if let branch.
     fn insert_if_let_case(
         &self,
-        tree: &mut NodeTree,
+        state: &mut ElaborateState<'_>,
         if_id: LocalNodeId<Expression>,
         pattern: LocalNodeId<Pattern>,
         body: LocalNodeId<Expression>,
         scope_id: LocalScopeId,
     ) -> LocalNodeId<MatchCase> {
         // allocate and insert the match case
-        let scope = tree.get_scope(if_id);
-        let case_id = tree.reserve_from(NodeType::MatchCase, if_id.into_any(), scope, None);
-        tree.insert(
+        let scope = state.tree.get_scope(if_id);
+        let case_id = state
+            .tree
+            .reserve_from(NodeType::MatchCase, if_id.into_any(), scope, None);
+        state.tree.insert(
             case_id,
             MatchCase::Expression {
                 selector: MatchSelector::Pattern {
@@ -181,14 +190,15 @@ impl Compiler {
     /// Insert an empty block expression for missing else branches.
     fn insert_empty_block_expression(
         &self,
-        tree: &mut NodeTree,
-        types: &mut TypeTable,
+        state: &mut ElaborateState<'_>,
         if_id: LocalNodeId<Expression>,
-        scope: (LocalScopeId, destack_dir::LocalScopeMark),
+        scope: LocalScope,
     ) -> LocalNodeId<Expression> {
         // allocate the empty block
-        let block_id = tree.reserve_from(NodeType::Block, if_id.into_any(), scope, None);
-        let block: LocalNodeId<Block> = tree.insert(
+        let block_id = state
+            .tree
+            .reserve_from(NodeType::Block, if_id.into_any(), scope, None);
+        let block: LocalNodeId<Block> = state.tree.insert(
             block_id,
             Block {
                 scope: scope.0,
@@ -197,17 +207,26 @@ impl Compiler {
         );
 
         // wrap the block as an expression
-        let block_expr_id = tree.reserve_from(NodeType::Expression, if_id.into_any(), scope, None);
-        let block_expr_id = tree.insert(block_expr_id, Expression::Block { block });
+        let block_expr_id =
+            state
+                .tree
+                .reserve_from(NodeType::Expression, if_id.into_any(), scope, None);
+        let block_expr_id = state
+            .tree
+            .insert(block_expr_id, Expression::Block { block });
 
         // record void types for the synthesized block
         let void_type = Type::TypeLiteral {
             value: TypeLiteral::Void,
         };
-        let void_type_id = types.insert_type_from(void_type, block);
-        let module_id = types.module_id;
-        types.set_inferred_type(block.into_global_any(module_id), void_type_id);
-        types.set_inferred_type(block_expr_id.into_global_any(module_id), void_type_id);
+        let void_type_id = state.types.insert_type_from(void_type, block);
+        let module_id = state.types.module_id;
+        state
+            .types
+            .set_inferred_type(block.into_global_any(module_id), void_type_id);
+        state
+            .types
+            .set_inferred_type(block_expr_id.into_global_any(module_id), void_type_id);
 
         block_expr_id
     }

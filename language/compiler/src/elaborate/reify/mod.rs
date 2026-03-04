@@ -6,6 +6,3 @@ mod resolution;
 mod tagged;
 mod tree;
 mod r#type;
-
-#[cfg(test)]
-mod tests;

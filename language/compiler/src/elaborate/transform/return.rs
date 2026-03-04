@@ -1,8 +1,10 @@
-use destack_dir::{
-    Declaration, Expression, GlobalSymbolId, IfKind, LocalNodeId, LocalTypeId, Member, NodeTree,
-    NodeType, Type, TypeLiteral, TypeTable,
+use destack_dir as dir;
+use dir::{
+    Declaration, Expression, GlobalSymbolId, IfKind, LocalNodeId, LocalTypeId, Member, Type,
+    TypeLiteral,
 };
 
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
@@ -32,19 +34,17 @@ impl Compiler {
     /// ```
     pub(super) fn transform_explicit_return(
         &self,
-        tree: &mut NodeTree,
-        symbols: &destack_dir::SymbolTable,
-        types: &mut TypeTable,
+        state: &mut ElaborateState<'_>,
     ) -> ElaborateResult<()> {
         // collect function and method bodies to rewrite
         let mut body_ids = Vec::new();
-        let module_id = types.module_id;
-        for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
-            if !self.is_node_active(tree, symbols, declaration_id.into_any()) {
+        let module_id = state.types.module_id;
+        for declaration_id in state.tree.iter_node_ids_of_type::<Declaration>() {
+            if !self.is_active_in_state(state, declaration_id.into_any()) {
                 continue;
             }
 
-            let declaration = tree.get(declaration_id).clone();
+            let declaration = state.tree.get(declaration_id).clone();
 
             // function declarations
             if let Declaration::Function {
@@ -54,7 +54,7 @@ impl Compiler {
             } = &declaration
             {
                 let symbol = descriptor.symbol.into_global(module_id);
-                if self.function_returns_void(symbol, types) {
+                if self.function_returns_void(state, symbol) {
                     continue;
                 }
                 body_ids.push(*body_id);
@@ -67,13 +67,13 @@ impl Compiler {
                         body: Some(body_id),
                         symbol,
                         ..
-                    } = tree.get(*member_id)
+                    } = state.tree.get(*member_id)
                     else {
                         continue;
                     };
 
                     let symbol = symbol.into_global(module_id);
-                    if self.function_returns_void(symbol, types) {
+                    if self.function_returns_void(state, symbol) {
                         continue;
                     }
                     body_ids.push(*body_id);
@@ -83,8 +83,8 @@ impl Compiler {
 
         // rewrite implicit returns in each body
         for body_id in body_ids {
-            let scope = tree.get_scope(body_id);
-            self.make_return_explicit(body_id, tree, scope, types)?;
+            let scope = state.tree.get_scope(body_id);
+            self.make_return_explicit(state, body_id, scope)?;
         }
 
         Ok(())
@@ -95,22 +95,21 @@ impl Compiler {
     /// For if/else, this transforms both branches recursively.
     fn make_return_explicit(
         &self,
+        state: &mut ElaborateState<'_>,
         expr_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
+        scope: dir::LocalScope,
     ) -> ElaborateResult<()> {
-        let expr = tree.get(expr_id).clone();
+        let expr = state.tree.get(expr_id).clone();
 
         match expr {
             Expression::Block { block } => {
-                let block_node = tree.get(block).clone();
+                let block_node = state.tree.get(block).clone();
                 if let Some(last_expr_id) = block_node.expressions.last().copied() {
                     // recursively transform the last expression
-                    self.make_return_explicit(last_expr_id, tree, scope, types)?;
+                    self.make_return_explicit(state, last_expr_id, scope)?;
                 }
 
-                self.update_block_expression_type(block, expr_id, tree, types)?;
+                self.update_block_expression_type(state, block, expr_id)?;
             }
 
             Expression::If {
@@ -120,12 +119,12 @@ impl Compiler {
                 else_expression,
             } => {
                 // for if else (not ternary), transform both branches
-                self.make_return_explicit(then_expression, tree, scope, types)?;
+                self.make_return_explicit(state, then_expression, scope)?;
                 if let Some(else_expr) = else_expression {
-                    self.make_return_explicit(else_expr, tree, scope, types)?;
+                    self.make_return_explicit(state, else_expr, scope)?;
                 }
 
-                self.set_void_expression_type(types, types.module_id, expr_id);
+                self.set_void_expression_type(state.types, state.types.module_id, expr_id);
             }
 
             Expression::If {
@@ -133,37 +132,7 @@ impl Compiler {
                 ..
             } => {
                 // for ternary, return the whole expression as a statement
-                // reserve a new node for the original expression
-                let original_id =
-                    tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
-                let original_expr_id: LocalNodeId<Expression> = tree.insert(original_id, expr);
-
-                // preserve analysis metadata for the cloned expression
-                let module_id = types.module_id;
-                types.copy_node_analysis(
-                    expr_id.into_global_any(module_id),
-                    original_expr_id.into_global_any(module_id),
-                );
-
-                // create return expression
-                let return_id =
-                    tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
-                let return_expr: LocalNodeId<Expression> = tree.insert(
-                    return_id,
-                    Expression::Return {
-                        value: Some(original_expr_id),
-                    },
-                );
-                self.set_never_expression_type(types, types.module_id, return_expr);
-
-                // replace the original node with a statement wrapping the return
-                tree.replace(
-                    expr_id,
-                    Expression::Statement {
-                        statement: return_expr,
-                    },
-                );
-                self.set_void_expression_type(types, types.module_id, expr_id);
+                self.replace_expression_with_statement_return(state, expr_id, scope);
             }
 
             Expression::Match { .. } => {
@@ -176,7 +145,7 @@ impl Compiler {
 
             Expression::Statement { statement } => {
                 // recursively transform the inner statement
-                self.make_return_explicit(statement, tree, scope, types)?;
+                self.make_return_explicit(state, statement, scope)?;
             }
 
             Expression::Let { .. } | Expression::Using { .. } => {
@@ -185,40 +154,7 @@ impl Compiler {
 
             _ => {
                 // wrap value expression in return statement
-                // strategy: create nodes for the original expression and return,
-                // then replace expr_id with Statement wrapping the Return
-
-                // reserve a new node for the original expression
-                let original_id =
-                    tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
-                let original_expr_id: LocalNodeId<Expression> = tree.insert(original_id, expr);
-
-                // preserve analysis metadata for the cloned expression
-                let module_id = types.module_id;
-                types.copy_node_analysis(
-                    expr_id.into_global_any(module_id),
-                    original_expr_id.into_global_any(module_id),
-                );
-
-                // create return expression
-                let return_id =
-                    tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
-                let return_expr: LocalNodeId<Expression> = tree.insert(
-                    return_id,
-                    Expression::Return {
-                        value: Some(original_expr_id),
-                    },
-                );
-                self.set_never_expression_type(types, types.module_id, return_expr);
-
-                // replace the original node with a statement wrapping the return
-                tree.replace(
-                    expr_id,
-                    Expression::Statement {
-                        statement: return_expr,
-                    },
-                );
-                self.set_void_expression_type(types, types.module_id, expr_id);
+                self.replace_expression_with_statement_return(state, expr_id, scope);
             }
         }
 
@@ -226,35 +162,35 @@ impl Compiler {
     }
 
     /// Check whether a function symbol has an explicit void return type.
-    fn function_returns_void(&self, symbol: GlobalSymbolId, types: &TypeTable) -> bool {
-        let Some(value_type_id) = types.get_value_type_id(symbol) else {
+    fn function_returns_void(&self, state: &ElaborateState<'_>, symbol: GlobalSymbolId) -> bool {
+        let Some(value_type_id) = state.types.get_value_type_id(symbol) else {
             return false;
         };
 
-        self.return_type_is_void(value_type_id, types)
+        self.return_type_is_void(state, value_type_id)
     }
 
     /// Check whether a function return type is void.
-    fn return_type_is_void(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
-        match types.get_type(type_id) {
+    fn return_type_is_void(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
+        match state.types.get_type(type_id) {
             Type::Function { return_type, .. } => {
                 let Some(return_type_id) = return_type else {
                     return false;
                 };
-                self.type_is_void(*return_type_id, types)
+                self.type_is_void(state, *return_type_id)
             }
-            Type::Value { value } => self.return_type_is_void(*value, types),
+            Type::Value { value } => self.return_type_is_void(state, *value),
             _ => false,
         }
     }
 
     /// Check whether a type id resolves to void.
-    fn type_is_void(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
-        match types.get_type(type_id) {
+    fn type_is_void(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
+        match state.types.get_type(type_id) {
             Type::TypeLiteral {
                 value: TypeLiteral::Void,
             } => true,
-            Type::Value { value } => self.type_is_void(*value, types),
+            Type::Value { value } => self.type_is_void(state, *value),
             _ => false,
         }
     }
@@ -262,26 +198,32 @@ impl Compiler {
     /// Update the inferred type for a block and its block expression.
     fn update_block_expression_type(
         &self,
-        block_id: destack_dir::LocalNodeId<destack_dir::Block>,
+        state: &mut ElaborateState<'_>,
+        block_id: dir::LocalNodeId<dir::Block>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
-        let block = tree.get(block_id);
+        let block = state.tree.get(block_id);
         let type_id = match block.expressions.last() {
-            Some(expression_id) => {
-                self.expression_type_id_or_error(types.module_id, *expression_id, types)?
-            }
+            Some(expression_id) => self.expression_type_id_or_error(
+                state.types.module_id,
+                *expression_id,
+                state.types,
+            )?,
             None => {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, block_id)
+                state.types.insert_type_from(ty, block_id)
             }
         };
 
-        types.set_inferred_type(block_id.into_global_any(types.module_id), type_id);
-        types.set_inferred_type(expression_id.into_global_any(types.module_id), type_id);
+        state
+            .types
+            .set_inferred_type(block_id.into_global_any(state.types.module_id), type_id);
+        state.types.set_inferred_type(
+            expression_id.into_global_any(state.types.module_id),
+            type_id,
+        );
 
         Ok(())
     }

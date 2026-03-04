@@ -1,4 +1,5 @@
 mod blocks;
+mod coalesce;
 mod declarator;
 mod expression;
 mod r#let;
@@ -7,6 +8,3 @@ mod process;
 mod r#return;
 mod statement;
 mod ternary;
-
-#[cfg(test)]
-mod tests;

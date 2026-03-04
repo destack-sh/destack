@@ -1,8 +1,9 @@
-use destack_dir::{
-    Asynchrony, Block, DeclarationDescriptor, Expression, LocalNodeId, Mutability, NodeTree,
-    NodeType, SymbolTable, TypeTable,
+use destack_dir as dir;
+use dir::{
+    Asynchrony, Block, DeclarationDescriptor, Expression, LocalNodeId, Mutability, NodeType,
 };
 
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -19,18 +20,16 @@ impl Compiler {
     /// ```
     pub(super) fn transform_split_declarators(
         &self,
-        tree: &mut NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        state: &mut ElaborateState<'_>,
     ) -> ElaborateResult<()> {
         // collect all blocks that need transformation
-        let block_ids: Vec<_> = tree.iter_node_ids_of_type::<Block>();
+        let block_ids: Vec<_> = state.tree.iter_node_ids_of_type::<Block>();
 
         for block_id in block_ids {
-            if !self.is_node_active(tree, symbols, block_id.into_any()) {
+            if !self.is_active_in_state(state, block_id.into_any()) {
                 continue;
             }
-            self.split_declarators_in_block(block_id, tree, types)?;
+            self.split_declarators_in_block(state, block_id)?;
         }
 
         Ok(())
@@ -39,9 +38,8 @@ impl Compiler {
     /// Split multi-declarators in a single block.
     fn split_declarators_in_block(
         &self,
+        state: &mut ElaborateState<'_>,
         block_id: LocalNodeId<Block>,
-        tree: &mut NodeTree,
-        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         #[derive(Clone, Copy)]
         enum BindingKind {
@@ -49,13 +47,13 @@ impl Compiler {
             Using { asynchrony: Asynchrony },
         }
 
-        let block = tree.get(block_id).clone();
+        let block = state.tree.get(block_id).clone();
         let mut new_expressions: Vec<LocalNodeId<Expression>> = Vec::new();
         let mut modified = false;
 
         for expr_id in &block.expressions {
             // check if this is a statement wrapping a binding
-            let (binding_expr_id, is_statement) = match tree.get(*expr_id) {
+            let (binding_expr_id, is_statement) = match state.tree.get(*expr_id) {
                 Expression::Statement { statement } => (*statement, true),
                 Expression::Let { .. } | Expression::Using { .. } => (*expr_id, false),
                 _ => {
@@ -64,22 +62,23 @@ impl Compiler {
                 }
             };
 
-            let (descriptor, binding_kind, declarators) = match tree.get(binding_expr_id).clone() {
-                Expression::Let {
-                    descriptor,
-                    mutability,
-                    declarators,
-                } => (descriptor, BindingKind::Let { mutability }, declarators),
-                Expression::Using {
-                    asynchrony,
-                    descriptor,
-                    declarators,
-                } => (descriptor, BindingKind::Using { asynchrony }, declarators),
-                _ => {
-                    new_expressions.push(*expr_id);
-                    continue;
-                }
-            };
+            let (descriptor, binding_kind, declarators) =
+                match state.tree.get(binding_expr_id).clone() {
+                    Expression::Let {
+                        descriptor,
+                        mutability,
+                        declarators,
+                    } => (descriptor, BindingKind::Let { mutability }, declarators),
+                    Expression::Using {
+                        asynchrony,
+                        descriptor,
+                        declarators,
+                    } => (descriptor, BindingKind::Using { asynchrony }, declarators),
+                    _ => {
+                        new_expressions.push(*expr_id);
+                        continue;
+                    }
+                };
 
             // only split if there are multiple declarators
             if declarators.len() <= 1 {
@@ -88,11 +87,11 @@ impl Compiler {
             }
 
             modified = true;
-            let scope = tree.get_scope(binding_expr_id);
+            let scope = state.tree.get_scope(binding_expr_id);
 
             // create individual binding for each declarator
             for declarator_id in declarators {
-                let new_let_id = tree.reserve_from(
+                let new_let_id = state.tree.reserve_from(
                     NodeType::Expression,
                     binding_expr_id.into_any(),
                     scope,
@@ -100,8 +99,8 @@ impl Compiler {
                 );
 
                 // create a new descriptor for this binding using the declarator symbol
-                let declarator = tree.get(declarator_id);
-                let pattern = tree.get(declarator.pattern);
+                let declarator = state.tree.get(declarator_id);
+                let pattern = state.tree.get(declarator.pattern);
                 let new_symbol = pattern.symbol().unwrap_or(descriptor.symbol);
                 let new_descriptor = DeclarationDescriptor {
                     symbol: new_symbol,
@@ -119,20 +118,12 @@ impl Compiler {
                         declarators: vec![declarator_id],
                     },
                 };
-                let new_let: LocalNodeId<Expression> = tree.insert(new_let_id, new_binding);
-                self.set_void_expression_type(types, types.module_id, new_let);
+                let new_let: LocalNodeId<Expression> = state.tree.insert(new_let_id, new_binding);
+                self.set_void_expression_type(state.types, state.types.module_id, new_let);
 
                 // wrap in statement if original was wrapped
                 let final_expr = if is_statement {
-                    let stmt_id = tree.reserve_from(
-                        NodeType::Expression,
-                        binding_expr_id.into_any(),
-                        scope,
-                        None,
-                    );
-                    let stmt = tree.insert(stmt_id, Expression::Statement { statement: new_let });
-                    self.set_void_expression_type(types, types.module_id, stmt);
-                    stmt
+                    self.insert_statement_expression(state, binding_expr_id, new_let, scope)
                 } else {
                     new_let
                 };
@@ -147,7 +138,7 @@ impl Compiler {
                 expressions: new_expressions,
                 ..block
             };
-            tree.replace(block_id, new_block);
+            state.tree.replace(block_id, new_block);
         }
 
         Ok(())

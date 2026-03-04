@@ -1,5 +1,7 @@
-use destack_dir::{Expression, LocalNodeId, NodeTree, SymbolTable};
+use destack_dir as dir;
+use dir::{Expression, LocalNodeId};
 
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
@@ -7,14 +9,14 @@ impl Compiler {
     /// This enables ternary optimization for `if (cond) { a } else { b }`.
     pub(super) fn unwrap_single_expression_blocks(
         &self,
-        tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        state: &mut ElaborateState<'_>,
     ) -> ElaborateResult<()> {
-        let if_ids: Vec<_> = tree
+        let if_ids: Vec<_> = state
+            .tree
             .iter_node_ids_of_type::<Expression>()
             .into_iter()
-            .filter(|id| self.is_node_active(tree, symbols, id.into_any()))
-            .filter(|id| matches!(tree.get(*id), Expression::If { .. }))
+            .filter(|id| self.is_active_in_state(state, id.into_any()))
+            .filter(|id| matches!(state.tree.get(*id), Expression::If { .. }))
             .collect();
 
         for if_id in if_ids {
@@ -23,20 +25,20 @@ impl Compiler {
                 condition,
                 then_expression,
                 else_expression,
-            } = tree.get(if_id).clone()
+            } = state.tree.get(if_id).clone()
             else {
                 continue;
             };
 
             // try to unwrap then_expression if it's a single-expression block
-            let new_then = self.try_unwrap_block(then_expression, tree);
+            let new_then = self.try_unwrap_block(state, then_expression);
 
             // try to unwrap else_expression if it's a single-expression block
-            let new_else = else_expression.map(|e| self.try_unwrap_block(e, tree));
+            let new_else = else_expression.map(|e| self.try_unwrap_block(state, e));
 
             // only update if something changed
             if new_then != then_expression || new_else != else_expression {
-                tree.replace(
+                state.tree.replace(
                     if_id,
                     Expression::If {
                         kind,
@@ -54,22 +56,22 @@ impl Compiler {
     /// Drop parenthesized expressions from canonical DIR.
     pub(super) fn transform_drop_parenthesized(
         &self,
-        tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        state: &mut ElaborateState<'_>,
     ) -> ElaborateResult<()> {
-        let expression_ids: Vec<_> = tree.iter_node_ids_of_type::<Expression>();
+        let expression_ids: Vec<_> = state.tree.iter_node_ids_of_type::<Expression>();
         for expression_id in expression_ids {
             // skip inactive expressions
-            if !self.is_node_active(tree, symbols, expression_id.into_any()) {
+            if !self.is_active_in_state(state, expression_id.into_any()) {
                 continue;
             }
 
-            let Expression::Parenthesized { expression } = tree.get(expression_id).clone() else {
+            let Expression::Parenthesized { expression } = state.tree.get(expression_id).clone()
+            else {
                 continue;
             };
 
-            let inner = tree.get(expression).clone();
-            tree.replace(expression_id, inner);
+            let inner = state.tree.get(expression).clone();
+            state.tree.replace(expression_id, inner);
         }
 
         Ok(())
@@ -80,20 +82,20 @@ impl Compiler {
     /// that is not a statement. Otherwise returns the original expression.
     fn try_unwrap_block(
         &self,
+        state: &ElaborateState<'_>,
         expr_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
     ) -> LocalNodeId<Expression> {
-        let Expression::Block { block } = tree.get(expr_id) else {
+        let Expression::Block { block } = state.tree.get(expr_id) else {
             return expr_id;
         };
 
-        let block_node = tree.get(*block);
+        let block_node = state.tree.get(*block);
         if block_node.expressions.len() != 1 {
             return expr_id;
         }
 
         let inner_expr_id = block_node.expressions[0];
-        let inner_expr = tree.get(inner_expr_id);
+        let inner_expr = state.tree.get(inner_expr_id);
 
         // don't unwrap if the inner expression is a statement (has side effects)
         // or if it's a let/declaration

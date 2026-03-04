@@ -1,10 +1,10 @@
-use destack_dir::{
+use destack_dir as dir;
+use dir::{
     Argument, CastOperator, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
-    Member, NodeTree, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type, TypeLiteral,
-    TypeTable,
+    Member, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type, TypeLiteral, TypeTable,
 };
-use destack_source::ModuleId;
 
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -12,19 +12,18 @@ impl Compiler {
     /// Resolve expected argument types for a call when possible.
     pub(super) fn expected_argument_types_for_call(
         &self,
-        module_id: ModuleId,
+        state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        types: &mut TypeTable,
     ) -> ElaborateResult<Option<Vec<Option<LocalTypeId>>>> {
         // resolve the call resolution
-        let Some(resolution_id) =
-            types.get_resolution_for_node(expression_id.into_global_any(module_id))
+        let Some(resolution_id) = state
+            .types
+            .get_resolution_for_node(expression_id.into_global_any(state.ctx.module_id))
         else {
             return Ok(None);
         };
-        let resolution = types.get_resolution(resolution_id).clone();
+        let resolution = state.types.get_resolution(resolution_id).clone();
         let candidates = match resolution {
             Resolution::Static { candidate, .. } => vec![candidate],
             Resolution::Dynamic { candidates, .. } => candidates,
@@ -43,7 +42,7 @@ impl Compiler {
         // map positional arguments to parameter types when uniform across candidates
         let mut expected_types = Vec::with_capacity(dynamic_arguments.len());
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-            let argument = tree.get(*argument_id);
+            let argument = state.tree.get(*argument_id);
             let expected_type_id = match argument {
                 Argument::Positional { .. } => {
                     let mut expected = None;
@@ -76,20 +75,18 @@ impl Compiler {
     /// Find the declared return type for a return expression.
     pub(super) fn enclosing_return_type(
         &self,
-        module_id: ModuleId,
+        state: &ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        types: &TypeTable,
     ) -> Option<LocalTypeId> {
         // start from the parent node
-        let mut current = tree.get_parent(expression_id.id);
+        let mut current = state.tree.get_parent(expression_id.id);
 
         // walk up the tree looking for a function or method
         while let Some(node_id) = current {
             // check function declarations
             if node_id.ty == NodeType::Declaration {
                 let declaration_id = node_id.into_typed::<Declaration>();
-                let declaration = tree.get(declaration_id);
+                let declaration = state.tree.get(declaration_id);
 
                 // return the declared function return type
                 if let Declaration::Function {
@@ -99,15 +96,15 @@ impl Compiler {
                 } = declaration
                     && signature.return_type.is_some()
                 {
-                    let symbol = descriptor.symbol.into_global(module_id);
-                    return self.return_type_for_symbol(symbol, types);
+                    let symbol = descriptor.symbol.into_global(state.ctx.module_id);
+                    return self.return_type_for_symbol(state, symbol);
                 }
             }
 
             // check method declarations
             if node_id.ty == NodeType::Member {
                 let member_id = node_id.into_typed::<Member>();
-                let member = tree.get(member_id);
+                let member = state.tree.get(member_id);
 
                 // return the declared method return type
                 if let Member::Method {
@@ -115,12 +112,12 @@ impl Compiler {
                 } = member
                     && signature.return_type.is_some()
                 {
-                    let symbol = symbol.into_global(module_id);
-                    return self.return_type_for_symbol(symbol, types);
+                    let symbol = symbol.into_global(state.ctx.module_id);
+                    return self.return_type_for_symbol(state, symbol);
                 }
             }
 
-            current = tree.get_parent(node_id.id);
+            current = state.tree.get_parent(node_id.id);
         }
 
         None
@@ -129,26 +126,26 @@ impl Compiler {
     /// Return a function return type for a symbol when available.
     pub(super) fn return_type_for_symbol(
         &self,
+        state: &ElaborateState<'_>,
         symbol: GlobalSymbolId,
-        types: &TypeTable,
     ) -> Option<LocalTypeId> {
         // read the function value type
-        let value_type_id = types.get_value_type_id(symbol)?;
+        let value_type_id = state.types.get_value_type_id(symbol)?;
 
         // unwrap to a function return type
-        self.return_type_from_type_id(value_type_id, types)
+        self.return_type_from_type_id(state, value_type_id)
     }
 
     /// Return a function return type from a type id.
     pub(super) fn return_type_from_type_id(
         &self,
+        state: &ElaborateState<'_>,
         type_id: LocalTypeId,
-        types: &TypeTable,
     ) -> Option<LocalTypeId> {
         // unwrap value types when needed
-        match types.get_type(type_id) {
+        match state.types.get_type(type_id) {
             Type::Function { return_type, .. } => *return_type,
-            Type::Value { value } => self.return_type_from_type_id(*value, types),
+            Type::Value { value } => self.return_type_from_type_id(state, *value),
             _ => None,
         }
     }
@@ -414,5 +411,5 @@ pub(super) fn are_types_semantically_equal(
     target: &Type,
     types: &TypeTable,
 ) -> bool {
-    destack_dir::are_types_semantically_equal(source, target, types)
+    dir::are_types_semantically_equal(source, target, types)
 }

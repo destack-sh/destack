@@ -1,10 +1,10 @@
-use destack_dir::{
-    Expression, IfCondition, IfKind, LocalNodeId, LocalTypeId, NodeTree, NodeType, Resolution,
-    ResolutionCandidate, SymbolTable, Type, TypeBinaryOperator, TypeTable,
+use destack_dir as dir;
+use dir::{
+    Expression, IfCondition, IfKind, LocalNodeId, LocalTypeId, NodeType, Resolution,
+    ResolutionCandidate,
 };
-use destack_source::ModuleId;
-use destack_workspace::ProfileId;
 
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -16,20 +16,17 @@ impl Compiler {
     /// `Static` resolutions remain in the DIR.
     pub(super) fn reify_resolution(
         &self,
-        module_id: ModuleId,
-        _profile: ProfileId,
+        state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        _symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         // get the resolution for this expression
-        let Some(resolution_id) =
-            types.get_resolution_for_node(expression_id.into_global_any(module_id))
+        let Some(resolution_id) = state
+            .types
+            .get_resolution_for_node(expression_id.into_global_any(state.ctx.module_id))
         else {
             return Ok(());
         };
-        let resolution = types.get_resolution(resolution_id).clone();
+        let resolution = state.types.get_resolution(resolution_id).clone();
 
         // only transform Dynamic resolutions
         let Resolution::Dynamic {
@@ -51,59 +48,57 @@ impl Compiler {
         };
 
         // get the receiver expression from the original expression
-        let expression = tree.get(expression_id).clone();
-        let Some(receiver_expression_id) = self.receiver_expression_for(&expression, tree) else {
+        let expression = state.tree.get(expression_id).clone();
+        let Some(receiver_expression_id) = self.receiver_expression_for(state, &expression) else {
             return Ok(());
         };
 
         // get the scope for creating synthetic nodes
-        let scope = tree.get_scope(expression_id);
+        let scope = state.tree.get_scope(expression_id);
 
         // build the if-else chain from bottom up
         // start with the last candidate as the final else branch
         let mut else_branch = self.build_static_resolution_branch(
-            module_id,
+            state,
             expression_id,
             &expression,
             &candidates[candidates.len() - 1],
-            tree,
-            types,
             scope,
         )?;
 
         // build if-else chain for remaining candidates (in reverse order)
         for candidate in candidates.iter().rev().skip(1) {
             // get the type to check against from the dispatch key
-            let Some(check_type_id) = self.type_for_dispatch_candidate(candidate, types) else {
+            let Some(check_type_id) = self.type_for_dispatch_candidate(candidate) else {
                 continue;
             };
 
             // build: if (receiver is CheckType) { staticBranch } else { elseBranch }
             let then_branch = self.build_static_resolution_branch(
-                module_id,
+                state,
                 expression_id,
                 &expression,
                 candidate,
-                tree,
-                types,
                 scope,
             )?;
 
             // build the is check: receiver is Type
             let is_check = self.build_is_type_check(
-                module_id,
+                state,
                 expression_id,
                 receiver_expression_id,
                 check_type_id,
-                tree,
-                types,
                 scope,
             )?;
 
             // build the if expression
-            let if_id =
-                tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
-            else_branch = tree.insert(
+            let if_id = state.tree.reserve_from(
+                NodeType::Expression,
+                expression_id.into_any(),
+                scope,
+                None,
+            );
+            else_branch = state.tree.insert(
                 if_id,
                 Expression::If {
                     kind: IfKind::If,
@@ -116,16 +111,18 @@ impl Compiler {
             );
 
             // set the type for the if expression (same as original expression)
-            if let Some(expr_type_id) =
-                types.get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
-            {
-                types.set_inferred_type(if_id.into_global(module_id), expr_type_id);
+            if let Some(expr_type_id) = state.types.get_declared_or_inferred_type_id(
+                expression_id.into_global_any(state.ctx.module_id),
+            ) {
+                state
+                    .types
+                    .set_inferred_type(if_id.into_global(state.ctx.module_id), expr_type_id);
             }
         }
 
         // replace the original expression with the if-else chain
-        let final_expression = tree.get(else_branch).clone();
-        tree.replace(expression_id, final_expression);
+        let final_expression = state.tree.get(else_branch).clone();
+        state.tree.replace(expression_id, final_expression);
 
         Ok(())
     }
@@ -133,8 +130,8 @@ impl Compiler {
     /// Get the receiver expression from an expression that has a resolution.
     fn receiver_expression_for(
         &self,
+        state: &ElaborateState<'_>,
         expression: &Expression,
-        tree: &NodeTree,
     ) -> Option<LocalNodeId<Expression>> {
         match expression {
             // binary operators: receiver is the left operand
@@ -146,14 +143,14 @@ impl Compiler {
                 // unwrap parenthesized callee
                 let mut callee_id = *left;
                 loop {
-                    let Expression::Parenthesized { expression } = tree.get(callee_id) else {
+                    let Expression::Parenthesized { expression } = state.tree.get(callee_id) else {
                         break;
                     };
                     callee_id = *expression;
                 }
 
                 // use the receiver for member calls
-                if let Expression::Member { left, .. } = tree.get(callee_id) {
+                if let Expression::Member { left, .. } = state.tree.get(callee_id) {
                     Some(*left)
                 } else {
                     Some(callee_id)
@@ -168,11 +165,7 @@ impl Compiler {
     }
 
     /// Get the type to check from a resolution candidate's dispatch key.
-    fn type_for_dispatch_candidate(
-        &self,
-        candidate: &ResolutionCandidate,
-        _types: &TypeTable,
-    ) -> Option<LocalTypeId> {
+    fn type_for_dispatch_candidate(&self, candidate: &ResolutionCandidate) -> Option<LocalTypeId> {
         // the dispatch key contains the type(s) for runtime selection
         let key = candidate.key.as_ref()?;
 
@@ -185,35 +178,56 @@ impl Compiler {
     /// Build a branch with static resolution for a candidate.
     fn build_static_resolution_branch(
         &self,
-        module_id: ModuleId,
+        state: &mut ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
         expression: &Expression,
         candidate: &ResolutionCandidate,
-        tree: &mut NodeTree,
-        types: &mut TypeTable,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // clone the original expression
-        let cloned_id = tree.reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let cloned_id = tree.insert(cloned_id, expression.clone());
-
-        // copy the original type to the cloned expression
-        if let Some(type_id) =
-            types.get_declared_or_inferred_type_id(origin_id.into_global_any(module_id))
-        {
-            types.set_inferred_type(cloned_id.into_global_any(module_id), type_id);
-        }
+        let cloned_id = self.clone_expression_with_analysis(state, origin_id, expression, scope);
 
         // get the receiver type for the static resolution
-        let receiver_type = self.type_for_dispatch_candidate(candidate, types);
+        let receiver_type = self.type_for_dispatch_candidate(candidate);
 
         // create a static resolution for this branch
         let static_resolution = Resolution::Static {
             receiver: receiver_type,
             candidate: candidate.clone(),
         };
-        let resolution_id = types.insert_resolution(static_resolution);
-        types.set_resolution_for_node(cloned_id.into_global_any(module_id), resolution_id);
+        let resolution_id = state.types.insert_resolution(static_resolution);
+        state.types.set_resolution_for_node(
+            cloned_id.into_global_any(state.ctx.module_id),
+            resolution_id,
+        );
+
+        // reify overloaded operators inside each static branch clone
+        self.reify_operator_expression(state, cloned_id)?;
+
+        // reify branch local call argument casts after static dispatch split
+        let cloned_expression = state.tree.get(cloned_id).clone();
+        if let Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = cloned_expression
+        {
+            let dynamic_arguments = self.clone_arguments_with_analysis(
+                state,
+                cloned_id,
+                &dynamic_arguments,
+                state.tree.get_scope(cloned_id),
+            );
+            state.tree.replace(
+                cloned_id,
+                Expression::Call {
+                    left,
+                    static_arguments,
+                    dynamic_arguments: dynamic_arguments.clone(),
+                },
+            );
+            self.reify_implicit_casts_in_call(state, cloned_id, &dynamic_arguments)?;
+        }
 
         Ok(cloned_id)
     }
@@ -221,52 +235,20 @@ impl Compiler {
     /// Build an `is` type check expression: `value is Type`.
     fn build_is_type_check(
         &self,
-        module_id: ModuleId,
+        state: &mut ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
         check_type_id: LocalTypeId,
-        tree: &mut NodeTree,
-        types: &mut TypeTable,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
+        scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // create the type expression for the right side of `is`
         let type_expr_id =
-            tree.reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let type_expression = match types.get_type(check_type_id) {
-            Type::TypeLiteral { value } => Expression::TypeLiteral {
-                value: value.clone(),
-            },
-            _ => Expression::Type {
-                value: check_type_id,
-            },
-        };
-        let type_expr_id = tree.insert(type_expr_id, type_expression);
+            self.insert_type_expression_for_type_id(state, origin_id, check_type_id, scope);
 
-        // set the type for the type expression (Type::Value wrapping the check type)
-        let type_value = Type::Value {
-            value: check_type_id,
-        };
-        let type_value_id = types.insert_type_from(type_value, type_expr_id);
-        types.set_inferred_type(type_expr_id.into_global_any(module_id), type_value_id);
+        // build `value is Type`
+        let is_check =
+            self.insert_is_type_check_expression(state, origin_id, value_id, type_expr_id, scope);
 
-        // build the is expression: value is Type
-        let is_id = tree.reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let is_id = tree.insert(
-            is_id,
-            Expression::TypeBinary {
-                left: value_id,
-                operator: TypeBinaryOperator::Is,
-                right: type_expr_id,
-            },
-        );
-
-        // set the type for the is expression (boolean)
-        let bool_type = Type::TypeLiteral {
-            value: destack_dir::TypeLiteral::Primitive(destack_dir::PrimitiveType::Boolean),
-        };
-        let bool_type_id = types.insert_type_from(bool_type, is_id);
-        types.set_inferred_type(is_id.into_global_any(module_id), bool_type_id);
-
-        Ok(is_id)
+        Ok(is_check)
     }
 }

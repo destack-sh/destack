@@ -1,13 +1,14 @@
 use std::collections::HashSet;
 
-use destack_dir::{
+use destack_dir as dir;
+use destack_source::ModuleId;
+use dir::{
     Argument, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree,
     SymbolTable, Type, TypeKind, TypeTable,
 };
-use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
 
 use crate::analyze::TreeSymbolView;
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 /// The constructor kind inferred for a nominal type.
@@ -21,40 +22,47 @@ enum ConstructorKind {
     Object,
 }
 
+/// The table view used for nominal constructor lookup.
+#[derive(Clone, Copy)]
+struct NominalLookupView<'a> {
+    /// The module id for global node conversion.
+    module_id: ModuleId,
+    /// The node tree for declaration lookup.
+    tree: &'a NodeTree,
+    /// The symbol table for declaration mapping.
+    symbols: &'a SymbolTable,
+    /// The type table for constructor classification.
+    types: &'a TypeTable,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Reify nominal constructor calls into tagged expressions.
     pub(super) fn reify_tagged_constructor_call(
         &self,
-        _module_id: ModuleId,
-        profile: ProfileId,
+        state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
         callee: LocalNodeId<Expression>,
         static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &mut NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        module: &Module,
     ) -> ElaborateResult<bool> {
         // resolve the callee symbol for nominal constructor calls
-        let callee_id = self.unwrap_parenthesized_expression(callee, tree);
+        let callee_id = self.unwrap_parenthesized_expression(callee, state.tree);
         let Some(callee_symbol) = self.reference_symbol_for_expression(
-            TreeSymbolView::new(module, profile, tree, symbols),
+            TreeSymbolView::new(
+                state.ctx.module,
+                state.ctx.profile,
+                state.tree,
+                state.symbols,
+            ),
             callee_id,
         ) else {
             return Ok(false);
         };
 
         // determine the constructor kind from the nominal declaration
-        let Some(constructor_kind) = self.nominal_constructor_kind_for_symbol(
-            callee_symbol,
-            module,
-            profile,
-            tree,
-            symbols,
-            types,
-        ) else {
+        let Some(constructor_kind) = self.nominal_constructor_kind_for_symbol(state, callee_symbol)
+        else {
             return Ok(false);
         };
 
@@ -72,15 +80,15 @@ impl Compiler {
         if let Some(static_arguments) = static_arguments.as_ref()
             && !static_arguments.is_empty()
         {
-            self.apply_static_arguments_to_callee(callee_id, static_arguments, tree);
+            self.apply_static_arguments_to_callee(state, callee_id, static_arguments);
         }
 
         // replace the call with the tagged constructor expression
         match constructor_kind {
             ConstructorKind::Scalar => {
                 let argument_id = dynamic_arguments[0];
-                let value_id = tree.get(argument_id).value();
-                tree.replace(
+                let value_id = state.tree.get(argument_id).value();
+                state.tree.replace(
                     expression_id,
                     Expression::TaggedScalarExpression {
                         ty: callee_id,
@@ -89,7 +97,7 @@ impl Compiler {
                 );
             }
             ConstructorKind::Tuple => {
-                tree.replace(
+                state.tree.replace(
                     expression_id,
                     Expression::TaggedTupleExpression {
                         ty: callee_id,
@@ -106,56 +114,53 @@ impl Compiler {
     /// Resolve the constructor kind for a nominal type symbol.
     fn nominal_constructor_kind_for_symbol(
         &self,
+        state: &ElaborateState<'_>,
         symbol: GlobalSymbolId,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<ConstructorKind> {
         // use current module data when the symbol is local
-        if symbol.module_id == module.id {
-            return self.nominal_constructor_kind_for_symbol_in_dir(
-                symbol, module.id, tree, symbols, types,
-            );
+        if symbol.module_id == state.ctx.module.id {
+            let view = NominalLookupView {
+                module_id: state.ctx.module.id,
+                tree: state.tree,
+                symbols: state.symbols,
+                types: state.types,
+            };
+            return self.nominal_constructor_kind_for_symbol_in_dir(symbol, view);
         }
 
         // load the remote module data for imported symbols
         let module = self.program.modules.get(symbol.module_id);
         let module = module.read();
-        let dir = module.dir(profile);
+        let dir = module.dir(state.ctx.profile);
 
         // borrow the remote dir tables
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let types = dir.types.read();
 
-        self.nominal_constructor_kind_for_symbol_in_dir(
-            symbol,
-            symbol.module_id,
-            &tree,
-            &symbols,
-            &types,
-        )
+        let view = NominalLookupView {
+            module_id: symbol.module_id,
+            tree: &tree,
+            symbols: &symbols,
+            types: &types,
+        };
+        self.nominal_constructor_kind_for_symbol_in_dir(symbol, view)
     }
 
     /// Resolve the constructor kind for a symbol using a specific module dir.
     fn nominal_constructor_kind_for_symbol_in_dir(
         &self,
         symbol: GlobalSymbolId,
-        module_id: ModuleId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        view: NominalLookupView<'_>,
     ) -> Option<ConstructorKind> {
         // use the primary declaration for nominal type aliases
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let symbol_entry = view.symbols.get_symbol(symbol.local_id);
         let primary_declaration = symbol_entry.primary_declaration?;
         let Ok(primary_declaration) = primary_declaration.try_into_typed::<Declaration>() else {
             return None;
         };
         let declaration_id: LocalNodeId<Declaration> = primary_declaration.into();
-        let declaration = tree.get(declaration_id);
+        let declaration = view.tree.get(declaration_id);
 
         // only newtype aliases use constructor call tagging
         let Declaration::Type {
@@ -168,9 +173,11 @@ impl Compiler {
         };
 
         // derive the constructor kind from the evaluated alias type
-        let declared_type_id = types.get_declared_type_id(value.into_global_any(module_id))?;
-        let constructor_kind = match types.get_type(declared_type_id) {
-            Type::Unevaluated(expression_id) => match tree.get(*expression_id) {
+        let declared_type_id = view
+            .types
+            .get_declared_type_id(value.into_global_any(view.module_id))?;
+        let constructor_kind = match view.types.get_type(declared_type_id) {
+            Type::Unevaluated(expression_id) => match view.tree.get(*expression_id) {
                 Expression::TupleExpression { .. } | Expression::ArrayExpression { .. } => {
                     ConstructorKind::Tuple
                 }
@@ -179,7 +186,7 @@ impl Compiler {
             },
             _ => {
                 let mut visited = HashSet::new();
-                self.constructor_kind_for_type_id(declared_type_id, types, &mut visited)
+                self.constructor_kind_for_type_id(view, declared_type_id, &mut visited)
             }
         };
 
@@ -189,8 +196,8 @@ impl Compiler {
     /// Classify a type id into a constructor kind.
     fn constructor_kind_for_type_id(
         &self,
+        view: NominalLookupView<'_>,
         type_id: LocalTypeId,
-        types: &TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> ConstructorKind {
         // break cycles by defaulting to scalar
@@ -198,13 +205,13 @@ impl Compiler {
             return ConstructorKind::Scalar;
         }
 
-        match types.get_type(type_id) {
+        match view.types.get_type(type_id) {
             Type::Tuple { .. } => ConstructorKind::Tuple,
             Type::Object { .. } => ConstructorKind::Object,
-            Type::Value { value } => self.constructor_kind_for_type_id(*value, types, visited),
+            Type::Value { value } => self.constructor_kind_for_type_id(view, *value, visited),
             Type::Reference { symbol, .. } => {
-                if let Some(instance_id) = types.get_instance_type_id(*symbol) {
-                    self.constructor_kind_for_type_id(instance_id, types, visited)
+                if let Some(instance_id) = view.types.get_instance_type_id(*symbol) {
+                    self.constructor_kind_for_type_id(view, instance_id, visited)
                 } else {
                     ConstructorKind::Scalar
                 }
@@ -216,19 +223,19 @@ impl Compiler {
     /// Apply call static arguments to a callee expression.
     fn apply_static_arguments_to_callee(
         &self,
+        state: &mut ElaborateState<'_>,
         callee_id: LocalNodeId<Expression>,
         static_arguments: &[LocalNodeId<Argument>],
-        tree: &mut NodeTree,
     ) {
         // update reference expressions to carry static arguments
-        let expression = tree.get(callee_id).clone();
+        let expression = state.tree.get(callee_id).clone();
         match expression {
             Expression::LocalReference {
                 path,
                 target_symbol,
                 static_arguments: None,
             } => {
-                tree.replace(
+                state.tree.replace(
                     callee_id,
                     Expression::LocalReference {
                         path,
@@ -242,7 +249,7 @@ impl Compiler {
                 target_symbol,
                 static_arguments: None,
             } => {
-                tree.replace(
+                state.tree.replace(
                     callee_id,
                     Expression::ModuleReference {
                         path,
@@ -256,7 +263,7 @@ impl Compiler {
                 target_symbol,
                 static_arguments: None,
             } => {
-                tree.replace(
+                state.tree.replace(
                     callee_id,
                     Expression::GlobalReference {
                         path,
@@ -270,7 +277,7 @@ impl Compiler {
                 name,
                 static_arguments: None,
             } => {
-                tree.replace(
+                state.tree.replace(
                     callee_id,
                     Expression::Member {
                         left,

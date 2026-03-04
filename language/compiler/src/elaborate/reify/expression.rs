@@ -1,12 +1,11 @@
 use std::collections::HashSet;
 
-use destack_dir::{
-    Expression, IfCondition, IfKind, LocalNodeId, MatchKind, NodeTree, SymbolTable,
-    TypeBinaryOperator, TypeTable,
-};
+use destack_dir as dir;
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::ProfileId;
+use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind, TypeBinaryOperator};
 
+use crate::elaborate::common::{ElaborateContext, ElaborateState};
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -48,58 +47,49 @@ impl Compiler {
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
+        let ctx = ElaborateContext::new(module_id, &module, profile);
+        let mut state = ElaborateState::new(ctx, &mut tree, &mut symbols, &mut types);
 
         // collect member expressions used as call or new callees
         let mut member_callees: HashSet<u32> = HashSet::new();
-        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+        for expression_id in state.tree.iter_node_ids_of_type::<Expression>() {
+            if !self.is_active_in_state(&state, expression_id.into_any()) {
                 continue;
             }
 
             let (Expression::Call { left, .. } | Expression::New { left, .. }) =
-                tree.get(expression_id)
+                state.tree.get(expression_id)
             else {
                 continue;
             };
 
             let mut callee_id = *left;
             loop {
-                let Expression::Parenthesized { expression } = tree.get(callee_id) else {
+                let Expression::Parenthesized { expression } = state.tree.get(callee_id) else {
                     break;
                 };
                 callee_id = *expression;
             }
 
-            if matches!(tree.get(callee_id), Expression::Member { .. }) {
+            if matches!(state.tree.get(callee_id), Expression::Member { .. }) {
                 member_callees.insert(callee_id.id);
             }
         }
 
         // reify expression nodes
-        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+        for expression_id in state.tree.iter_node_ids_of_type::<Expression>() {
+            if !self.is_active_in_state(&state, expression_id.into_any()) {
                 continue;
             }
 
-            self.reify_expression(
-                module_id,
-                profile,
-                expression_id,
-                &mut tree,
-                &mut symbols,
-                &mut types,
-                &module,
-                &member_callees,
-            )?;
+            self.reify_expression(&mut state, expression_id, &member_callees)?;
         }
 
         // normalize return if expressions introduced during reify
-        self.transform_normalize_value_expressions(&mut tree, &symbols, &mut types, module_id)?;
+        self.transform_normalize_value_expressions(&mut state)?;
 
         // collapse redundant nested casts
-        self.normalize_redundant_casts(
-            module_id, profile, &mut tree, &symbols, &mut types, &module,
-        )?;
+        self.normalize_redundant_casts(&mut state)?;
 
         Ok(())
     }
@@ -107,20 +97,15 @@ impl Compiler {
     /// Reify an expression.
     fn reify_expression(
         &self,
-        module_id: ModuleId,
-        profile: ProfileId,
+        state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-        types: &mut TypeTable,
-        module: &Module,
         member_callees: &HashSet<u32>,
     ) -> ElaborateResult<()> {
-        let expression = tree.get(expression_id).clone();
+        let expression = state.tree.get(expression_id).clone();
         match expression {
             // tree literals to constructor calls
             Expression::TreeExpression { .. } => {
-                self.reify_tree_expression(expression_id, tree, symbols, types)?;
+                self.reify_tree_expression(state, expression_id)?;
             }
 
             Expression::TypeBinary {
@@ -128,71 +113,30 @@ impl Compiler {
                 operator: TypeBinaryOperator::Cast,
                 right,
             } => {
-                self.reify_explicit_cast_expression(
-                    module_id,
-                    profile,
-                    expression_id,
-                    left,
-                    right,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
+                self.reify_explicit_cast_expression(state, expression_id, left, right)?;
+            }
+
+            // non-null assertion to explicit downcast
+            Expression::Must { left } => {
+                self.reify_must_expression(state, expression_id, left)?;
             }
 
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
-                self.reify_implicit_casts_in_reference(
-                    module_id,
-                    profile,
-                    expression_id,
-                    target_symbol,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
+                self.reify_implicit_casts_in_reference(state, expression_id, target_symbol)?;
             }
 
             Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {
-                self.reify_implicit_casts_in_binding(
-                    module_id,
-                    profile,
-                    &declarators,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
+                self.reify_implicit_casts_in_binding(state, &declarators)?;
             }
 
             Expression::Assign { left, right } => {
-                self.reify_implicit_casts_in_assignment(
-                    module_id,
-                    profile,
-                    expression_id,
-                    left,
-                    right,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
+                self.reify_implicit_casts_in_assignment(state, expression_id, left, right)?;
             }
 
             Expression::Return { value } => {
-                self.reify_implicit_casts_in_return(
-                    module_id,
-                    profile,
-                    expression_id,
-                    value,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
+                self.reify_implicit_casts_in_return(state, expression_id, value)?;
             }
 
             Expression::If {
@@ -203,32 +147,18 @@ impl Compiler {
             } => {
                 if let IfCondition::Expression { condition } = condition {
                     self.reify_implicit_casts_in_ternary(
-                        module_id,
-                        profile,
+                        state,
                         expression_id,
                         condition,
                         then_expression,
                         else_expression,
-                        tree,
-                        symbols,
-                        types,
-                        module,
                     )?;
                 }
             }
 
             Expression::Match { kind, cases, .. } => {
                 if kind == MatchKind::Match {
-                    self.reify_implicit_casts_in_match(
-                        module_id,
-                        profile,
-                        expression_id,
-                        &cases,
-                        tree,
-                        symbols,
-                        types,
-                        module,
-                    )?;
+                    self.reify_implicit_casts_in_match(state, expression_id, &cases)?;
                 }
             }
 
@@ -238,33 +168,23 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                self.reify_implicit_casts_in_binary(
-                    module_id,
-                    profile,
-                    expression_id,
-                    left,
-                    operator,
-                    right,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
-                self.reify_operator_expression(expression_id, tree, symbols, types)?;
-                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
+                self.reify_implicit_casts_in_binary(state, expression_id, left, operator, right)?;
+                self.reify_operator_expression(state, expression_id)?;
+                self.reify_resolution(state, expression_id)?;
             }
 
             // unary operators may have resolutions
             Expression::Unary { .. } => {
-                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
+                self.reify_operator_expression(state, expression_id)?;
+                self.reify_resolution(state, expression_id)?;
             }
 
             // assign binary should be desugared during bind
             Expression::AssignBinary { .. } => {
                 return Err(ElaborateError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(module_id)
-                        .into_anchored(Some(profile)),
+                        .into_global_any(state.ctx.module_id)
+                        .into_anchored(Some(state.ctx.profile)),
                 });
             }
 
@@ -275,31 +195,17 @@ impl Compiler {
                 dynamic_arguments,
             } => {
                 let did_reify_constructor = self.reify_tagged_constructor_call(
-                    module_id,
-                    profile,
+                    state,
                     expression_id,
                     left,
                     &static_arguments,
                     &dynamic_arguments,
-                    tree,
-                    symbols,
-                    types,
-                    module,
                 )?;
                 // only insert call casts when the expression stays as a call
                 if !did_reify_constructor {
-                    self.reify_implicit_casts_in_call(
-                        module_id,
-                        profile,
-                        expression_id,
-                        &dynamic_arguments,
-                        tree,
-                        symbols,
-                        types,
-                        module,
-                    )?;
+                    self.reify_implicit_casts_in_call(state, expression_id, &dynamic_arguments)?;
                 }
-                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
+                self.reify_resolution(state, expression_id)?;
             }
 
             // member access may have resolutions (for union types with different fields)
@@ -310,16 +216,20 @@ impl Compiler {
                 }
 
                 // reify member resolution when applicable
-                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
+                self.reify_resolution(state, expression_id)?;
             }
 
             // index access may have resolutions (for union types with different Index implementations)
             Expression::Index { .. } => {
-                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
+                self.reify_resolution(state, expression_id)?;
             }
 
-            // type expressions to runtime type descriptors
-            // #Incomplete: reify type expressions
+            // standalone try unwrap is still pending full control flow reification
+            Expression::Maybe { .. } => {}
+
+            // type expressions are consumed by cast and type-binary reification paths
+            Expression::Type { .. } | Expression::TypeLiteral { .. } => {}
+
             _ => {}
         }
 

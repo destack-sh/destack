@@ -1,5 +1,7 @@
-use destack_dir::{Expression, IfCondition, IfKind, LocalNodeId, NodeTree, SymbolTable};
+use destack_dir as dir;
+use dir::{Expression, IfCondition, IfKind, LocalNodeId};
 
+use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
@@ -7,16 +9,16 @@ impl Compiler {
     /// Only transforms if both branches are simple (non-block) expressions.
     pub(super) fn transform_if_to_ternary(
         &self,
-        tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        state: &mut ElaborateState<'_>,
     ) -> ElaborateResult<()> {
-        let if_ids: Vec<_> = tree
+        let if_ids: Vec<_> = state
+            .tree
             .iter_node_ids_of_type::<Expression>()
             .into_iter()
-            .filter(|id| self.is_node_active(tree, symbols, id.into_any()))
+            .filter(|id| self.is_active_in_state(state, id.into_any()))
             .filter(|id| {
                 matches!(
-                    tree.get(*id),
+                    state.tree.get(*id),
                     Expression::If {
                         kind: IfKind::If,
                         ..
@@ -31,7 +33,7 @@ impl Compiler {
                 condition,
                 then_expression,
                 else_expression: Some(else_expr),
-            } = tree.get(if_id).clone()
+            } = state.tree.get(if_id).clone()
             else {
                 continue;
             };
@@ -41,15 +43,15 @@ impl Compiler {
             }
 
             // check if both branches are simple (non-block, non-if)
-            if !self.is_simple_expression(then_expression, tree) {
+            if !self.is_simple_expression(state, then_expression) {
                 continue;
             }
-            if !self.is_simple_expression(else_expr, tree) {
+            if !self.is_simple_expression(state, else_expr) {
                 continue;
             }
 
             // transform to ternary
-            tree.replace(
+            state.tree.replace(
                 if_id,
                 Expression::If {
                     kind: IfKind::Ternary,
@@ -66,8 +68,12 @@ impl Compiler {
     /// Check if an expression is "simple" enough for ternary optimization.
     /// Returns true for literals, references, and simple expressions.
     /// Returns false for blocks, if statements, match, loops, etc.
-    fn is_simple_expression(&self, expr_id: LocalNodeId<Expression>, tree: &NodeTree) -> bool {
-        match tree.get(expr_id) {
+    fn is_simple_expression(
+        &self,
+        state: &ElaborateState<'_>,
+        expr_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match state.tree.get(expr_id) {
             // simple expressions
             Expression::ScalarLiteral { .. }
             | Expression::TypeLiteral { .. }

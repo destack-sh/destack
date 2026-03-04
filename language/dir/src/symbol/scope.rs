@@ -90,6 +90,9 @@ impl From<GlobalScopeId> for LocalScopeId {
 #[repr(transparent)]
 pub struct LocalScopeMark(pub u32);
 
+/// Local scope id and mark pair used for node and symbol insertion.
+pub type LocalScope = (LocalScopeId, LocalScopeMark);
+
 impl LocalScopeMark {
     /// Get the full scope view.
     pub fn end() -> Self {
