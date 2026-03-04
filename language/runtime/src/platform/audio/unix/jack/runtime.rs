@@ -159,17 +159,17 @@ pub(super) fn open_stream(
 
     let library = require_jack_library("destack.audio.stream.open")?;
     let client_name = stream_client_name();
-    let client = open_jack_client(library, "destack.audio.stream.open", &client_name)?;
+    let client = open_jack_client(&library, "destack.audio.stream.open", &client_name)?;
 
     // resolve host endpoint ports for lane negotiation
     let playback_sinks = list_ports(
-        library,
+        &library,
         client,
         playback_sink_flags(),
         "destack.audio.stream.open",
     )?;
     let capture_sources = list_ports(
-        library,
+        &library,
         client,
         capture_source_flags(),
         "destack.audio.stream.open",
@@ -198,7 +198,7 @@ pub(super) fn open_stream(
     };
 
     if needs_playback && playback_channels == 0 {
-        close_jack_client(library, client);
+        close_jack_client(&library, client);
         return Err(core_platform::io_not_found(
             "destack.audio.stream.open",
             "JACK reported no playback sink ports",
@@ -206,7 +206,7 @@ pub(super) fn open_stream(
     }
 
     if needs_capture && capture_channels == 0 {
-        close_jack_client(library, client);
+        close_jack_client(&library, client);
         return Err(core_platform::io_not_found(
             "destack.audio.stream.open",
             "JACK reported no capture source ports",
@@ -216,7 +216,7 @@ pub(super) fn open_stream(
     if device_info.direction == audio_core::AudioDeviceDirection::Duplex {
         let duplex_channels = playback_channels.min(capture_channels);
         if duplex_channels == 0 {
-            close_jack_client(library, client);
+            close_jack_client(&library, client);
             return Err(core_platform::io_not_found(
                 "destack.audio.stream.open",
                 "JACK reported no shared duplex channel lanes",
@@ -229,7 +229,7 @@ pub(super) fn open_stream(
 
     // register one client output-port set for playback lanes
     let output_ports = register_ports(
-        library,
+        &library,
         client,
         "out",
         playback_channels,
@@ -239,7 +239,7 @@ pub(super) fn open_stream(
 
     // register one client input-port set for capture lanes
     let input_ports = register_ports(
-        library,
+        &library,
         client,
         "in",
         capture_channels,
@@ -252,7 +252,7 @@ pub(super) fn open_stream(
         .max(audio_core::MIN_STREAM_PERIOD_FRAMES);
 
     let callback_context = Box::new(JackCallbackContext {
-        library,
+        library: library.clone(),
         binding: audio_core::Mutex::new(Weak::new()),
         output_ports,
         input_ports,
@@ -272,7 +272,7 @@ pub(super) fn open_stream(
         unsafe {
             let _ = Box::from_raw(callback_context);
         }
-        close_jack_client(library, client);
+        close_jack_client(&library, client);
 
         return Err(jack_error(
             "destack.audio.stream.open",

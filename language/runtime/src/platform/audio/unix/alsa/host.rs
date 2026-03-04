@@ -178,7 +178,7 @@ pub(super) fn enumerate_hint_rows() -> RuntimeResult<Vec<AlsaHintRow>> {
             break;
         }
 
-        let Some(name) = hint_string(library, hint, ALSA_HINT_NAME_KEY) else {
+        let Some(name) = hint_string(&library, hint, ALSA_HINT_NAME_KEY) else {
             index = index.saturating_add(1);
             continue;
         };
@@ -190,9 +190,9 @@ pub(super) fn enumerate_hint_rows() -> RuntimeResult<Vec<AlsaHintRow>> {
 
         let description = normalize_hint_description(
             &name,
-            hint_string(library, hint, ALSA_HINT_DESCRIPTION_KEY),
+            hint_string(&library, hint, ALSA_HINT_DESCRIPTION_KEY),
         );
-        let direction = hint_direction(hint_string(library, hint, ALSA_HINT_IOID_KEY));
+        let direction = hint_direction(hint_string(&library, hint, ALSA_HINT_IOID_KEY));
 
         rows.push(AlsaHintRow {
             name,
@@ -495,14 +495,14 @@ pub(super) fn open_configured_pcm(
 ) -> RuntimeResult<ConfiguredAlsaPcm> {
     let library = require_alsa_library(operation)?;
     let raw_pcm = open_pcm(
-        library,
+        &library,
         operation,
         device_name,
         stream_selector,
         ALSA_FLAG_NONE,
     )?;
 
-    let configured = match configure_pcm(library, raw_pcm, config, backend_flags) {
+    let configured = match configure_pcm(&library, raw_pcm, config, backend_flags) {
         Ok(configured) => configured,
         Err(error) => {
             unsafe {
@@ -559,7 +559,7 @@ pub(super) fn open_configured_pcm(
 fn probe_device_profile(device_name: &str, stream_selector: c_int) -> Option<AlsaDeviceProfile> {
     let library = alsa_library()?;
     let raw_pcm = open_pcm(
-        library,
+        &library,
         "destack.audio.internal.alsa.probe",
         device_name,
         stream_selector,
@@ -567,7 +567,7 @@ fn probe_device_profile(device_name: &str, stream_selector: c_int) -> Option<Als
     )
     .ok()?;
 
-    let parameters = match allocate_hardware_params(library, "destack.audio.internal.alsa.probe") {
+    let parameters = match allocate_hardware_params(&library, "destack.audio.internal.alsa.probe") {
         Ok(parameters) => parameters,
         Err(_) => {
             unsafe {
@@ -646,7 +646,7 @@ fn probe_device_profile(device_name: &str, stream_selector: c_int) -> Option<Als
 
     // probe each runtime format candidate against this ALSA configuration space
     for candidate in ALSA_FORMAT_CANDIDATES {
-        let Some(format_value) = format_value(library, candidate.alsa_name) else {
+        let Some(format_value) = format_value(&library, candidate.alsa_name) else {
             continue;
         };
 
@@ -779,7 +779,7 @@ pub(super) fn wait_for_pcm_ready(pcm: *mut AlsaPcm) {
     }
 
     let _ = recover_pcm(
-        library,
+        &library,
         pcm,
         status,
         "destack.audio.internal.alsa.transfer.wait",

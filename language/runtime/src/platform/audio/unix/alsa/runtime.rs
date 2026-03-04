@@ -242,7 +242,7 @@ impl audio_core::AudioHostStreamOps for AlsaHostStreamOps {
             let status = unsafe { (library.api.snd_pcm_start)(capture_pcm.raw) };
             if !alsa_succeeded(status) {
                 recover_pcm(
-                    library,
+                    &library,
                     capture_pcm.raw,
                     status,
                     "destack.audio.stream.start",
@@ -263,7 +263,7 @@ impl audio_core::AudioHostStreamOps for AlsaHostStreamOps {
             let status = unsafe { (library.api.snd_pcm_start)(playback_pcm.raw) };
             if !alsa_succeeded(status) {
                 recover_pcm(
-                    library,
+                    &library,
                     playback_pcm.raw,
                     status,
                     "destack.audio.stream.start",

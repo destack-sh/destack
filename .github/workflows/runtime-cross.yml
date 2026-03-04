@@ -25,10 +25,10 @@ jobs:
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
 
-      - name: Install Linux cross dependencies
+      - name: Install Runtime toolchain dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libdbus-1-dev shellcheck
+          sudo apt-get install -y shellcheck
 
       - name: Lint runtime toolchain scripts
         run: just runtime-toolchain-lint

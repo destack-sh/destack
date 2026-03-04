@@ -82,12 +82,9 @@ if [ -n "$(runtime_command_path rustup)" ]; then
 	fi
 fi
 
-# zig is required on linux where zig linker wrappers are active
-if [ "${host_kernel}" = "Linux" ]; then
-	check_command zig required "zig"
-else
-	check_command zig optional "zig"
-fi
+# zig is required by runtime cross lanes:
+# linux gnu targets use zig linker wrappers on all supported hosts
+check_command zig required "zig"
 
 # wine is required when windows gnu tests execute through wine
 if runtime_windows_gnu_is_execution_host; then
@@ -138,20 +135,9 @@ else
 	print_error "android ndk root: not found, run just runtime-toolchain-install"
 fi
 
-# linux cross dbus pkg-config health
-if [ "${host_kernel}" = "Linux" ]; then
-	if command -v pkg-config >/dev/null 2>&1; then
-		if pkg-config --exists dbus-1 >/dev/null 2>&1; then
-			print_ok "pkg-config dbus-1 available"
-		else
-			print_error "pkg-config dbus-1 missing: install libdbus-1-dev and pkg-config"
-		fi
-	else
-		print_error "pkg-config missing: install pkg-config and libdbus-1-dev"
-	fi
-else
-	print_warn "linux gnu cross dbus check skipped on ${host_kernel}"
-fi
+# dbus host pkg-config is not required:
+# keyring linux secret-service path is built vendored for cross determinism
+print_ok "dbus host pkg-config is not required for runtime cross lanes"
 
 if [ "${has_error}" = "1" ]; then
 	printf 'runtime toolchain doctor: failed\n'

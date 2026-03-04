@@ -4,6 +4,7 @@ use crate::platform::audio::core as audio_core;
 use std::ffi::{c_int, c_void};
 use std::ptr;
 use std::sync::{Arc, Weak};
+use std::time::Duration;
 
 use super::abi::{PipewireSampleSpec, PipewireSimple};
 use super::constants::{

@@ -31,6 +31,10 @@ const REVERSE_LOOKUP_SUPPORTED_FLAGS: u32 = REVERSE_LOOKUP_FLAG_NUMERIC_HOST
     | REVERSE_LOOKUP_FLAG_NAME_REQUIRED
     | REVERSE_LOOKUP_FLAG_DGRAM
     | REVERSE_LOOKUP_FLAG_NO_FQDN;
+/// Hostname buffer size for reverse lookup output.
+const REVERSE_LOOKUP_HOST_CAPACITY: usize = 1025;
+/// Service-name buffer size for reverse lookup output.
+const REVERSE_LOOKUP_SERVICE_CAPACITY: usize = 32;
 
 /// Convert one runtime reverse-lookup bitmask into libc flags.
 fn reverse_lookup_native_flags(flags: ReverseLookupFlags) -> RuntimeResult<i32> {
@@ -568,14 +572,8 @@ pub(crate) unsafe fn destack_net_reverse_lookup_names(
     let native_flags = reverse_lookup_native_flags(flags)?;
 
     // allocate host and service output buffers
-    #[cfg(target_os = "android")]
-    let mut host = [0 as libc::c_char; libc::NI_MAXHOST];
-    #[cfg(not(target_os = "android"))]
-    let mut host = [0 as libc::c_char; libc::NI_MAXHOST as usize];
-    #[cfg(target_os = "android")]
-    let mut service = [0 as libc::c_char; libc::NI_MAXSERV];
-    #[cfg(not(target_os = "android"))]
-    let mut service = [0 as libc::c_char; libc::NI_MAXSERV as usize];
+    let mut host = [0 as libc::c_char; REVERSE_LOOKUP_HOST_CAPACITY];
+    let mut service = [0 as libc::c_char; REVERSE_LOOKUP_SERVICE_CAPACITY];
 
     // resolve host and service for the socket address
     #[cfg(target_os = "android")]

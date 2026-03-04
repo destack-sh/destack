@@ -38,7 +38,7 @@ pub(super) fn spawn_worker(
                 continue;
             }
 
-            let transfer_result = process_transfer_cycle(library, &binding, &runtime);
+            let transfer_result = process_transfer_cycle(&library, &binding, &runtime);
             if let Err(error) = transfer_result {
                 let backend_message = error.to_string();
                 let mut state = binding
