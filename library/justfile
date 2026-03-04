@@ -77,7 +77,7 @@ clean:
 
 # publish npm packages (dry-run by default)
 publish dry="--dry-run":
-    cd schema && bun publish {{dry}} --access public
+    cd schema && npm publish {{dry}} --access public
 
 # publish library packages as dry run
 publish-dry:

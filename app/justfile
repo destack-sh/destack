@@ -212,8 +212,8 @@ publish-cli dry="--dry-run":
     @if [ "{{dry}}" = "--dry-run" ]; then \
         echo "Dry run: validated npm publish payloads"; \
     else \
-        if [ -z "${NPM_TOKEN:-}" ]; then \
-            echo "missing NPM_TOKEN env var for live npm publish"; \
+        if [ -z "${NPM_TOKEN:-}" ] && [ "${DESTACK_NPM_TRUSTED_PUBLISHING:-0}" != "1" ] && [ "${DESTACK_NPM_TRUSTED_PUBLISHING:-}" != "true" ]; then \
+            echo "missing npm auth, set NPM_TOKEN or DESTACK_NPM_TRUSTED_PUBLISHING=1"; \
             exit 1; \
         fi; \
         just publish-cli-targets ""; \
