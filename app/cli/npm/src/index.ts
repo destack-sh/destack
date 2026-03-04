@@ -131,9 +131,16 @@ function resolveBinaryPath(binaryName: string): string {
 function runBinary(binaryName: string): number {
     // resolve the binary path and spawn the command
     const binaryPath = resolveBinaryPath(binaryName);
+    const launchEnvironment = { ...process.env };
+    if (process.versions.bun) {
+        launchEnvironment.DESTACK_MANAGED_BY_BUN = "1";
+    } else {
+        launchEnvironment.DESTACK_MANAGED_BY_NPM = "1";
+    }
+
     const result = spawnSync(binaryPath, process.argv.slice(2), {
         stdio: "inherit",
-        env: process.env,
+        env: launchEnvironment,
     });
 
     // surface spawn errors directly

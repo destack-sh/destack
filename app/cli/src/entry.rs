@@ -5,7 +5,7 @@ use clap::FromArgMatches;
 use crate::cli::{Cli, Command, HelpMode, build_command};
 use crate::{
     bench, build, cache, check, clean, completions, config, console, daemon, doc, doctor, eval,
-    explain, fmt, info, init, lint, lsp, query, repl, run, targets, task, test, version,
+    explain, fmt, info, init, lint, lsp, query, repl, run, targets, task, test, update, version,
 };
 
 #[cfg(feature = "dev")]
@@ -66,6 +66,7 @@ pub fn run(default_command: DefaultCommand) -> i32 {
         Command::Config(args) => config::run(&args),
         Command::Targets(args) => targets::run(&args),
         Command::Version(args) => version::run(&args),
+        Command::Update(args) => update::run(&args),
         Command::Completions(args) => completions::run(&args),
         Command::Explain(args) => explain::run(&args),
         Command::Doctor(args) => doctor::run(&args),
@@ -156,6 +157,7 @@ fn is_known_subcommand(arg: &str) -> bool {
             | "-h"
             | "--version"
             | "-V"
+            | "update"
     )
 }
 

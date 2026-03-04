@@ -21,6 +21,7 @@ pub mod run;
 pub mod targets;
 pub mod task;
 pub mod test;
+pub mod update;
 pub mod version;
 
 pub use bench::BenchArgs;
@@ -46,6 +47,7 @@ pub use run::RunArgs;
 pub use targets::TargetsArgs;
 pub use task::TaskArgs;
 pub use test::TestArgs;
+pub use update::UpdateArgs;
 pub use version::VersionArgs;
 
 #[cfg(feature = "dev")]
