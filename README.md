@@ -33,8 +33,8 @@ instead of wrangling many disparate languages, tools, libraries, approaches, ser
 - [**Destack Bridge**](bridge/README.md): External-facing SDKs, editor integrations, and host tooling bridges.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 
-Aspiritionally, **Destack is a meta framework for developing and maintaining your _own_ stack using foundational building blocks**.
-Destack is more of a "software factory toolkit" than "ready-to-wear software"; we do provide some common apps with a plugin system, but Destaqck is optimized for developers (of all stripes) building their own software processes in one correct, optimal, integrated system.
+Aspiritionally, **Destack is a meta framework for developing and maintaining your _own_ stack using foundational [building blocks](https://caseymuratori.com/blog_0016)**.
+Destack is more of a "software factory toolkit" than "ready-to-wear software"; we do provide some common apps with a plugin system, but Destack is optimized for programmers building their own software processes in one correct, optimal, integrated system.
 
 ---
 

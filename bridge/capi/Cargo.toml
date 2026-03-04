@@ -1,0 +1,23 @@
+[package]
+name = "destack_capi"
+description = "C ABI bridge for Destack clients"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+readme = "README.md"
+repository = "https://github.com/destack-sh/destack"
+homepage = "https://github.com/destack-sh/destack"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+destack_bridge_core.workspace = true
+
+[lints]
+workspace = true

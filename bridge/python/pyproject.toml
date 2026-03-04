@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "destack"
-version = "0.55.2"
+version = "0.55.3"
 description = "Python client for Destack"
 readme = "README.md"
 license = { text = "MIT" }

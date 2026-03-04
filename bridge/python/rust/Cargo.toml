@@ -15,5 +15,8 @@ homepage = "https://github.com/destack-sh/destack"
 path = "src/lib.rs"
 doctest = false
 
+[dependencies]
+destack_bridge_core.workspace = true
+
 [lints]
 workspace = true

@@ -19,6 +19,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+destack_bridge_core.workspace = true
 wasm-bindgen = "0.2.105"
 
 [lints]

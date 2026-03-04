@@ -3,9 +3,9 @@ set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
 # all bridge crates
-packages := "-p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
-format-packages := "-p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
-test-packages := "-p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
+packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
+format-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
+test-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
 
 _default:
     @just --list --unsorted
@@ -15,6 +15,18 @@ _default:
 # install js dependencies required by bridge gates
 ci-install:
     bun install --frozen-lockfile
+
+# install bridge language toolchains for this host
+toolchain-install:
+    bash scripts/language-bridge-toolchain.sh install
+
+# inspect bridge language toolchain readiness on this host
+toolchain-doctor:
+    bash scripts/language-bridge-toolchain.sh doctor
+
+# ensure bridge language toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
+toolchain-ensure:
+    bash scripts/language-bridge-toolchain.sh ensure
 
 # run bridge format gate
 ci-format:
@@ -124,6 +136,7 @@ test-quick:
 test-ci:
     just test-quick
     just check-zed-grammars
+    just test-language-bridges
 
 # run nightly test gates
 test-nightly:
@@ -152,6 +165,16 @@ test-zed:
     cd zed && cargo build --target wasm32-wasip2 --release
     bun ../language/grammar/scripts/check-overlay.mjs
 
+# test language bridges
+test-language-bridges:
+    just toolchain-ensure
+    bash scripts/test-language-bridges.sh
+
+# backwards compatibility aliases
+alias install-language-bridge-toolchains := toolchain-install
+alias language-bridge-toolchain-doctor := toolchain-doctor
+alias ensure-language-bridge-toolchains := toolchain-ensure
+
 # validate zed grammar references
 check-zed-grammars:
     python3 zed/scripts/check_grammar_sources.py
@@ -176,17 +199,21 @@ publish-npm dry="--dry-run":
     cd napi && npm publish {{dry}} --access public
     cd wasm && npm publish {{dry}} --access public
     cd typescript && npm publish {{dry}} --access public
+    cd typescript/compat/destack-js && npm publish {{dry}} --access public
+    cd typescript/compat/destack-ts && npm publish {{dry}} --access public
 
 # publish cargo sdk crate dry by default
 publish-cargo dry="--dry-run":
     @if [ "{{dry}}" = "--dry-run" ]; then \
         cd rust && cargo publish --dry-run --allow-dirty; \
+        cd rust/compat/destack-rs && cargo publish --dry-run --allow-dirty; \
     else \
         if [ -z "${CARGO_TOKEN:-}" ]; then \
             echo "missing CARGO_TOKEN env var for live cargo publish"; \
             exit 1; \
         fi; \
         cd rust && cargo publish --token "${CARGO_TOKEN}"; \
+        cd rust/compat/destack-rs && cargo publish --token "${CARGO_TOKEN}"; \
     fi
 
 # publish pypi package dry by default
@@ -204,11 +231,25 @@ publish-pypi dry="--dry-run":
         fi; \
         cd python && TWINE_USERNAME="__token__" TWINE_PASSWORD="${PYPI_TOKEN}" ../.publish-python-venv/bin/python -m twine upload --non-interactive dist/*; \
     fi
+    cd python/compat/destack-py && ../../../.publish-python-venv/bin/python -m build
+    cd python/compat/destack-py && ../../../.publish-python-venv/bin/python -m twine check dist/*
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: built and validated python compatibility package"; \
+    else \
+        if [ -z "${PYPI_TOKEN:-}" ]; then \
+            echo "missing PYPI_TOKEN env var for live pypi publish"; \
+            exit 1; \
+        fi; \
+        cd python/compat/destack-py && TWINE_USERNAME="__token__" TWINE_PASSWORD="${PYPI_TOKEN}" ../../../.publish-python-venv/bin/python -m twine upload --non-interactive dist/*; \
+    fi
     @if [ -d ".publish-python-venv" ]; then \
         rm -r .publish-python-venv; \
     fi
     @if [ -d "python/dist" ]; then \
         rm -r python/dist; \
+    fi
+    @if [ -d "python/compat/destack-py/dist" ]; then \
+        rm -r python/compat/destack-py/dist; \
     fi
 
 # publish bun bridge package dry by default
