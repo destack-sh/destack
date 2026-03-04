@@ -6,7 +6,7 @@ Destack takes security seriously and we appreciate responsible disclosures.
 
 Please report security issues privately:
 
-- Email: security@destack.sh
+- Email: florian@symbol.industries
 - Discord: DM a maintainer privately
 - Include the affected version or commit, a minimal reproduction, and impact
 - If you can, include a PoC, exploit details, and suggested mitigation
