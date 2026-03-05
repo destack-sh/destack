@@ -1,11 +1,11 @@
 use destack_ast::{self as ast, DependencyItem, Expression};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
-use destack_workspace::common::{
+
+use crate::rules::common::{
     ImportDeclarationKey, categorize_import, sort_import_declaration_indices,
 };
-
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce sorted import declarations.
@@ -67,7 +67,7 @@ struct ImportInfo {
 
 impl LintRule for SortImports {
     /// Return the static lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         SortImports::meta()
     }
 
@@ -89,6 +89,7 @@ impl LintRule for SortImports {
 fn collect_top_level_imports(ctx: &LintModuleAstContext<'_>) -> Vec<ImportInfo> {
     let mut imports = Vec::new();
 
+    // inspect candidate syntax nodes
     for root_expression_id in ctx.roots {
         let root_expression = ctx.tree.get(*root_expression_id);
         let import_expression = match root_expression {
@@ -114,6 +115,7 @@ fn collect_top_level_imports(ctx: &LintModuleAstContext<'_>) -> Vec<ImportInfo> 
             _ => None,
         };
 
+        // require optional structure
         let Some(import_expression_id) = import_expression else {
             if !imports.is_empty() {
                 break;
@@ -121,6 +123,7 @@ fn collect_top_level_imports(ctx: &LintModuleAstContext<'_>) -> Vec<ImportInfo> 
             continue;
         };
 
+        // resolve import expression
         let import_expression = ctx.tree.get(import_expression_id);
         let Expression::Import {
             target: ast::ImportTarget::String(target),
@@ -131,6 +134,7 @@ fn collect_top_level_imports(ctx: &LintModuleAstContext<'_>) -> Vec<ImportInfo> 
             continue;
         };
 
+        // resolve diagnostic span
         let span = ctx.tree.get_span(*root_expression_id);
         let text = ctx.get_span_text(span).trim_end().to_string();
         let target = ctx.strings.get(*target).to_string();
@@ -152,7 +156,7 @@ fn collect_top_level_imports(ctx: &LintModuleAstContext<'_>) -> Vec<ImportInfo> 
 /// Check that imported members within an import are in canonical order.
 fn check_member_sorting(
     ctx: &mut LintModuleAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     import: &ImportInfo,
 ) {
     if import.items.len() < 2 {
@@ -176,11 +180,13 @@ fn check_member_sorting(
         return;
     };
 
+    // resolve mismatch item id
     let mismatch_item_id = import.items[mismatch_position];
     let expected_item_id = sorted_items[mismatch_position];
     let mismatch_name = dependency_item_sort_name(ctx, mismatch_item_id);
     let expected_name = dependency_item_sort_name(ctx, expected_item_id);
 
+    // resolve effective lint severity
     let severity = ctx.get_effective_severity(meta, import.import_expression_id);
     if !severity.is_enabled() {
         return;
@@ -203,7 +209,7 @@ fn check_member_sorting(
 /// Check declaration ordering and report one canonical-order diagnostic.
 fn check_declaration_sorting(
     ctx: &mut LintModuleAstContext<'_>,
-    meta: &'static crate::LintMeta,
+    meta: &'static LintMeta,
     imports: &[ImportInfo],
 ) {
     if imports.len() < 2 {
@@ -230,6 +236,7 @@ fn check_declaration_sorting(
         return;
     };
 
+    // compare the current import with the expected import at this position
     let import = &imports[mismatch_position];
     let expected = &imports[order[mismatch_position]];
     let severity = ctx.get_effective_severity(meta, import.root_expression_id);
@@ -237,6 +244,7 @@ fn check_declaration_sorting(
         return;
     }
 
+    // build one declaration ordering diagnostic
     let mut diagnostic = LintDiagnostic::new(
         SORT_IMPORTS.id,
         SORT_IMPORTS.code,
@@ -251,7 +259,7 @@ fn check_declaration_sorting(
     )
     .with_label("import declarations are not in canonical order");
 
-    // add a module-level declaration reorder fix when enabled
+    // add a module level declaration reorder fix when enabled
     if ctx.compute_fixes
         && let Some(fix) = build_declaration_fix(ctx, imports, &order)
     {
@@ -276,11 +284,13 @@ fn build_declaration_fix(
     for (position, import_index) in order.iter().copied().enumerate() {
         let import = &imports[import_index];
 
+        // keep each import separated by at least one newline
         if !replacement.is_empty() {
             replacement.push('\n');
         }
         replacement.push_str(&import.text);
 
+        // insert one extra blank line between import groups
         if let Some(next_index) = order.get(position + 1).copied() {
             let next_import = &imports[next_index];
             let needs_blank = (import.is_side_effect && !next_import.is_side_effect)
@@ -294,11 +304,12 @@ fn build_declaration_fix(
         }
     }
 
-    // skip no-op edits
+    // skip no op edits
     if ctx.get_span_text(block_span) == replacement {
         return None;
     }
 
+    // replace the contiguous import block with canonical ordering
     let edits = ctx
         .edit_builder()
         .replace(block_span, replacement)
@@ -312,10 +323,12 @@ fn dependency_item_sort_name(
     item_id: ast::LocalNodeId<DependencyItem>,
 ) -> String {
     let item = ctx.tree.get(item_id);
+    // prefer alias names because that is what downstream code references
     if let Some(alias) = item.alias {
         return ctx.strings.get(alias).to_string();
     }
 
+    // otherwise use the imported member name
     if let Some(name) = item.name {
         return ctx.strings.get(name.string()).to_string();
     }
@@ -341,7 +354,7 @@ fn compare_dependency_items(
         _ => {}
     }
 
-    // compare by case-insensitive key and keep deterministic case order
+    // compare by case insensitive key and keep deterministic case order
     let left_name = dependency_item_sort_name(ctx, left_id);
     let right_name = dependency_item_sort_name(ctx, right_id);
     let left_lower = left_name.to_ascii_lowercase();
@@ -357,8 +370,8 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
-    #[test]
     /// Detect unsorted import members.
+    #[test]
     fn test_unsorted_members_detected() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -370,8 +383,8 @@ import { z, a, m } from "utils"
         test.result(result).assert_lint("sort-imports");
     }
 
-    #[test]
     /// Allow already sorted import members.
+    #[test]
     fn test_sorted_members_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -383,8 +396,8 @@ import { a, m, z } from "utils"
         test.result(result).assert_no_lint("sort-imports");
     }
 
-    #[test]
     /// Sort member names case-insensitively.
+    #[test]
     fn test_member_sorting_case_insensitive() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -396,8 +409,8 @@ import { Alpha, beta, Gamma } from "utils"
         test.result(result).assert_no_lint("sort-imports");
     }
 
-    #[test]
     /// Allow single-member imports.
+    #[test]
     fn test_single_member_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -409,8 +422,8 @@ import { foo } from "utils"
         test.result(result).assert_no_lint("sort-imports");
     }
 
-    #[test]
     /// Require external imports before sibling imports.
+    #[test]
     fn test_external_before_sibling_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -423,8 +436,8 @@ import { external } from "external"
         test.result(result).assert_lint("sort-imports");
     }
 
-    #[test]
     /// Allow declarations in canonical group order.
+    #[test]
     fn test_correct_group_order_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -439,8 +452,8 @@ import { sibling } from "./sibling"
         test.result(result).assert_no_lint("sort-imports");
     }
 
-    #[test]
     /// Require internal alias imports before parent imports.
+    #[test]
     fn test_internal_before_parent_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -453,8 +466,8 @@ import { internal } from "@/internal"
         test.result(result).assert_lint("sort-imports");
     }
 
-    #[test]
     /// Require parent imports before sibling imports.
+    #[test]
     fn test_parent_before_sibling_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -467,8 +480,8 @@ import { parent } from "../parent"
         test.result(result).assert_lint("sort-imports");
     }
 
-    #[test]
     /// Sort external imports alphabetically.
+    #[test]
     fn test_alphabetical_within_external_group() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -481,8 +494,8 @@ import { a } from "axios"
         test.result(result).assert_lint("sort-imports");
     }
 
-    #[test]
     /// Sort sibling imports alphabetically.
+    #[test]
     fn test_alphabetical_within_sibling_group() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -495,8 +508,8 @@ import { a } from "./a"
         test.result(result).assert_lint("sort-imports");
     }
 
-    #[test]
     /// Allow declarations already sorted within groups.
+    #[test]
     fn test_sorted_within_groups_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -513,8 +526,8 @@ import { z } from "./z"
 
     // === Mixed tests ===
 
-    #[test]
     /// Detect both member-order and declaration-order violations.
+    #[test]
     fn test_both_member_and_declaration_issues() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -528,8 +541,8 @@ import { foo } from "external"
         test.result(result).assert_lint_count("sort-imports", 2);
     }
 
-    #[test]
     /// Treat internal alias prefixes as internal group imports.
+    #[test]
     fn test_internal_alias_paths() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -543,8 +556,8 @@ import { c } from "~/utils"
         test.result(result).assert_no_lint("sort-imports");
     }
 
-    #[test]
     /// Provide a safe fix for declaration reordering.
+    #[test]
     fn test_declaration_reorder_has_safe_fix() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -566,8 +579,8 @@ import { local } from "./local";
             );
     }
 
-    #[test]
     /// Do not emit declaration reordering fixes for member sorting findings.
+    #[test]
     fn test_member_sorting_has_no_declaration_fix() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
