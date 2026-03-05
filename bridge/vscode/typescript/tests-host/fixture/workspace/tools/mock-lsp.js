@@ -1,13 +1,13 @@
-"use strict";
-
 // fixture lsp: minimal stdio json rpc server for extension host tests
 let inputBuffer = Buffer.alloc(0);
 
+// append new bytes and parse complete frames
 process.stdin.on("data", (chunk) => {
     inputBuffer = Buffer.concat([inputBuffer, chunk]);
     drainMessages();
 });
 
+/** Drain complete LSP frames from the buffered stdin stream. */
 function drainMessages() {
     // parse full lsp frames from the buffered byte stream
     while (true) {
@@ -40,6 +40,7 @@ function drainMessages() {
     }
 }
 
+/** Parse the Content Length header from an LSP frame header block. */
 function parseContentLength(header) {
     // extract content length from the lsp headers
     const match = /Content-Length:\s*(\d+)/i.exec(header);
@@ -50,6 +51,7 @@ function parseContentLength(header) {
     return Number.parseInt(match[1], 10);
 }
 
+/** Write one JSON RPC message using LSP framing. */
 function sendMessage(message) {
     // write one framed json rpc payload
     const body = Buffer.from(JSON.stringify(message), "utf8");
@@ -57,6 +59,7 @@ function sendMessage(message) {
     process.stdout.write(body);
 }
 
+/** Send a standard JSON RPC response payload. */
 function sendResponse(id, result) {
     // send a normal json rpc response
     sendMessage({
@@ -66,6 +69,7 @@ function sendResponse(id, result) {
     });
 }
 
+/** Publish deterministic diagnostics for the provided document text. */
 function sendPublishDiagnostics(uri, text) {
     // synthesize one deterministic diagnostic pattern
     const hasError = /export const\s+\w+\s*=\s*;/.test(text);
@@ -93,6 +97,7 @@ function sendPublishDiagnostics(uri, text) {
     });
 }
 
+/** Handle inbound JSON RPC requests from the client. */
 function handleRequest(message) {
     const method = message.method;
     const id = message.id;
@@ -105,11 +110,7 @@ function handleRequest(message) {
                 definitionProvider: true,
                 hoverProvider: true,
                 executeCommandProvider: {
-                    commands: [
-                        "destack.rescan",
-                        "destack.reindex",
-                        "destack.clearCache",
-                    ],
+                    commands: ["destack.rescan", "destack.reindex", "destack.clearCache"],
                 },
             },
             serverInfo: {
@@ -181,6 +182,7 @@ function handleRequest(message) {
     sendResponse(id, null);
 }
 
+/** Handle inbound JSON RPC notifications from the client. */
 function handleNotification(message) {
     const method = message.method;
 
@@ -198,7 +200,7 @@ function handleNotification(message) {
     if (method === "textDocument/didChange") {
         const uri = message.params?.textDocument?.uri;
         const changes = message.params?.contentChanges ?? [];
-        const latest = changes.length > 0 ? changes[changes.length - 1].text ?? "" : "";
+        const latest = changes.length > 0 ? (changes[changes.length - 1].text ?? "") : "";
         if (uri) {
             sendPublishDiagnostics(uri, latest);
         }
@@ -211,9 +213,10 @@ function handleNotification(message) {
     }
 }
 
+/** Dispatch inbound JSON RPC messages by payload shape. */
 function handleMessage(message) {
     // dispatch requests and notifications
-    if (Object.prototype.hasOwnProperty.call(message, "id")) {
+    if (Object.hasOwn(message, "id")) {
         handleRequest(message);
         return;
     }

@@ -12,13 +12,6 @@ The current grammar refs are `main` and should be pinned to a commit for release
 
 ## Development
 
-Build and run extension tests with Cargo.
-
-```sh
-cd bridge/zed
-cargo test --release
-```
-
 Install it in Zed with `Install Dev Extension` and select `bridge/zed`.
 Start Zed from a terminal with `zed --foreground` to inspect extension logs.
 
@@ -65,3 +58,12 @@ The extension registers `destack-lsp` for these Zed languages:
 2. `JavaScript` (`javascript` language id)
 3. `TypeScript` (`typescript` language id)
 4. `TSX` (`typescriptreact` language id)
+
+## Testing
+
+Run bridge tests with Cargo.
+
+```sh
+cd bridge/zed
+cargo test --release
+```

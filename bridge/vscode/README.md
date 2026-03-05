@@ -24,3 +24,11 @@ Run grammar and extension host smoke tests.
 bun run test:grammar
 bun run test:host
 ```
+
+Run extension-host tests against a real Destack server binary.
+
+```sh
+DESTACK_VSCODE_REAL_SERVER_COMMAND=/absolute/path/to/destack \
+DESTACK_VSCODE_REAL_SERVER_ARGS='["lsp"]' \
+bun run test:host
+```

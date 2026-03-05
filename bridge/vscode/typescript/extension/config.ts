@@ -79,7 +79,13 @@ export function resolveServerCommand(
 
     // resolve explicit command setting first
     if (rawCommand) {
-        return resolveExplicitCommand(rawCommand, rawArguments, workspaceFolder, workspaceRoot, workingDirectory);
+        return resolveExplicitCommand(
+            rawCommand,
+            rawArguments,
+            workspaceFolder,
+            workspaceRoot,
+            workingDirectory,
+        );
     }
 
     // resolve workspace built binary next
@@ -147,7 +153,7 @@ function resolveExplicitCommand(
 }
 
 /**
- * Expand workspace and home-directory prefixes.
+ * Expand workspace and home directory prefixes.
  */
 function expandPath(value: string, workspaceFolder?: vscode.WorkspaceFolder): string {
     if (!value) {
@@ -191,10 +197,7 @@ function resolveCommandOnPath(command: string): string | undefined {
         }
 
         for (const executableExtension of executableExtensions) {
-            const candidateCommand = path.join(
-                searchDirectory,
-                `${command}${executableExtension}`,
-            );
+            const candidateCommand = path.join(searchDirectory, `${command}${executableExtension}`);
             if (fs.existsSync(candidateCommand)) {
                 return candidateCommand;
             }
@@ -205,14 +208,15 @@ function resolveCommandOnPath(command: string): string | undefined {
 }
 
 /**
- * Resolve a command from path-like and bare command forms.
+ * Resolve a command from path style and bare command forms.
  */
 function resolveCommandPath(command: string): string | undefined {
+    // reject empty command values
     if (!command) {
         return undefined;
     }
 
-    // keep explicit path-like commands as-is
+    // keep explicit path style commands as is
     const isPathLikeCommand = path.isAbsolute(command) || command.includes(path.sep);
     if (isPathLikeCommand) {
         return command;
@@ -226,6 +230,7 @@ function resolveCommandPath(command: string): string | undefined {
  * Ensure the `lsp` subcommand is present.
  */
 function withLspSubcommand(args: string[]): string[] {
+    // keep explicit lsp subcommand untouched
     if (args[0] == "lsp") {
         return args;
     }
@@ -234,7 +239,7 @@ function withLspSubcommand(args: string[]): string[] {
 }
 
 /**
- * Resolve workspace-local binary candidates.
+ * Resolve workspace local binary candidates.
  */
 function resolveWorkspaceBinary(workspaceRoot: string): string | undefined {
     for (const relativeCandidatePath of WORKSPACE_BINARY_CANDIDATES) {
@@ -268,14 +273,17 @@ function binaryResolutionHint(workspaceRoot: string | undefined): string {
  * Return true when known Destack wrapper binaries need `lsp` injection.
  */
 function shouldInjectLspSubcommand(command: string, args: string[]): boolean {
+    // skip injection when already configured
     if (args.length > 0 && args[0] == "lsp") {
         return false;
     }
 
+    // normalize the executable name for wrapper detection
     const commandBaseName = path.basename(command).toLowerCase();
     const normalizedCommand = commandBaseName.endsWith(".exe")
         ? commandBaseName.slice(0, -4)
         : commandBaseName;
 
+    // inject `lsp` only for known wrapper binaries
     return FALLBACK_COMMANDS.includes(normalizedCommand);
 }

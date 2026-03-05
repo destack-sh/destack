@@ -1,114 +1,56 @@
 import assert from "node:assert/strict";
-import * as path from "node:path";
 import * as vscode from "vscode";
 
-const DESTACK_COMMANDS = [
-    "destack.restart",
-    "destack.rescan",
-    "destack.reindex",
-    "destack.clearCache",
-];
+import {
+    DESTACK_COMMANDS,
+    definitionLocations,
+    ensureFixtureReady,
+    fixtureDocumentUri,
+    getDestackTestingApi,
+    openDocument,
+    waitForRequestResult,
+} from "./support";
 
-suite("destack extension host", () => {
+suite("destack extension host smoke", () => {
     suiteSetup(async () => {
-        const extension = findDestackExtension();
-        assert.ok(extension, "destack extension should be present");
-        await openFixtureDocument();
-        await waitForExtensionActivation(extension);
+        // wait for extension activation before tests run
+        await ensureFixtureReady();
     });
 
     test("activates and registers commands", async () => {
-        const extension = findDestackExtension();
-        assert.ok(extension, "destack extension should be present");
-        assert.equal(extension.isActive, true, "destack extension should be active");
-
+        // fetch registered commands from vscode
         const commands = await vscode.commands.getCommands(true);
+
+        // assert all expected extension commands are present
         for (const command of DESTACK_COMMANDS) {
             assert.ok(commands.includes(command), `missing command: ${command}`);
         }
     });
 
     test("serves definition requests", async () => {
-        const extension = findDestackExtension();
-        assert.ok(extension, "destack extension should be present");
-        assert.equal(extension.isActive, true, "destack extension should be active");
+        // resolve fixture uri and open the source document
+        const fixtureUri = fixtureDocumentUri();
+        const api = getDestackTestingApi();
+        await openDocument(fixtureUri);
 
-        const document = await openFixtureDocument();
+        // request definition and assert response shape
+        const definition = await waitForRequestResult(
+            api,
+            "textDocument/definition",
+            {
+                textDocument: { uri: fixtureUri.toString() },
+                position: { line: 5, character: 16 },
+            },
+            (result) => result !== undefined,
+            "definition request did not complete",
+        );
 
-        const position = new vscode.Position(1, 10);
-        const locations = await waitForDefinitions(document.uri, position);
-        assert.ok(Array.isArray(locations), "definition provider should return an array");
-        assert.ok(locations.length > 0, "definition result should not be empty");
-    });
-});
-
-function findDestackExtension(): vscode.Extension<unknown> | undefined {
-    const byId = vscode.extensions.getExtension("symbol-industries.destack");
-    if (byId) {
-        return byId;
-    }
-
-    return vscode.extensions.all.find((extension) => extension.packageJSON?.name == "destack");
-}
-
-function workspaceRootPath(): string {
-    const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
-    const workspaceFolder = workspaceFolders[0];
-    assert.ok(workspaceFolder, "workspace folder should be available");
-
-    return workspaceFolder.uri.fsPath;
-}
-
-async function waitForDefinitions(
-    uri: vscode.Uri,
-    position: vscode.Position,
-): Promise<vscode.Location[] | vscode.LocationLink[]> {
-    const attempts = 20;
-
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-        const locations =
-            await vscode.commands.executeCommand<vscode.Location[] | vscode.LocationLink[]>(
-                "vscode.executeDefinitionProvider",
-                uri,
-                position,
-            );
-        if (Array.isArray(locations) && locations.length > 0) {
-            return locations;
-        }
-
-        await delay(250);
-    }
-
-    return [];
-}
-
-async function delay(milliseconds: number): Promise<void> {
-    await new Promise<void>((resolve) => {
-        setTimeout(resolve, milliseconds);
-    });
-}
-
-async function waitForExtensionActivation(
-    extension: vscode.Extension<unknown>,
-): Promise<void> {
-    const attempts = 30;
-
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-        if (extension.isActive) {
+        // allow null when no target exists, otherwise require at least one location
+        if (definition == null) {
             return;
         }
 
-        await delay(200);
-    }
-
-    assert.fail("destack extension did not activate");
-}
-
-async function openFixtureDocument(): Promise<vscode.TextDocument> {
-    const workspaceRoot = workspaceRootPath();
-    const documentPath = path.join(workspaceRoot, "main.ds");
-    const document = await vscode.workspace.openTextDocument(documentPath);
-    await vscode.window.showTextDocument(document);
-
-    return document;
-}
+        const locations = definitionLocations(definition);
+        assert.ok(locations.length > 0, "definition response should include a location payload");
+    });
+});

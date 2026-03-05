@@ -95,6 +95,7 @@ language/grammar/destack/_obj/
 # bridge generated artifacts
 bridge/**/.dart_tool/
 bridge/**/pubspec.lock
+bridge/vscode/out-tests/
 bridge/dotnet/**/[Bb]in/
 bridge/dotnet/**/[Oo]bj/
 bridge/elixir/**/_build/
