@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{expression_numeric_value, expression_unwrap_parenthesized_syntax};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -95,7 +96,7 @@ struct ComparisonSimplification {
 
 /// Return one simplification for a comparison operator and right-hand side.
 fn simplification_for_operator(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &mut LintModuleAstContext<'_>,
     operator: BinaryOperator,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ComparisonSimplification> {
@@ -138,11 +139,11 @@ fn simplification_for_operator(
 
 /// Return the base expression id when one side is `base +/- 1`.
 fn right_add_or_sub_one(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &mut LintModuleAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     operator: BinaryOperator,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let expression = unwrap_parenthesized(ctx, expression_id);
+    let expression = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
     let ast::Expression::Binary {
         left,
         operator: inner_operator,
@@ -155,33 +156,12 @@ fn right_add_or_sub_one(
         return None;
     }
 
-    let right_expression = unwrap_parenthesized(ctx, *right);
-    if !is_literal_one(ctx.tree.get(right_expression)) {
+    let right_expression = expression_unwrap_parenthesized_syntax(ctx.tree, *right);
+    if expression_numeric_value(ctx, right_expression)? != 1.0 {
         return None;
     }
 
     Some(*left)
-}
-
-/// Unwrap parenthesized expressions recursively.
-fn unwrap_parenthesized(
-    ctx: &LintModuleAstContext<'_>,
-    mut expression_id: ast::LocalNodeId<ast::Expression>,
-) -> ast::LocalNodeId<ast::Expression> {
-    loop {
-        let expression = ctx.tree.get(expression_id);
-        let ast::Expression::Parenthesized { expression } = expression else {
-            return expression_id;
-        };
-        expression_id = *expression;
-    }
-}
-
-fn is_literal_one(expr: &ast::Expression) -> bool {
-    if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::Integer(value)) = expr {
-        return *value == 1;
-    }
-    false
 }
 
 #[cfg(test)]

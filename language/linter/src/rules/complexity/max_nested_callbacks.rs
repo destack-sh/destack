@@ -1,18 +1,18 @@
 use destack_ast::{
     self as ast, Argument, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_argument, walk_expression,
+    walk_argument,
 };
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_unwrap_parenthesized_syntax;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the depth of nested callbacks.
     ///
-    /// Deeply nested callbacks (callback hell) are hard to read and maintain.
-    /// Consider using async/await, promises, or extracting nested callbacks
-    /// into named functions.
+    /// Deeply nested callbacks are hard to read and maintain.
+    /// Consider using async and await, promises, or extracting nested callbacks into named functions.
     #[lint(
         id = "max-nested-callbacks",
         code = "LX007",
@@ -34,26 +34,31 @@ impl LintRule for MaxNestedCallbacks {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata and threshold
         let meta = self.meta();
         let max_callbacks = ctx.options.max_nested_callbacks;
 
+        // traverse module roots and collect callback-depth violations
         let mut visitor = CallbackVisitor {
             options: NodeVisitorOptions::default(),
-            depth: 0,
+            parents: ctx.parents,
+            callback_depth: 0,
             max_callbacks,
             violations: Vec::new(),
         };
 
         for root_id in ctx.roots.iter() {
-            let expression = ctx.tree.get(*root_id);
-            visitor.visit_expression(ctx.tree, *root_id, expression);
+            let root_expression = ctx.tree.get(*root_id);
+            visitor.visit_expression(ctx.tree, *root_id, root_expression);
         }
 
+        // report collected violations with effective severity
         for violation in visitor.violations {
             let severity = ctx.get_effective_severity(meta, violation.node_id);
             if !severity.is_enabled() {
                 continue;
             }
+
             ctx.report(
                 LintDiagnostic::new(
                     MAX_NESTED_CALLBACKS.id,
@@ -67,98 +72,137 @@ impl LintRule for MaxNestedCallbacks {
                     ctx.module.file_id,
                     violation.span,
                 )
-                .with_label("consider using async/await or extracting to a named function"),
+                .with_label("consider using async and await or extracting to a named function"),
             );
         }
     }
 }
 
+/// One callback depth violation.
 struct CallbackViolation {
+    /// Node id of the callback expression.
     node_id: LocalNodeId<Expression>,
+    /// Source span of the callback expression.
     span: Span,
+    /// Effective callback depth for this callback.
     depth: usize,
 }
 
-struct CallbackVisitor {
+/// Node visitor for callback-depth tracking.
+struct CallbackVisitor<'a> {
+    /// Traversal options.
     options: NodeVisitorOptions,
-    depth: usize,
+    /// Parent index for call-argument context checks.
+    parents: &'a ast::NodeParentIndex,
+    /// Current callback nesting depth.
+    callback_depth: usize,
+    /// Configured maximum callback depth.
     max_callbacks: usize,
+    /// Collected callback depth violations.
     violations: Vec<CallbackViolation>,
 }
 
-impl CallbackVisitor {
-    /// Check if an expression is a function (callback)
-    fn is_function(&self, tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
+impl CallbackVisitor<'_> {
+    /// Return true when one expression is a callback function expression.
+    fn expression_is_callback_function(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // normalize parenthesized wrappers before shape checks
+        let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
         let expression = tree.get(expression_id);
-        match expression {
-            Expression::Declaration(declaration_id) => {
-                let declaration = tree.get(*declaration_id);
-                matches!(declaration, ast::Declaration::Function { .. })
-            }
-            Expression::Parenthesized { expression } => self.is_function(tree, *expression),
-            _ => false,
-        }
+
+        // require callable function expressions with a body
+        let Expression::Declaration(declaration_id) = expression else {
+            return false;
+        };
+
+        let declaration = tree.get(*declaration_id);
+        matches!(
+            declaration,
+            ast::Declaration::Function { body: Some(_), .. }
+        )
     }
 }
 
-impl NodeVisitor for CallbackVisitor {
+impl NodeVisitor for CallbackVisitor<'_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
 
-    fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
-        // get the value from the argument
-        let value_id = match argument {
-            Argument::Named { value, .. } => *value,
-            Argument::Labeled { value, .. } => *value,
-            Argument::Positional { value, .. } => *value,
-            Argument::Spread { value, .. } => *value,
-        };
-
-        // check if this argument is a function (callback)
-        if self.is_function(tree, value_id) {
-            self.depth += 1;
-            if self.depth > self.max_callbacks {
-                self.violations.push(CallbackViolation {
-                    node_id: value_id,
-                    span: tree.get_span(value_id),
-                    depth: self.depth,
-                });
-            }
-            // walk the argument (which will visit the callback body)
-            walk_argument(self, tree, id, argument);
-            self.depth -= 1;
-        } else {
-            // not a callback, just walk normally
-            walk_argument(self, tree, id, argument);
-        }
-    }
-
-    fn visit_expression(
+    fn visit_argument(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
+        argument_id: LocalNodeId<Argument>,
+        argument: &Argument,
     ) {
-        // for top-level function declarations, reset depth
-        if let Expression::Declaration(declaration_id) = expression {
-            let declaration = tree.get(*declaration_id);
-            if let ast::Declaration::Function { body, .. } = declaration
-                && let Some(body_id) = body
-            {
-                // only reset if we're not already inside a callback
-                // (callbacks are tracked via visit_argument)
-                if self.depth == 0 {
-                    let body_expression = tree.get(*body_id);
-                    self.visit_expression(tree, *body_id, body_expression);
-                    return;
-                }
-            }
+        // keep eslint parity: only count callback arguments for call expressions
+        if !argument_is_call_dynamic_argument(tree, self.parents, argument_id) {
+            walk_argument(self, tree, argument_id, argument);
+            return;
         }
 
-        // walk children
-        walk_expression(self, tree, id, expression);
+        // resolve argument expression value
+        let value_expression_id = argument_value_expression_id(argument);
+        if !self.expression_is_callback_function(tree, value_expression_id) {
+            walk_argument(self, tree, argument_id, argument);
+            return;
+        }
+
+        // push callback depth for this callback argument
+        self.callback_depth += 1;
+        if self.callback_depth > self.max_callbacks {
+            self.violations.push(CallbackViolation {
+                node_id: value_expression_id,
+                span: tree.get_span(value_expression_id),
+                depth: self.callback_depth,
+            });
+        }
+
+        // recurse into callback body and nested callback arguments
+        walk_argument(self, tree, argument_id, argument);
+
+        // pop callback depth after this callback argument
+        self.callback_depth = self.callback_depth.saturating_sub(1);
     }
+}
+
+/// Return the expression id for one argument value.
+fn argument_value_expression_id(argument: &Argument) -> LocalNodeId<Expression> {
+    match argument {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+    }
+}
+
+/// Return true when one argument id belongs to call dynamic arguments.
+fn argument_is_call_dynamic_argument(
+    tree: &NodeTree,
+    parents: &ast::NodeParentIndex,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    // require expression parent
+    let Some(parent_id) = parents.get(argument_id) else {
+        return false;
+    };
+    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    // require dynamic argument membership on call expressions only
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let parent_expression = tree.get(parent_expression_id);
+    let Expression::Call {
+        dynamic_arguments, ..
+    } = parent_expression
+    else {
+        return false;
+    };
+
+    dynamic_arguments.contains(&argument_id)
 }
 
 #[cfg(test)]
@@ -246,5 +290,39 @@ function outer() {
 "#,
         );
         test.result(result).assert_no_lint("max-nested-callbacks");
+    }
+
+    #[test]
+    fn test_ignores_new_expression_callback_arguments() {
+        let test =
+            TestProgram::for_rule_without_prelude(MaxNestedCallbacks).with_options(|options| {
+                options.max_nested_callbacks = 0;
+            });
+        let result = test.lint_ast(
+            "max_nested_callbacks/test_ignores_new_expression_callback_arguments.ds",
+            r#"
+new Service(() => {
+    console.log("not counted by source semantics");
+});
+"#,
+        );
+        test.result(result).assert_no_lint("max-nested-callbacks");
+    }
+
+    #[test]
+    fn test_counts_parenthesized_callback_arguments() {
+        let test =
+            TestProgram::for_rule_without_prelude(MaxNestedCallbacks).with_options(|options| {
+                options.max_nested_callbacks = 0;
+            });
+        let result = test.lint_ast(
+            "max_nested_callbacks/test_counts_parenthesized_callback_arguments.ds",
+            r#"
+foo((() => {
+    console.log("counted callback");
+}));
+"#,
+        );
+        test.result(result).assert_lint("max-nested-callbacks");
     }
 }

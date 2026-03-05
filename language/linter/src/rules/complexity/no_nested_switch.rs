@@ -6,9 +6,8 @@ use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 declare_lint! {
     /// Disallow nested switch statements.
     ///
-    /// Nested switch statements are hard to read and maintain. Consider
-    /// extracting the inner switch to a separate function or using a
-    /// different control flow structure.
+    /// Nested switch statements are hard to read and maintain.
+    /// Consider extracting the inner switch to a separate function or using a different control flow structure.
     #[lint(
         id = "no-nested-switch",
         code = "LX021",
@@ -69,12 +68,13 @@ fn is_nested_in_switch(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
+    // walk up parent chain and report once any enclosing switch is found
     let mut current = expr_id.id;
 
     while let Some(parent_raw_id) = ctx.parents.get_by_id(current) {
         let parent_type = ctx.tree.get_node_type(parent_raw_id);
 
-        // Skip non-expression nodes
+        // skip non-expression nodes
         if parent_type != ast::NodeType::Expression {
             current = parent_raw_id;
             continue;
@@ -88,14 +88,6 @@ fn is_nested_in_switch(
             && *kind == ast::MatchKind::Switch
         {
             return true;
-        }
-
-        // Stop at function boundaries
-        if let ast::Expression::Declaration(decl_id) = parent {
-            let decl = ctx.tree.get(*decl_id);
-            if matches!(decl, ast::Declaration::Function { .. }) {
-                return false;
-            }
         }
 
         current = parent_raw_id;
@@ -150,10 +142,10 @@ switch (x) {
     }
 
     #[test]
-    fn test_allows_switch_in_separate_function() {
+    fn test_reports_switch_in_separate_function() {
         let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
         let result = test.lint_ast(
-            "no_nested_switch/test_allows_switch_in_separate_function.ds",
+            "no_nested_switch/test_reports_switch_in_separate_function.ds",
             r#"
 let x = 1;
 switch (x) {
@@ -171,8 +163,7 @@ switch (x) {
 }
 "#,
         );
-        // The inner switch is in a separate function, so it's not nested
-        test.result(result).assert_no_lint("no-nested-switch");
+        test.result(result).assert_lint("no-nested-switch");
     }
 
     #[test]
@@ -194,5 +185,29 @@ switch (y) {
 "#,
         );
         test.result(result).assert_no_lint("no-nested-switch");
+    }
+
+    #[test]
+    fn test_reports_switch_in_nested_lambda_inside_switch() {
+        let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
+        let result = test.lint_ast(
+            "no_nested_switch/test_reports_switch_in_nested_lambda_inside_switch.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+        const handler = () => {
+            switch (x) {
+                case 1: break;
+                default: break;
+            }
+        };
+        break;
+    default:
+        break;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-nested-switch");
     }
 }

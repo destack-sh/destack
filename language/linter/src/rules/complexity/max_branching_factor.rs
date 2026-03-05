@@ -1,13 +1,14 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_else_if_branch;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Limit the number of branches in a single conditional.
+    /// Limit the number of branches in one conditional.
     ///
     /// Conditionals with many branches are harder to read and understand.
-    /// Consider using a lookup table, early returns, or breaking into smaller functions.
+    /// Consider lookup tables, early returns, or splitting logic into helpers.
     #[lint(
         id = "max-branching-factor",
         code = "LX003",
@@ -29,91 +30,108 @@ impl LintRule for MaxBranchingFactor {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata and threshold
         let meta = self.meta();
         let max_branches = ctx.options.max_branching_factor;
 
-        // check if expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-
-            match expression {
-                // count if-else-if chains
-                ast::Expression::If { .. } => {
-                    let branch_count = count_if_branches(ctx, node_id);
-                    if branch_count > max_branches {
-                        report_violation(ctx, meta, node_id, branch_count, max_branches, "if");
-                    }
+        // scan conditionals and branch based expressions
+        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            // check top level if chain branch count
+            if let ast::Expression::If { .. } = ctx.tree.get(expression_id) {
+                if expression_is_else_if_branch(ctx.tree, &ctx.parents, expression_id) {
+                    continue;
                 }
 
-                // count match arms
-                ast::Expression::Match { cases, .. } => {
-                    let branch_count = cases.len();
-                    if branch_count > max_branches {
-                        report_violation(ctx, meta, node_id, branch_count, max_branches, "match");
-                    }
+                let branch_count = count_if_chain_branches(ctx, expression_id);
+                if branch_count > max_branches {
+                    report_branching_violation(
+                        ctx,
+                        meta,
+                        expression_id,
+                        "if",
+                        branch_count,
+                        max_branches,
+                    );
                 }
 
-                _ => {}
+                continue;
+            }
+
+            // check switch case branch count
+            let ast::Expression::Match { cases, .. } = ctx.tree.get(expression_id) else {
+                continue;
+            };
+            let branch_count = cases.len();
+            if branch_count > max_branches {
+                report_branching_violation(
+                    ctx,
+                    meta,
+                    expression_id,
+                    "match",
+                    branch_count,
+                    max_branches,
+                );
             }
         }
     }
 }
 
-/// Count branches in an if-else-if chain.
-fn count_if_branches(
+/// Count branches in one if else chain.
+fn count_if_chain_branches(
     ctx: &LintModuleAstContext<'_>,
-    node_id: ast::LocalNodeId<ast::Expression>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> usize {
-    let expression = ctx.tree.get(node_id);
+    // resolve one if expression entry point
     let ast::Expression::If {
         else_expression, ..
-    } = expression
+    } = ctx.tree.get(expression_id)
     else {
         return 0;
     };
 
-    // start with 1 for the initial if branch
-    let mut count = 1;
+    // start with the current if branch
+    let mut branch_count = 1;
 
-    // follow else-if chain
-    if let Some(else_id) = else_expression {
-        let else_expr = ctx.tree.get(*else_id);
-
-        // check if else is another if (else-if)
-        if matches!(else_expr, ast::Expression::If { .. }) {
-            count += count_if_branches(ctx, *else_id);
-        } else {
-            // final else branch
-            count += 1;
-        }
+    // include else if chain and terminal else branch
+    let Some(else_expression_id) = else_expression else {
+        return branch_count;
+    };
+    if matches!(
+        ctx.tree.get(*else_expression_id),
+        ast::Expression::If { .. }
+    ) {
+        branch_count += count_if_chain_branches(ctx, *else_expression_id);
+        return branch_count;
     }
 
-    count
+    branch_count + 1
 }
 
-/// Report a branching factor violation.
-fn report_violation(
+/// Report one branching factor violation.
+fn report_branching_violation(
     ctx: &mut LintModuleAstContext<'_>,
     meta: &'static crate::LintMeta,
-    node_id: ast::LocalNodeId<ast::Expression>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    expression_kind: &str,
     branch_count: usize,
     max_branches: usize,
-    kind: &str,
 ) {
-    let severity = ctx.get_effective_severity(meta, node_id);
+    // resolve effective severity
+    let severity = ctx.get_effective_severity(meta, expression_id);
     if !severity.is_enabled() {
         return;
     }
 
+    // emit one branching overflow diagnostic
     ctx.report(
         LintDiagnostic::new(
             MAX_BRANCHING_FACTOR.id,
             MAX_BRANCHING_FACTOR.code,
             MAX_BRANCHING_FACTOR.category,
             severity,
-            format!("{kind} has {branch_count} branches (max {max_branches})"),
+            format!("{expression_kind} has {branch_count} branches (max {max_branches})"),
             ctx.module.file_id,
-            ctx.tree.get_span(node_id),
+            ctx.tree.get_span(expression_id),
         )
         .with_label("consider simplifying this conditional"),
     );
@@ -225,19 +243,25 @@ function check(x: int32) {
     }
 
     #[test]
-    fn test_allows_simple_if() {
-        let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
+    fn test_reports_else_if_chain_once() {
+        let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor)
+            .with_options(|options| options.max_branching_factor = 2);
         let result = test.lint_ast(
-            "max_branching_factor/test_allows_simple_if.ds",
+            "max_branching_factor/test_reports_else_if_chain_once.ds",
             r#"
-function check(x: boolean) {
-    if (x) {
-        return "yes";
+function check(x: int32) {
+    if (x == 1) {
+        return "one";
+    } else if (x == 2) {
+        return "two";
+    } else {
+        return "other";
     }
-    return "no";
 }
 "#,
         );
-        test.result(result).assert_no_lint("max-branching-factor");
+        test.result(result)
+            .assert_lint("max-branching-factor")
+            .assert_lint_count("max-branching-factor", 1);
     }
 }

@@ -1,17 +1,20 @@
 use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression,
+    walk_expression, walk_member, walk_property,
 };
-use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    CallableOwnerId, expression_starts_nested_declaration_scope,
+    expression_unwrap_statement_syntax, for_each_callable_signature,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of return statements per function.
     ///
     /// Functions with many return points can be harder to follow and maintain.
-    /// Consider restructuring with early returns or extracting logic.
+    /// Consider extracting logic or reducing branching depth.
     #[lint(
         id = "max-return-statements",
         code = "LX009",
@@ -33,59 +36,121 @@ impl LintRule for MaxReturnStatements {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata and threshold
         let meta = self.meta();
         let max_return_statements = ctx.options.max_return_statements;
 
-        let mut visitor = ReturnStatementVisitor {
-            options: NodeVisitorOptions::default(),
-            return_counts: Vec::new(),
-            max_return_statements,
-            violations: Vec::new(),
-        };
+        // check callable bodies across declarations and methods
+        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
+            // skip declaration only callables
+            let Some(body_id) = body_id else {
+                return;
+            };
 
-        for root_id in ctx.roots.iter() {
-            let expression = ctx.tree.get(*root_id);
-            visitor.visit_expression(ctx.tree, *root_id, expression);
-        }
-
-        for violation in visitor.violations {
-            let severity = ctx.get_effective_severity(meta, violation.node_id);
-            if !severity.is_enabled() {
-                continue;
+            // count explicit returns in this callable body
+            let return_count = count_callable_returns(ctx.tree, body_id);
+            if return_count <= max_return_statements {
+                return;
             }
-            ctx.report(
-                LintDiagnostic::new(
-                    MAX_RETURN_STATEMENTS.id,
-                    MAX_RETURN_STATEMENTS.code,
-                    MAX_RETURN_STATEMENTS.category,
-                    severity,
-                    format!(
-                        "function has {} return statements (max {})",
-                        violation.return_count, max_return_statements
-                    ),
-                    ctx.module.file_id,
-                    violation.span,
-                )
-                .with_label("consider restructuring to reduce return points"),
-            );
-        }
+
+            // report declaration owner violations
+            if let CallableOwnerId::Declaration(declaration_id) = owner_id {
+                report_return_limit_violation(
+                    ctx,
+                    meta,
+                    declaration_id,
+                    body_id,
+                    return_count,
+                    max_return_statements,
+                );
+                return;
+            }
+
+            // report member owner violations
+            if let CallableOwnerId::Member(member_id) = owner_id {
+                report_return_limit_violation(
+                    ctx,
+                    meta,
+                    member_id,
+                    body_id,
+                    return_count,
+                    max_return_statements,
+                );
+                return;
+            }
+
+            // report property owner violations
+            if let CallableOwnerId::Property(property_id) = owner_id {
+                report_return_limit_violation(
+                    ctx,
+                    meta,
+                    property_id,
+                    body_id,
+                    return_count,
+                    max_return_statements,
+                );
+            }
+        });
     }
 }
 
-struct ReturnViolation {
-    node_id: LocalNodeId<Expression>,
-    span: Span,
+/// Count explicit return expressions for one callable body.
+fn count_callable_returns(tree: &NodeTree, body_expression_id: LocalNodeId<Expression>) -> usize {
+    // initialize return counter visitor
+    let mut visitor = ReturnCountVisitor {
+        options: NodeVisitorOptions::default(),
+        root_expression_id: body_expression_id,
+        return_count: 0,
+    };
+
+    // walk callable body subtree
+    let body_expression = tree.get(body_expression_id);
+    visitor.visit_expression(tree, body_expression_id, body_expression);
+
+    visitor.return_count
+}
+
+/// Report one max-return-statements violation.
+fn report_return_limit_violation<T: ast::Node>(
+    ctx: &mut LintModuleAstContext<'_>,
+    meta: &'static crate::LintMeta,
+    owner_id: ast::LocalNodeId<T>,
+    body_id: ast::LocalNodeId<ast::Expression>,
+    return_count: usize,
+    max_return_statements: usize,
+) {
+    // resolve effective severity
+    let severity = ctx.get_effective_severity(meta, owner_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    // report one return overflow diagnostic
+    ctx.report(
+        LintDiagnostic::new(
+            MAX_RETURN_STATEMENTS.id,
+            MAX_RETURN_STATEMENTS.code,
+            MAX_RETURN_STATEMENTS.category,
+            severity,
+            format!("function has {return_count} return statements (max {max_return_statements})"),
+            ctx.module.file_id,
+            ctx.tree.get_span(body_id),
+        )
+        .with_label("consider reducing return points"),
+    );
+}
+
+/// Visitor that counts return statements in one callable body.
+struct ReturnCountVisitor {
+    /// Traversal options.
+    options: NodeVisitorOptions,
+    /// Root callable body expression.
+    root_expression_id: LocalNodeId<Expression>,
+    /// Number of explicit returns.
     return_count: usize,
 }
 
-struct ReturnStatementVisitor {
-    options: NodeVisitorOptions,
-    return_counts: Vec<usize>,
-    max_return_statements: usize,
-    violations: Vec<ReturnViolation>,
-}
-
-impl NodeVisitor for ReturnStatementVisitor {
+impl NodeVisitor for ReturnCountVisitor {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -93,50 +158,60 @@ impl NodeVisitor for ReturnStatementVisitor {
     fn visit_expression(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        match expression {
-            // count return statements for the innermost function
-            Expression::Return { .. } => {
-                if let Some(count) = self.return_counts.last_mut() {
-                    *count += 1;
-                }
+        // keep nested declaration scopes out of this callable count
+        if expression_id != self.root_expression_id {
+            let normalized_expression_id = expression_unwrap_statement_syntax(tree, expression_id);
+            let normalized_expression = tree.get(normalized_expression_id);
+            if expression_starts_nested_declaration_scope(normalized_expression) {
+                return;
             }
-
-            // handle function declarations: start fresh count
-            Expression::Declaration(declaration_id) => {
-                let declaration = tree.get(*declaration_id);
-                if let ast::Declaration::Function { body, .. } = declaration {
-                    if let Some(body_id) = body {
-                        let body_span = tree.get_span(*body_id);
-
-                        // push new counter for this function
-                        self.return_counts.push(0);
-
-                        // walk the function body
-                        let body_expression = tree.get(*body_id);
-                        walk_expression(self, tree, *body_id, body_expression);
-
-                        // pop and check the count
-                        let return_count = self.return_counts.pop().unwrap_or(0);
-                        if return_count > self.max_return_statements {
-                            self.violations.push(ReturnViolation {
-                                node_id: id,
-                                span: body_span,
-                                return_count,
-                            });
-                        }
-                    }
-                    return; // don't walk the declaration again
-                }
-            }
-
-            _ => {}
         }
 
-        // default recursion for non-function expressions
-        walk_expression(self, tree, id, expression);
+        // count explicit return statements
+        if matches!(expression, Expression::Return { .. }) {
+            self.return_count += 1;
+        }
+
+        // recurse through expression subtree
+        walk_expression(self, tree, expression_id, expression);
+    }
+
+    fn visit_property(
+        &mut self,
+        tree: &NodeTree,
+        property_id: LocalNodeId<ast::Property>,
+        property: &ast::Property,
+    ) {
+        // keep nested object methods out of parent callable counts
+        if matches!(property, ast::Property::Method { .. }) {
+            return;
+        }
+
+        // recurse into non method properties
+        walk_property(self, tree, property_id, property);
+    }
+
+    fn visit_member(
+        &mut self,
+        tree: &NodeTree,
+        member_id: LocalNodeId<ast::Member>,
+        member: &ast::Member,
+    ) {
+        // keep nested callable members out of parent callable counts
+        if matches!(
+            member,
+            ast::Member::Method { .. }
+                | ast::Member::StaticBlock { .. }
+                | ast::Member::ComptimeBlock { .. }
+        ) {
+            return;
+        }
+
+        // recurse into non callable members
+        walk_member(self, tree, member_id, member);
     }
 }
 
@@ -186,30 +261,6 @@ function fewReturns(x: int32): int32 {
     }
 
     #[test]
-    fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
-        // 10 returns is at the limit (default max is 10)
-        let result = test.lint_ast(
-            "max_return_statements/test_allows_exactly_at_limit.ds",
-            r#"
-function atLimit(x: int32): int32 {
-    if (x == 0) { return 0; }
-    if (x == 1) { return 1; }
-    if (x == 2) { return 2; }
-    if (x == 3) { return 3; }
-    if (x == 4) { return 4; }
-    if (x == 5) { return 5; }
-    if (x == 6) { return 6; }
-    if (x == 7) { return 7; }
-    if (x == 8) { return 8; }
-    return 9;
-}
-"#,
-        );
-        test.result(result).assert_no_lint("max-return-statements");
-    }
-
-    #[test]
     fn test_counts_returns_in_match() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
         let result = test.lint_ast(
@@ -236,31 +287,43 @@ function matchReturns(x: int32): int32 {
     }
 
     #[test]
-    fn test_does_not_count_nested_function() {
-        let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
+    fn test_ignores_nested_function_returns_for_outer_function() {
+        let test = TestProgram::for_rule_without_prelude(MaxReturnStatements)
+            .with_options(|options| options.max_return_statements = 1);
         let result = test.lint_ast(
-            "max_return_statements/test_does_not_count_nested_function.ds",
+            "max_return_statements/test_ignores_nested_function_returns_for_outer_function.ds",
             r#"
 function outer(x: int32): int32 {
     function inner(y: int32): int32 {
         if (y == 0) { return 0; }
         if (y == 1) { return 1; }
-        if (y == 2) { return 2; }
-        if (y == 3) { return 3; }
-        if (y == 4) { return 4; }
-        if (y == 5) { return 5; }
-        if (y == 6) { return 6; }
-        if (y == 7) { return 7; }
-        if (y == 8) { return 8; }
-        if (y == 9) { return 9; }
-        return 10;
+        return 2;
     }
     return inner(x);
 }
 "#,
         );
-        // outer has 1 return, inner has 11 but is a separate function
-        // so we get TWO violations: one for outer (1 return, ok), one for inner (11 returns, not ok)
+        test.result(result)
+            .assert_lint("max-return-statements")
+            .assert_lint_count("max-return-statements", 1);
+    }
+
+    #[test]
+    fn test_detects_object_method_too_many_returns() {
+        let test = TestProgram::for_rule_without_prelude(MaxReturnStatements)
+            .with_options(|options| options.max_return_statements = 2);
+        let result = test.lint_ast(
+            "max_return_statements/test_detects_object_method_too_many_returns.ds",
+            r#"
+const service = {
+    run(x: int32): int32 {
+        if (x == 0) { return 0; }
+        if (x == 1) { return 1; }
+        return 2;
+    }
+}
+"#,
+        );
         test.result(result).assert_lint("max-return-statements");
     }
 }

@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{CallableOwnerId, callable_owner_span, for_each_callable_signature};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -29,60 +30,88 @@ impl LintRule for MaxLinesPerFunction {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata, threshold, and source file
         let meta = self.meta();
         let max_lines = ctx.options.max_lines_per_function;
         let file = ctx.program.files.get(ctx.module.file_id);
 
-        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Declaration(declaration_id) = ctx.tree.get(expression_id) else {
-                continue;
+        // check all callable owners that have a body expression
+        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
+            // skip signature-only callables without a body
+            let Some(body_id) = body_id else {
+                return;
             };
 
-            let declaration = ctx.tree.get(*declaration_id);
-            let ast::Declaration::Function { body, .. } = declaration else {
-                continue;
+            // resolve owner span for line counting
+            let owner_span = callable_owner_span(ctx.tree, owner_id);
+            let Some((start_line, _)) = file.get_position(owner_span.start) else {
+                return;
+            };
+            let Some((end_line, _)) = file.get_position(owner_span.end) else {
+                return;
             };
 
-            // skip functions without bodies (declarations)
-            let Some(body_id) = body else {
-                continue;
-            };
-
-            // get span of the entire function declaration
-            let span = ctx.tree.get_span(expression_id);
-
-            // convert byte positions to line numbers
-            let Some((start_line, _)) = file.get_position(span.start) else {
-                continue;
-            };
-            let Some((end_line, _)) = file.get_position(span.end) else {
-                continue;
-            };
-
-            // line count is inclusive (line 1 to line 3 = 3 lines)
+            // keep line counting inclusive like eslint
             let line_count = (end_line - start_line + 1) as usize;
-            if line_count > max_lines {
-                let severity = ctx.get_effective_severity(meta, expression_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                // get name from the function body's block span for more accurate location
-                let body_span = ctx.tree.get_span(*body_id);
-                ctx.report(
-                    LintDiagnostic::new(
-                        MAX_LINES_PER_FUNCTION.id,
-                        MAX_LINES_PER_FUNCTION.code,
-                        MAX_LINES_PER_FUNCTION.category,
-                        severity,
-                        format!("function has {line_count} lines (max {max_lines})"),
-                        ctx.module.file_id,
-                        body_span,
-                    )
-                    .with_label("consider breaking into smaller functions"),
-                );
+            if line_count <= max_lines {
+                return;
             }
-        }
+
+            // report declarations that exceed the line threshold
+            if let CallableOwnerId::Declaration(declaration_id) = owner_id {
+                report_line_limit_violation(
+                    ctx,
+                    meta,
+                    declaration_id,
+                    body_id,
+                    line_count,
+                    max_lines,
+                );
+                return;
+            }
+
+            // report members that exceed the line threshold
+            if let CallableOwnerId::Member(member_id) = owner_id {
+                report_line_limit_violation(ctx, meta, member_id, body_id, line_count, max_lines);
+                return;
+            }
+
+            // report properties that exceed the line threshold
+            if let CallableOwnerId::Property(property_id) = owner_id {
+                report_line_limit_violation(ctx, meta, property_id, body_id, line_count, max_lines);
+            }
+        });
     }
+}
+
+/// Report one max-lines-per-function violation for a callable owner.
+fn report_line_limit_violation<T: ast::Node>(
+    ctx: &mut LintModuleAstContext<'_>,
+    meta: &'static crate::LintMeta,
+    owner_id: ast::LocalNodeId<T>,
+    body_id: ast::LocalNodeId<ast::Expression>,
+    line_count: usize,
+    max_lines: usize,
+) {
+    // resolve effective severity for this owner node
+    let severity = ctx.get_effective_severity(meta, owner_id);
+    if !severity.is_enabled() {
+        return;
+    }
+
+    // report one line-count overflow diagnostic
+    ctx.report(
+        LintDiagnostic::new(
+            MAX_LINES_PER_FUNCTION.id,
+            MAX_LINES_PER_FUNCTION.code,
+            MAX_LINES_PER_FUNCTION.category,
+            severity,
+            format!("function has {line_count} lines (max {max_lines})"),
+            ctx.module.file_id,
+            ctx.tree.get_span(body_id),
+        )
+        .with_label("consider breaking into smaller functions"),
+    );
 }
 
 #[cfg(test)]
@@ -149,6 +178,38 @@ function foo() {
         source.push_str("};\n");
         let result = test.lint_ast(
             "max_lines_per_function/test_checks_arrow_functions.ds",
+            &source,
+        );
+        test.result(result).assert_lint("max-lines-per-function");
+    }
+
+    #[test]
+    fn test_checks_class_methods() {
+        let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
+        // create a method with many lines
+        let mut source = String::from("class Example {\n    method() {\n");
+        for i in 0..49 {
+            source.push_str(&format!("        let x{i} = {i};\n"));
+        }
+        source.push_str("    }\n}\n");
+        let result = test.lint_ast(
+            "max_lines_per_function/test_checks_class_methods.ds",
+            &source,
+        );
+        test.result(result).assert_lint("max-lines-per-function");
+    }
+
+    #[test]
+    fn test_checks_object_methods() {
+        let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
+        // create an object method with many lines
+        let mut source = String::from("const object = {\n    method() {\n");
+        for i in 0..49 {
+            source.push_str(&format!("        let x{i} = {i};\n"));
+        }
+        source.push_str("    }\n};\n");
+        let result = test.lint_ast(
+            "max_lines_per_function/test_checks_object_methods.ds",
             &source,
         );
         test.result(result).assert_lint("max-lines-per-function");

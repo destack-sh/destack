@@ -1,6 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    block_is_empty_without_comment, match_case_selector, match_selector_is_default,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -29,9 +32,11 @@ impl LintRule for MaxSwitchCases {
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        // resolve lint metadata and threshold
         let meta = self.meta();
         let max_switch_cases = ctx.options.max_switch_cases;
 
+        // check each switch expression against non-empty non-default case count
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Match { kind, cases, .. } = ctx.tree.get(node_id) else {
                 continue;
@@ -40,7 +45,12 @@ impl LintRule for MaxSwitchCases {
                 continue;
             }
 
-            let case_count = cases.len();
+            // count only non-default cases with executable body content
+            let case_count = cases
+                .iter()
+                .copied()
+                .filter(|case_id| switch_case_counts(ctx.tree, *case_id))
+                .count();
             if case_count > max_switch_cases {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
@@ -61,6 +71,35 @@ impl LintRule for MaxSwitchCases {
             }
         }
     }
+}
+
+/// Return true when one switch case counts toward the max-switch-cases limit.
+fn switch_case_counts(tree: &ast::NodeTree, case_id: ast::LocalNodeId<ast::MatchCase>) -> bool {
+    // resolve selector and skip default cases
+    let case = tree.get(case_id);
+    let selector = match_case_selector(case);
+    if match_selector_is_default(selector) {
+        return false;
+    }
+
+    // require non-empty case body content
+    match case {
+        ast::MatchCase::Expression { body, .. } => expression_has_case_content(tree, *body),
+        ast::MatchCase::Block { body, .. } => !block_is_empty_without_comment(tree, *body),
+    }
+}
+
+/// Return true when one case expression body has executable content.
+fn expression_has_case_content(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expression = tree.get(expression_id);
+    if let ast::Expression::Block(block_id) = expression {
+        return !block_is_empty_without_comment(tree, *block_id);
+    }
+
+    true
 }
 
 #[cfg(test)]
@@ -140,6 +179,41 @@ function testMatch(x: int32): int32 {
         4 => 4
         5 => 5
     }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("max-switch-cases");
+    }
+
+    #[test]
+    fn test_excludes_default_case_from_count() {
+        let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
+            .with_options(|options| options.max_switch_cases = 1);
+        let result = test.lint_ast(
+            "max_switch_cases/test_excludes_default_case_from_count.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1: break;
+    default: break;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("max-switch-cases");
+    }
+
+    #[test]
+    fn test_excludes_empty_cases_from_count() {
+        let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
+            .with_options(|options| options.max_switch_cases = 1);
+        let result = test.lint_ast(
+            "max_switch_cases/test_excludes_empty_cases_from_count.ds",
+            r#"
+let x = 1;
+switch (x) {
+    case 1:
+    case 2:
+        break;
 }
 "#,
         );

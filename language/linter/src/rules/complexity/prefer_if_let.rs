@@ -1,13 +1,16 @@
 use destack_ast::{self as ast, MatchCase};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    match_case_selector, match_selector_has_guard, match_selector_is_default,
+    match_selector_pattern_id, pattern_matches_all,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest if-let over single-arm match.
     ///
-    /// A match expression with a single pattern arm followed by a wildcard
-    /// can be more clearly written as an if-let expression.
+    /// A match expression with a single pattern arm followed by a wildcard can be more clearly written as an if-let expression.
     #[lint(
         id = "prefer-if-let",
         code = "LX025",
@@ -48,29 +51,19 @@ impl LintRule for PreferIfLet {
             let second_case = ctx.tree.get(cases[1]);
 
             // keep first case as plain pattern without guard
-            let first_selector = match first_case {
-                MatchCase::Block { selector, .. } | MatchCase::Expression { selector, .. } => {
-                    selector
-                }
-            };
-            if !matches!(
-                first_selector,
-                ast::MatchSelector::Pattern { guard: None, .. }
-            ) {
+            let first_selector = match_case_selector(first_case);
+            if !matches!(first_selector, ast::MatchSelector::Pattern { .. })
+                || match_selector_has_guard(first_selector)
+            {
                 continue;
             }
 
-            let is_wildcard = match second_case {
-                MatchCase::Block { selector, .. } | MatchCase::Expression { selector, .. } => {
-                    match selector {
-                        ast::MatchSelector::Default => true,
-                        ast::MatchSelector::Pattern { pattern, .. } => {
-                            let pat = ctx.tree.get(*pattern);
-                            matches!(pat, ast::Pattern::Wildcard)
-                        }
-                    }
-                }
-            };
+            // allow wildcard and default second cases
+            let second_selector = match_case_selector(second_case);
+            let is_wildcard = match_selector_is_default(second_selector)
+                || match_selector_pattern_id(second_selector)
+                    .map(|pattern_id| pattern_matches_all(ctx, pattern_id))
+                    .unwrap_or(false);
 
             if !is_wildcard {
                 continue;
