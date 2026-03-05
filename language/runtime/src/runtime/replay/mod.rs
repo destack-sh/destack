@@ -1,18 +1,20 @@
 mod chunk;
 mod codec;
-mod controller;
+mod entropy;
 mod event;
 mod header;
 mod log;
 mod random;
 mod reader;
+mod replay;
 mod time;
+mod validator;
 mod writer;
 
 pub use codec::*;
-pub use controller::*;
 pub use event::*;
 pub use header::*;
 pub use log::*;
 pub use reader::*;
+pub use replay::*;
 pub use writer::*;

@@ -24,6 +24,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -688,147 +689,147 @@ fn encode_destack_ipc_unix_send_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcMessageQueueCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.message.queueOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcMessageQueueOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::MessageQueueHandle, PlatformError>,
+    pub result: Result<resource::MessageQueueHandle, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.message.queueReceive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcMessageQueueReceiveReplay {
     /// Replay result payload.
-    pub result: Result<MessageQueueReceive, PlatformError>,
+    pub result: Result<MessageQueueReceive, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.message.queueSend.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcMessageQueueSendReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.message.queueUnlink.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcMessageQueueUnlinkReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.pipe.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcPipeCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.pipe.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcPipeOpenReplay {
     /// Replay result payload.
-    pub result: Result<PipePair, PlatformError>,
+    pub result: Result<PipePair, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.pipe.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcPipeReadReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.pipe.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcPipeWriteReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sharedMemory.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSharedMemoryCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sharedMemory.create.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSharedMemoryCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::SharedMemoryHandle, PlatformError>,
+    pub result: Result<resource::SharedMemoryHandle, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sharedMemory.map.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSharedMemoryMapReplay {
     /// Replay result payload.
-    pub result: Result<SharedMemoryMapping, PlatformError>,
+    pub result: Result<SharedMemoryMapping, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sharedMemory.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSharedMemoryOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::SharedMemoryHandle, PlatformError>,
+    pub result: Result<resource::SharedMemoryHandle, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sharedMemory.unmap.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSharedMemoryUnmapReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sync.futexWait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSyncFutexWaitReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sync.futexWake.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSyncFutexWakeReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sync.semaphoreCreate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSyncSemaphoreCreateReplay {
     /// Replay result payload.
-    pub result: Result<resource::SemaphoreHandle, PlatformError>,
+    pub result: Result<resource::SemaphoreHandle, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sync.semaphorePost.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSyncSemaphorePostReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.sync.semaphoreWait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcSyncSemaphoreWaitReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.ipc.unix.receive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcUnixReceiveReplay {
     /// Replay result payload.
-    pub result: Result<UnixReceiveAncillaryReplayRecord, PlatformError>,
+    pub result: Result<UnixReceiveAncillaryReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.ipc.unix.send.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IpcUnixSendReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Binding descriptor for destack.ipc.message.queueClose.
@@ -1271,7 +1272,7 @@ fn destack_ipc_message_queue_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_MESSAGE_QUEUE_CLOSE,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_CLOSE)?,
         || match world {
@@ -1293,7 +1294,7 @@ fn destack_ipc_message_queue_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1305,7 +1306,7 @@ fn destack_ipc_message_queue_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1324,7 +1325,7 @@ fn destack_ipc_message_queue_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &flags, &mode, &maxmessages, &maxmessagebytes);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_MESSAGE_QUEUE_OPEN,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_OPEN)?,
         || match world {
@@ -1368,7 +1369,7 @@ fn destack_ipc_message_queue_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1386,7 +1387,7 @@ fn destack_ipc_message_queue_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1403,7 +1404,7 @@ fn destack_ipc_message_queue_receive_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns, &buffer);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_MESSAGE_QUEUE_RECEIVE,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_RECEIVE)?,
         || match world {
@@ -1440,7 +1441,7 @@ fn destack_ipc_message_queue_receive_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1463,7 +1464,7 @@ fn destack_ipc_message_queue_receive_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1480,7 +1481,7 @@ fn destack_ipc_message_queue_send_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &priority, &timeoutns, &argument_payload);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_MESSAGE_QUEUE_SEND,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_SEND)?,
         || match world {
@@ -1514,7 +1515,7 @@ fn destack_ipc_message_queue_send_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueSendReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1526,7 +1527,7 @@ fn destack_ipc_message_queue_send_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1540,7 +1541,7 @@ fn destack_ipc_message_queue_unlink_replay(
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_MESSAGE_QUEUE_UNLINK,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_UNLINK)?,
         || match world {
@@ -1562,7 +1563,7 @@ fn destack_ipc_message_queue_unlink_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueUnlinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1574,7 +1575,7 @@ fn destack_ipc_message_queue_unlink_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1588,7 +1589,7 @@ fn destack_ipc_pipe_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_PIPE_CLOSE,
         binding.replay_payload_for(IPC_PIPE_CLOSE)?,
         || match world {
@@ -1610,7 +1611,7 @@ fn destack_ipc_pipe_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcPipeCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1622,7 +1623,7 @@ fn destack_ipc_pipe_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1637,7 +1638,7 @@ fn destack_ipc_pipe_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &flags;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_PIPE_OPEN,
         binding.replay_payload_for(IPC_PIPE_OPEN)?,
         || match world {
@@ -1670,7 +1671,7 @@ fn destack_ipc_pipe_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcPipeOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1693,7 +1694,7 @@ fn destack_ipc_pipe_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1709,7 +1710,7 @@ fn destack_ipc_pipe_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_PIPE_READ,
         binding.replay_payload_for(IPC_PIPE_READ)?,
         || match world {
@@ -1737,7 +1738,7 @@ fn destack_ipc_pipe_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcPipeReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1755,7 +1756,7 @@ fn destack_ipc_pipe_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1771,7 +1772,7 @@ fn destack_ipc_pipe_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_PIPE_WRITE,
         binding.replay_payload_for(IPC_PIPE_WRITE)?,
         || match world {
@@ -1799,7 +1800,7 @@ fn destack_ipc_pipe_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcPipeWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1817,7 +1818,7 @@ fn destack_ipc_pipe_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1831,7 +1832,7 @@ fn destack_ipc_shared_memory_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SHARED_MEMORY_CLOSE,
         binding.replay_payload_for(IPC_SHARED_MEMORY_CLOSE)?,
         || match world {
@@ -1853,7 +1854,7 @@ fn destack_ipc_shared_memory_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1865,7 +1866,7 @@ fn destack_ipc_shared_memory_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1882,7 +1883,7 @@ fn destack_ipc_shared_memory_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &size, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SHARED_MEMORY_CREATE,
         binding.replay_payload_for(IPC_SHARED_MEMORY_CREATE)?,
         || match world {
@@ -1912,7 +1913,7 @@ fn destack_ipc_shared_memory_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1930,7 +1931,7 @@ fn destack_ipc_shared_memory_create_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1948,7 +1949,7 @@ fn destack_ipc_shared_memory_map_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SHARED_MEMORY_MAP,
         binding.replay_payload_for(IPC_SHARED_MEMORY_MAP)?,
         || match world {
@@ -1985,7 +1986,7 @@ fn destack_ipc_shared_memory_map_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryMapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2008,7 +2009,7 @@ fn destack_ipc_shared_memory_map_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2024,7 +2025,7 @@ fn destack_ipc_shared_memory_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SHARED_MEMORY_OPEN,
         binding.replay_payload_for(IPC_SHARED_MEMORY_OPEN)?,
         || match world {
@@ -2054,7 +2055,7 @@ fn destack_ipc_shared_memory_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2072,7 +2073,7 @@ fn destack_ipc_shared_memory_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2087,7 +2088,7 @@ fn destack_ipc_shared_memory_unmap_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SHARED_MEMORY_UNMAP,
         binding.replay_payload_for(IPC_SHARED_MEMORY_UNMAP)?,
         || match world {
@@ -2111,7 +2112,7 @@ fn destack_ipc_shared_memory_unmap_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryUnmapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2123,7 +2124,7 @@ fn destack_ipc_shared_memory_unmap_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2140,7 +2141,7 @@ fn destack_ipc_sync_futex_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&sharedmemory, &offset, &expected, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SYNC_FUTEX_WAIT,
         binding.replay_payload_for(IPC_SYNC_FUTEX_WAIT)?,
         || match world {
@@ -2174,7 +2175,7 @@ fn destack_ipc_sync_futex_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncFutexWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2186,7 +2187,7 @@ fn destack_ipc_sync_futex_wait_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2203,7 +2204,7 @@ fn destack_ipc_sync_futex_wake_replay(
 ) -> RuntimeResult<()> {
     let _ = (&sharedmemory, &offset, &count);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SYNC_FUTEX_WAKE,
         binding.replay_payload_for(IPC_SYNC_FUTEX_WAKE)?,
         || match world {
@@ -2237,7 +2238,7 @@ fn destack_ipc_sync_futex_wake_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncFutexWakeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2255,7 +2256,7 @@ fn destack_ipc_sync_futex_wake_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2272,7 +2273,7 @@ fn destack_ipc_sync_semaphore_create_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &initial, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SYNC_SEMAPHORE_CREATE,
         binding.replay_payload_for(IPC_SYNC_SEMAPHORE_CREATE)?,
         || match world {
@@ -2302,7 +2303,7 @@ fn destack_ipc_sync_semaphore_create_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncSemaphoreCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2320,7 +2321,7 @@ fn destack_ipc_sync_semaphore_create_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2335,7 +2336,7 @@ fn destack_ipc_sync_semaphore_post_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &count);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SYNC_SEMAPHORE_POST,
         binding.replay_payload_for(IPC_SYNC_SEMAPHORE_POST)?,
         || match world {
@@ -2357,7 +2358,7 @@ fn destack_ipc_sync_semaphore_post_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncSemaphorePostReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2369,7 +2370,7 @@ fn destack_ipc_sync_semaphore_post_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2384,7 +2385,7 @@ fn destack_ipc_sync_semaphore_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_SYNC_SEMAPHORE_WAIT,
         binding.replay_payload_for(IPC_SYNC_SEMAPHORE_WAIT)?,
         || match world {
@@ -2406,7 +2407,7 @@ fn destack_ipc_sync_semaphore_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncSemaphoreWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2418,7 +2419,7 @@ fn destack_ipc_sync_semaphore_wait_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2434,7 +2435,7 @@ fn destack_ipc_unix_receive_replay(
 ) -> RuntimeResult<()> {
     let _ = (&socket, &maxhandles);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_UNIX_RECEIVE,
         binding.replay_payload_for(IPC_UNIX_RECEIVE)?,
         || match world {
@@ -2495,7 +2496,7 @@ fn destack_ipc_unix_receive_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcUnixReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2542,7 +2543,7 @@ fn destack_ipc_unix_receive_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2559,7 +2560,7 @@ fn destack_ipc_unix_send_replay(
 ) -> RuntimeResult<()> {
     let _ = (&socket, &argument_payload, &handles);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IPC_UNIX_SEND,
         binding.replay_payload_for(IPC_UNIX_SEND)?,
         || match world {
@@ -2599,7 +2600,7 @@ fn destack_ipc_unix_send_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcUnixSendReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2617,7 +2618,7 @@ fn destack_ipc_unix_send_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2999,7 +3000,7 @@ fn destack_ipc_message_queue_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_MESSAGE_QUEUE_CLOSE,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_CLOSE)?,
         context,
@@ -3023,7 +3024,7 @@ fn destack_ipc_message_queue_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3036,7 +3037,7 @@ fn destack_ipc_message_queue_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3055,7 +3056,7 @@ fn destack_ipc_message_queue_open_vm_replay(
     maxmessages: u32,
     maxmessagebytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_MESSAGE_QUEUE_OPEN,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_OPEN)?,
         context,
@@ -3092,7 +3093,7 @@ fn destack_ipc_message_queue_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3108,7 +3109,7 @@ fn destack_ipc_message_queue_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3125,7 +3126,7 @@ fn destack_ipc_message_queue_receive_vm_replay(
     timeoutns: u64,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_MESSAGE_QUEUE_RECEIVE,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_RECEIVE)?,
         context,
@@ -3155,7 +3156,7 @@ fn destack_ipc_message_queue_receive_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3176,7 +3177,7 @@ fn destack_ipc_message_queue_receive_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3194,7 +3195,7 @@ fn destack_ipc_message_queue_send_vm_replay(
     timeoutns: u64,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_MESSAGE_QUEUE_SEND,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_SEND)?,
         context,
@@ -3228,7 +3229,7 @@ fn destack_ipc_message_queue_send_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueSendReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3241,7 +3242,7 @@ fn destack_ipc_message_queue_send_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3256,7 +3257,7 @@ fn destack_ipc_message_queue_unlink_vm_replay(
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_MESSAGE_QUEUE_UNLINK,
         binding.replay_payload_for(IPC_MESSAGE_QUEUE_UNLINK)?,
         context,
@@ -3280,7 +3281,7 @@ fn destack_ipc_message_queue_unlink_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcMessageQueueUnlinkReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3293,7 +3294,7 @@ fn destack_ipc_message_queue_unlink_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3308,7 +3309,7 @@ fn destack_ipc_pipe_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_PIPE_CLOSE,
         binding.replay_payload_for(IPC_PIPE_CLOSE)?,
         context,
@@ -3330,7 +3331,7 @@ fn destack_ipc_pipe_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcPipeCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3343,7 +3344,7 @@ fn destack_ipc_pipe_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3358,7 +3359,7 @@ fn destack_ipc_pipe_open_vm_replay(
     world: RuntimeWorld,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_PIPE_OPEN,
         binding.replay_payload_for(IPC_PIPE_OPEN)?,
         context,
@@ -3386,7 +3387,7 @@ fn destack_ipc_pipe_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcPipeOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3407,7 +3408,7 @@ fn destack_ipc_pipe_open_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3423,7 +3424,7 @@ fn destack_ipc_pipe_read_vm_replay(
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_PIPE_READ,
         binding.replay_payload_for(IPC_PIPE_READ)?,
         context,
@@ -3448,7 +3449,7 @@ fn destack_ipc_pipe_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcPipeReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3464,7 +3465,7 @@ fn destack_ipc_pipe_read_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3480,7 +3481,7 @@ fn destack_ipc_pipe_write_vm_replay(
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_PIPE_WRITE,
         binding.replay_payload_for(IPC_PIPE_WRITE)?,
         context,
@@ -3505,7 +3506,7 @@ fn destack_ipc_pipe_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcPipeWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3521,7 +3522,7 @@ fn destack_ipc_pipe_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3536,7 +3537,7 @@ fn destack_ipc_shared_memory_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SHARED_MEMORY_CLOSE,
         binding.replay_payload_for(IPC_SHARED_MEMORY_CLOSE)?,
         context,
@@ -3560,7 +3561,7 @@ fn destack_ipc_shared_memory_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3573,7 +3574,7 @@ fn destack_ipc_shared_memory_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3590,7 +3591,7 @@ fn destack_ipc_shared_memory_create_vm_replay(
     size: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SHARED_MEMORY_CREATE,
         binding.replay_payload_for(IPC_SHARED_MEMORY_CREATE)?,
         context,
@@ -3615,7 +3616,7 @@ fn destack_ipc_shared_memory_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3631,7 +3632,7 @@ fn destack_ipc_shared_memory_create_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3649,7 +3650,7 @@ fn destack_ipc_shared_memory_map_vm_replay(
     length: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SHARED_MEMORY_MAP,
         binding.replay_payload_for(IPC_SHARED_MEMORY_MAP)?,
         context,
@@ -3679,7 +3680,7 @@ fn destack_ipc_shared_memory_map_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryMapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3700,7 +3701,7 @@ fn destack_ipc_shared_memory_map_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3716,7 +3717,7 @@ fn destack_ipc_shared_memory_open_vm_replay(
     name: vm::StringHandle,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SHARED_MEMORY_OPEN,
         binding.replay_payload_for(IPC_SHARED_MEMORY_OPEN)?,
         context,
@@ -3741,7 +3742,7 @@ fn destack_ipc_shared_memory_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3757,7 +3758,7 @@ fn destack_ipc_shared_memory_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3773,7 +3774,7 @@ fn destack_ipc_shared_memory_unmap_vm_replay(
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SHARED_MEMORY_UNMAP,
         binding.replay_payload_for(IPC_SHARED_MEMORY_UNMAP)?,
         context,
@@ -3797,7 +3798,7 @@ fn destack_ipc_shared_memory_unmap_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSharedMemoryUnmapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3810,7 +3811,7 @@ fn destack_ipc_shared_memory_unmap_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3828,7 +3829,7 @@ fn destack_ipc_sync_futex_wait_vm_replay(
     expected: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SYNC_FUTEX_WAIT,
         binding.replay_payload_for(IPC_SYNC_FUTEX_WAIT)?,
         context,
@@ -3862,7 +3863,7 @@ fn destack_ipc_sync_futex_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncFutexWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3875,7 +3876,7 @@ fn destack_ipc_sync_futex_wait_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3892,7 +3893,7 @@ fn destack_ipc_sync_futex_wake_vm_replay(
     offset: u64,
     count: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SYNC_FUTEX_WAKE,
         binding.replay_payload_for(IPC_SYNC_FUTEX_WAKE)?,
         context,
@@ -3921,7 +3922,7 @@ fn destack_ipc_sync_futex_wake_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncFutexWakeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3937,7 +3938,7 @@ fn destack_ipc_sync_futex_wake_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3954,7 +3955,7 @@ fn destack_ipc_sync_semaphore_create_vm_replay(
     initial: u32,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SYNC_SEMAPHORE_CREATE,
         binding.replay_payload_for(IPC_SYNC_SEMAPHORE_CREATE)?,
         context,
@@ -3979,7 +3980,7 @@ fn destack_ipc_sync_semaphore_create_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncSemaphoreCreateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3995,7 +3996,7 @@ fn destack_ipc_sync_semaphore_create_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4011,7 +4012,7 @@ fn destack_ipc_sync_semaphore_post_vm_replay(
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SYNC_SEMAPHORE_POST,
         binding.replay_payload_for(IPC_SYNC_SEMAPHORE_POST)?,
         context,
@@ -4035,7 +4036,7 @@ fn destack_ipc_sync_semaphore_post_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncSemaphorePostReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4048,7 +4049,7 @@ fn destack_ipc_sync_semaphore_post_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4064,7 +4065,7 @@ fn destack_ipc_sync_semaphore_wait_vm_replay(
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_SYNC_SEMAPHORE_WAIT,
         binding.replay_payload_for(IPC_SYNC_SEMAPHORE_WAIT)?,
         context,
@@ -4088,7 +4089,7 @@ fn destack_ipc_sync_semaphore_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcSyncSemaphoreWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4101,7 +4102,7 @@ fn destack_ipc_sync_semaphore_wait_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4117,7 +4118,7 @@ fn destack_ipc_unix_receive_vm_replay(
     socket: resource::SocketHandle,
     maxhandles: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_UNIX_RECEIVE,
         binding.replay_payload_for(IPC_UNIX_RECEIVE)?,
         context,
@@ -4181,7 +4182,7 @@ fn destack_ipc_unix_receive_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcUnixReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4228,7 +4229,7 @@ fn destack_ipc_unix_receive_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4245,7 +4246,7 @@ fn destack_ipc_unix_send_vm_replay(
     argument_payload: VmSlice<u8>,
     handles: VmSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IPC_UNIX_SEND,
         binding.replay_payload_for(IPC_UNIX_SEND)?,
         context,
@@ -4278,7 +4279,7 @@ fn destack_ipc_unix_send_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IpcUnixSendReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4294,7 +4295,7 @@ fn destack_ipc_unix_send_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

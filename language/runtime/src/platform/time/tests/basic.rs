@@ -3,8 +3,12 @@ use super::{
     with_harness_context,
 };
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::time::{ClockId, ClockMetadata, SleepClock};
+use crate::runtime::policy::{Hook, HookDecision, HookSelector};
 
 /// Sample wall and monotonic clocks and verify nondecreasing monotonic behavior.
 #[cfg(any(unix, windows))]
@@ -90,6 +94,48 @@ fn test_time_sleep_calls() {
 
         let mono_deadline = context.destack_time_mono_ns()?;
         context.destack_time_sleep_until_on_ns(mono_deadline, SleepClock::Monotonic)?;
+
+        Ok(())
+    });
+}
+
+/// Emit one time-read hook for each clock read and none for sleep conversions.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_time_read_hook_for_clock_reads_only() {
+    with_harness_context(|mut context| {
+        // count time-read hooks through one callback registration
+        let read_count = Arc::new(AtomicU64::new(0));
+        let read_count_2 = Arc::clone(&read_count);
+        let callback_id = context.call_context.hooks().on_fn(
+            Hook::TimeRead,
+            HookSelector::any(),
+            move |_event| {
+                let _ = read_count_2.fetch_add(1, Ordering::Relaxed);
+                HookDecision::Allow
+            },
+        );
+
+        // run clock-read operations
+        let _ = context.destack_time_wall_ns()?;
+        let _ = context.destack_time_mono_ns()?;
+        let _ = context.destack_time_now_ns(ClockId::Wall)?;
+        let _ = context.destack_time_now_ns(ClockId::Monotonic)?;
+
+        // run sleep operations that should not trigger time-read hooks
+        context.destack_time_sleep_ns(0)?;
+        context.destack_time_sleep_on_ns(0, SleepClock::Wall)?;
+        context.destack_time_sleep_on_ns(0, SleepClock::Monotonic)?;
+
+        let deadline_wall = context.destack_time_wall_ns()?;
+        let deadline_mono = context.destack_time_mono_ns()?;
+        context.destack_time_sleep_until_ns(deadline_wall)?;
+        context.destack_time_sleep_until_on_ns(deadline_wall, SleepClock::Wall)?;
+        context.destack_time_sleep_until_on_ns(deadline_mono, SleepClock::Monotonic)?;
+
+        // remove callback and assert the expected hook count
+        assert!(context.call_context.hooks().off(callback_id));
+        assert_eq!(read_count.load(Ordering::Relaxed), 6);
 
         Ok(())
     });

@@ -12,7 +12,7 @@ use crate::runtime::policy::{
     RuleSubject,
 };
 use crate::runtime::random::{Random, RandomStreamId};
-use crate::runtime::replay::{ReplayController, ReplayHeader};
+use crate::runtime::replay::{Replay, ReplayHeader};
 use crate::runtime::time::{Clock, HostClockSource};
 use crate::simulation::Simulation;
 use destack_workspace::{
@@ -44,7 +44,7 @@ pub struct World {
     /// Shared world randomness state.
     random: Random,
     /// Replay controller for deterministic world event history.
-    replay: ReplayController,
+    replay: Replay,
     /// Active policy state.
     policy: RwLock<PolicyState>,
     /// Topology registry for runtime and simulation identity.
@@ -97,7 +97,7 @@ impl World {
         };
         let random = Random::new(options.random.seed.unwrap_or(0));
         let policy = Policy::from_workspace_rules(&options.rules);
-        let replay = ReplayController::new(options.execution, replay_payload, replay_header);
+        let replay = Replay::new(options.execution, replay_header);
         let topology = Topology::with_builtin_kinds()
             .map_err(|message| RuntimeError::Internal { message }.boxed())?;
         policy.validate_with_kind_catalog(&topology)?;
@@ -268,7 +268,7 @@ impl World {
     }
 
     /// Borrow the shared replay controller.
-    pub fn replay(&self) -> &ReplayController {
+    pub fn replay(&self) -> &Replay {
         &self.replay
     }
 

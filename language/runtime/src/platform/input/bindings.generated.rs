@@ -60,6 +60,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -2394,301 +2395,301 @@ fn encode_destack_input_touch_state_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputDeviceCapabilitiesReplay {
     /// Replay result payload.
-    pub result: Result<InputDeviceCapabilitiesReplayRecord, PlatformError>,
+    pub result: Result<InputDeviceCapabilitiesReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.device.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputDeviceCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.device.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputDeviceListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<InputDeviceDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<InputDeviceDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.input.device.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputDeviceOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::InputDeviceHandle, PlatformError>,
+    pub result: Result<resource::InputDeviceHandle, ReplayError>,
 }
 
 /// Replay payload for destack.input.event.monitorClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventMonitorCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.event.monitorOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventMonitorOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::InputMonitorHandle, PlatformError>,
+    pub result: Result<resource::InputMonitorHandle, ReplayError>,
 }
 
 /// Replay payload for destack.input.event.monitorRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventMonitorReadReplay {
     /// Replay result payload.
-    pub result: Result<InputMonitorEventReplayRecord, PlatformError>,
+    pub result: Result<InputMonitorEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.event.monitorTryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventMonitorTryReadReplay {
     /// Replay result payload.
-    pub result: Result<InputMonitorEventReplayRecord, PlatformError>,
+    pub result: Result<InputMonitorEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.event.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventReadReplay {
     /// Replay result payload.
-    pub result: Result<InputEventReplayRecord, PlatformError>,
+    pub result: Result<InputEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.event.readBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventReadBatchReplay {
     /// Replay result payload.
-    pub result: Result<Vec<InputEventReplayRecord>, PlatformError>,
+    pub result: Result<Vec<InputEventReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.input.event.setExclusiveGrab.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventSetExclusiveGrabReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.event.setReadMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventSetReadModeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.event.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputEventTryReadReplay {
     /// Replay result payload.
-    pub result: Result<InputEventReplayRecord, PlatformError>,
+    pub result: Result<InputEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.gamepad.setLight.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputGamepadSetLightReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.gamepad.setPlayerIndex.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputGamepadSetPlayerIndexReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.gamepad.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputGamepadStateReplay {
     /// Replay result payload.
-    pub result: Result<InputGamepadStateReplayRecord, PlatformError>,
+    pub result: Result<InputGamepadStateReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.haptics.effects.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputHapticsEffectsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<InputHapticEffectType>, PlatformError>,
+    pub result: Result<Vec<InputHapticEffectType>, ReplayError>,
 }
 
 /// Replay payload for destack.input.haptics.play.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputHapticsPlayReplay {
     /// Replay result payload.
-    pub result: Result<InputHapticsResult, PlatformError>,
+    pub result: Result<InputHapticsResult, ReplayError>,
 }
 
 /// Replay payload for destack.input.haptics.stop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputHapticsStopReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.keyboard.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputKeyboardStateReplay {
     /// Replay result payload.
-    pub result: Result<InputKeyboardStateReplayRecord, PlatformError>,
+    pub result: Result<InputKeyboardStateReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.pointer.capture.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputPointerCaptureReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.pointer.relativeState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputPointerRelativeStateReplay {
     /// Replay result payload.
-    pub result: Result<InputPointerState, PlatformError>,
+    pub result: Result<InputPointerState, ReplayError>,
 }
 
 /// Replay payload for destack.input.pointer.setGrabMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputPointerSetGrabModeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.pointer.setRelativeMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputPointerSetRelativeModeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.pointer.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputPointerStateReplay {
     /// Replay result payload.
-    pub result: Result<InputPointerState, PlatformError>,
+    pub result: Result<InputPointerState, ReplayError>,
 }
 
 /// Replay payload for destack.input.pointer.warp.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputPointerWarpReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.rawhid.getFeature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputRawhidGetFeatureReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.input.rawhid.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputRawhidReadReplay {
     /// Replay result payload.
-    pub result: Result<InputRawHidReportReplayRecord, PlatformError>,
+    pub result: Result<InputRawHidReportReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.rawhid.setFeature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputRawhidSetFeatureReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.rawhid.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputRawhidTryReadReplay {
     /// Replay result payload.
-    pub result: Result<InputRawHidReportReplayRecord, PlatformError>,
+    pub result: Result<InputRawHidReportReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.rawhid.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputRawhidWriteReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.input.sensor.configure.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputSensorConfigureReplay {
     /// Replay result payload.
-    pub result: Result<InputSensorEffectiveConfig, PlatformError>,
+    pub result: Result<InputSensorEffectiveConfig, ReplayError>,
 }
 
 /// Replay payload for destack.input.sensor.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputSensorListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<InputSensorDescriptor>, PlatformError>,
+    pub result: Result<Vec<InputSensorDescriptor>, ReplayError>,
 }
 
 /// Replay payload for destack.input.sensor.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputSensorReadReplay {
     /// Replay result payload.
-    pub result: Result<InputSensorSample, PlatformError>,
+    pub result: Result<InputSensorSample, ReplayError>,
 }
 
 /// Replay payload for destack.input.sensor.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputSensorTryReadReplay {
     /// Replay result payload.
-    pub result: Result<InputSensorSample, PlatformError>,
+    pub result: Result<InputSensorSample, ReplayError>,
 }
 
 /// Replay payload for destack.input.text.getArea.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTextGetAreaReplay {
     /// Replay result payload.
-    pub result: Result<InputTextInputArea, PlatformError>,
+    pub result: Result<InputTextInputArea, ReplayError>,
 }
 
 /// Replay payload for destack.input.text.isActive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTextIsActiveReplay {
     /// Replay result payload.
-    pub result: Result<bool, PlatformError>,
+    pub result: Result<bool, ReplayError>,
 }
 
 /// Replay payload for destack.input.text.readComposition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTextReadCompositionReplay {
     /// Replay result payload.
-    pub result: Result<InputCompositionEventReplayRecord, PlatformError>,
+    pub result: Result<InputCompositionEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.text.setArea.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTextSetAreaReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.text.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTextStartReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.text.stop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTextStopReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.input.text.tryReadComposition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTextTryReadCompositionReplay {
     /// Replay result payload.
-    pub result: Result<InputCompositionEventReplayRecord, PlatformError>,
+    pub result: Result<InputCompositionEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.input.touch.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputTouchStateReplay {
     /// Replay result payload.
-    pub result: Result<InputTouchStateReplayRecord, PlatformError>,
+    pub result: Result<InputTouchStateReplayRecord, ReplayError>,
 }
 
 /// Binding descriptor for destack.input.device.capabilities.
@@ -3612,7 +3613,7 @@ fn destack_input_device_capabilities_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_DEVICE_CAPABILITIES,
         binding.replay_payload_for(INPUT_DEVICE_CAPABILITIES)?,
         || match world {
@@ -3724,7 +3725,7 @@ fn destack_input_device_capabilities_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputDeviceCapabilitiesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3816,7 +3817,7 @@ fn destack_input_device_capabilities_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3830,7 +3831,7 @@ fn destack_input_device_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_DEVICE_CLOSE,
         binding.replay_payload_for(INPUT_DEVICE_CLOSE)?,
         || match world {
@@ -3850,7 +3851,7 @@ fn destack_input_device_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3862,7 +3863,7 @@ fn destack_input_device_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3874,7 +3875,7 @@ fn destack_input_device_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_DEVICE_LIST,
         binding.replay_payload_for(INPUT_DEVICE_LIST)?,
         || match world {
@@ -3963,7 +3964,7 @@ fn destack_input_device_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputDeviceListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4041,7 +4042,7 @@ fn destack_input_device_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4056,7 +4057,7 @@ fn destack_input_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_DEVICE_OPEN,
         binding.replay_payload_for(INPUT_DEVICE_OPEN)?,
         || match world {
@@ -4082,7 +4083,7 @@ fn destack_input_device_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4100,7 +4101,7 @@ fn destack_input_device_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4114,7 +4115,7 @@ fn destack_input_event_monitor_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_MONITOR_CLOSE,
         binding.replay_payload_for(INPUT_EVENT_MONITOR_CLOSE)?,
         || match world {
@@ -4136,7 +4137,7 @@ fn destack_input_event_monitor_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventMonitorCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4148,7 +4149,7 @@ fn destack_input_event_monitor_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4160,7 +4161,7 @@ fn destack_input_event_monitor_open_replay(
     world: RuntimeWorld,
     out: *mut resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_MONITOR_OPEN,
         binding.replay_payload_for(INPUT_EVENT_MONITOR_OPEN)?,
         || match world {
@@ -4188,7 +4189,7 @@ fn destack_input_event_monitor_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventMonitorOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4206,7 +4207,7 @@ fn destack_input_event_monitor_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4221,7 +4222,7 @@ fn destack_input_event_monitor_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_MONITOR_READ,
         binding.replay_payload_for(INPUT_EVENT_MONITOR_READ)?,
         || match world {
@@ -4304,7 +4305,7 @@ fn destack_input_event_monitor_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventMonitorReadReplay {
                         result,
                     }
@@ -4383,7 +4384,7 @@ fn destack_input_event_monitor_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4398,7 +4399,7 @@ fn destack_input_event_monitor_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_MONITOR_TRY_READ,
         binding.replay_payload_for(INPUT_EVENT_MONITOR_TRY_READ)?,
         || match world {
@@ -4481,7 +4482,7 @@ fn destack_input_event_monitor_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventMonitorTryReadReplay {
                         result,
                     }
@@ -4560,7 +4561,7 @@ fn destack_input_event_monitor_try_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4575,7 +4576,7 @@ fn destack_input_event_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_READ,
         binding.replay_payload_for(INPUT_EVENT_READ)?,
         || match world {
@@ -4874,7 +4875,7 @@ fn destack_input_event_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventReadReplay {
                         result,
                     }
@@ -5169,7 +5170,7 @@ fn destack_input_event_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5185,7 +5186,7 @@ fn destack_input_event_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_READ_BATCH,
         binding.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
         || match world {
@@ -5490,7 +5491,7 @@ fn destack_input_event_read_batch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventReadBatchReplay {
                         result,
                     }
@@ -5790,7 +5791,7 @@ fn destack_input_event_read_batch_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5805,7 +5806,7 @@ fn destack_input_event_set_exclusive_grab_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enable);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_SET_EXCLUSIVE_GRAB,
         binding.replay_payload_for(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?,
         || match world {
@@ -5829,7 +5830,7 @@ fn destack_input_event_set_exclusive_grab_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventSetExclusiveGrabReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5841,7 +5842,7 @@ fn destack_input_event_set_exclusive_grab_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5856,7 +5857,7 @@ fn destack_input_event_set_read_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_SET_READ_MODE,
         binding.replay_payload_for(INPUT_EVENT_SET_READ_MODE)?,
         || match world {
@@ -5878,7 +5879,7 @@ fn destack_input_event_set_read_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventSetReadModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5890,7 +5891,7 @@ fn destack_input_event_set_read_mode_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5905,7 +5906,7 @@ fn destack_input_event_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_EVENT_TRY_READ,
         binding.replay_payload_for(INPUT_EVENT_TRY_READ)?,
         || match world {
@@ -6204,7 +6205,7 @@ fn destack_input_event_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventTryReadReplay {
                         result,
                     }
@@ -6499,7 +6500,7 @@ fn destack_input_event_try_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6516,7 +6517,7 @@ fn destack_input_gamepad_set_light_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &red, &green, &blue);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_GAMEPAD_SET_LIGHT,
         binding.replay_payload_for(INPUT_GAMEPAD_SET_LIGHT)?,
         || match world {
@@ -6540,7 +6541,7 @@ fn destack_input_gamepad_set_light_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputGamepadSetLightReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6552,7 +6553,7 @@ fn destack_input_gamepad_set_light_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6567,7 +6568,7 @@ fn destack_input_gamepad_set_player_index_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &playerindex);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_GAMEPAD_SET_PLAYER_INDEX,
         binding.replay_payload_for(INPUT_GAMEPAD_SET_PLAYER_INDEX)?,
         || match world {
@@ -6597,7 +6598,7 @@ fn destack_input_gamepad_set_player_index_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputGamepadSetPlayerIndexReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6609,7 +6610,7 @@ fn destack_input_gamepad_set_player_index_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6624,7 +6625,7 @@ fn destack_input_gamepad_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_GAMEPAD_STATE,
         binding.replay_payload_for(INPUT_GAMEPAD_STATE)?,
         || match world {
@@ -6724,7 +6725,7 @@ fn destack_input_gamepad_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputGamepadStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6809,7 +6810,7 @@ fn destack_input_gamepad_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6824,7 +6825,7 @@ fn destack_input_haptics_effects_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_HAPTICS_EFFECTS,
         binding.replay_payload_for(INPUT_HAPTICS_EFFECTS)?,
         || match world {
@@ -6858,7 +6859,7 @@ fn destack_input_haptics_effects_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputHapticsEffectsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6881,7 +6882,7 @@ fn destack_input_haptics_effects_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6898,7 +6899,7 @@ fn destack_input_haptics_play_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &effect, &parameters);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_HAPTICS_PLAY,
         binding.replay_payload_for(INPUT_HAPTICS_PLAY)?,
         || match world {
@@ -6930,7 +6931,7 @@ fn destack_input_haptics_play_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputHapticsPlayReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6948,7 +6949,7 @@ fn destack_input_haptics_play_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6962,7 +6963,7 @@ fn destack_input_haptics_stop_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_HAPTICS_STOP,
         binding.replay_payload_for(INPUT_HAPTICS_STOP)?,
         || match world {
@@ -6984,7 +6985,7 @@ fn destack_input_haptics_stop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputHapticsStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6996,7 +6997,7 @@ fn destack_input_haptics_stop_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7011,7 +7012,7 @@ fn destack_input_keyboard_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_KEYBOARD_STATE,
         binding.replay_payload_for(INPUT_KEYBOARD_STATE)?,
         || match world {
@@ -7076,7 +7077,7 @@ fn destack_input_keyboard_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputKeyboardStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7125,7 +7126,7 @@ fn destack_input_keyboard_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7141,7 +7142,7 @@ fn destack_input_pointer_capture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &enabled);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_POINTER_CAPTURE,
         binding.replay_payload_for(INPUT_POINTER_CAPTURE)?,
         || match world {
@@ -7165,7 +7166,7 @@ fn destack_input_pointer_capture_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerCaptureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7177,7 +7178,7 @@ fn destack_input_pointer_capture_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7192,7 +7193,7 @@ fn destack_input_pointer_relative_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_POINTER_RELATIVE_STATE,
         binding.replay_payload_for(INPUT_POINTER_RELATIVE_STATE)?,
         || match world {
@@ -7253,7 +7254,7 @@ fn destack_input_pointer_relative_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerRelativeStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7302,7 +7303,7 @@ fn destack_input_pointer_relative_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7318,7 +7319,7 @@ fn destack_input_pointer_set_grab_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &mode);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_POINTER_SET_GRAB_MODE,
         binding.replay_payload_for(INPUT_POINTER_SET_GRAB_MODE)?,
         || match world {
@@ -7342,7 +7343,7 @@ fn destack_input_pointer_set_grab_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerSetGrabModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7354,7 +7355,7 @@ fn destack_input_pointer_set_grab_mode_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7369,7 +7370,7 @@ fn destack_input_pointer_set_relative_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_POINTER_SET_RELATIVE_MODE,
         binding.replay_payload_for(INPUT_POINTER_SET_RELATIVE_MODE)?,
         || match world {
@@ -7393,7 +7394,7 @@ fn destack_input_pointer_set_relative_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerSetRelativeModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7405,7 +7406,7 @@ fn destack_input_pointer_set_relative_mode_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7420,7 +7421,7 @@ fn destack_input_pointer_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_POINTER_STATE,
         binding.replay_payload_for(INPUT_POINTER_STATE)?,
         || match world {
@@ -7479,7 +7480,7 @@ fn destack_input_pointer_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7528,7 +7529,7 @@ fn destack_input_pointer_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7545,7 +7546,7 @@ fn destack_input_pointer_warp_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &x, &y);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_POINTER_WARP,
         binding.replay_payload_for(INPUT_POINTER_WARP)?,
         || match world {
@@ -7569,7 +7570,7 @@ fn destack_input_pointer_warp_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerWarpReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7581,7 +7582,7 @@ fn destack_input_pointer_warp_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7598,7 +7599,7 @@ fn destack_input_rawhid_get_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reportid, &maxbytes);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_RAWHID_GET_FEATURE,
         binding.replay_payload_for(INPUT_RAWHID_GET_FEATURE)?,
         || match world {
@@ -7636,7 +7637,7 @@ fn destack_input_rawhid_get_feature_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidGetFeatureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7659,7 +7660,7 @@ fn destack_input_rawhid_get_feature_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7676,7 +7677,7 @@ fn destack_input_rawhid_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_RAWHID_READ,
         binding.replay_payload_for(INPUT_RAWHID_READ)?,
         || match world {
@@ -7723,7 +7724,7 @@ fn destack_input_rawhid_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7755,7 +7756,7 @@ fn destack_input_rawhid_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7771,7 +7772,7 @@ fn destack_input_rawhid_set_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reportid, &data);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_RAWHID_SET_FEATURE,
         binding.replay_payload_for(INPUT_RAWHID_SET_FEATURE)?,
         || match world {
@@ -7795,7 +7796,7 @@ fn destack_input_rawhid_set_feature_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidSetFeatureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7807,7 +7808,7 @@ fn destack_input_rawhid_set_feature_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7823,7 +7824,7 @@ fn destack_input_rawhid_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_RAWHID_TRY_READ,
         binding.replay_payload_for(INPUT_RAWHID_TRY_READ)?,
         || match world {
@@ -7868,7 +7869,7 @@ fn destack_input_rawhid_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7900,7 +7901,7 @@ fn destack_input_rawhid_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7917,7 +7918,7 @@ fn destack_input_rawhid_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reportid, &data);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_RAWHID_WRITE,
         binding.replay_payload_for(INPUT_RAWHID_WRITE)?,
         || match world {
@@ -7947,7 +7948,7 @@ fn destack_input_rawhid_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7965,7 +7966,7 @@ fn destack_input_rawhid_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7982,7 +7983,7 @@ fn destack_input_sensor_configure_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &kind, &config);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_SENSOR_CONFIGURE,
         binding.replay_payload_for(INPUT_SENSOR_CONFIGURE)?,
         || match world {
@@ -8021,7 +8022,7 @@ fn destack_input_sensor_configure_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputSensorConfigureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8048,7 +8049,7 @@ fn destack_input_sensor_configure_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8063,7 +8064,7 @@ fn destack_input_sensor_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_SENSOR_LIST,
         binding.replay_payload_for(INPUT_SENSOR_LIST)?,
         || match world {
@@ -8111,7 +8112,7 @@ fn destack_input_sensor_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputSensorListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8148,7 +8149,7 @@ fn destack_input_sensor_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8164,7 +8165,7 @@ fn destack_input_sensor_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &kind);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_SENSOR_READ,
         binding.replay_payload_for(INPUT_SENSOR_READ)?,
         || match world {
@@ -8207,7 +8208,7 @@ fn destack_input_sensor_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputSensorReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8240,7 +8241,7 @@ fn destack_input_sensor_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8256,7 +8257,7 @@ fn destack_input_sensor_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &kind);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_SENSOR_TRY_READ,
         binding.replay_payload_for(INPUT_SENSOR_TRY_READ)?,
         || match world {
@@ -8301,7 +8302,7 @@ fn destack_input_sensor_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputSensorTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8334,7 +8335,7 @@ fn destack_input_sensor_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8350,7 +8351,7 @@ fn destack_input_text_get_area_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_TEXT_GET_AREA,
         binding.replay_payload_for(INPUT_TEXT_GET_AREA)?,
         || match world {
@@ -8391,7 +8392,7 @@ fn destack_input_text_get_area_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextGetAreaReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8420,7 +8421,7 @@ fn destack_input_text_get_area_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8435,7 +8436,7 @@ fn destack_input_text_is_active_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_TEXT_IS_ACTIVE,
         binding.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
         || match world {
@@ -8463,7 +8464,7 @@ fn destack_input_text_is_active_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextIsActiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8481,7 +8482,7 @@ fn destack_input_text_is_active_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8496,7 +8497,7 @@ fn destack_input_text_read_composition_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_TEXT_READ_COMPOSITION,
         binding.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
         || match world {
@@ -8551,7 +8552,7 @@ fn destack_input_text_read_composition_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextReadCompositionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8593,7 +8594,7 @@ fn destack_input_text_read_composition_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8609,7 +8610,7 @@ fn destack_input_text_set_area_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &area);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_TEXT_SET_AREA,
         binding.replay_payload_for(INPUT_TEXT_SET_AREA)?,
         || match world {
@@ -8633,7 +8634,7 @@ fn destack_input_text_set_area_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextSetAreaReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8645,7 +8646,7 @@ fn destack_input_text_set_area_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8661,7 +8662,7 @@ fn destack_input_text_start_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &inputtype);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_TEXT_START,
         binding.replay_payload_for(INPUT_TEXT_START)?,
         || match world {
@@ -8685,7 +8686,7 @@ fn destack_input_text_start_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8697,7 +8698,7 @@ fn destack_input_text_start_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8712,7 +8713,7 @@ fn destack_input_text_stop_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_TEXT_STOP,
         binding.replay_payload_for(INPUT_TEXT_STOP)?,
         || match world {
@@ -8734,7 +8735,7 @@ fn destack_input_text_stop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8746,7 +8747,7 @@ fn destack_input_text_stop_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8761,7 +8762,7 @@ fn destack_input_text_try_read_composition_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_TEXT_TRY_READ_COMPOSITION,
         binding.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
         || match world {
@@ -8816,7 +8817,7 @@ fn destack_input_text_try_read_composition_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextTryReadCompositionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8858,7 +8859,7 @@ fn destack_input_text_try_read_composition_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8873,7 +8874,7 @@ fn destack_input_touch_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         INPUT_TOUCH_STATE,
         binding.replay_payload_for(INPUT_TOUCH_STATE)?,
         || match world {
@@ -8944,7 +8945,7 @@ fn destack_input_touch_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTouchStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9002,7 +9003,7 @@ fn destack_input_touch_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9722,7 +9723,7 @@ fn destack_input_device_capabilities_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_DEVICE_CAPABILITIES,
         binding.replay_payload_for(INPUT_DEVICE_CAPABILITIES)?,
         context,
@@ -9923,7 +9924,7 @@ fn destack_input_device_capabilities_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputDeviceCapabilitiesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10045,7 +10046,7 @@ fn destack_input_device_capabilities_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -10060,7 +10061,7 @@ fn destack_input_device_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_DEVICE_CLOSE,
         binding.replay_payload_for(INPUT_DEVICE_CLOSE)?,
         context,
@@ -10082,7 +10083,7 @@ fn destack_input_device_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10095,7 +10096,7 @@ fn destack_input_device_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -10109,7 +10110,7 @@ fn destack_input_device_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_DEVICE_LIST,
         binding.replay_payload_for(INPUT_DEVICE_LIST)?,
         context,
@@ -10357,7 +10358,7 @@ fn destack_input_device_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputDeviceListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10479,7 +10480,7 @@ fn destack_input_device_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -10494,7 +10495,7 @@ fn destack_input_device_open_vm_replay(
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_DEVICE_OPEN,
         binding.replay_payload_for(INPUT_DEVICE_OPEN)?,
         context,
@@ -10517,7 +10518,7 @@ fn destack_input_device_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10533,7 +10534,7 @@ fn destack_input_device_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -10548,7 +10549,7 @@ fn destack_input_event_monitor_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_MONITOR_CLOSE,
         binding.replay_payload_for(INPUT_EVENT_MONITOR_CLOSE)?,
         context,
@@ -10572,7 +10573,7 @@ fn destack_input_event_monitor_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventMonitorCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10585,7 +10586,7 @@ fn destack_input_event_monitor_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -10599,7 +10600,7 @@ fn destack_input_event_monitor_open_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_MONITOR_OPEN,
         binding.replay_payload_for(INPUT_EVENT_MONITOR_OPEN)?,
         context,
@@ -10622,7 +10623,7 @@ fn destack_input_event_monitor_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventMonitorOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10638,7 +10639,7 @@ fn destack_input_event_monitor_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -10653,7 +10654,7 @@ fn destack_input_event_monitor_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_MONITOR_READ,
         binding.replay_payload_for(INPUT_EVENT_MONITOR_READ)?,
         context,
@@ -10755,7 +10756,7 @@ fn destack_input_event_monitor_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventMonitorReadReplay {
                         result,
                     }
@@ -10840,7 +10841,7 @@ fn destack_input_event_monitor_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -10855,7 +10856,7 @@ fn destack_input_event_monitor_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_MONITOR_TRY_READ,
         binding.replay_payload_for(INPUT_EVENT_MONITOR_TRY_READ)?,
         context,
@@ -10957,7 +10958,7 @@ fn destack_input_event_monitor_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventMonitorTryReadReplay {
                         result,
                     }
@@ -11042,7 +11043,7 @@ fn destack_input_event_monitor_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11057,7 +11058,7 @@ fn destack_input_event_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_READ,
         binding.replay_payload_for(INPUT_EVENT_READ)?,
         context,
@@ -11423,7 +11424,7 @@ fn destack_input_event_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventReadReplay {
                         result,
                     }
@@ -11740,7 +11741,7 @@ fn destack_input_event_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11756,7 +11757,7 @@ fn destack_input_event_read_batch_vm_replay(
     handle: resource::InputDeviceHandle,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_READ_BATCH,
         binding.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
         context,
@@ -12128,7 +12129,7 @@ fn destack_input_event_read_batch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventReadBatchReplay {
                         result,
                     }
@@ -12453,7 +12454,7 @@ fn destack_input_event_read_batch_vm_replay(
                     let vm_result: VmArray<InputEventVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12469,7 +12470,7 @@ fn destack_input_event_set_exclusive_grab_vm_replay(
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_SET_EXCLUSIVE_GRAB,
         binding.replay_payload_for(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?,
         context,
@@ -12493,7 +12494,7 @@ fn destack_input_event_set_exclusive_grab_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventSetExclusiveGrabReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12506,7 +12507,7 @@ fn destack_input_event_set_exclusive_grab_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12522,7 +12523,7 @@ fn destack_input_event_set_read_mode_vm_replay(
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_SET_READ_MODE,
         binding.replay_payload_for(INPUT_EVENT_SET_READ_MODE)?,
         context,
@@ -12546,7 +12547,7 @@ fn destack_input_event_set_read_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventSetReadModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12559,7 +12560,7 @@ fn destack_input_event_set_read_mode_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12574,7 +12575,7 @@ fn destack_input_event_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_EVENT_TRY_READ,
         binding.replay_payload_for(INPUT_EVENT_TRY_READ)?,
         context,
@@ -12940,7 +12941,7 @@ fn destack_input_event_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputEventTryReadReplay {
                         result,
                     }
@@ -13257,7 +13258,7 @@ fn destack_input_event_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13275,7 +13276,7 @@ fn destack_input_gamepad_set_light_vm_replay(
     green: u8,
     blue: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_GAMEPAD_SET_LIGHT,
         binding.replay_payload_for(INPUT_GAMEPAD_SET_LIGHT)?,
         context,
@@ -13299,7 +13300,7 @@ fn destack_input_gamepad_set_light_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputGamepadSetLightReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13312,7 +13313,7 @@ fn destack_input_gamepad_set_light_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13328,7 +13329,7 @@ fn destack_input_gamepad_set_player_index_vm_replay(
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_GAMEPAD_SET_PLAYER_INDEX,
         binding.replay_payload_for(INPUT_GAMEPAD_SET_PLAYER_INDEX)?,
         context,
@@ -13360,7 +13361,7 @@ fn destack_input_gamepad_set_player_index_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputGamepadSetPlayerIndexReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13373,7 +13374,7 @@ fn destack_input_gamepad_set_player_index_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13388,7 +13389,7 @@ fn destack_input_gamepad_state_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_GAMEPAD_STATE,
         binding.replay_payload_for(INPUT_GAMEPAD_STATE)?,
         context,
@@ -13571,7 +13572,7 @@ fn destack_input_gamepad_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputGamepadStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13684,7 +13685,7 @@ fn destack_input_gamepad_state_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13699,7 +13700,7 @@ fn destack_input_haptics_effects_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_HAPTICS_EFFECTS,
         binding.replay_payload_for(INPUT_HAPTICS_EFFECTS)?,
         context,
@@ -13745,7 +13746,7 @@ fn destack_input_haptics_effects_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputHapticsEffectsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13767,7 +13768,7 @@ fn destack_input_haptics_effects_vm_replay(
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13784,7 +13785,7 @@ fn destack_input_haptics_play_vm_replay(
     effect: InputHapticEffectType,
     parameters: InputHapticEffectParametersVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_HAPTICS_PLAY,
         binding.replay_payload_for(INPUT_HAPTICS_PLAY)?,
         context,
@@ -13809,7 +13810,7 @@ fn destack_input_haptics_play_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputHapticsPlayReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13825,7 +13826,7 @@ fn destack_input_haptics_play_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13840,7 +13841,7 @@ fn destack_input_haptics_stop_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_HAPTICS_STOP,
         binding.replay_payload_for(INPUT_HAPTICS_STOP)?,
         context,
@@ -13862,7 +13863,7 @@ fn destack_input_haptics_stop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputHapticsStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13875,7 +13876,7 @@ fn destack_input_haptics_stop_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13890,7 +13891,7 @@ fn destack_input_keyboard_state_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_KEYBOARD_STATE,
         binding.replay_payload_for(INPUT_KEYBOARD_STATE)?,
         context,
@@ -13962,7 +13963,7 @@ fn destack_input_keyboard_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputKeyboardStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14010,7 +14011,7 @@ fn destack_input_keyboard_state_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14027,7 +14028,7 @@ fn destack_input_pointer_capture_vm_replay(
     target: InputWindowTargetVm,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_POINTER_CAPTURE,
         binding.replay_payload_for(INPUT_POINTER_CAPTURE)?,
         context,
@@ -14051,7 +14052,7 @@ fn destack_input_pointer_capture_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerCaptureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14064,7 +14065,7 @@ fn destack_input_pointer_capture_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14079,7 +14080,7 @@ fn destack_input_pointer_relative_state_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_POINTER_RELATIVE_STATE,
         binding.replay_payload_for(INPUT_POINTER_RELATIVE_STATE)?,
         context,
@@ -14137,7 +14138,7 @@ fn destack_input_pointer_relative_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerRelativeStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14184,7 +14185,7 @@ fn destack_input_pointer_relative_state_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14201,7 +14202,7 @@ fn destack_input_pointer_set_grab_mode_vm_replay(
     target: InputWindowTargetVm,
     mode: InputPointerGrabMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_POINTER_SET_GRAB_MODE,
         binding.replay_payload_for(INPUT_POINTER_SET_GRAB_MODE)?,
         context,
@@ -14227,7 +14228,7 @@ fn destack_input_pointer_set_grab_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerSetGrabModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14240,7 +14241,7 @@ fn destack_input_pointer_set_grab_mode_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14256,7 +14257,7 @@ fn destack_input_pointer_set_relative_mode_vm_replay(
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_POINTER_SET_RELATIVE_MODE,
         binding.replay_payload_for(INPUT_POINTER_SET_RELATIVE_MODE)?,
         context,
@@ -14282,7 +14283,7 @@ fn destack_input_pointer_set_relative_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerSetRelativeModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14295,7 +14296,7 @@ fn destack_input_pointer_set_relative_mode_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14310,7 +14311,7 @@ fn destack_input_pointer_state_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_POINTER_STATE,
         binding.replay_payload_for(INPUT_POINTER_STATE)?,
         context,
@@ -14366,7 +14367,7 @@ fn destack_input_pointer_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14413,7 +14414,7 @@ fn destack_input_pointer_state_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14431,7 +14432,7 @@ fn destack_input_pointer_warp_vm_replay(
     x: f64,
     y: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_POINTER_WARP,
         binding.replay_payload_for(INPUT_POINTER_WARP)?,
         context,
@@ -14455,7 +14456,7 @@ fn destack_input_pointer_warp_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputPointerWarpReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14468,7 +14469,7 @@ fn destack_input_pointer_warp_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14485,7 +14486,7 @@ fn destack_input_rawhid_get_feature_vm_replay(
     reportid: u8,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_RAWHID_GET_FEATURE,
         binding.replay_payload_for(INPUT_RAWHID_GET_FEATURE)?,
         context,
@@ -14510,7 +14511,7 @@ fn destack_input_rawhid_get_feature_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidGetFeatureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14526,7 +14527,7 @@ fn destack_input_rawhid_get_feature_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14543,7 +14544,7 @@ fn destack_input_rawhid_read_vm_replay(
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_RAWHID_READ,
         binding.replay_payload_for(INPUT_RAWHID_READ)?,
         context,
@@ -14577,7 +14578,7 @@ fn destack_input_rawhid_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14602,7 +14603,7 @@ fn destack_input_rawhid_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14619,7 +14620,7 @@ fn destack_input_rawhid_set_feature_vm_replay(
     reportid: u8,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_RAWHID_SET_FEATURE,
         binding.replay_payload_for(INPUT_RAWHID_SET_FEATURE)?,
         context,
@@ -14643,7 +14644,7 @@ fn destack_input_rawhid_set_feature_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidSetFeatureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14656,7 +14657,7 @@ fn destack_input_rawhid_set_feature_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14672,7 +14673,7 @@ fn destack_input_rawhid_try_read_vm_replay(
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_RAWHID_TRY_READ,
         binding.replay_payload_for(INPUT_RAWHID_TRY_READ)?,
         context,
@@ -14706,7 +14707,7 @@ fn destack_input_rawhid_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14731,7 +14732,7 @@ fn destack_input_rawhid_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14748,7 +14749,7 @@ fn destack_input_rawhid_write_vm_replay(
     reportid: u8,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_RAWHID_WRITE,
         binding.replay_payload_for(INPUT_RAWHID_WRITE)?,
         context,
@@ -14773,7 +14774,7 @@ fn destack_input_rawhid_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputRawhidWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14789,7 +14790,7 @@ fn destack_input_rawhid_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14806,7 +14807,7 @@ fn destack_input_sensor_configure_vm_replay(
     kind: InputSensorKind,
     config: InputSensorConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_SENSOR_CONFIGURE,
         binding.replay_payload_for(INPUT_SENSOR_CONFIGURE)?,
         context,
@@ -14840,7 +14841,7 @@ fn destack_input_sensor_configure_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputSensorConfigureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14865,7 +14866,7 @@ fn destack_input_sensor_configure_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14880,7 +14881,7 @@ fn destack_input_sensor_list_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_SENSOR_LIST,
         binding.replay_payload_for(INPUT_SENSOR_LIST)?,
         context,
@@ -14991,7 +14992,7 @@ fn destack_input_sensor_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputSensorListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15045,7 +15046,7 @@ fn destack_input_sensor_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15061,7 +15062,7 @@ fn destack_input_sensor_read_vm_replay(
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_SENSOR_READ,
         binding.replay_payload_for(INPUT_SENSOR_READ)?,
         context,
@@ -15101,7 +15102,7 @@ fn destack_input_sensor_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputSensorReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15132,7 +15133,7 @@ fn destack_input_sensor_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15148,7 +15149,7 @@ fn destack_input_sensor_try_read_vm_replay(
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_SENSOR_TRY_READ,
         binding.replay_payload_for(INPUT_SENSOR_TRY_READ)?,
         context,
@@ -15188,7 +15189,7 @@ fn destack_input_sensor_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputSensorTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15219,7 +15220,7 @@ fn destack_input_sensor_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15235,7 +15236,7 @@ fn destack_input_text_get_area_vm_replay(
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_TEXT_GET_AREA,
         binding.replay_payload_for(INPUT_TEXT_GET_AREA)?,
         context,
@@ -15271,7 +15272,7 @@ fn destack_input_text_get_area_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextGetAreaReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15298,7 +15299,7 @@ fn destack_input_text_get_area_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15313,7 +15314,7 @@ fn destack_input_text_is_active_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_TEXT_IS_ACTIVE,
         binding.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
         context,
@@ -15338,7 +15339,7 @@ fn destack_input_text_is_active_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextIsActiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15354,7 +15355,7 @@ fn destack_input_text_is_active_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15369,7 +15370,7 @@ fn destack_input_text_read_composition_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_TEXT_READ_COMPOSITION,
         binding.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
         context,
@@ -15434,7 +15435,7 @@ fn destack_input_text_read_composition_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextReadCompositionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15480,7 +15481,7 @@ fn destack_input_text_read_composition_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15497,7 +15498,7 @@ fn destack_input_text_set_area_vm_replay(
     target: InputWindowTargetVm,
     area: InputTextInputAreaVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_TEXT_SET_AREA,
         binding.replay_payload_for(INPUT_TEXT_SET_AREA)?,
         context,
@@ -15521,7 +15522,7 @@ fn destack_input_text_set_area_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextSetAreaReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15534,7 +15535,7 @@ fn destack_input_text_set_area_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15551,7 +15552,7 @@ fn destack_input_text_start_vm_replay(
     target: InputWindowTargetVm,
     inputtype: InputTextInputType,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_TEXT_START,
         binding.replay_payload_for(INPUT_TEXT_START)?,
         context,
@@ -15575,7 +15576,7 @@ fn destack_input_text_start_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15588,7 +15589,7 @@ fn destack_input_text_start_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15604,7 +15605,7 @@ fn destack_input_text_stop_vm_replay(
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_TEXT_STOP,
         binding.replay_payload_for(INPUT_TEXT_STOP)?,
         context,
@@ -15628,7 +15629,7 @@ fn destack_input_text_stop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15641,7 +15642,7 @@ fn destack_input_text_stop_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15656,7 +15657,7 @@ fn destack_input_text_try_read_composition_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_TEXT_TRY_READ_COMPOSITION,
         binding.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
         context,
@@ -15721,7 +15722,7 @@ fn destack_input_text_try_read_composition_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTextTryReadCompositionReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15767,7 +15768,7 @@ fn destack_input_text_try_read_composition_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15782,7 +15783,7 @@ fn destack_input_touch_state_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         INPUT_TOUCH_STATE,
         binding.replay_payload_for(INPUT_TOUCH_STATE)?,
         context,
@@ -15936,7 +15937,7 @@ fn destack_input_touch_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     InputTouchStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16022,7 +16023,7 @@ fn destack_input_touch_state_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

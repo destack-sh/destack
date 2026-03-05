@@ -1,48 +1,20 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::replay::{ReplayController, ReplayEvent, TimeEvent, TimeEventKind};
+use crate::runtime::replay::{
+    EntropyEvent, EntropyKind, EntropySubject, Replay, ReplayError, ReplayEvent,
+};
 use destack_workspace::ExecutionMode;
 
-/// Replay channel name for time events.
-const TIME_CHANNEL: &str = "time";
-
-/// Return one replay mismatch error for the time channel.
-fn time_mismatch_error() -> Box<RuntimeError> {
-    RuntimeError::ReplayMismatch {
-        name: TIME_CHANNEL.to_string(),
-    }
-    .boxed()
-}
-
-impl ReplayController {
-    /// Read the next time event for replay.
-    pub fn next_time_event(&self, expected: TimeEventKind) -> RuntimeResult<TimeEvent> {
-        // reject reads outside replay execution
-        if self.mode() != ExecutionMode::Replay {
-            return Err(time_mismatch_error());
-        }
-
-        // read the next event from the log
-        let Some(event) = self.next_event()? else {
-            let sequence = self.log().next_sequence().get();
-            return Err(RuntimeError::ReplayLogExhausted { sequence }.boxed());
-        };
-
-        // validate the time event
-        let ReplayEvent::TimeEvent(time_event) = event else {
-            return Err(time_mismatch_error());
-        };
-
-        // validate the time event kind
-        if time_event.kind != expected {
-            return Err(time_mismatch_error());
-        }
-
-        Ok(time_event)
-    }
-
-    /// Run a time binding that reads a timestamp.
-    pub fn run_time_read<Call>(&self, kind: TimeEventKind, call: Call) -> RuntimeResult<u64>
+impl Replay {
+    /// Run one clock read binding through the entropy replay channel.
+    pub fn run_time_read<Hook, Call>(
+        &self,
+        kind: EntropyKind,
+        subject: EntropySubject,
+        on_replay_read: Hook,
+        call: Call,
+    ) -> RuntimeResult<u64>
     where
+        Hook: FnOnce(),
         Call: FnOnce() -> RuntimeResult<u64>,
     {
         let mode = self.mode();
@@ -50,22 +22,36 @@ impl ReplayController {
         match mode {
             // fast and deterministic modes execute directly
             ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
-            // replay mode reads one recorded time sample
+            // replay mode reads one recorded entropy sample
             ExecutionMode::Replay => {
-                let event = self.next_time_event(kind)?;
-                Ok(event.time_nanos)
-            }
-            // record mode executes and records one time sample
-            ExecutionMode::Record => {
-                let value = call()?;
-                self.record_event(ReplayEvent::TimeEvent(TimeEvent {
-                    kind,
-                    time_nanos: value,
-                    interval_nanos: None,
-                    timer_id: None,
-                }))?;
+                on_replay_read();
+                let event = self.next_entropy_event(kind, subject)?;
 
-                Ok(value)
+                match event {
+                    EntropyEvent::TimeReadMonotonic { outcome, .. }
+                    | EntropyEvent::TimeReadWall { outcome, .. } => {
+                        outcome.map_err(Box::<RuntimeError>::from)
+                    }
+                    _ => Err(self.entropy_mismatch_error()),
+                }
+            }
+            // record mode executes and records one entropy sample
+            ExecutionMode::Record => {
+                let result = call();
+                let outcome = result
+                    .as_ref()
+                    .map(|value| *value)
+                    .map_err(|error| ReplayError::from(error.as_ref()));
+                let event = match kind {
+                    EntropyKind::TimeReadMonotonic => {
+                        EntropyEvent::TimeReadMonotonic { subject, outcome }
+                    }
+                    EntropyKind::TimeReadWall => EntropyEvent::TimeReadWall { subject, outcome },
+                    _ => return Err(self.entropy_mismatch_error()),
+                };
+                self.record_event(ReplayEvent::Entropy(event))?;
+
+                result
             }
         }
     }

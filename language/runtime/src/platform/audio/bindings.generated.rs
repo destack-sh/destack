@@ -73,6 +73,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -2910,336 +2911,336 @@ fn encode_destack_audio_stream_writev_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioBackendListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<AudioBackendDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<AudioBackendDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.clock.now.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioClockNowReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.audio.clock.stream.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioClockStreamReplay {
     /// Replay result payload.
-    pub result: Result<AudioClockSnapshot, PlatformError>,
+    pub result: Result<AudioClockSnapshot, ReplayError>,
 }
 
 /// Replay payload for destack.audio.device.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioDeviceCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.device.default.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioDeviceDefaultReplay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<String, ReplayError>,
 }
 
 /// Replay payload for destack.audio.device.descriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioDeviceDescriptorReplay {
     /// Replay result payload.
-    pub result: Result<AudioDeviceDescriptorReplayRecord, PlatformError>,
+    pub result: Result<AudioDeviceDescriptorReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.audio.device.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioDeviceListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<AudioDeviceDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<AudioDeviceDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.device.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioDeviceOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::AudioDeviceHandle, PlatformError>,
+    pub result: Result<resource::AudioDeviceHandle, ReplayError>,
 }
 
 /// Replay payload for destack.audio.device.rescan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioDeviceRescanReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.event.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioEventCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.event.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioEventOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::AudioEventHandle, PlatformError>,
+    pub result: Result<resource::AudioEventHandle, ReplayError>,
 }
 
 /// Replay payload for destack.audio.event.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioEventReadReplay {
     /// Replay result payload.
-    pub result: Result<AudioEventReplayRecord, PlatformError>,
+    pub result: Result<AudioEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.audio.event.readBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioEventReadBatchReplay {
     /// Replay result payload.
-    pub result: Result<Vec<AudioEventReplayRecord>, PlatformError>,
+    pub result: Result<Vec<AudioEventReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.event.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioEventTryReadReplay {
     /// Replay result payload.
-    pub result: Result<AudioEventReplayRecord, PlatformError>,
+    pub result: Result<AudioEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.audio.event.tryReadBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioEventTryReadBatchReplay {
     /// Replay result payload.
-    pub result: Result<Vec<AudioEventReplayRecord>, PlatformError>,
+    pub result: Result<Vec<AudioEventReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.midi.flush.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioMidiFlushReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.midi.portClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioMidiPortCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.midi.portList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioMidiPortListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<MidiPortDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<MidiPortDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.midi.portOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioMidiPortOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::MidiPortHandle, PlatformError>,
+    pub result: Result<resource::MidiPortHandle, ReplayError>,
 }
 
 /// Replay payload for destack.audio.midi.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioMidiReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<MidiMessageReplayRecord>, PlatformError>,
+    pub result: Result<Vec<MidiMessageReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.midi.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioMidiTryReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<MidiMessageReplayRecord>, PlatformError>,
+    pub result: Result<Vec<MidiMessageReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.midi.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioMidiWriteReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.abort.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamAbortReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.availability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamAvailabilityReplay {
     /// Replay result payload.
-    pub result: Result<AudioStreamAvailability, PlatformError>,
+    pub result: Result<AudioStreamAvailability, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.descriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamDescriptorReplay {
     /// Replay result payload.
-    pub result: Result<AudioStreamDescriptorReplayRecord, PlatformError>,
+    pub result: Result<AudioStreamDescriptorReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.drain.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamDrainReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.flush.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamFlushReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::AudioStreamHandle, PlatformError>,
+    pub result: Result<resource::AudioStreamHandle, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.pause.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamPauseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.readv.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamReadvReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.setMute.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamSetMuteReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.setName.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamSetNameReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.setVolume.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamSetVolumeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamStartReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamStateReplay {
     /// Replay result payload.
-    pub result: Result<AudioStreamState, PlatformError>,
+    pub result: Result<AudioStreamState, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.stop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamStopReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.support.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamSupportReplay {
     /// Replay result payload.
-    pub result: Result<AudioStreamSupportReplayRecord, PlatformError>,
+    pub result: Result<AudioStreamSupportReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.timing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamTimingReplay {
     /// Replay result payload.
-    pub result: Result<AudioStreamTiming, PlatformError>,
+    pub result: Result<AudioStreamTiming, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamTryReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.tryReadv.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamTryReadvReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.tryWrite.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamTryWriteReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.tryWritev.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamTryWritevReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamWriteReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.writeAt.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamWriteAtReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.writeAtv.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamWriteAtvReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.audio.stream.writev.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamWritevReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Binding descriptor for destack.audio.backend.list.
@@ -4292,7 +4293,7 @@ fn destack_audio_backend_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<AudioBackendDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_BACKEND_LIST,
         binding.replay_payload_for(AUDIO_BACKEND_LIST)?,
         || match world {
@@ -4363,7 +4364,7 @@ fn destack_audio_backend_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioBackendListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4422,7 +4423,7 @@ fn destack_audio_backend_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4437,7 +4438,7 @@ fn destack_audio_clock_now_replay(
 ) -> RuntimeResult<()> {
     let _ = &domain;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_CLOCK_NOW,
         binding.replay_payload_for(AUDIO_CLOCK_NOW)?,
         || match world {
@@ -4465,7 +4466,7 @@ fn destack_audio_clock_now_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioClockNowReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4483,7 +4484,7 @@ fn destack_audio_clock_now_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4499,7 +4500,7 @@ fn destack_audio_clock_stream_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &domain);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_CLOCK_STREAM,
         binding.replay_payload_for(AUDIO_CLOCK_STREAM)?,
         || match world {
@@ -4573,7 +4574,7 @@ fn destack_audio_clock_stream_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioClockStreamReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4636,7 +4637,7 @@ fn destack_audio_clock_stream_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4650,7 +4651,7 @@ fn destack_audio_device_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_DEVICE_CLOSE,
         binding.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
         || match world {
@@ -4672,7 +4673,7 @@ fn destack_audio_device_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4684,7 +4685,7 @@ fn destack_audio_device_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4701,7 +4702,7 @@ fn destack_audio_device_default_replay(
 ) -> RuntimeResult<()> {
     let _ = (&direction, &backend, &backendpolicy);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_DEVICE_DEFAULT,
         binding.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
         || match world {
@@ -4741,7 +4742,7 @@ fn destack_audio_device_default_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceDefaultReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4759,7 +4760,7 @@ fn destack_audio_device_default_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4774,7 +4775,7 @@ fn destack_audio_device_descriptor_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_DEVICE_DESCRIPTOR,
         binding.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
         || match world {
@@ -4871,7 +4872,7 @@ fn destack_audio_device_descriptor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4956,7 +4957,7 @@ fn destack_audio_device_descriptor_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4971,7 +4972,7 @@ fn destack_audio_device_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &request;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_DEVICE_LIST,
         binding.replay_payload_for(AUDIO_DEVICE_LIST)?,
         || match world {
@@ -5100,7 +5101,7 @@ fn destack_audio_device_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5212,7 +5213,7 @@ fn destack_audio_device_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5228,7 +5229,7 @@ fn destack_audio_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&id, &options);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_DEVICE_OPEN,
         binding.replay_payload_for(AUDIO_DEVICE_OPEN)?,
         || match world {
@@ -5256,7 +5257,7 @@ fn destack_audio_device_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5274,7 +5275,7 @@ fn destack_audio_device_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5289,7 +5290,7 @@ fn destack_audio_device_rescan_replay(
 ) -> RuntimeResult<()> {
     let _ = (&backend, &backendpolicy);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_DEVICE_RESCAN,
         binding.replay_payload_for(AUDIO_DEVICE_RESCAN)?,
         || match world {
@@ -5315,7 +5316,7 @@ fn destack_audio_device_rescan_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceRescanReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5327,7 +5328,7 @@ fn destack_audio_device_rescan_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5341,7 +5342,7 @@ fn destack_audio_event_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_EVENT_CLOSE,
         binding.replay_payload_for(AUDIO_EVENT_CLOSE)?,
         || match world {
@@ -5363,7 +5364,7 @@ fn destack_audio_event_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5375,7 +5376,7 @@ fn destack_audio_event_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5390,7 +5391,7 @@ fn destack_audio_event_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_EVENT_OPEN,
         binding.replay_payload_for(AUDIO_EVENT_OPEN)?,
         || match world {
@@ -5418,7 +5419,7 @@ fn destack_audio_event_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5436,7 +5437,7 @@ fn destack_audio_event_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5452,7 +5453,7 @@ fn destack_audio_event_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_EVENT_READ,
         binding.replay_payload_for(AUDIO_EVENT_READ)?,
         || match world {
@@ -5945,7 +5946,7 @@ fn destack_audio_event_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventReadReplay {
                         result,
                     }
@@ -6434,7 +6435,7 @@ fn destack_audio_event_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6451,7 +6452,7 @@ fn destack_audio_event_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_EVENT_READ_BATCH,
         binding.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
         || match world {
@@ -6950,7 +6951,7 @@ fn destack_audio_event_read_batch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventReadBatchReplay {
                         result,
                     }
@@ -7444,7 +7445,7 @@ fn destack_audio_event_read_batch_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7459,7 +7460,7 @@ fn destack_audio_event_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_EVENT_TRY_READ,
         binding.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
         || match world {
@@ -7952,7 +7953,7 @@ fn destack_audio_event_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventTryReadReplay {
                         result,
                     }
@@ -8441,7 +8442,7 @@ fn destack_audio_event_try_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8457,7 +8458,7 @@ fn destack_audio_event_try_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_EVENT_TRY_READ_BATCH,
         binding.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
         || match world {
@@ -8956,7 +8957,7 @@ fn destack_audio_event_try_read_batch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventTryReadBatchReplay {
                         result,
                     }
@@ -9450,7 +9451,7 @@ fn destack_audio_event_try_read_batch_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9464,7 +9465,7 @@ fn destack_audio_midi_flush_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_MIDI_FLUSH,
         binding.replay_payload_for(AUDIO_MIDI_FLUSH)?,
         || match world {
@@ -9486,7 +9487,7 @@ fn destack_audio_midi_flush_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiFlushReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9498,7 +9499,7 @@ fn destack_audio_midi_flush_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9512,7 +9513,7 @@ fn destack_audio_midi_port_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_MIDI_PORT_CLOSE,
         binding.replay_payload_for(AUDIO_MIDI_PORT_CLOSE)?,
         || match world {
@@ -9534,7 +9535,7 @@ fn destack_audio_midi_port_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiPortCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9546,7 +9547,7 @@ fn destack_audio_midi_port_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9561,7 +9562,7 @@ fn destack_audio_midi_port_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &direction;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_MIDI_PORT_LIST,
         binding.replay_payload_for(AUDIO_MIDI_PORT_LIST)?,
         || match world {
@@ -9612,7 +9613,7 @@ fn destack_audio_midi_port_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiPortListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9652,7 +9653,7 @@ fn destack_audio_midi_port_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9668,7 +9669,7 @@ fn destack_audio_midi_port_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&id, &direction);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_MIDI_PORT_OPEN,
         binding.replay_payload_for(AUDIO_MIDI_PORT_OPEN)?,
         || match world {
@@ -9698,7 +9699,7 @@ fn destack_audio_midi_port_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiPortOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9716,7 +9717,7 @@ fn destack_audio_midi_port_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9733,7 +9734,7 @@ fn destack_audio_midi_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxmessages, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_MIDI_READ,
         binding.replay_payload_for(AUDIO_MIDI_READ)?,
         || match world {
@@ -9801,7 +9802,7 @@ fn destack_audio_midi_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9841,7 +9842,7 @@ fn destack_audio_midi_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9857,7 +9858,7 @@ fn destack_audio_midi_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxmessages);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_MIDI_TRY_READ,
         binding.replay_payload_for(AUDIO_MIDI_TRY_READ)?,
         || match world {
@@ -9918,7 +9919,7 @@ fn destack_audio_midi_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9958,7 +9959,7 @@ fn destack_audio_midi_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9974,7 +9975,7 @@ fn destack_audio_midi_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &messages);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_MIDI_WRITE,
         binding.replay_payload_for(AUDIO_MIDI_WRITE)?,
         || match world {
@@ -10002,7 +10003,7 @@ fn destack_audio_midi_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10020,7 +10021,7 @@ fn destack_audio_midi_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10034,7 +10035,7 @@ fn destack_audio_stream_abort_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_ABORT,
         binding.replay_payload_for(AUDIO_STREAM_ABORT)?,
         || match world {
@@ -10056,7 +10057,7 @@ fn destack_audio_stream_abort_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamAbortReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10068,7 +10069,7 @@ fn destack_audio_stream_abort_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10083,7 +10084,7 @@ fn destack_audio_stream_availability_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_AVAILABILITY,
         binding.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
         || match world {
@@ -10122,7 +10123,7 @@ fn destack_audio_stream_availability_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamAvailabilityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10151,7 +10152,7 @@ fn destack_audio_stream_availability_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10165,7 +10166,7 @@ fn destack_audio_stream_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_CLOSE,
         binding.replay_payload_for(AUDIO_STREAM_CLOSE)?,
         || match world {
@@ -10187,7 +10188,7 @@ fn destack_audio_stream_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10199,7 +10200,7 @@ fn destack_audio_stream_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10214,7 +10215,7 @@ fn destack_audio_stream_descriptor_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_DESCRIPTOR,
         binding.replay_payload_for(AUDIO_STREAM_DESCRIPTOR)?,
         || match world {
@@ -10293,7 +10294,7 @@ fn destack_audio_stream_descriptor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10359,7 +10360,7 @@ fn destack_audio_stream_descriptor_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10374,7 +10375,7 @@ fn destack_audio_stream_drain_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_DRAIN,
         binding.replay_payload_for(AUDIO_STREAM_DRAIN)?,
         || match world {
@@ -10396,7 +10397,7 @@ fn destack_audio_stream_drain_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamDrainReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10408,7 +10409,7 @@ fn destack_audio_stream_drain_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10422,7 +10423,7 @@ fn destack_audio_stream_flush_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_FLUSH,
         binding.replay_payload_for(AUDIO_STREAM_FLUSH)?,
         || match world {
@@ -10444,7 +10445,7 @@ fn destack_audio_stream_flush_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamFlushReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10456,7 +10457,7 @@ fn destack_audio_stream_flush_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10473,7 +10474,7 @@ fn destack_audio_stream_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &config, &options);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_OPEN,
         binding.replay_payload_for(AUDIO_STREAM_OPEN)?,
         || match world {
@@ -10503,7 +10504,7 @@ fn destack_audio_stream_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10521,7 +10522,7 @@ fn destack_audio_stream_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10536,7 +10537,7 @@ fn destack_audio_stream_pause_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &pause);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_PAUSE,
         binding.replay_payload_for(AUDIO_STREAM_PAUSE)?,
         || match world {
@@ -10558,7 +10559,7 @@ fn destack_audio_stream_pause_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamPauseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10570,7 +10571,7 @@ fn destack_audio_stream_pause_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10586,7 +10587,7 @@ fn destack_audio_stream_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_READ,
         binding.replay_payload_for(AUDIO_STREAM_READ)?,
         || match world {
@@ -10622,7 +10623,7 @@ fn destack_audio_stream_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10645,7 +10646,7 @@ fn destack_audio_stream_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10661,7 +10662,7 @@ fn destack_audio_stream_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_READV,
         binding.replay_payload_for(AUDIO_STREAM_READV)?,
         || match world {
@@ -10691,7 +10692,7 @@ fn destack_audio_stream_readv_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamReadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10709,7 +10710,7 @@ fn destack_audio_stream_readv_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10724,7 +10725,7 @@ fn destack_audio_stream_set_mute_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &muted);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_SET_MUTE,
         binding.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
         || match world {
@@ -10746,7 +10747,7 @@ fn destack_audio_stream_set_mute_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamSetMuteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10758,7 +10759,7 @@ fn destack_audio_stream_set_mute_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10773,7 +10774,7 @@ fn destack_audio_stream_set_name_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_SET_NAME,
         binding.replay_payload_for(AUDIO_STREAM_SET_NAME)?,
         || match world {
@@ -10795,7 +10796,7 @@ fn destack_audio_stream_set_name_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamSetNameReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10807,7 +10808,7 @@ fn destack_audio_stream_set_name_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10822,7 +10823,7 @@ fn destack_audio_stream_set_volume_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &lineargain);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_SET_VOLUME,
         binding.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
         || match world {
@@ -10846,7 +10847,7 @@ fn destack_audio_stream_set_volume_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamSetVolumeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10858,7 +10859,7 @@ fn destack_audio_stream_set_volume_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10872,7 +10873,7 @@ fn destack_audio_stream_start_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_START,
         binding.replay_payload_for(AUDIO_STREAM_START)?,
         || match world {
@@ -10894,7 +10895,7 @@ fn destack_audio_stream_start_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10906,7 +10907,7 @@ fn destack_audio_stream_start_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10921,7 +10922,7 @@ fn destack_audio_stream_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_STATE,
         binding.replay_payload_for(AUDIO_STREAM_STATE)?,
         || match world {
@@ -10978,7 +10979,7 @@ fn destack_audio_stream_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11025,7 +11026,7 @@ fn destack_audio_stream_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11039,7 +11040,7 @@ fn destack_audio_stream_stop_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_STOP,
         binding.replay_payload_for(AUDIO_STREAM_STOP)?,
         || match world {
@@ -11061,7 +11062,7 @@ fn destack_audio_stream_stop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11073,7 +11074,7 @@ fn destack_audio_stream_stop_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11090,7 +11091,7 @@ fn destack_audio_stream_support_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &config, &options);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_SUPPORT,
         binding.replay_payload_for(AUDIO_STREAM_SUPPORT)?,
         || match world {
@@ -11195,7 +11196,7 @@ fn destack_audio_stream_support_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamSupportReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11278,7 +11279,7 @@ fn destack_audio_stream_support_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11293,7 +11294,7 @@ fn destack_audio_stream_timing_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_TIMING,
         binding.replay_payload_for(AUDIO_STREAM_TIMING)?,
         || match world {
@@ -11364,7 +11365,7 @@ fn destack_audio_stream_timing_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTimingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11424,7 +11425,7 @@ fn destack_audio_stream_timing_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11440,7 +11441,7 @@ fn destack_audio_stream_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_TRY_READ,
         binding.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
         || match world {
@@ -11476,7 +11477,7 @@ fn destack_audio_stream_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11499,7 +11500,7 @@ fn destack_audio_stream_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11515,7 +11516,7 @@ fn destack_audio_stream_try_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_TRY_READV,
         binding.replay_payload_for(AUDIO_STREAM_TRY_READV)?,
         || match world {
@@ -11545,7 +11546,7 @@ fn destack_audio_stream_try_readv_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTryReadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11563,7 +11564,7 @@ fn destack_audio_stream_try_readv_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11579,7 +11580,7 @@ fn destack_audio_stream_try_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_TRY_WRITE,
         binding.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
         || match world {
@@ -11609,7 +11610,7 @@ fn destack_audio_stream_try_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTryWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11627,7 +11628,7 @@ fn destack_audio_stream_try_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11643,7 +11644,7 @@ fn destack_audio_stream_try_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_TRY_WRITEV,
         binding.replay_payload_for(AUDIO_STREAM_TRY_WRITEV)?,
         || match world {
@@ -11673,7 +11674,7 @@ fn destack_audio_stream_try_writev_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTryWritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11691,7 +11692,7 @@ fn destack_audio_stream_try_writev_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11707,7 +11708,7 @@ fn destack_audio_stream_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_WRITE,
         binding.replay_payload_for(AUDIO_STREAM_WRITE)?,
         || match world {
@@ -11735,7 +11736,7 @@ fn destack_audio_stream_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11753,7 +11754,7 @@ fn destack_audio_stream_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11770,7 +11771,7 @@ fn destack_audio_stream_write_at_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data, &presentationtimens);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_WRITE_AT,
         binding.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
         || match world {
@@ -11810,7 +11811,7 @@ fn destack_audio_stream_write_at_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamWriteAtReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11828,7 +11829,7 @@ fn destack_audio_stream_write_at_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11845,7 +11846,7 @@ fn destack_audio_stream_write_atv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &presentationtimens);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_WRITE_ATV,
         binding.replay_payload_for(AUDIO_STREAM_WRITE_ATV)?,
         || match world {
@@ -11885,7 +11886,7 @@ fn destack_audio_stream_write_atv_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamWriteAtvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11903,7 +11904,7 @@ fn destack_audio_stream_write_atv_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11919,7 +11920,7 @@ fn destack_audio_stream_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         AUDIO_STREAM_WRITEV,
         binding.replay_payload_for(AUDIO_STREAM_WRITEV)?,
         || match world {
@@ -11949,7 +11950,7 @@ fn destack_audio_stream_writev_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamWritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11967,7 +11968,7 @@ fn destack_audio_stream_writev_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12778,7 +12779,7 @@ fn destack_audio_backend_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_BACKEND_LIST,
         binding.replay_payload_for(AUDIO_BACKEND_LIST)?,
         context,
@@ -12976,7 +12977,7 @@ fn destack_audio_backend_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioBackendListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13077,7 +13078,7 @@ fn destack_audio_backend_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13092,7 +13093,7 @@ fn destack_audio_clock_now_vm_replay(
     world: RuntimeWorld,
     domain: AudioClockDomain,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_CLOCK_NOW,
         binding.replay_payload_for(AUDIO_CLOCK_NOW)?,
         context,
@@ -13115,7 +13116,7 @@ fn destack_audio_clock_now_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioClockNowReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13131,7 +13132,7 @@ fn destack_audio_clock_now_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13147,7 +13148,7 @@ fn destack_audio_clock_stream_vm_replay(
     handle: resource::AudioStreamHandle,
     domain: AudioStreamClockDomain,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_CLOCK_STREAM,
         binding.replay_payload_for(AUDIO_CLOCK_STREAM)?,
         context,
@@ -13218,7 +13219,7 @@ fn destack_audio_clock_stream_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioClockStreamReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13279,7 +13280,7 @@ fn destack_audio_clock_stream_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13294,7 +13295,7 @@ fn destack_audio_device_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_DEVICE_CLOSE,
         binding.replay_payload_for(AUDIO_DEVICE_CLOSE)?,
         context,
@@ -13316,7 +13317,7 @@ fn destack_audio_device_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13329,7 +13330,7 @@ fn destack_audio_device_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13346,7 +13347,7 @@ fn destack_audio_device_default_vm_replay(
     backend: AudioBackend,
     backendpolicy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_DEVICE_DEFAULT,
         binding.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
         context,
@@ -13384,7 +13385,7 @@ fn destack_audio_device_default_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceDefaultReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13401,7 +13402,7 @@ fn destack_audio_device_default_vm_replay(
                     let vm_result = vm::StringHandle::new(vm_result_value);
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13416,7 +13417,7 @@ fn destack_audio_device_descriptor_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_DEVICE_DESCRIPTOR,
         binding.replay_payload_for(AUDIO_DEVICE_DESCRIPTOR)?,
         context,
@@ -13528,7 +13529,7 @@ fn destack_audio_device_descriptor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13614,7 +13615,7 @@ fn destack_audio_device_descriptor_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13629,7 +13630,7 @@ fn destack_audio_device_list_vm_replay(
     world: RuntimeWorld,
     request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_DEVICE_LIST,
         binding.replay_payload_for(AUDIO_DEVICE_LIST)?,
         context,
@@ -14038,7 +14039,7 @@ fn destack_audio_device_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14233,7 +14234,7 @@ fn destack_audio_device_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14249,7 +14250,7 @@ fn destack_audio_device_open_vm_replay(
     id: vm::StringHandle,
     options: AudioDeviceOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_DEVICE_OPEN,
         binding.replay_payload_for(AUDIO_DEVICE_OPEN)?,
         context,
@@ -14274,7 +14275,7 @@ fn destack_audio_device_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14290,7 +14291,7 @@ fn destack_audio_device_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14306,7 +14307,7 @@ fn destack_audio_device_rescan_vm_replay(
     backend: AudioBackend,
     backendpolicy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_DEVICE_RESCAN,
         binding.replay_payload_for(AUDIO_DEVICE_RESCAN)?,
         context,
@@ -14333,7 +14334,7 @@ fn destack_audio_device_rescan_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioDeviceRescanReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14346,7 +14347,7 @@ fn destack_audio_device_rescan_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14361,7 +14362,7 @@ fn destack_audio_event_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_EVENT_CLOSE,
         binding.replay_payload_for(AUDIO_EVENT_CLOSE)?,
         context,
@@ -14383,7 +14384,7 @@ fn destack_audio_event_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14396,7 +14397,7 @@ fn destack_audio_event_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14411,7 +14412,7 @@ fn destack_audio_event_open_vm_replay(
     world: RuntimeWorld,
     options: AudioEventSubscriptionOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_EVENT_OPEN,
         binding.replay_payload_for(AUDIO_EVENT_OPEN)?,
         context,
@@ -14434,7 +14435,7 @@ fn destack_audio_event_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14450,7 +14451,7 @@ fn destack_audio_event_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14466,7 +14467,7 @@ fn destack_audio_event_read_vm_replay(
     handle: resource::AudioEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_EVENT_READ,
         binding.replay_payload_for(AUDIO_EVENT_READ)?,
         context,
@@ -15029,7 +15030,7 @@ fn destack_audio_event_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventReadReplay {
                         result,
                     }
@@ -15541,7 +15542,7 @@ fn destack_audio_event_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15558,7 +15559,7 @@ fn destack_audio_event_read_batch_vm_replay(
     maxevents: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_EVENT_READ_BATCH,
         binding.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
         context,
@@ -16127,7 +16128,7 @@ fn destack_audio_event_read_batch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventReadBatchReplay {
                         result,
                     }
@@ -16647,7 +16648,7 @@ fn destack_audio_event_read_batch_vm_replay(
                     let vm_result: VmSlice<AudioEventVm> = VmSlice { data: vm_result_data, len: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16662,7 +16663,7 @@ fn destack_audio_event_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_EVENT_TRY_READ,
         binding.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
         context,
@@ -17225,7 +17226,7 @@ fn destack_audio_event_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventTryReadReplay {
                         result,
                     }
@@ -17737,7 +17738,7 @@ fn destack_audio_event_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17753,7 +17754,7 @@ fn destack_audio_event_try_read_batch_vm_replay(
     handle: resource::AudioEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_EVENT_TRY_READ_BATCH,
         binding.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
         context,
@@ -18322,7 +18323,7 @@ fn destack_audio_event_try_read_batch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioEventTryReadBatchReplay {
                         result,
                     }
@@ -18842,7 +18843,7 @@ fn destack_audio_event_try_read_batch_vm_replay(
                     let vm_result: VmSlice<AudioEventVm> = VmSlice { data: vm_result_data, len: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18857,7 +18858,7 @@ fn destack_audio_midi_flush_vm_replay(
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_MIDI_FLUSH,
         binding.replay_payload_for(AUDIO_MIDI_FLUSH)?,
         context,
@@ -18879,7 +18880,7 @@ fn destack_audio_midi_flush_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiFlushReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18892,7 +18893,7 @@ fn destack_audio_midi_flush_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18907,7 +18908,7 @@ fn destack_audio_midi_port_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_MIDI_PORT_CLOSE,
         binding.replay_payload_for(AUDIO_MIDI_PORT_CLOSE)?,
         context,
@@ -18931,7 +18932,7 @@ fn destack_audio_midi_port_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiPortCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18944,7 +18945,7 @@ fn destack_audio_midi_port_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18959,7 +18960,7 @@ fn destack_audio_midi_port_list_vm_replay(
     world: RuntimeWorld,
     direction: MidiPortDirection,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_MIDI_PORT_LIST,
         binding.replay_payload_for(AUDIO_MIDI_PORT_LIST)?,
         context,
@@ -19085,7 +19086,7 @@ fn destack_audio_midi_port_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiPortListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19149,7 +19150,7 @@ fn destack_audio_midi_port_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19165,7 +19166,7 @@ fn destack_audio_midi_port_open_vm_replay(
     id: vm::StringHandle,
     direction: MidiPortDirection,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_MIDI_PORT_OPEN,
         binding.replay_payload_for(AUDIO_MIDI_PORT_OPEN)?,
         context,
@@ -19190,7 +19191,7 @@ fn destack_audio_midi_port_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiPortOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19206,7 +19207,7 @@ fn destack_audio_midi_port_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19223,7 +19224,7 @@ fn destack_audio_midi_read_vm_replay(
     maxmessages: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_MIDI_READ,
         binding.replay_payload_for(AUDIO_MIDI_READ)?,
         context,
@@ -19314,7 +19315,7 @@ fn destack_audio_midi_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19359,7 +19360,7 @@ fn destack_audio_midi_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19375,7 +19376,7 @@ fn destack_audio_midi_try_read_vm_replay(
     handle: resource::MidiPortHandle,
     maxmessages: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_MIDI_TRY_READ,
         binding.replay_payload_for(AUDIO_MIDI_TRY_READ)?,
         context,
@@ -19461,7 +19462,7 @@ fn destack_audio_midi_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19506,7 +19507,7 @@ fn destack_audio_midi_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19522,7 +19523,7 @@ fn destack_audio_midi_write_vm_replay(
     handle: resource::MidiPortHandle,
     messages: VmArray<MidiMessageVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_MIDI_WRITE,
         binding.replay_payload_for(AUDIO_MIDI_WRITE)?,
         context,
@@ -19547,7 +19548,7 @@ fn destack_audio_midi_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioMidiWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19563,7 +19564,7 @@ fn destack_audio_midi_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19578,7 +19579,7 @@ fn destack_audio_stream_abort_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_ABORT,
         binding.replay_payload_for(AUDIO_STREAM_ABORT)?,
         context,
@@ -19600,7 +19601,7 @@ fn destack_audio_stream_abort_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamAbortReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19613,7 +19614,7 @@ fn destack_audio_stream_abort_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19628,7 +19629,7 @@ fn destack_audio_stream_availability_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_AVAILABILITY,
         binding.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
         context,
@@ -19664,7 +19665,7 @@ fn destack_audio_stream_availability_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamAvailabilityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19691,7 +19692,7 @@ fn destack_audio_stream_availability_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19706,7 +19707,7 @@ fn destack_audio_stream_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_CLOSE,
         binding.replay_payload_for(AUDIO_STREAM_CLOSE)?,
         context,
@@ -19728,7 +19729,7 @@ fn destack_audio_stream_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19741,7 +19742,7 @@ fn destack_audio_stream_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19756,7 +19757,7 @@ fn destack_audio_stream_descriptor_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_DESCRIPTOR,
         binding.replay_payload_for(AUDIO_STREAM_DESCRIPTOR)?,
         context,
@@ -19840,7 +19841,7 @@ fn destack_audio_stream_descriptor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19906,7 +19907,7 @@ fn destack_audio_stream_descriptor_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19922,7 +19923,7 @@ fn destack_audio_stream_drain_vm_replay(
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_DRAIN,
         binding.replay_payload_for(AUDIO_STREAM_DRAIN)?,
         context,
@@ -19946,7 +19947,7 @@ fn destack_audio_stream_drain_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamDrainReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19959,7 +19960,7 @@ fn destack_audio_stream_drain_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19974,7 +19975,7 @@ fn destack_audio_stream_flush_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_FLUSH,
         binding.replay_payload_for(AUDIO_STREAM_FLUSH)?,
         context,
@@ -19996,7 +19997,7 @@ fn destack_audio_stream_flush_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamFlushReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20009,7 +20010,7 @@ fn destack_audio_stream_flush_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20026,7 +20027,7 @@ fn destack_audio_stream_open_vm_replay(
     config: AudioStreamConfigVm,
     options: AudioStreamOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_OPEN,
         binding.replay_payload_for(AUDIO_STREAM_OPEN)?,
         context,
@@ -20051,7 +20052,7 @@ fn destack_audio_stream_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20067,7 +20068,7 @@ fn destack_audio_stream_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20083,7 +20084,7 @@ fn destack_audio_stream_pause_vm_replay(
     handle: resource::AudioStreamHandle,
     pause: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_PAUSE,
         binding.replay_payload_for(AUDIO_STREAM_PAUSE)?,
         context,
@@ -20107,7 +20108,7 @@ fn destack_audio_stream_pause_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamPauseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20120,7 +20121,7 @@ fn destack_audio_stream_pause_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20136,7 +20137,7 @@ fn destack_audio_stream_read_vm_replay(
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_READ,
         binding.replay_payload_for(AUDIO_STREAM_READ)?,
         context,
@@ -20161,7 +20162,7 @@ fn destack_audio_stream_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20177,7 +20178,7 @@ fn destack_audio_stream_read_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20193,7 +20194,7 @@ fn destack_audio_stream_readv_vm_replay(
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_READV,
         binding.replay_payload_for(AUDIO_STREAM_READV)?,
         context,
@@ -20218,7 +20219,7 @@ fn destack_audio_stream_readv_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamReadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20234,7 +20235,7 @@ fn destack_audio_stream_readv_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20250,7 +20251,7 @@ fn destack_audio_stream_set_mute_vm_replay(
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_SET_MUTE,
         binding.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
         context,
@@ -20274,7 +20275,7 @@ fn destack_audio_stream_set_mute_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamSetMuteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20287,7 +20288,7 @@ fn destack_audio_stream_set_mute_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20303,7 +20304,7 @@ fn destack_audio_stream_set_name_vm_replay(
     handle: resource::AudioStreamHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_SET_NAME,
         binding.replay_payload_for(AUDIO_STREAM_SET_NAME)?,
         context,
@@ -20327,7 +20328,7 @@ fn destack_audio_stream_set_name_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamSetNameReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20340,7 +20341,7 @@ fn destack_audio_stream_set_name_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20356,7 +20357,7 @@ fn destack_audio_stream_set_volume_vm_replay(
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_SET_VOLUME,
         binding.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
         context,
@@ -20380,7 +20381,7 @@ fn destack_audio_stream_set_volume_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamSetVolumeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20393,7 +20394,7 @@ fn destack_audio_stream_set_volume_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20408,7 +20409,7 @@ fn destack_audio_stream_start_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_START,
         binding.replay_payload_for(AUDIO_STREAM_START)?,
         context,
@@ -20430,7 +20431,7 @@ fn destack_audio_stream_start_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20443,7 +20444,7 @@ fn destack_audio_stream_start_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20458,7 +20459,7 @@ fn destack_audio_stream_state_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_STATE,
         binding.replay_payload_for(AUDIO_STREAM_STATE)?,
         context,
@@ -20510,7 +20511,7 @@ fn destack_audio_stream_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20555,7 +20556,7 @@ fn destack_audio_stream_state_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20570,7 +20571,7 @@ fn destack_audio_stream_stop_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_STOP,
         binding.replay_payload_for(AUDIO_STREAM_STOP)?,
         context,
@@ -20592,7 +20593,7 @@ fn destack_audio_stream_stop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20605,7 +20606,7 @@ fn destack_audio_stream_stop_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20622,7 +20623,7 @@ fn destack_audio_stream_support_vm_replay(
     config: AudioStreamConfigVm,
     options: AudioStreamOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_SUPPORT,
         binding.replay_payload_for(AUDIO_STREAM_SUPPORT)?,
         context,
@@ -20734,7 +20735,7 @@ fn destack_audio_stream_support_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamSupportReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20817,7 +20818,7 @@ fn destack_audio_stream_support_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20832,7 +20833,7 @@ fn destack_audio_stream_timing_vm_replay(
     world: RuntimeWorld,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_TIMING,
         binding.replay_payload_for(AUDIO_STREAM_TIMING)?,
         context,
@@ -20900,7 +20901,7 @@ fn destack_audio_stream_timing_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTimingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20956,7 +20957,7 @@ fn destack_audio_stream_timing_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20972,7 +20973,7 @@ fn destack_audio_stream_try_read_vm_replay(
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_TRY_READ,
         binding.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
         context,
@@ -20997,7 +20998,7 @@ fn destack_audio_stream_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21013,7 +21014,7 @@ fn destack_audio_stream_try_read_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21029,7 +21030,7 @@ fn destack_audio_stream_try_readv_vm_replay(
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_TRY_READV,
         binding.replay_payload_for(AUDIO_STREAM_TRY_READV)?,
         context,
@@ -21054,7 +21055,7 @@ fn destack_audio_stream_try_readv_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTryReadvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21070,7 +21071,7 @@ fn destack_audio_stream_try_readv_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21086,7 +21087,7 @@ fn destack_audio_stream_try_write_vm_replay(
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_TRY_WRITE,
         binding.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
         context,
@@ -21111,7 +21112,7 @@ fn destack_audio_stream_try_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTryWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21127,7 +21128,7 @@ fn destack_audio_stream_try_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21143,7 +21144,7 @@ fn destack_audio_stream_try_writev_vm_replay(
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_TRY_WRITEV,
         binding.replay_payload_for(AUDIO_STREAM_TRY_WRITEV)?,
         context,
@@ -21168,7 +21169,7 @@ fn destack_audio_stream_try_writev_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamTryWritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21184,7 +21185,7 @@ fn destack_audio_stream_try_writev_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21200,7 +21201,7 @@ fn destack_audio_stream_write_vm_replay(
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_WRITE,
         binding.replay_payload_for(AUDIO_STREAM_WRITE)?,
         context,
@@ -21225,7 +21226,7 @@ fn destack_audio_stream_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21241,7 +21242,7 @@ fn destack_audio_stream_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21258,7 +21259,7 @@ fn destack_audio_stream_write_at_vm_replay(
     data: VmSlice<u8>,
     presentationtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_WRITE_AT,
         binding.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
         context,
@@ -21291,7 +21292,7 @@ fn destack_audio_stream_write_at_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamWriteAtReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21307,7 +21308,7 @@ fn destack_audio_stream_write_at_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21324,7 +21325,7 @@ fn destack_audio_stream_write_atv_vm_replay(
     buffers: VmSlice<VmSlice<u8>>,
     presentationtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_WRITE_ATV,
         binding.replay_payload_for(AUDIO_STREAM_WRITE_ATV)?,
         context,
@@ -21357,7 +21358,7 @@ fn destack_audio_stream_write_atv_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamWriteAtvReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21373,7 +21374,7 @@ fn destack_audio_stream_write_atv_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21389,7 +21390,7 @@ fn destack_audio_stream_writev_vm_replay(
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         AUDIO_STREAM_WRITEV,
         binding.replay_payload_for(AUDIO_STREAM_WRITEV)?,
         context,
@@ -21414,7 +21415,7 @@ fn destack_audio_stream_writev_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     AudioStreamWritevReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21430,7 +21431,7 @@ fn destack_audio_stream_writev_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

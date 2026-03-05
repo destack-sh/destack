@@ -33,7 +33,7 @@ pub(crate) fn destack_random_secure_bytes(
     context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // resolve VM bytes into host memory
     let mut bytes = buffer.read_bytes(context)?;
@@ -67,7 +67,7 @@ pub(crate) fn destack_random_secure_bytes_try(
     context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // resolve VM bytes into host memory
     let mut bytes = buffer.read_bytes(context)?;
@@ -175,7 +175,7 @@ pub(crate) fn destack_random_fill_bytes(
     context: &mut vm::ExternalCallContext<'_>,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // read the VM buffer into host memory
     let mut bytes = buffer.read_bytes(context)?;
@@ -211,7 +211,7 @@ pub(crate) fn destack_random_fill_bytes_from(
     stream: RandomStream,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // read the VM buffer into host memory
     let mut bytes = buffer.read_bytes(context)?;
@@ -359,7 +359,7 @@ pub(crate) fn destack_random_next_u64(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     let stream_id = binding.random_stream_id();
     let value = binding.world().next_stream_u64(stream_id)?;
@@ -389,7 +389,7 @@ pub(crate) fn destack_random_next_u64_from(
     _context: &mut vm::ExternalCallContext<'_>,
     stream: RandomStream,
 ) -> RuntimeResult<u64> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     let value = binding
         .world()

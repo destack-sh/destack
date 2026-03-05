@@ -204,10 +204,9 @@ impl RuntimeArgs {
             None
         };
 
-        let random = if self.random_mode.is_some()
-            || self.random_seed.is_some()
-            || self.random_per_runnable
-        {
+        let random =
+            if self.random_mode.is_some() || self.random_seed.is_some() || self.random_per_runnable
+            {
                 Some(RandomOptionsJson {
                     mode: self.random_mode.map(Into::into),
                     seed: self.random_seed,

@@ -34,6 +34,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -2427,483 +2428,483 @@ fn encode_destack_process_wait_try_wait_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessArgsListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<String>, PlatformError>,
+    pub result: Result<Vec<String>, ReplayError>,
 }
 
 /// Replay payload for destack.process.cwd.chdir.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessCwdChdirReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.cwd.get.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessCwdGetReplay {
     /// Replay result payload.
-    pub result: Result<fs::OsPathReplayRecord, PlatformError>,
+    pub result: Result<fs::OsPathReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.process.env.delete.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessEnvDeleteReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.env.deleteBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessEnvDeleteBytesReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.env.get.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessEnvGetReplay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<String, ReplayError>,
 }
 
 /// Replay payload for destack.process.env.getBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessEnvGetBytesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.process.env.set.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessEnvSetReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.env.setBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessEnvSetBytesReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.exec.fexec.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessExecFexecReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.exec.path.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessExecPathReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.exec.pathat.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessExecPathatReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.exit.terminate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessExitTerminateReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.processFdClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdProcessFdCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.processFdOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdProcessFdOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::ProcessFdHandle, PlatformError>,
+    pub result: Result<resource::ProcessFdHandle, ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.processFdSendSignal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdProcessFdSendSignalReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.processFdTryWait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdProcessFdTryWaitReplay {
     /// Replay result payload.
-    pub result: Result<ProcessWaitStatusReplayRecord, PlatformError>,
+    pub result: Result<ProcessWaitStatusReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.processFdWait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdProcessFdWaitReplay {
     /// Replay result payload.
-    pub result: Result<ProcessWaitStatusReplayRecord, PlatformError>,
+    pub result: Result<ProcessWaitStatusReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.signalFdClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdSignalFdCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.signalFdOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdSignalFdOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::SignalFdHandle, PlatformError>,
+    pub result: Result<resource::SignalFdHandle, ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.signalFdRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdSignalFdReadReplay {
     /// Replay result payload.
-    pub result: Result<SignalEvent, PlatformError>,
+    pub result: Result<SignalEvent, ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.signalFdSetMask.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdSignalFdSetMaskReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.signalFdTryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdSignalFdTryReadReplay {
     /// Replay result payload.
-    pub result: Result<SignalEvent, PlatformError>,
+    pub result: Result<SignalEvent, ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.stdioStderr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdStdioStderrReplay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, PlatformError>,
+    pub result: Result<resource::FileHandle, ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.stdioStdin.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdStdioStdinReplay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, PlatformError>,
+    pub result: Result<resource::FileHandle, ReplayError>,
 }
 
 /// Replay payload for destack.process.fd.stdioStdout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessFdStdioStdoutReplay {
     /// Replay result payload.
-    pub result: Result<resource::FileHandle, PlatformError>,
+    pub result: Result<resource::FileHandle, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.egid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsEgidReplay {
     /// Replay result payload.
-    pub result: Result<GroupId, PlatformError>,
+    pub result: Result<GroupId, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.euid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsEuidReplay {
     /// Replay result payload.
-    pub result: Result<UserId, PlatformError>,
+    pub result: Result<UserId, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.gid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsGidReplay {
     /// Replay result payload.
-    pub result: Result<GroupId, PlatformError>,
+    pub result: Result<GroupId, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.groupIds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsGroupIdsReplay {
     /// Replay result payload.
-    pub result: Result<ProcessGroupIds, PlatformError>,
+    pub result: Result<ProcessGroupIds, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.groups.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsGroupsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<GroupId>, PlatformError>,
+    pub result: Result<Vec<GroupId>, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.pid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsPidReplay {
     /// Replay result payload.
-    pub result: Result<ProcessId, PlatformError>,
+    pub result: Result<ProcessId, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.ppid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsPpidReplay {
     /// Replay result payload.
-    pub result: Result<ProcessId, PlatformError>,
+    pub result: Result<ProcessId, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.setEgid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsSetEgidReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.setEuid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsSetEuidReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.setGid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsSetGidReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.setGroupIds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsSetGroupIdsReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.setGroups.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsSetGroupsReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.setUid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsSetUidReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.setUserIds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsSetUserIdsReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.uid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsUidReplay {
     /// Replay result payload.
-    pub result: Result<UserId, PlatformError>,
+    pub result: Result<UserId, ReplayError>,
 }
 
 /// Replay payload for destack.process.ids.userIds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsUserIdsReplay {
     /// Replay result payload.
-    pub result: Result<ProcessUserIds, PlatformError>,
+    pub result: Result<ProcessUserIds, ReplayError>,
 }
 
 /// Replay payload for destack.process.limits.getLimit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessLimitsGetLimitReplay {
     /// Replay result payload.
-    pub result: Result<ProcessLimit, PlatformError>,
+    pub result: Result<ProcessLimit, ReplayError>,
 }
 
 /// Replay payload for destack.process.limits.setLimit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessLimitsSetLimitReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.sched.getAffinity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSchedGetAffinityReplay {
     /// Replay result payload.
-    pub result: Result<ProcessCpuSetReplayRecord, PlatformError>,
+    pub result: Result<ProcessCpuSetReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.process.sched.getPriority.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSchedGetPriorityReplay {
     /// Replay result payload.
-    pub result: Result<i32, PlatformError>,
+    pub result: Result<i32, ReplayError>,
 }
 
 /// Replay payload for destack.process.sched.getScheduler.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSchedGetSchedulerReplay {
     /// Replay result payload.
-    pub result: Result<ProcessSchedulerConfig, PlatformError>,
+    pub result: Result<ProcessSchedulerConfig, ReplayError>,
 }
 
 /// Replay payload for destack.process.sched.setAffinity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSchedSetAffinityReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.sched.setPriority.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSchedSetPriorityReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.sched.setScheduler.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSchedSetSchedulerReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.sched.yieldNow.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSchedYieldNowReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.session.getpgid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSessionGetpgidReplay {
     /// Replay result payload.
-    pub result: Result<ProcessId, PlatformError>,
+    pub result: Result<ProcessId, ReplayError>,
 }
 
 /// Replay payload for destack.process.session.setpgid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSessionSetpgidReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.session.setsid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSessionSetsidReplay {
     /// Replay result payload.
-    pub result: Result<ProcessId, PlatformError>,
+    pub result: Result<ProcessId, ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.kill.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsKillReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.signalMaskRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsSignalMaskReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<Signal>, PlatformError>,
+    pub result: Result<Vec<Signal>, ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.signalMaskUpdate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsSignalMaskUpdateReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.signalReceive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsSignalReceiveReplay {
     /// Replay result payload.
-    pub result: Result<SignalEvent, PlatformError>,
+    pub result: Result<SignalEvent, ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.signalSubscribe.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsSignalSubscribeReplay {
     /// Replay result payload.
-    pub result: Result<resource::SignalHandle, PlatformError>,
+    pub result: Result<resource::SignalHandle, ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.signalTryReceive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsSignalTryReceiveReplay {
     /// Replay result payload.
-    pub result: Result<SignalEvent, PlatformError>,
+    pub result: Result<SignalEvent, ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.signalTryWait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsSignalTryWaitReplay {
     /// Replay result payload.
-    pub result: Result<SignalEvent, PlatformError>,
+    pub result: Result<SignalEvent, ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.signalUnsubscribe.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsSignalUnsubscribeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.process.signals.signalWait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSignalsSignalWaitReplay {
     /// Replay result payload.
-    pub result: Result<SignalEvent, PlatformError>,
+    pub result: Result<SignalEvent, ReplayError>,
 }
 
 /// Replay payload for destack.process.spawn.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSpawnStartReplay {
     /// Replay result payload.
-    pub result: Result<resource::ProcessHandle, PlatformError>,
+    pub result: Result<resource::ProcessHandle, ReplayError>,
 }
 
 /// Replay payload for destack.process.spawn.withActions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSpawnWithActionsReplay {
     /// Replay result payload.
-    pub result: Result<resource::ProcessHandle, PlatformError>,
+    pub result: Result<resource::ProcessHandle, ReplayError>,
 }
 
 /// Replay payload for destack.process.umask.set.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessUmaskSetReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.process.wait.handle.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessWaitHandleReplay {
     /// Replay result payload.
-    pub result: Result<ProcessWaitStatusReplayRecord, PlatformError>,
+    pub result: Result<ProcessWaitStatusReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.process.wait.pid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessWaitPidReplay {
     /// Replay result payload.
-    pub result: Result<ProcessWaitStatusReplayRecord, PlatformError>,
+    pub result: Result<ProcessWaitStatusReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.process.wait.tryWait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessWaitTryWaitReplay {
     /// Replay result payload.
-    pub result: Result<ProcessWaitStatusReplayRecord, PlatformError>,
+    pub result: Result<ProcessWaitStatusReplayRecord, ReplayError>,
 }
 
 /// Binding descriptor for destack.process.args.list.
@@ -5052,7 +5053,7 @@ fn destack_process_args_list_replay(
     world: RuntimeWorld,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_ARGS_LIST,
         binding.replay_payload_for(PROCESS_ARGS_LIST)?,
         || match world {
@@ -5084,7 +5085,7 @@ fn destack_process_args_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessArgsListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5107,7 +5108,7 @@ fn destack_process_args_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5121,7 +5122,7 @@ fn destack_process_cwd_chdir_replay(
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_CWD_CHDIR,
         binding.replay_payload_for(PROCESS_CWD_CHDIR)?,
         || match world {
@@ -5141,7 +5142,7 @@ fn destack_process_cwd_chdir_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessCwdChdirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5153,7 +5154,7 @@ fn destack_process_cwd_chdir_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5165,7 +5166,7 @@ fn destack_process_cwd_get_replay(
     world: RuntimeWorld,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_CWD_GET,
         binding.replay_payload_for(PROCESS_CWD_GET)?,
         || match world {
@@ -5238,7 +5239,7 @@ fn destack_process_cwd_get_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessCwdGetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5301,7 +5302,7 @@ fn destack_process_cwd_get_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5315,7 +5316,7 @@ fn destack_process_env_delete_replay(
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_ENV_DELETE,
         binding.replay_payload_for(PROCESS_ENV_DELETE)?,
         || match world {
@@ -5337,7 +5338,7 @@ fn destack_process_env_delete_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvDeleteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5349,7 +5350,7 @@ fn destack_process_env_delete_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5363,7 +5364,7 @@ fn destack_process_env_delete_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_ENV_DELETE_BYTES,
         binding.replay_payload_for(PROCESS_ENV_DELETE_BYTES)?,
         || match world {
@@ -5385,7 +5386,7 @@ fn destack_process_env_delete_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvDeleteBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5397,7 +5398,7 @@ fn destack_process_env_delete_bytes_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5412,7 +5413,7 @@ fn destack_process_env_get_replay(
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_ENV_GET,
         binding.replay_payload_for(PROCESS_ENV_GET)?,
         || match world {
@@ -5440,7 +5441,7 @@ fn destack_process_env_get_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvGetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5458,7 +5459,7 @@ fn destack_process_env_get_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5473,7 +5474,7 @@ fn destack_process_env_get_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_ENV_GET_BYTES,
         binding.replay_payload_for(PROCESS_ENV_GET_BYTES)?,
         || match world {
@@ -5507,7 +5508,7 @@ fn destack_process_env_get_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvGetBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5530,7 +5531,7 @@ fn destack_process_env_get_bytes_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5545,7 +5546,7 @@ fn destack_process_env_set_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &argument_value);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_ENV_SET,
         binding.replay_payload_for(PROCESS_ENV_SET)?,
         || match world {
@@ -5567,7 +5568,7 @@ fn destack_process_env_set_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvSetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5579,7 +5580,7 @@ fn destack_process_env_set_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5594,7 +5595,7 @@ fn destack_process_env_set_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&name, &argument_value);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_ENV_SET_BYTES,
         binding.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
         || match world {
@@ -5620,7 +5621,7 @@ fn destack_process_env_set_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvSetBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5632,7 +5633,7 @@ fn destack_process_env_set_bytes_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5648,7 +5649,7 @@ fn destack_process_exec_fexec_replay(
 ) -> RuntimeResult<()> {
     let _ = (&executable, &arguments, &environment);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_EXEC_FEXEC,
         binding.replay_payload_for(PROCESS_EXEC_FEXEC)?,
         || match world {
@@ -5675,7 +5676,7 @@ fn destack_process_exec_fexec_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessExecFexecReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5687,7 +5688,7 @@ fn destack_process_exec_fexec_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5703,7 +5704,7 @@ fn destack_process_exec_path_replay(
 ) -> RuntimeResult<()> {
     let _ = (&command, &arguments, &environment);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_EXEC_PATH,
         binding.replay_payload_for(PROCESS_EXEC_PATH)?,
         || match world {
@@ -5730,7 +5731,7 @@ fn destack_process_exec_path_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessExecPathReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5742,7 +5743,7 @@ fn destack_process_exec_path_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5760,7 +5761,7 @@ fn destack_process_exec_pathat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&directory, &path, &arguments, &environment, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_EXEC_PATHAT,
         binding.replay_payload_for(PROCESS_EXEC_PATHAT)?,
         || match world {
@@ -5796,7 +5797,7 @@ fn destack_process_exec_pathat_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessExecPathatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5808,7 +5809,7 @@ fn destack_process_exec_pathat_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5822,7 +5823,7 @@ fn destack_process_exit_terminate_replay(
 ) -> RuntimeResult<()> {
     let _ = &code;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_EXIT_TERMINATE,
         binding.replay_payload_for(PROCESS_EXIT_TERMINATE)?,
         || match world {
@@ -5842,7 +5843,7 @@ fn destack_process_exit_terminate_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessExitTerminateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5854,7 +5855,7 @@ fn destack_process_exit_terminate_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5868,7 +5869,7 @@ fn destack_process_fd_process_fd_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_PROCESS_FD_CLOSE,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_CLOSE)?,
         || match world {
@@ -5890,7 +5891,7 @@ fn destack_process_fd_process_fd_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5902,7 +5903,7 @@ fn destack_process_fd_process_fd_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5918,7 +5919,7 @@ fn destack_process_fd_process_fd_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_PROCESS_FD_OPEN,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_OPEN)?,
         || match world {
@@ -5948,7 +5949,7 @@ fn destack_process_fd_process_fd_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5966,7 +5967,7 @@ fn destack_process_fd_process_fd_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5982,7 +5983,7 @@ fn destack_process_fd_process_fd_send_signal_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &signal, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?,
         || match world {
@@ -6008,7 +6009,7 @@ fn destack_process_fd_process_fd_send_signal_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdSendSignalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6020,7 +6021,7 @@ fn destack_process_fd_process_fd_send_signal_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6035,7 +6036,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_PROCESS_FD_TRY_WAIT,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_TRY_WAIT)?,
         || match world {
@@ -6141,7 +6142,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdTryWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6234,7 +6235,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6250,7 +6251,7 @@ fn destack_process_fd_process_fd_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_PROCESS_FD_WAIT,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_WAIT)?,
         || match world {
@@ -6356,7 +6357,7 @@ fn destack_process_fd_process_fd_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6449,7 +6450,7 @@ fn destack_process_fd_process_fd_wait_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6463,7 +6464,7 @@ fn destack_process_fd_signal_fd_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_SIGNAL_FD_CLOSE,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_CLOSE)?,
         || match world {
@@ -6485,7 +6486,7 @@ fn destack_process_fd_signal_fd_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6497,7 +6498,7 @@ fn destack_process_fd_signal_fd_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6513,7 +6514,7 @@ fn destack_process_fd_signal_fd_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&signals, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_SIGNAL_FD_OPEN,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_OPEN)?,
         || match world {
@@ -6543,7 +6544,7 @@ fn destack_process_fd_signal_fd_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6561,7 +6562,7 @@ fn destack_process_fd_signal_fd_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6576,7 +6577,7 @@ fn destack_process_fd_signal_fd_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_SIGNAL_FD_READ,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_READ)?,
         || match world {
@@ -6609,7 +6610,7 @@ fn destack_process_fd_signal_fd_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6632,7 +6633,7 @@ fn destack_process_fd_signal_fd_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6647,7 +6648,7 @@ fn destack_process_fd_signal_fd_set_mask_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &signals);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_SIGNAL_FD_SET_MASK,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_SET_MASK)?,
         || match world {
@@ -6671,7 +6672,7 @@ fn destack_process_fd_signal_fd_set_mask_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdSetMaskReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6683,7 +6684,7 @@ fn destack_process_fd_signal_fd_set_mask_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6698,7 +6699,7 @@ fn destack_process_fd_signal_fd_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_SIGNAL_FD_TRY_READ,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_TRY_READ)?,
         || match world {
@@ -6731,7 +6732,7 @@ fn destack_process_fd_signal_fd_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6754,7 +6755,7 @@ fn destack_process_fd_signal_fd_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6766,7 +6767,7 @@ fn destack_process_fd_stdio_stderr_replay(
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_STDIO_STDERR,
         binding.replay_payload_for(PROCESS_FD_STDIO_STDERR)?,
         || match world {
@@ -6794,7 +6795,7 @@ fn destack_process_fd_stdio_stderr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdStdioStderrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6812,7 +6813,7 @@ fn destack_process_fd_stdio_stderr_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6824,7 +6825,7 @@ fn destack_process_fd_stdio_stdin_replay(
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_STDIO_STDIN,
         binding.replay_payload_for(PROCESS_FD_STDIO_STDIN)?,
         || match world {
@@ -6852,7 +6853,7 @@ fn destack_process_fd_stdio_stdin_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdStdioStdinReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6870,7 +6871,7 @@ fn destack_process_fd_stdio_stdin_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6882,7 +6883,7 @@ fn destack_process_fd_stdio_stdout_replay(
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_FD_STDIO_STDOUT,
         binding.replay_payload_for(PROCESS_FD_STDIO_STDOUT)?,
         || match world {
@@ -6910,7 +6911,7 @@ fn destack_process_fd_stdio_stdout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdStdioStdoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6928,7 +6929,7 @@ fn destack_process_fd_stdio_stdout_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6940,7 +6941,7 @@ fn destack_process_ids_egid_replay(
     world: RuntimeWorld,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_EGID,
         binding.replay_payload_for(PROCESS_IDS_EGID)?,
         || match world {
@@ -6966,7 +6967,7 @@ fn destack_process_ids_egid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsEgidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6984,7 +6985,7 @@ fn destack_process_ids_egid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6996,7 +6997,7 @@ fn destack_process_ids_euid_replay(
     world: RuntimeWorld,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_EUID,
         binding.replay_payload_for(PROCESS_IDS_EUID)?,
         || match world {
@@ -7022,7 +7023,7 @@ fn destack_process_ids_euid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsEuidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7040,7 +7041,7 @@ fn destack_process_ids_euid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7052,7 +7053,7 @@ fn destack_process_ids_gid_replay(
     world: RuntimeWorld,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_GID,
         binding.replay_payload_for(PROCESS_IDS_GID)?,
         || match world {
@@ -7078,7 +7079,7 @@ fn destack_process_ids_gid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsGidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7096,7 +7097,7 @@ fn destack_process_ids_gid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7108,7 +7109,7 @@ fn destack_process_ids_group_ids_replay(
     world: RuntimeWorld,
     out: *mut ProcessGroupIds,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_GROUP_IDS,
         binding.replay_payload_for(PROCESS_IDS_GROUP_IDS)?,
         || match world {
@@ -7143,7 +7144,7 @@ fn destack_process_ids_group_ids_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsGroupIdsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7168,7 +7169,7 @@ fn destack_process_ids_group_ids_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7180,7 +7181,7 @@ fn destack_process_ids_groups_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_GROUPS,
         binding.replay_payload_for(PROCESS_IDS_GROUPS)?,
         || match world {
@@ -7212,7 +7213,7 @@ fn destack_process_ids_groups_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsGroupsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7235,7 +7236,7 @@ fn destack_process_ids_groups_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7247,7 +7248,7 @@ fn destack_process_ids_pid_replay(
     world: RuntimeWorld,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_PID,
         binding.replay_payload_for(PROCESS_IDS_PID)?,
         || match world {
@@ -7273,7 +7274,7 @@ fn destack_process_ids_pid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsPidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7291,7 +7292,7 @@ fn destack_process_ids_pid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7303,7 +7304,7 @@ fn destack_process_ids_ppid_replay(
     world: RuntimeWorld,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_PPID,
         binding.replay_payload_for(PROCESS_IDS_PPID)?,
         || match world {
@@ -7329,7 +7330,7 @@ fn destack_process_ids_ppid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsPpidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7347,7 +7348,7 @@ fn destack_process_ids_ppid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7361,7 +7362,7 @@ fn destack_process_ids_set_egid_replay(
 ) -> RuntimeResult<()> {
     let _ = &groupid;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_SET_EGID,
         binding.replay_payload_for(PROCESS_IDS_SET_EGID)?,
         || match world {
@@ -7383,7 +7384,7 @@ fn destack_process_ids_set_egid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetEgidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7395,7 +7396,7 @@ fn destack_process_ids_set_egid_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7409,7 +7410,7 @@ fn destack_process_ids_set_euid_replay(
 ) -> RuntimeResult<()> {
     let _ = &userid;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_SET_EUID,
         binding.replay_payload_for(PROCESS_IDS_SET_EUID)?,
         || match world {
@@ -7431,7 +7432,7 @@ fn destack_process_ids_set_euid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetEuidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7443,7 +7444,7 @@ fn destack_process_ids_set_euid_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7457,7 +7458,7 @@ fn destack_process_ids_set_gid_replay(
 ) -> RuntimeResult<()> {
     let _ = &groupid;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_SET_GID,
         binding.replay_payload_for(PROCESS_IDS_SET_GID)?,
         || match world {
@@ -7479,7 +7480,7 @@ fn destack_process_ids_set_gid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetGidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7491,7 +7492,7 @@ fn destack_process_ids_set_gid_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7505,7 +7506,7 @@ fn destack_process_ids_set_group_ids_replay(
 ) -> RuntimeResult<()> {
     let _ = &ids;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_SET_GROUP_IDS,
         binding.replay_payload_for(PROCESS_IDS_SET_GROUP_IDS)?,
         || match world {
@@ -7527,7 +7528,7 @@ fn destack_process_ids_set_group_ids_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetGroupIdsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7539,7 +7540,7 @@ fn destack_process_ids_set_group_ids_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7553,7 +7554,7 @@ fn destack_process_ids_set_groups_replay(
 ) -> RuntimeResult<()> {
     let _ = &groups;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_SET_GROUPS,
         binding.replay_payload_for(PROCESS_IDS_SET_GROUPS)?,
         || match world {
@@ -7575,7 +7576,7 @@ fn destack_process_ids_set_groups_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetGroupsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7587,7 +7588,7 @@ fn destack_process_ids_set_groups_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7601,7 +7602,7 @@ fn destack_process_ids_set_uid_replay(
 ) -> RuntimeResult<()> {
     let _ = &userid;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_SET_UID,
         binding.replay_payload_for(PROCESS_IDS_SET_UID)?,
         || match world {
@@ -7623,7 +7624,7 @@ fn destack_process_ids_set_uid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetUidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7635,7 +7636,7 @@ fn destack_process_ids_set_uid_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7649,7 +7650,7 @@ fn destack_process_ids_set_user_ids_replay(
 ) -> RuntimeResult<()> {
     let _ = &ids;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_SET_USER_IDS,
         binding.replay_payload_for(PROCESS_IDS_SET_USER_IDS)?,
         || match world {
@@ -7671,7 +7672,7 @@ fn destack_process_ids_set_user_ids_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetUserIdsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7683,7 +7684,7 @@ fn destack_process_ids_set_user_ids_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7695,7 +7696,7 @@ fn destack_process_ids_uid_replay(
     world: RuntimeWorld,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_UID,
         binding.replay_payload_for(PROCESS_IDS_UID)?,
         || match world {
@@ -7721,7 +7722,7 @@ fn destack_process_ids_uid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsUidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7739,7 +7740,7 @@ fn destack_process_ids_uid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7751,7 +7752,7 @@ fn destack_process_ids_user_ids_replay(
     world: RuntimeWorld,
     out: *mut ProcessUserIds,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_IDS_USER_IDS,
         binding.replay_payload_for(PROCESS_IDS_USER_IDS)?,
         || match world {
@@ -7786,7 +7787,7 @@ fn destack_process_ids_user_ids_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsUserIdsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7811,7 +7812,7 @@ fn destack_process_ids_user_ids_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7826,7 +7827,7 @@ fn destack_process_limits_get_limit_replay(
 ) -> RuntimeResult<()> {
     let _ = &resource;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_LIMITS_GET_LIMIT,
         binding.replay_payload_for(PROCESS_LIMITS_GET_LIMIT)?,
         || match world {
@@ -7859,7 +7860,7 @@ fn destack_process_limits_get_limit_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessLimitsGetLimitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7882,7 +7883,7 @@ fn destack_process_limits_get_limit_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7897,7 +7898,7 @@ fn destack_process_limits_set_limit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&resource, &limit);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_LIMITS_SET_LIMIT,
         binding.replay_payload_for(PROCESS_LIMITS_SET_LIMIT)?,
         || match world {
@@ -7919,7 +7920,7 @@ fn destack_process_limits_set_limit_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessLimitsSetLimitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7931,7 +7932,7 @@ fn destack_process_limits_set_limit_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7946,7 +7947,7 @@ fn destack_process_sched_get_affinity_replay(
 ) -> RuntimeResult<()> {
     let _ = &pid;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SCHED_GET_AFFINITY,
         binding.replay_payload_for(PROCESS_SCHED_GET_AFFINITY)?,
         || match world {
@@ -7983,7 +7984,7 @@ fn destack_process_sched_get_affinity_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedGetAffinityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8009,7 +8010,7 @@ fn destack_process_sched_get_affinity_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8024,7 +8025,7 @@ fn destack_process_sched_get_priority_replay(
 ) -> RuntimeResult<()> {
     let _ = &pid;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SCHED_GET_PRIORITY,
         binding.replay_payload_for(PROCESS_SCHED_GET_PRIORITY)?,
         || match world {
@@ -8052,7 +8053,7 @@ fn destack_process_sched_get_priority_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedGetPriorityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8070,7 +8071,7 @@ fn destack_process_sched_get_priority_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8085,7 +8086,7 @@ fn destack_process_sched_get_scheduler_replay(
 ) -> RuntimeResult<()> {
     let _ = &pid;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SCHED_GET_SCHEDULER,
         binding.replay_payload_for(PROCESS_SCHED_GET_SCHEDULER)?,
         || match world {
@@ -8120,7 +8121,7 @@ fn destack_process_sched_get_scheduler_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedGetSchedulerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8145,7 +8146,7 @@ fn destack_process_sched_get_scheduler_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8160,7 +8161,7 @@ fn destack_process_sched_set_affinity_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &cpus);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SCHED_SET_AFFINITY,
         binding.replay_payload_for(PROCESS_SCHED_SET_AFFINITY)?,
         || match world {
@@ -8182,7 +8183,7 @@ fn destack_process_sched_set_affinity_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedSetAffinityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8194,7 +8195,7 @@ fn destack_process_sched_set_affinity_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8209,7 +8210,7 @@ fn destack_process_sched_set_priority_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &priority);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SCHED_SET_PRIORITY,
         binding.replay_payload_for(PROCESS_SCHED_SET_PRIORITY)?,
         || match world {
@@ -8231,7 +8232,7 @@ fn destack_process_sched_set_priority_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedSetPriorityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8243,7 +8244,7 @@ fn destack_process_sched_set_priority_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8258,7 +8259,7 @@ fn destack_process_sched_set_scheduler_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &config);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SCHED_SET_SCHEDULER,
         binding.replay_payload_for(PROCESS_SCHED_SET_SCHEDULER)?,
         || match world {
@@ -8280,7 +8281,7 @@ fn destack_process_sched_set_scheduler_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedSetSchedulerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8292,7 +8293,7 @@ fn destack_process_sched_set_scheduler_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8303,7 +8304,7 @@ fn destack_process_sched_yield_now_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SCHED_YIELD_NOW,
         binding.replay_payload_for(PROCESS_SCHED_YIELD_NOW)?,
         || match world {
@@ -8323,7 +8324,7 @@ fn destack_process_sched_yield_now_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedYieldNowReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8335,7 +8336,7 @@ fn destack_process_sched_yield_now_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8350,7 +8351,7 @@ fn destack_process_session_getpgid_replay(
 ) -> RuntimeResult<()> {
     let _ = &pid;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SESSION_GETPGID,
         binding.replay_payload_for(PROCESS_SESSION_GETPGID)?,
         || match world {
@@ -8378,7 +8379,7 @@ fn destack_process_session_getpgid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSessionGetpgidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8396,7 +8397,7 @@ fn destack_process_session_getpgid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8411,7 +8412,7 @@ fn destack_process_session_setpgid_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &pgid);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SESSION_SETPGID,
         binding.replay_payload_for(PROCESS_SESSION_SETPGID)?,
         || match world {
@@ -8433,7 +8434,7 @@ fn destack_process_session_setpgid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSessionSetpgidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8445,7 +8446,7 @@ fn destack_process_session_setpgid_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8457,7 +8458,7 @@ fn destack_process_session_setsid_replay(
     world: RuntimeWorld,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SESSION_SETSID,
         binding.replay_payload_for(PROCESS_SESSION_SETSID)?,
         || match world {
@@ -8483,7 +8484,7 @@ fn destack_process_session_setsid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSessionSetsidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8501,7 +8502,7 @@ fn destack_process_session_setsid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8516,7 +8517,7 @@ fn destack_process_signals_kill_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &signal);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_KILL,
         binding.replay_payload_for(PROCESS_SIGNALS_KILL)?,
         || match world {
@@ -8538,7 +8539,7 @@ fn destack_process_signals_kill_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsKillReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8550,7 +8551,7 @@ fn destack_process_signals_kill_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8562,7 +8563,7 @@ fn destack_process_signals_signal_mask_read_replay(
     world: RuntimeWorld,
     out: *mut NativeArray<Signal>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_SIGNAL_MASK_READ,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_READ)?,
         || match world {
@@ -8596,7 +8597,7 @@ fn destack_process_signals_signal_mask_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalMaskReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8619,7 +8620,7 @@ fn destack_process_signals_signal_mask_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8634,7 +8635,7 @@ fn destack_process_signals_signal_mask_update_replay(
 ) -> RuntimeResult<()> {
     let _ = (&how, &signals);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?,
         || match world {
@@ -8658,7 +8659,7 @@ fn destack_process_signals_signal_mask_update_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalMaskUpdateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8670,7 +8671,7 @@ fn destack_process_signals_signal_mask_update_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8685,7 +8686,7 @@ fn destack_process_signals_signal_receive_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_SIGNAL_RECEIVE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_RECEIVE)?,
         || match world {
@@ -8718,7 +8719,7 @@ fn destack_process_signals_signal_receive_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8741,7 +8742,7 @@ fn destack_process_signals_signal_receive_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8756,7 +8757,7 @@ fn destack_process_signals_signal_subscribe_replay(
 ) -> RuntimeResult<()> {
     let _ = &signal;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?,
         || match world {
@@ -8784,7 +8785,7 @@ fn destack_process_signals_signal_subscribe_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalSubscribeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8802,7 +8803,7 @@ fn destack_process_signals_signal_subscribe_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8817,7 +8818,7 @@ fn destack_process_signals_signal_try_receive_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?,
         || match world {
@@ -8850,7 +8851,7 @@ fn destack_process_signals_signal_try_receive_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalTryReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8873,7 +8874,7 @@ fn destack_process_signals_signal_try_receive_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8888,7 +8889,7 @@ fn destack_process_signals_signal_try_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = &signals;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?,
         || match world {
@@ -8921,7 +8922,7 @@ fn destack_process_signals_signal_try_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalTryWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8944,7 +8945,7 @@ fn destack_process_signals_signal_try_wait_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8958,7 +8959,7 @@ fn destack_process_signals_signal_unsubscribe_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?,
         || match world {
@@ -8980,7 +8981,7 @@ fn destack_process_signals_signal_unsubscribe_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalUnsubscribeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8992,7 +8993,7 @@ fn destack_process_signals_signal_unsubscribe_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9007,7 +9008,7 @@ fn destack_process_signals_signal_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = &signals;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SIGNALS_SIGNAL_WAIT,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_WAIT)?,
         || match world {
@@ -9040,7 +9041,7 @@ fn destack_process_signals_signal_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9063,7 +9064,7 @@ fn destack_process_signals_signal_wait_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9081,7 +9082,7 @@ fn destack_process_spawn_start_replay(
 ) -> RuntimeResult<()> {
     let _ = (&command, &arguments, &environment, &options);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SPAWN_START,
         binding.replay_payload_for(PROCESS_SPAWN_START)?,
         || match world {
@@ -9123,7 +9124,7 @@ fn destack_process_spawn_start_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSpawnStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9141,7 +9142,7 @@ fn destack_process_spawn_start_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9168,7 +9169,7 @@ fn destack_process_spawn_with_actions_replay(
         &actions,
     );
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_SPAWN_WITH_ACTIONS,
         binding.replay_payload_for(PROCESS_SPAWN_WITH_ACTIONS)?,
         || match world {
@@ -9214,7 +9215,7 @@ fn destack_process_spawn_with_actions_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSpawnWithActionsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9232,7 +9233,7 @@ fn destack_process_spawn_with_actions_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9247,7 +9248,7 @@ fn destack_process_umask_set_replay(
 ) -> RuntimeResult<()> {
     let _ = &mask;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_UMASK_SET,
         binding.replay_payload_for(PROCESS_UMASK_SET)?,
         || match world {
@@ -9275,7 +9276,7 @@ fn destack_process_umask_set_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessUmaskSetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9293,7 +9294,7 @@ fn destack_process_umask_set_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9309,7 +9310,7 @@ fn destack_process_wait_handle_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_WAIT_HANDLE,
         binding.replay_payload_for(PROCESS_WAIT_HANDLE)?,
         || match world {
@@ -9413,7 +9414,7 @@ fn destack_process_wait_handle_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessWaitHandleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9506,7 +9507,7 @@ fn destack_process_wait_handle_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9522,7 +9523,7 @@ fn destack_process_wait_pid_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_WAIT_PID,
         binding.replay_payload_for(PROCESS_WAIT_PID)?,
         || match world {
@@ -9626,7 +9627,7 @@ fn destack_process_wait_pid_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessWaitPidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9719,7 +9720,7 @@ fn destack_process_wait_pid_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9734,7 +9735,7 @@ fn destack_process_wait_try_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         PROCESS_WAIT_TRY_WAIT,
         binding.replay_payload_for(PROCESS_WAIT_TRY_WAIT)?,
         || match world {
@@ -9838,7 +9839,7 @@ fn destack_process_wait_try_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessWaitTryWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9931,7 +9932,7 @@ fn destack_process_wait_try_wait_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11264,7 +11265,7 @@ fn destack_process_args_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_ARGS_LIST,
         binding.replay_payload_for(PROCESS_ARGS_LIST)?,
         context,
@@ -11299,7 +11300,7 @@ fn destack_process_args_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessArgsListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11323,7 +11324,7 @@ fn destack_process_args_list_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11338,7 +11339,7 @@ fn destack_process_cwd_chdir_vm_replay(
     world: RuntimeWorld,
     path: fs::OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_CWD_CHDIR,
         binding.replay_payload_for(PROCESS_CWD_CHDIR)?,
         context,
@@ -11360,7 +11361,7 @@ fn destack_process_cwd_chdir_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessCwdChdirReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11373,7 +11374,7 @@ fn destack_process_cwd_chdir_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11387,7 +11388,7 @@ fn destack_process_cwd_get_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_CWD_GET,
         binding.replay_payload_for(PROCESS_CWD_GET)?,
         context,
@@ -11460,7 +11461,7 @@ fn destack_process_cwd_get_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessCwdGetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11523,7 +11524,7 @@ fn destack_process_cwd_get_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11538,7 +11539,7 @@ fn destack_process_env_delete_vm_replay(
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_ENV_DELETE,
         binding.replay_payload_for(PROCESS_ENV_DELETE)?,
         context,
@@ -11560,7 +11561,7 @@ fn destack_process_env_delete_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvDeleteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11573,7 +11574,7 @@ fn destack_process_env_delete_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11588,7 +11589,7 @@ fn destack_process_env_delete_bytes_vm_replay(
     world: RuntimeWorld,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_ENV_DELETE_BYTES,
         binding.replay_payload_for(PROCESS_ENV_DELETE_BYTES)?,
         context,
@@ -11612,7 +11613,7 @@ fn destack_process_env_delete_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvDeleteBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11625,7 +11626,7 @@ fn destack_process_env_delete_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11640,7 +11641,7 @@ fn destack_process_env_get_vm_replay(
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_ENV_GET,
         binding.replay_payload_for(PROCESS_ENV_GET)?,
         context,
@@ -11668,7 +11669,7 @@ fn destack_process_env_get_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvGetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11685,7 +11686,7 @@ fn destack_process_env_get_vm_replay(
                     let vm_result = vm::StringHandle::new(vm_result_value);
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11700,7 +11701,7 @@ fn destack_process_env_get_bytes_vm_replay(
     world: RuntimeWorld,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_ENV_GET_BYTES,
         binding.replay_payload_for(PROCESS_ENV_GET_BYTES)?,
         context,
@@ -11725,7 +11726,7 @@ fn destack_process_env_get_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvGetBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11741,7 +11742,7 @@ fn destack_process_env_get_bytes_vm_replay(
                     let vm_result = VmArray::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11757,7 +11758,7 @@ fn destack_process_env_set_vm_replay(
     name: vm::StringHandle,
     argument_value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_ENV_SET,
         binding.replay_payload_for(PROCESS_ENV_SET)?,
         context,
@@ -11784,7 +11785,7 @@ fn destack_process_env_set_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvSetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11797,7 +11798,7 @@ fn destack_process_env_set_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11813,7 +11814,7 @@ fn destack_process_env_set_bytes_vm_replay(
     name: VmSlice<u8>,
     argument_value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_ENV_SET_BYTES,
         binding.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
         context,
@@ -11840,7 +11841,7 @@ fn destack_process_env_set_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessEnvSetBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11853,7 +11854,7 @@ fn destack_process_env_set_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11870,7 +11871,7 @@ fn destack_process_exec_fexec_vm_replay(
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_EXEC_FEXEC,
         binding.replay_payload_for(PROCESS_EXEC_FEXEC)?,
         context,
@@ -11902,7 +11903,7 @@ fn destack_process_exec_fexec_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessExecFexecReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11915,7 +11916,7 @@ fn destack_process_exec_fexec_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11932,7 +11933,7 @@ fn destack_process_exec_path_vm_replay(
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_EXEC_PATH,
         binding.replay_payload_for(PROCESS_EXEC_PATH)?,
         context,
@@ -11960,7 +11961,7 @@ fn destack_process_exec_path_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessExecPathReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11973,7 +11974,7 @@ fn destack_process_exec_path_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -11992,7 +11993,7 @@ fn destack_process_exec_pathat_vm_replay(
     environment: VmSlice<vm::StringHandle>,
     flags: ExecAtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_EXEC_PATHAT,
         binding.replay_payload_for(PROCESS_EXEC_PATHAT)?,
         context,
@@ -12028,7 +12029,7 @@ fn destack_process_exec_pathat_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessExecPathatReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12041,7 +12042,7 @@ fn destack_process_exec_pathat_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12056,7 +12057,7 @@ fn destack_process_exit_terminate_vm_replay(
     world: RuntimeWorld,
     code: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_EXIT_TERMINATE,
         binding.replay_payload_for(PROCESS_EXIT_TERMINATE)?,
         context,
@@ -12078,7 +12079,7 @@ fn destack_process_exit_terminate_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessExitTerminateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12091,7 +12092,7 @@ fn destack_process_exit_terminate_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12106,7 +12107,7 @@ fn destack_process_fd_process_fd_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_PROCESS_FD_CLOSE,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_CLOSE)?,
         context,
@@ -12130,7 +12131,7 @@ fn destack_process_fd_process_fd_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12143,7 +12144,7 @@ fn destack_process_fd_process_fd_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12159,7 +12160,7 @@ fn destack_process_fd_process_fd_open_vm_replay(
     pid: ProcessId,
     flags: ProcessFdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_PROCESS_FD_OPEN,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_OPEN)?,
         context,
@@ -12184,7 +12185,7 @@ fn destack_process_fd_process_fd_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12200,7 +12201,7 @@ fn destack_process_fd_process_fd_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12217,7 +12218,7 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
     signal: Signal,
     flags: ProcessFdSignalFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?,
         context,
@@ -12243,7 +12244,7 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdSendSignalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12256,7 +12257,7 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12271,7 +12272,7 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
     world: RuntimeWorld,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_PROCESS_FD_TRY_WAIT,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_TRY_WAIT)?,
         context,
@@ -12404,7 +12405,7 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdTryWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12510,7 +12511,7 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12526,7 +12527,7 @@ fn destack_process_fd_process_fd_wait_vm_replay(
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_PROCESS_FD_WAIT,
         binding.replay_payload_for(PROCESS_FD_PROCESS_FD_WAIT)?,
         context,
@@ -12657,7 +12658,7 @@ fn destack_process_fd_process_fd_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdProcessFdWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12763,7 +12764,7 @@ fn destack_process_fd_process_fd_wait_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12778,7 +12779,7 @@ fn destack_process_fd_signal_fd_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_SIGNAL_FD_CLOSE,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_CLOSE)?,
         context,
@@ -12802,7 +12803,7 @@ fn destack_process_fd_signal_fd_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12815,7 +12816,7 @@ fn destack_process_fd_signal_fd_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12831,7 +12832,7 @@ fn destack_process_fd_signal_fd_open_vm_replay(
     signals: VmSlice<Signal>,
     flags: SignalFdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_SIGNAL_FD_OPEN,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_OPEN)?,
         context,
@@ -12856,7 +12857,7 @@ fn destack_process_fd_signal_fd_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12872,7 +12873,7 @@ fn destack_process_fd_signal_fd_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12887,7 +12888,7 @@ fn destack_process_fd_signal_fd_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_SIGNAL_FD_READ,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_READ)?,
         context,
@@ -12917,7 +12918,7 @@ fn destack_process_fd_signal_fd_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12938,7 +12939,7 @@ fn destack_process_fd_signal_fd_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -12954,7 +12955,7 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
     handle: resource::SignalFdHandle,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_SIGNAL_FD_SET_MASK,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_SET_MASK)?,
         context,
@@ -12978,7 +12979,7 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdSetMaskReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12991,7 +12992,7 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13006,7 +13007,7 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_SIGNAL_FD_TRY_READ,
         binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_TRY_READ)?,
         context,
@@ -13036,7 +13037,7 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdSignalFdTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13057,7 +13058,7 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13071,7 +13072,7 @@ fn destack_process_fd_stdio_stderr_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_STDIO_STDERR,
         binding.replay_payload_for(PROCESS_FD_STDIO_STDERR)?,
         context,
@@ -13094,7 +13095,7 @@ fn destack_process_fd_stdio_stderr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdStdioStderrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13110,7 +13111,7 @@ fn destack_process_fd_stdio_stderr_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13124,7 +13125,7 @@ fn destack_process_fd_stdio_stdin_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_STDIO_STDIN,
         binding.replay_payload_for(PROCESS_FD_STDIO_STDIN)?,
         context,
@@ -13147,7 +13148,7 @@ fn destack_process_fd_stdio_stdin_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdStdioStdinReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13163,7 +13164,7 @@ fn destack_process_fd_stdio_stdin_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13177,7 +13178,7 @@ fn destack_process_fd_stdio_stdout_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_FD_STDIO_STDOUT,
         binding.replay_payload_for(PROCESS_FD_STDIO_STDOUT)?,
         context,
@@ -13200,7 +13201,7 @@ fn destack_process_fd_stdio_stdout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessFdStdioStdoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13216,7 +13217,7 @@ fn destack_process_fd_stdio_stdout_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13230,7 +13231,7 @@ fn destack_process_ids_egid_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_EGID,
         binding.replay_payload_for(PROCESS_IDS_EGID)?,
         context,
@@ -13253,7 +13254,7 @@ fn destack_process_ids_egid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsEgidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13269,7 +13270,7 @@ fn destack_process_ids_egid_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13283,7 +13284,7 @@ fn destack_process_ids_euid_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_EUID,
         binding.replay_payload_for(PROCESS_IDS_EUID)?,
         context,
@@ -13306,7 +13307,7 @@ fn destack_process_ids_euid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsEuidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13322,7 +13323,7 @@ fn destack_process_ids_euid_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13336,7 +13337,7 @@ fn destack_process_ids_gid_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_GID,
         binding.replay_payload_for(PROCESS_IDS_GID)?,
         context,
@@ -13359,7 +13360,7 @@ fn destack_process_ids_gid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsGidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13375,7 +13376,7 @@ fn destack_process_ids_gid_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13389,7 +13390,7 @@ fn destack_process_ids_group_ids_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_GROUP_IDS,
         binding.replay_payload_for(PROCESS_IDS_GROUP_IDS)?,
         context,
@@ -13419,7 +13420,7 @@ fn destack_process_ids_group_ids_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsGroupIdsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13442,7 +13443,7 @@ fn destack_process_ids_group_ids_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13456,7 +13457,7 @@ fn destack_process_ids_groups_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_GROUPS,
         binding.replay_payload_for(PROCESS_IDS_GROUPS)?,
         context,
@@ -13490,7 +13491,7 @@ fn destack_process_ids_groups_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsGroupsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13512,7 +13513,7 @@ fn destack_process_ids_groups_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13526,7 +13527,7 @@ fn destack_process_ids_pid_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_PID,
         binding.replay_payload_for(PROCESS_IDS_PID)?,
         context,
@@ -13549,7 +13550,7 @@ fn destack_process_ids_pid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsPidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13565,7 +13566,7 @@ fn destack_process_ids_pid_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13579,7 +13580,7 @@ fn destack_process_ids_ppid_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_PPID,
         binding.replay_payload_for(PROCESS_IDS_PPID)?,
         context,
@@ -13602,7 +13603,7 @@ fn destack_process_ids_ppid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsPpidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13618,7 +13619,7 @@ fn destack_process_ids_ppid_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13633,7 +13634,7 @@ fn destack_process_ids_set_egid_vm_replay(
     world: RuntimeWorld,
     groupid: GroupId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_SET_EGID,
         binding.replay_payload_for(PROCESS_IDS_SET_EGID)?,
         context,
@@ -13655,7 +13656,7 @@ fn destack_process_ids_set_egid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetEgidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13668,7 +13669,7 @@ fn destack_process_ids_set_egid_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13683,7 +13684,7 @@ fn destack_process_ids_set_euid_vm_replay(
     world: RuntimeWorld,
     userid: UserId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_SET_EUID,
         binding.replay_payload_for(PROCESS_IDS_SET_EUID)?,
         context,
@@ -13705,7 +13706,7 @@ fn destack_process_ids_set_euid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetEuidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13718,7 +13719,7 @@ fn destack_process_ids_set_euid_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13733,7 +13734,7 @@ fn destack_process_ids_set_gid_vm_replay(
     world: RuntimeWorld,
     groupid: GroupId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_SET_GID,
         binding.replay_payload_for(PROCESS_IDS_SET_GID)?,
         context,
@@ -13755,7 +13756,7 @@ fn destack_process_ids_set_gid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetGidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13768,7 +13769,7 @@ fn destack_process_ids_set_gid_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13783,7 +13784,7 @@ fn destack_process_ids_set_group_ids_vm_replay(
     world: RuntimeWorld,
     ids: ProcessGroupIdsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_SET_GROUP_IDS,
         binding.replay_payload_for(PROCESS_IDS_SET_GROUP_IDS)?,
         context,
@@ -13805,7 +13806,7 @@ fn destack_process_ids_set_group_ids_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetGroupIdsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13818,7 +13819,7 @@ fn destack_process_ids_set_group_ids_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13833,7 +13834,7 @@ fn destack_process_ids_set_groups_vm_replay(
     world: RuntimeWorld,
     groups: VmSlice<GroupId>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_SET_GROUPS,
         binding.replay_payload_for(PROCESS_IDS_SET_GROUPS)?,
         context,
@@ -13855,7 +13856,7 @@ fn destack_process_ids_set_groups_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetGroupsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13868,7 +13869,7 @@ fn destack_process_ids_set_groups_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13883,7 +13884,7 @@ fn destack_process_ids_set_uid_vm_replay(
     world: RuntimeWorld,
     userid: UserId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_SET_UID,
         binding.replay_payload_for(PROCESS_IDS_SET_UID)?,
         context,
@@ -13905,7 +13906,7 @@ fn destack_process_ids_set_uid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetUidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13918,7 +13919,7 @@ fn destack_process_ids_set_uid_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13933,7 +13934,7 @@ fn destack_process_ids_set_user_ids_vm_replay(
     world: RuntimeWorld,
     ids: ProcessUserIdsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_SET_USER_IDS,
         binding.replay_payload_for(PROCESS_IDS_SET_USER_IDS)?,
         context,
@@ -13955,7 +13956,7 @@ fn destack_process_ids_set_user_ids_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsSetUserIdsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -13968,7 +13969,7 @@ fn destack_process_ids_set_user_ids_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -13982,7 +13983,7 @@ fn destack_process_ids_uid_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_UID,
         binding.replay_payload_for(PROCESS_IDS_UID)?,
         context,
@@ -14005,7 +14006,7 @@ fn destack_process_ids_uid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsUidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14021,7 +14022,7 @@ fn destack_process_ids_uid_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14035,7 +14036,7 @@ fn destack_process_ids_user_ids_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_IDS_USER_IDS,
         binding.replay_payload_for(PROCESS_IDS_USER_IDS)?,
         context,
@@ -14065,7 +14066,7 @@ fn destack_process_ids_user_ids_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessIdsUserIdsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14088,7 +14089,7 @@ fn destack_process_ids_user_ids_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14103,7 +14104,7 @@ fn destack_process_limits_get_limit_vm_replay(
     world: RuntimeWorld,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_LIMITS_GET_LIMIT,
         binding.replay_payload_for(PROCESS_LIMITS_GET_LIMIT)?,
         context,
@@ -14133,7 +14134,7 @@ fn destack_process_limits_get_limit_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessLimitsGetLimitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14154,7 +14155,7 @@ fn destack_process_limits_get_limit_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14170,7 +14171,7 @@ fn destack_process_limits_set_limit_vm_replay(
     resource: ProcessLimitResource,
     limit: ProcessLimitVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_LIMITS_SET_LIMIT,
         binding.replay_payload_for(PROCESS_LIMITS_SET_LIMIT)?,
         context,
@@ -14194,7 +14195,7 @@ fn destack_process_limits_set_limit_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessLimitsSetLimitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14207,7 +14208,7 @@ fn destack_process_limits_set_limit_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14222,7 +14223,7 @@ fn destack_process_sched_get_affinity_vm_replay(
     world: RuntimeWorld,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SCHED_GET_AFFINITY,
         binding.replay_payload_for(PROCESS_SCHED_GET_AFFINITY)?,
         context,
@@ -14258,7 +14259,7 @@ fn destack_process_sched_get_affinity_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedGetAffinityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14283,7 +14284,7 @@ fn destack_process_sched_get_affinity_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14298,7 +14299,7 @@ fn destack_process_sched_get_priority_vm_replay(
     world: RuntimeWorld,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SCHED_GET_PRIORITY,
         binding.replay_payload_for(PROCESS_SCHED_GET_PRIORITY)?,
         context,
@@ -14321,7 +14322,7 @@ fn destack_process_sched_get_priority_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedGetPriorityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14337,7 +14338,7 @@ fn destack_process_sched_get_priority_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14352,7 +14353,7 @@ fn destack_process_sched_get_scheduler_vm_replay(
     world: RuntimeWorld,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SCHED_GET_SCHEDULER,
         binding.replay_payload_for(PROCESS_SCHED_GET_SCHEDULER)?,
         context,
@@ -14382,7 +14383,7 @@ fn destack_process_sched_get_scheduler_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedGetSchedulerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14405,7 +14406,7 @@ fn destack_process_sched_get_scheduler_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14421,7 +14422,7 @@ fn destack_process_sched_set_affinity_vm_replay(
     pid: ProcessId,
     cpus: ProcessCpuSetVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SCHED_SET_AFFINITY,
         binding.replay_payload_for(PROCESS_SCHED_SET_AFFINITY)?,
         context,
@@ -14445,7 +14446,7 @@ fn destack_process_sched_set_affinity_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedSetAffinityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14458,7 +14459,7 @@ fn destack_process_sched_set_affinity_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14474,7 +14475,7 @@ fn destack_process_sched_set_priority_vm_replay(
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SCHED_SET_PRIORITY,
         binding.replay_payload_for(PROCESS_SCHED_SET_PRIORITY)?,
         context,
@@ -14498,7 +14499,7 @@ fn destack_process_sched_set_priority_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedSetPriorityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14511,7 +14512,7 @@ fn destack_process_sched_set_priority_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14527,7 +14528,7 @@ fn destack_process_sched_set_scheduler_vm_replay(
     pid: ProcessId,
     config: ProcessSchedulerConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SCHED_SET_SCHEDULER,
         binding.replay_payload_for(PROCESS_SCHED_SET_SCHEDULER)?,
         context,
@@ -14551,7 +14552,7 @@ fn destack_process_sched_set_scheduler_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedSetSchedulerReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14564,7 +14565,7 @@ fn destack_process_sched_set_scheduler_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14578,7 +14579,7 @@ fn destack_process_sched_yield_now_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SCHED_YIELD_NOW,
         binding.replay_payload_for(PROCESS_SCHED_YIELD_NOW)?,
         context,
@@ -14600,7 +14601,7 @@ fn destack_process_sched_yield_now_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSchedYieldNowReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14613,7 +14614,7 @@ fn destack_process_sched_yield_now_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14628,7 +14629,7 @@ fn destack_process_session_getpgid_vm_replay(
     world: RuntimeWorld,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SESSION_GETPGID,
         binding.replay_payload_for(PROCESS_SESSION_GETPGID)?,
         context,
@@ -14651,7 +14652,7 @@ fn destack_process_session_getpgid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSessionGetpgidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14667,7 +14668,7 @@ fn destack_process_session_getpgid_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14683,7 +14684,7 @@ fn destack_process_session_setpgid_vm_replay(
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SESSION_SETPGID,
         binding.replay_payload_for(PROCESS_SESSION_SETPGID)?,
         context,
@@ -14705,7 +14706,7 @@ fn destack_process_session_setpgid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSessionSetpgidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14718,7 +14719,7 @@ fn destack_process_session_setpgid_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14732,7 +14733,7 @@ fn destack_process_session_setsid_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SESSION_SETSID,
         binding.replay_payload_for(PROCESS_SESSION_SETSID)?,
         context,
@@ -14755,7 +14756,7 @@ fn destack_process_session_setsid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSessionSetsidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14771,7 +14772,7 @@ fn destack_process_session_setsid_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14787,7 +14788,7 @@ fn destack_process_signals_kill_vm_replay(
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_KILL,
         binding.replay_payload_for(PROCESS_SIGNALS_KILL)?,
         context,
@@ -14809,7 +14810,7 @@ fn destack_process_signals_kill_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsKillReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14822,7 +14823,7 @@ fn destack_process_signals_kill_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14836,7 +14837,7 @@ fn destack_process_signals_signal_mask_read_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_SIGNAL_MASK_READ,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_READ)?,
         context,
@@ -14870,7 +14871,7 @@ fn destack_process_signals_signal_mask_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalMaskReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14892,7 +14893,7 @@ fn destack_process_signals_signal_mask_read_vm_replay(
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14908,7 +14909,7 @@ fn destack_process_signals_signal_mask_update_vm_replay(
     how: SignalMaskHow,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?,
         context,
@@ -14932,7 +14933,7 @@ fn destack_process_signals_signal_mask_update_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalMaskUpdateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14945,7 +14946,7 @@ fn destack_process_signals_signal_mask_update_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14960,7 +14961,7 @@ fn destack_process_signals_signal_receive_vm_replay(
     world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_SIGNAL_RECEIVE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_RECEIVE)?,
         context,
@@ -14990,7 +14991,7 @@ fn destack_process_signals_signal_receive_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15011,7 +15012,7 @@ fn destack_process_signals_signal_receive_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15026,7 +15027,7 @@ fn destack_process_signals_signal_subscribe_vm_replay(
     world: RuntimeWorld,
     signal: Signal,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?,
         context,
@@ -15051,7 +15052,7 @@ fn destack_process_signals_signal_subscribe_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalSubscribeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15067,7 +15068,7 @@ fn destack_process_signals_signal_subscribe_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15082,7 +15083,7 @@ fn destack_process_signals_signal_try_receive_vm_replay(
     world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?,
         context,
@@ -15112,7 +15113,7 @@ fn destack_process_signals_signal_try_receive_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalTryReceiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15133,7 +15134,7 @@ fn destack_process_signals_signal_try_receive_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15148,7 +15149,7 @@ fn destack_process_signals_signal_try_wait_vm_replay(
     world: RuntimeWorld,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?,
         context,
@@ -15178,7 +15179,7 @@ fn destack_process_signals_signal_try_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalTryWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15199,7 +15200,7 @@ fn destack_process_signals_signal_try_wait_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15214,7 +15215,7 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
     world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?,
         context,
@@ -15238,7 +15239,7 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalUnsubscribeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15251,7 +15252,7 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15266,7 +15267,7 @@ fn destack_process_signals_signal_wait_vm_replay(
     world: RuntimeWorld,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SIGNALS_SIGNAL_WAIT,
         binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_WAIT)?,
         context,
@@ -15296,7 +15297,7 @@ fn destack_process_signals_signal_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSignalsSignalWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15317,7 +15318,7 @@ fn destack_process_signals_signal_wait_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15335,7 +15336,7 @@ fn destack_process_spawn_start_vm_replay(
     environment: VmSlice<vm::StringHandle>,
     options: ProcessSpawnOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SPAWN_START,
         binding.replay_payload_for(PROCESS_SPAWN_START)?,
         context,
@@ -15370,7 +15371,7 @@ fn destack_process_spawn_start_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSpawnStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15386,7 +15387,7 @@ fn destack_process_spawn_start_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15406,7 +15407,7 @@ fn destack_process_spawn_with_actions_vm_replay(
     stdio: VmSlice<ProcessStdioVm>,
     actions: VmSlice<ProcessFdActionVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_SPAWN_WITH_ACTIONS,
         binding.replay_payload_for(PROCESS_SPAWN_WITH_ACTIONS)?,
         context,
@@ -15445,7 +15446,7 @@ fn destack_process_spawn_with_actions_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessSpawnWithActionsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15461,7 +15462,7 @@ fn destack_process_spawn_with_actions_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15476,7 +15477,7 @@ fn destack_process_umask_set_vm_replay(
     world: RuntimeWorld,
     mask: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_UMASK_SET,
         binding.replay_payload_for(PROCESS_UMASK_SET)?,
         context,
@@ -15499,7 +15500,7 @@ fn destack_process_umask_set_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessUmaskSetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15515,7 +15516,7 @@ fn destack_process_umask_set_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15531,7 +15532,7 @@ fn destack_process_wait_handle_vm_replay(
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_WAIT_HANDLE,
         binding.replay_payload_for(PROCESS_WAIT_HANDLE)?,
         context,
@@ -15662,7 +15663,7 @@ fn destack_process_wait_handle_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessWaitHandleReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15768,7 +15769,7 @@ fn destack_process_wait_handle_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15784,7 +15785,7 @@ fn destack_process_wait_pid_vm_replay(
     pid: ProcessId,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_WAIT_PID,
         binding.replay_payload_for(PROCESS_WAIT_PID)?,
         context,
@@ -15915,7 +15916,7 @@ fn destack_process_wait_pid_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessWaitPidReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16021,7 +16022,7 @@ fn destack_process_wait_pid_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16036,7 +16037,7 @@ fn destack_process_wait_try_wait_vm_replay(
     world: RuntimeWorld,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         PROCESS_WAIT_TRY_WAIT,
         binding.replay_payload_for(PROCESS_WAIT_TRY_WAIT)?,
         context,
@@ -16165,7 +16166,7 @@ fn destack_process_wait_try_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     ProcessWaitTryWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16271,7 +16272,7 @@ fn destack_process_wait_try_wait_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

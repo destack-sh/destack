@@ -1,49 +1,21 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::replay::{RandomEvent, RandomEventKind, ReplayController, ReplayEvent};
+use crate::runtime::replay::{
+    EntropyEvent, EntropyKind, EntropySubject, Replay, ReplayError, ReplayEvent,
+};
 use destack_workspace::ExecutionMode;
 
-/// Replay channel name for random events.
-const RANDOM_CHANNEL: &str = "random";
-
-/// Return one replay mismatch error for the random channel.
-fn random_mismatch_error() -> Box<RuntimeError> {
-    RuntimeError::ReplayMismatch {
-        name: RANDOM_CHANNEL.to_string(),
-    }
-    .boxed()
-}
-
-impl ReplayController {
-    /// Read the next random event for replay.
-    pub fn next_random_event(&self, expected: RandomEventKind) -> RuntimeResult<RandomEvent> {
-        // reject reads outside replay execution
-        if self.mode() != ExecutionMode::Replay {
-            return Err(random_mismatch_error());
-        }
-
-        // read the next event from the log
-        let Some(event) = self.next_event()? else {
-            let sequence = self.log().next_sequence().get();
-            return Err(RuntimeError::ReplayLogExhausted { sequence }.boxed());
-        };
-
-        // validate the random event
-        let ReplayEvent::RandomEvent(random_event) = event else {
-            return Err(random_mismatch_error());
-        };
-
-        // validate the random event kind
-        if random_event.kind != expected {
-            return Err(random_mismatch_error());
-        }
-
-        Ok(random_event)
-    }
-
-    /// Run a random binding that yields a u64.
-    pub fn run_random_u64<Call>(&self, stream_id: RandomStreamId, call: Call) -> RuntimeResult<u64>
+impl Replay {
+    /// Run one random u64 binding through the entropy replay channel.
+    pub fn run_random_u64<Hook, Call>(
+        &self,
+        subject: EntropySubject,
+        stream_id: RandomStreamId,
+        on_replay_read: Hook,
+        call: Call,
+    ) -> RuntimeResult<u64>
     where
+        Hook: FnOnce(),
         Call: FnOnce() -> RuntimeResult<u64>,
     {
         let mode = self.mode();
@@ -51,38 +23,53 @@ impl ReplayController {
         match mode {
             // fast and deterministic modes execute directly
             ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
-            // replay mode decodes one recorded u64 sample
+            // replay mode decodes one recorded entropy sample
             ExecutionMode::Replay => {
-                let event = self.next_random_event(RandomEventKind::NextU64)?;
-                if event.stream_id != stream_id {
-                    return Err(random_mismatch_error());
+                on_replay_read();
+                let event = self.next_entropy_event(EntropyKind::RandomReadU64, subject)?;
+
+                match event {
+                    EntropyEvent::RandomReadU64 {
+                        stream_id: replay_stream_id,
+                        outcome,
+                        ..
+                    } => {
+                        if replay_stream_id != stream_id {
+                            return Err(self.entropy_mismatch_error());
+                        }
+
+                        outcome.map_err(Box::<RuntimeError>::from)
+                    }
+                    _ => Err(self.entropy_mismatch_error()),
                 }
-
-                let bytes: [u8; 8] = event
-                    .bytes
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| random_mismatch_error())?;
-
-                Ok(u64::from_le_bytes(bytes))
             }
-            // record mode executes and records one u64 sample
+            // record mode executes and records one entropy sample
             ExecutionMode::Record => {
-                let value = call()?;
-                self.record_event(ReplayEvent::RandomEvent(RandomEvent {
+                let result = call();
+                let outcome = result
+                    .as_ref()
+                    .map(|value| *value)
+                    .map_err(|error| ReplayError::from(error.as_ref()));
+                self.record_event(ReplayEvent::Entropy(EntropyEvent::RandomReadU64 {
+                    subject,
                     stream_id,
-                    kind: RandomEventKind::NextU64,
-                    bytes: value.to_le_bytes().to_vec(),
+                    outcome,
                 }))?;
 
-                Ok(value)
+                result
             }
         }
     }
 
-    /// Run a random binding that allocates a stream.
-    pub fn run_random_stream<Call>(&self, call: Call) -> RuntimeResult<u64>
+    /// Run one stream allocation binding through the entropy replay channel.
+    pub fn run_random_stream<Hook, Call>(
+        &self,
+        subject: EntropySubject,
+        on_replay_read: Hook,
+        call: Call,
+    ) -> RuntimeResult<u64>
     where
+        Hook: FnOnce(),
         Call: FnOnce() -> RuntimeResult<u64>,
     {
         let mode = self.mode();
@@ -92,36 +79,46 @@ impl ReplayController {
             ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
             // replay mode decodes one recorded stream allocation
             ExecutionMode::Replay => {
-                let event = self.next_random_event(RandomEventKind::Stream)?;
-                if !event.bytes.is_empty() {
-                    return Err(random_mismatch_error());
-                }
+                on_replay_read();
+                let event = self.next_entropy_event(EntropyKind::RandomStreamCreate, subject)?;
 
-                Ok(event.stream_id.get())
+                match event {
+                    EntropyEvent::RandomStreamCreate { outcome, .. } => outcome
+                        .map(|stream_id| stream_id.get())
+                        .map_err(Box::<RuntimeError>::from),
+                    _ => Err(self.entropy_mismatch_error()),
+                }
             }
             // record mode executes and records one stream allocation
             ExecutionMode::Record => {
-                let value = call()?;
-                self.record_event(ReplayEvent::RandomEvent(RandomEvent {
-                    stream_id: RandomStreamId::new(value),
-                    kind: RandomEventKind::Stream,
-                    bytes: Vec::new(),
+                let result = call();
+                let outcome = result
+                    .as_ref()
+                    .map(|value| RandomStreamId::new(*value))
+                    .map_err(|error| ReplayError::from(error.as_ref()));
+                self.record_event(ReplayEvent::Entropy(EntropyEvent::RandomStreamCreate {
+                    subject,
+                    outcome,
                 }))?;
 
-                Ok(value)
+                result
             }
         }
     }
 
-    /// Run a random binding that yields or fills bytes.
-    pub fn run_random_bytes<Call, Encode, Decode>(
+    /// Run one random bytes binding through the entropy replay channel.
+    pub fn run_random_bytes<Hook, Call, Encode, Decode>(
         &self,
+        subject: EntropySubject,
         stream_id: RandomStreamId,
+        requested_len: u32,
+        on_replay_read: Hook,
         call: Call,
         encode: Encode,
         decode: Decode,
     ) -> RuntimeResult<()>
     where
+        Hook: FnOnce(),
         Call: FnOnce() -> RuntimeResult<()>,
         Encode: FnOnce() -> RuntimeResult<Vec<u8>>,
         Decode: FnOnce(Vec<u8>) -> RuntimeResult<()>,
@@ -133,25 +130,41 @@ impl ReplayController {
             ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
             // replay mode decodes one recorded byte payload
             ExecutionMode::Replay => {
-                let event = self.next_random_event(RandomEventKind::Bytes)?;
-                if event.stream_id != stream_id {
-                    return Err(random_mismatch_error());
-                }
+                on_replay_read();
+                let event = self.next_entropy_event(EntropyKind::RandomReadBytes, subject)?;
 
-                decode(event.bytes)
+                match event {
+                    EntropyEvent::RandomReadBytes {
+                        stream_id: replay_stream_id,
+                        len,
+                        outcome,
+                        ..
+                    } => {
+                        if replay_stream_id != stream_id || len != requested_len {
+                            return Err(self.entropy_mismatch_error());
+                        }
+
+                        let bytes = outcome.map_err(Box::<RuntimeError>::from)?;
+                        decode(bytes)
+                    }
+                    _ => Err(self.entropy_mismatch_error()),
+                }
             }
             // record mode executes and records one byte payload
             ExecutionMode::Record => {
-                call()?;
-
-                let bytes = encode()?;
-                self.record_event(ReplayEvent::RandomEvent(RandomEvent {
+                let result = call();
+                let outcome = match result.as_ref() {
+                    Ok(()) => encode().map_err(|error| ReplayError::from(error.as_ref())),
+                    Err(error) => Err(ReplayError::from(error.as_ref())),
+                };
+                self.record_event(ReplayEvent::Entropy(EntropyEvent::RandomReadBytes {
+                    subject,
                     stream_id,
-                    kind: RandomEventKind::Bytes,
-                    bytes,
+                    len: requested_len,
+                    outcome,
                 }))?;
 
-                Ok(())
+                result
             }
         }
     }

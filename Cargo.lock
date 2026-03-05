@@ -1698,6 +1698,7 @@ dependencies = [
  "destack_vm_abi",
  "perf-event",
  "pprof",
+ "serde",
  "smallvec",
 ]
 

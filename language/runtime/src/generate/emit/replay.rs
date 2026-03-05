@@ -151,7 +151,7 @@ impl<'a> DomainWriter<'a> {
                 }
             }
 
-            output.push_str("    binding.replay().run_binding_with_policy(\n");
+            output.push_str("    binding.replay().run_binding_without_context(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
             output.push_str(&format!(
                 "        binding.replay_payload_for({})?,\n",
@@ -274,31 +274,25 @@ impl<'a> DomainWriter<'a> {
             if supports_args {
                 output.push_str("                    args,\n");
             }
-            if entry.return_is_result {
-                output.push_str("                    result: Ok(result_recorded),\n");
-            } else {
-                output.push_str("                    result: result_recorded,\n");
-            }
+            output.push_str("                    result: Ok(result_recorded),\n");
             output.push_str("                };\n");
             output.push_str("                return Ok(Some(payload));\n");
             output.push_str("            }\n\n");
 
-            if entry.return_is_result {
-                output.push_str("            if let Err(error) = result {\n");
-                output.push_str("                let payload = {\n");
-                output.push_str(
-                    "                    let result = Err(PlatformError::from(error.as_ref()));\n",
-                );
-                output.push_str(&format!("                    {replay_struct} {{\n"));
-                if supports_args {
-                    output.push_str("                        args,\n");
-                }
-                output.push_str("                        result,\n");
-                output.push_str("                    }\n");
-                output.push_str("                };\n");
-                output.push_str("                return Ok(Some(payload));\n");
-                output.push_str("            }\n\n");
+            output.push_str("            if let Err(error) = result {\n");
+            output.push_str("                let payload = {\n");
+            output.push_str(
+                "                    let result = Err(ReplayError::from(error.as_ref()));\n",
+            );
+            output.push_str(&format!("                    {replay_struct} {{\n"));
+            if supports_args {
+                output.push_str("                        args,\n");
             }
+            output.push_str("                        result,\n");
+            output.push_str("                    }\n");
+            output.push_str("                };\n");
+            output.push_str("                return Ok(Some(payload));\n");
+            output.push_str("            }\n\n");
 
             output.push_str("            Ok(None)\n");
             output.push_str("        },\n");
@@ -349,42 +343,26 @@ impl<'a> DomainWriter<'a> {
             }
 
             output.push_str("            // replay result\n");
-            if entry.return_is_result {
-                output.push_str("            match payload.result {\n");
-                if entry.return_binding != BindingType::Void {
-                    output.push_str("                Ok(value) => {\n");
-                    for line in render_native_replay_store_lines(
-                        domain,
-                        &entry.return_binding,
-                        "out",
-                        "value",
-                        "value_native",
-                    ) {
-                        output.push_str(&format!("                    {line}\n"));
-                    }
-                    output.push_str("                    Ok(())\n");
-                    output.push_str("                }\n");
-                } else {
-                    output.push_str("                Ok(()) => Ok(()),\n");
+            output.push_str("            match payload.result {\n");
+            if entry.return_binding != BindingType::Void {
+                output.push_str("                Ok(value) => {\n");
+                for line in render_native_replay_store_lines(
+                    domain,
+                    &entry.return_binding,
+                    "out",
+                    "value",
+                    "value_native",
+                ) {
+                    output.push_str(&format!("                    {line}\n"));
                 }
-                output.push_str(
-                    "                Err(error) => Err(RuntimeError::from(error).boxed()),\n",
-                );
-                output.push_str("            }\n");
+                output.push_str("                    Ok(())\n");
+                output.push_str("                }\n");
             } else {
-                if entry.return_binding != BindingType::Void {
-                    for line in render_native_replay_store_lines(
-                        domain,
-                        &entry.return_binding,
-                        "out",
-                        "payload.result",
-                        "result_native",
-                    ) {
-                        output.push_str(&format!("            {line}\n"));
-                    }
-                }
-                output.push_str("            Ok(())\n");
+                output.push_str("                Ok(()) => Ok(()),\n");
             }
+            output
+                .push_str("                Err(error) => Err(Box::<RuntimeError>::from(error)),\n");
+            output.push_str("            }\n");
             output.push_str("        },\n");
             output.push_str("    )\n");
             output.push_str("}\n\n");
@@ -418,11 +396,7 @@ fn replay_struct_name(const_name: &str) -> String {
 /// Render the replay result type for a binding entry.
 fn replay_result_type(domain: &str, entry: &BindingEntry) -> String {
     let inner = replay_type_for_binding(domain, &entry.return_binding);
-    if entry.return_is_result {
-        format!("Result<{inner}, PlatformError>")
-    } else {
-        inner
-    }
+    format!("Result<{inner}, ReplayError>")
 }
 
 impl<'a> DomainWriter<'a> {
@@ -482,7 +456,7 @@ impl<'a> DomainWriter<'a> {
             }
             output.push_str(") -> RuntimeResult<vm::Value> {\n");
 
-            output.push_str("    let result = binding.replay().run_binding_with_context_policy(\n");
+            output.push_str("    let result = binding.replay().run_binding(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
             output.push_str(&format!(
                 "        binding.replay_payload_for({})?,\n",
@@ -579,31 +553,25 @@ impl<'a> DomainWriter<'a> {
             if supports_args {
                 output.push_str("                    args,\n");
             }
-            if entry.return_is_result {
-                output.push_str("                    result: Ok(result_recorded),\n");
-            } else {
-                output.push_str("                    result: result_recorded,\n");
-            }
+            output.push_str("                    result: Ok(result_recorded),\n");
             output.push_str("                };\n");
             output.push_str("                return Ok(Some(payload));\n");
             output.push_str("            }\n\n");
 
-            if entry.return_is_result {
-                output.push_str("            if let Err(error) = result {\n");
-                output.push_str("                let payload = {\n");
-                output.push_str(
-                    "                    let result = Err(PlatformError::from(error.as_ref()));\n",
-                );
-                output.push_str(&format!("                    {replay_struct} {{\n"));
-                if supports_args {
-                    output.push_str("                        args,\n");
-                }
-                output.push_str("                        result,\n");
-                output.push_str("                    }\n");
-                output.push_str("                };\n");
-                output.push_str("                return Ok(Some(payload));\n");
-                output.push_str("            }\n\n");
+            output.push_str("            if let Err(error) = result {\n");
+            output.push_str("                let payload = {\n");
+            output.push_str(
+                "                    let result = Err(ReplayError::from(error.as_ref()));\n",
+            );
+            output.push_str(&format!("                    {replay_struct} {{\n"));
+            if supports_args {
+                output.push_str("                        args,\n");
             }
+            output.push_str("                        result,\n");
+            output.push_str("                    }\n");
+            output.push_str("                };\n");
+            output.push_str("                return Ok(Some(payload));\n");
+            output.push_str("            }\n\n");
 
             output.push_str("            Ok(None)\n");
             output.push_str("        },\n");
@@ -654,42 +622,25 @@ impl<'a> DomainWriter<'a> {
             }
 
             output.push_str("            // replay result\n");
-            if entry.return_is_result {
-                output.push_str("            match payload.result {\n");
-                if entry.return_binding != BindingType::Void {
-                    output.push_str("                Ok(value) => {\n");
-                    for line in render_replay_to_vm_binding_lines(
-                        domain,
-                        &entry.return_binding,
-                        "vm_result",
-                        "value",
-                    ) {
-                        output.push_str(&format!("                    {line}\n"));
-                    }
-                    output.push_str("                    Ok(vm_result)\n");
-                    output.push_str("                }\n");
-                } else {
-                    output.push_str("                Ok(()) => Ok(()),\n");
+            output.push_str("            match payload.result {\n");
+            if entry.return_binding != BindingType::Void {
+                output.push_str("                Ok(value) => {\n");
+                for line in render_replay_to_vm_binding_lines(
+                    domain,
+                    &entry.return_binding,
+                    "vm_result",
+                    "value",
+                ) {
+                    output.push_str(&format!("                    {line}\n"));
                 }
-                output.push_str(
-                    "                Err(error) => Err(RuntimeError::from(error).boxed()),\n",
-                );
-                output.push_str("            }\n");
+                output.push_str("                    Ok(vm_result)\n");
+                output.push_str("                }\n");
             } else {
-                if entry.return_binding != BindingType::Void {
-                    for line in render_replay_to_vm_binding_lines(
-                        domain,
-                        &entry.return_binding,
-                        "vm_result",
-                        "payload.result",
-                    ) {
-                        output.push_str(&format!("            {line}\n"));
-                    }
-                    output.push_str("            Ok(vm_result)\n");
-                } else {
-                    output.push_str("            Ok(())\n");
-                }
+                output.push_str("                Ok(()) => Ok(()),\n");
             }
+            output
+                .push_str("                Err(error) => Err(Box::<RuntimeError>::from(error)),\n");
+            output.push_str("            }\n");
             output.push_str("        },\n");
             output.push_str("    );\n");
             output.push_str(&format!(

@@ -27,6 +27,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -1281,252 +1282,252 @@ fn encode_destack_io_uring_unregister_files_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoCompletionCancelReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.io.completion.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoCompletionCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.completion.enter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoCompletionEnterReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.io.completion.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoCompletionOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::CompletionHandle, PlatformError>,
+    pub result: Result<resource::CompletionHandle, ReplayError>,
 }
 
 /// Replay payload for destack.io.completion.submit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoCompletionSubmitReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.completion.submitBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoCompletionSubmitBatchReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.io.completion.wait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoCompletionWaitReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CompletionEvent>, PlatformError>,
+    pub result: Result<Vec<CompletionEvent>, ReplayError>,
 }
 
 /// Replay payload for destack.io.control.fcntl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoControlFcntlReplay {
     /// Replay result payload.
-    pub result: Result<i64, PlatformError>,
+    pub result: Result<i64, ReplayError>,
 }
 
 /// Replay payload for destack.io.control.ioctl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoControlIoctlReplay {
     /// Replay result payload.
-    pub result: Result<DescriptorResultReplayRecord, PlatformError>,
+    pub result: Result<DescriptorResultReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.io.device.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoDeviceCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.device.control.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoDeviceControlReplay {
     /// Replay result payload.
-    pub result: Result<DescriptorResultReplayRecord, PlatformError>,
+    pub result: Result<DescriptorResultReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.io.device.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoDeviceOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::DeviceHandle, PlatformError>,
+    pub result: Result<resource::DeviceHandle, ReplayError>,
 }
 
 /// Replay payload for destack.io.device.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoDeviceReadReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.io.device.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoDeviceWriteReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.io.event.attach.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoEventAttachReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.event.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoEventCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.event.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoEventOpenReplay {
     /// Replay result payload.
-    pub result: Result<EventToken, PlatformError>,
+    pub result: Result<EventToken, ReplayError>,
 }
 
 /// Replay payload for destack.io.event.signal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoEventSignalReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.poll.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoPollCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.poll.deregister.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoPollDeregisterReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.poll.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoPollOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::PollHandle, PlatformError>,
+    pub result: Result<resource::PollHandle, ReplayError>,
 }
 
 /// Replay payload for destack.io.poll.register.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoPollRegisterReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.poll.update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoPollUpdateReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.poll.wait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoPollWaitReplay {
     /// Replay result payload.
-    pub result: Result<Vec<PollEvent>, PlatformError>,
+    pub result: Result<Vec<PollEvent>, ReplayError>,
 }
 
 /// Replay payload for destack.io.timerfd.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoTimerfdCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.timerfd.get.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoTimerfdGetReplay {
     /// Replay result payload.
-    pub result: Result<TimerFdSpec, PlatformError>,
+    pub result: Result<TimerFdSpec, ReplayError>,
 }
 
 /// Replay payload for destack.io.timerfd.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoTimerfdOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::TimerFdHandle, PlatformError>,
+    pub result: Result<resource::TimerFdHandle, ReplayError>,
 }
 
 /// Replay payload for destack.io.timerfd.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoTimerfdReadReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.io.timerfd.set.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoTimerfdSetReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.uring.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoUringCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.uring.features.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoUringFeaturesReplay {
     /// Replay result payload.
-    pub result: Result<UringFeatures, PlatformError>,
+    pub result: Result<UringFeatures, ReplayError>,
 }
 
 /// Replay payload for destack.io.uring.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoUringOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::UringHandle, PlatformError>,
+    pub result: Result<resource::UringHandle, ReplayError>,
 }
 
 /// Replay payload for destack.io.uring.registerBuffers.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoUringRegisterBuffersReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.uring.registerFiles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoUringRegisterFilesReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.uring.unregisterBuffers.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoUringUnregisterBuffersReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.io.uring.unregisterFiles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoUringUnregisterFilesReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Binding descriptor for destack.io.completion.cancel.
@@ -2342,7 +2343,7 @@ fn destack_io_completion_cancel_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_COMPLETION_CANCEL,
         binding.replay_payload_for(IO_COMPLETION_CANCEL)?,
         || match world {
@@ -2372,7 +2373,7 @@ fn destack_io_completion_cancel_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionCancelReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2390,7 +2391,7 @@ fn destack_io_completion_cancel_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2404,7 +2405,7 @@ fn destack_io_completion_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_COMPLETION_CLOSE,
         binding.replay_payload_for(IO_COMPLETION_CLOSE)?,
         || match world {
@@ -2426,7 +2427,7 @@ fn destack_io_completion_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2438,7 +2439,7 @@ fn destack_io_completion_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2456,7 +2457,7 @@ fn destack_io_completion_enter_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mincomplete, &timeoutns, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_COMPLETION_ENTER,
         binding.replay_payload_for(IO_COMPLETION_ENTER)?,
         || match world {
@@ -2498,7 +2499,7 @@ fn destack_io_completion_enter_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionEnterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2516,7 +2517,7 @@ fn destack_io_completion_enter_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2531,7 +2532,7 @@ fn destack_io_completion_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &entries;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_COMPLETION_OPEN,
         binding.replay_payload_for(IO_COMPLETION_OPEN)?,
         || match world {
@@ -2559,7 +2560,7 @@ fn destack_io_completion_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2577,7 +2578,7 @@ fn destack_io_completion_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2592,7 +2593,7 @@ fn destack_io_completion_submit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &operation);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_COMPLETION_SUBMIT,
         binding.replay_payload_for(IO_COMPLETION_SUBMIT)?,
         || match world {
@@ -2614,7 +2615,7 @@ fn destack_io_completion_submit_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionSubmitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2626,7 +2627,7 @@ fn destack_io_completion_submit_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2649,7 +2650,7 @@ fn destack_io_completion_submit_batch_replay(
         &operationwordstride,
     );
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_COMPLETION_SUBMIT_BATCH,
         binding.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
         || match world {
@@ -2691,7 +2692,7 @@ fn destack_io_completion_submit_batch_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionSubmitBatchReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2709,7 +2710,7 @@ fn destack_io_completion_submit_batch_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2726,7 +2727,7 @@ fn destack_io_completion_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns, &maxevents);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_COMPLETION_WAIT,
         binding.replay_payload_for(IO_COMPLETION_WAIT)?,
         || match world {
@@ -2771,7 +2772,7 @@ fn destack_io_completion_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2801,7 +2802,7 @@ fn destack_io_completion_wait_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2819,7 +2820,7 @@ fn destack_io_control_fcntl_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &command, &argument, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_CONTROL_FCNTL,
         binding.replay_payload_for(IO_CONTROL_FCNTL)?,
         || match world {
@@ -2851,7 +2852,7 @@ fn destack_io_control_fcntl_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoControlFcntlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2869,7 +2870,7 @@ fn destack_io_control_fcntl_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2885,7 +2886,7 @@ fn destack_io_control_ioctl_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &request);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_CONTROL_IOCTL,
         binding.replay_payload_for(IO_CONTROL_IOCTL)?,
         || match world {
@@ -2925,7 +2926,7 @@ fn destack_io_control_ioctl_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoControlIoctlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2953,7 +2954,7 @@ fn destack_io_control_ioctl_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2967,7 +2968,7 @@ fn destack_io_device_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_DEVICE_CLOSE,
         binding.replay_payload_for(IO_DEVICE_CLOSE)?,
         || match world {
@@ -2989,7 +2990,7 @@ fn destack_io_device_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3001,7 +3002,7 @@ fn destack_io_device_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3017,7 +3018,7 @@ fn destack_io_device_control_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &request);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_DEVICE_CONTROL,
         binding.replay_payload_for(IO_DEVICE_CONTROL)?,
         || match world {
@@ -3057,7 +3058,7 @@ fn destack_io_device_control_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceControlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3085,7 +3086,7 @@ fn destack_io_device_control_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3102,7 +3103,7 @@ fn destack_io_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &flags, &mode);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_DEVICE_OPEN,
         binding.replay_payload_for(IO_DEVICE_OPEN)?,
         || match world {
@@ -3130,7 +3131,7 @@ fn destack_io_device_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3148,7 +3149,7 @@ fn destack_io_device_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3164,7 +3165,7 @@ fn destack_io_device_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_DEVICE_READ,
         binding.replay_payload_for(IO_DEVICE_READ)?,
         || match world {
@@ -3192,7 +3193,7 @@ fn destack_io_device_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3210,7 +3211,7 @@ fn destack_io_device_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3226,7 +3227,7 @@ fn destack_io_device_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_DEVICE_WRITE,
         binding.replay_payload_for(IO_DEVICE_WRITE)?,
         || match world {
@@ -3254,7 +3255,7 @@ fn destack_io_device_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3272,7 +3273,7 @@ fn destack_io_device_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3288,7 +3289,7 @@ fn destack_io_event_attach_replay(
 ) -> RuntimeResult<()> {
     let _ = (&token, &target, &key);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_EVENT_ATTACH,
         binding.replay_payload_for(IO_EVENT_ATTACH)?,
         || match world {
@@ -3310,7 +3311,7 @@ fn destack_io_event_attach_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoEventAttachReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3322,7 +3323,7 @@ fn destack_io_event_attach_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3336,7 +3337,7 @@ fn destack_io_event_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &token;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_EVENT_CLOSE,
         binding.replay_payload_for(IO_EVENT_CLOSE)?,
         || match world {
@@ -3358,7 +3359,7 @@ fn destack_io_event_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3370,7 +3371,7 @@ fn destack_io_event_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3385,7 +3386,7 @@ fn destack_io_event_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &initial;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_EVENT_OPEN,
         binding.replay_payload_for(IO_EVENT_OPEN)?,
         || match world {
@@ -3413,7 +3414,7 @@ fn destack_io_event_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3431,7 +3432,7 @@ fn destack_io_event_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3446,7 +3447,7 @@ fn destack_io_event_signal_replay(
 ) -> RuntimeResult<()> {
     let _ = (&token, &argument_value);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_EVENT_SIGNAL,
         binding.replay_payload_for(IO_EVENT_SIGNAL)?,
         || match world {
@@ -3468,7 +3469,7 @@ fn destack_io_event_signal_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoEventSignalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3480,7 +3481,7 @@ fn destack_io_event_signal_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3494,7 +3495,7 @@ fn destack_io_poll_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_POLL_CLOSE,
         binding.replay_payload_for(IO_POLL_CLOSE)?,
         || match world {
@@ -3516,7 +3517,7 @@ fn destack_io_poll_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3528,7 +3529,7 @@ fn destack_io_poll_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3543,7 +3544,7 @@ fn destack_io_poll_deregister_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_POLL_DEREGISTER,
         binding.replay_payload_for(IO_POLL_DEREGISTER)?,
         || match world {
@@ -3565,7 +3566,7 @@ fn destack_io_poll_deregister_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollDeregisterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3577,7 +3578,7 @@ fn destack_io_poll_deregister_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3592,7 +3593,7 @@ fn destack_io_poll_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &backend;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_POLL_OPEN,
         binding.replay_payload_for(IO_POLL_OPEN)?,
         || match world {
@@ -3620,7 +3621,7 @@ fn destack_io_poll_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3638,7 +3639,7 @@ fn destack_io_poll_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3655,7 +3656,7 @@ fn destack_io_poll_register_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &key, &interest);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_POLL_REGISTER,
         binding.replay_payload_for(IO_POLL_REGISTER)?,
         || match world {
@@ -3679,7 +3680,7 @@ fn destack_io_poll_register_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollRegisterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3691,7 +3692,7 @@ fn destack_io_poll_register_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3708,7 +3709,7 @@ fn destack_io_poll_update_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &key, &interest);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_POLL_UPDATE,
         binding.replay_payload_for(IO_POLL_UPDATE)?,
         || match world {
@@ -3732,7 +3733,7 @@ fn destack_io_poll_update_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollUpdateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3744,7 +3745,7 @@ fn destack_io_poll_update_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3761,7 +3762,7 @@ fn destack_io_poll_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns, &maxevents);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_POLL_WAIT,
         binding.replay_payload_for(IO_POLL_WAIT)?,
         || match world {
@@ -3804,7 +3805,7 @@ fn destack_io_poll_wait_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3834,7 +3835,7 @@ fn destack_io_poll_wait_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3848,7 +3849,7 @@ fn destack_io_timerfd_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_TIMERFD_CLOSE,
         binding.replay_payload_for(IO_TIMERFD_CLOSE)?,
         || match world {
@@ -3870,7 +3871,7 @@ fn destack_io_timerfd_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3882,7 +3883,7 @@ fn destack_io_timerfd_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3897,7 +3898,7 @@ fn destack_io_timerfd_get_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_TIMERFD_GET,
         binding.replay_payload_for(IO_TIMERFD_GET)?,
         || match world {
@@ -3930,7 +3931,7 @@ fn destack_io_timerfd_get_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdGetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3953,7 +3954,7 @@ fn destack_io_timerfd_get_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3969,7 +3970,7 @@ fn destack_io_timerfd_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&clock, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_TIMERFD_OPEN,
         binding.replay_payload_for(IO_TIMERFD_OPEN)?,
         || match world {
@@ -3997,7 +3998,7 @@ fn destack_io_timerfd_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4015,7 +4016,7 @@ fn destack_io_timerfd_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4030,7 +4031,7 @@ fn destack_io_timerfd_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_TIMERFD_READ,
         binding.replay_payload_for(IO_TIMERFD_READ)?,
         || match world {
@@ -4058,7 +4059,7 @@ fn destack_io_timerfd_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4076,7 +4077,7 @@ fn destack_io_timerfd_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4092,7 +4093,7 @@ fn destack_io_timerfd_set_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &spec, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_TIMERFD_SET,
         binding.replay_payload_for(IO_TIMERFD_SET)?,
         || match world {
@@ -4114,7 +4115,7 @@ fn destack_io_timerfd_set_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdSetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4126,7 +4127,7 @@ fn destack_io_timerfd_set_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4140,7 +4141,7 @@ fn destack_io_uring_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_URING_CLOSE,
         binding.replay_payload_for(IO_URING_CLOSE)?,
         || match world {
@@ -4162,7 +4163,7 @@ fn destack_io_uring_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4174,7 +4175,7 @@ fn destack_io_uring_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4189,7 +4190,7 @@ fn destack_io_uring_features_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_URING_FEATURES,
         binding.replay_payload_for(IO_URING_FEATURES)?,
         || match world {
@@ -4228,7 +4229,7 @@ fn destack_io_uring_features_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringFeaturesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4257,7 +4258,7 @@ fn destack_io_uring_features_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4272,7 +4273,7 @@ fn destack_io_uring_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &parameters;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_URING_OPEN,
         binding.replay_payload_for(IO_URING_OPEN)?,
         || match world {
@@ -4300,7 +4301,7 @@ fn destack_io_uring_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4318,7 +4319,7 @@ fn destack_io_uring_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4334,7 +4335,7 @@ fn destack_io_uring_register_buffers_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &addresses, &lengths);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_URING_REGISTER_BUFFERS,
         binding.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
         || match world {
@@ -4360,7 +4361,7 @@ fn destack_io_uring_register_buffers_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringRegisterBuffersReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4372,7 +4373,7 @@ fn destack_io_uring_register_buffers_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4387,7 +4388,7 @@ fn destack_io_uring_register_files_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &files);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_URING_REGISTER_FILES,
         binding.replay_payload_for(IO_URING_REGISTER_FILES)?,
         || match world {
@@ -4409,7 +4410,7 @@ fn destack_io_uring_register_files_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringRegisterFilesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4421,7 +4422,7 @@ fn destack_io_uring_register_files_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4435,7 +4436,7 @@ fn destack_io_uring_unregister_buffers_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_URING_UNREGISTER_BUFFERS,
         binding.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
         || match world {
@@ -4457,7 +4458,7 @@ fn destack_io_uring_unregister_buffers_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringUnregisterBuffersReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4469,7 +4470,7 @@ fn destack_io_uring_unregister_buffers_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -4483,7 +4484,7 @@ fn destack_io_uring_unregister_files_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         IO_URING_UNREGISTER_FILES,
         binding.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
         || match world {
@@ -4505,7 +4506,7 @@ fn destack_io_uring_unregister_files_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringUnregisterFilesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4517,7 +4518,7 @@ fn destack_io_uring_unregister_files_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5126,7 +5127,7 @@ fn destack_io_completion_cancel_vm_replay(
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_COMPLETION_CANCEL,
         binding.replay_payload_for(IO_COMPLETION_CANCEL)?,
         context,
@@ -5151,7 +5152,7 @@ fn destack_io_completion_cancel_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionCancelReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5167,7 +5168,7 @@ fn destack_io_completion_cancel_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5182,7 +5183,7 @@ fn destack_io_completion_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_COMPLETION_CLOSE,
         binding.replay_payload_for(IO_COMPLETION_CLOSE)?,
         context,
@@ -5206,7 +5207,7 @@ fn destack_io_completion_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5219,7 +5220,7 @@ fn destack_io_completion_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5237,7 +5238,7 @@ fn destack_io_completion_enter_vm_replay(
     timeoutns: u64,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_COMPLETION_ENTER,
         binding.replay_payload_for(IO_COMPLETION_ENTER)?,
         context,
@@ -5272,7 +5273,7 @@ fn destack_io_completion_enter_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionEnterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5288,7 +5289,7 @@ fn destack_io_completion_enter_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5303,7 +5304,7 @@ fn destack_io_completion_open_vm_replay(
     world: RuntimeWorld,
     entries: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_COMPLETION_OPEN,
         binding.replay_payload_for(IO_COMPLETION_OPEN)?,
         context,
@@ -5328,7 +5329,7 @@ fn destack_io_completion_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5344,7 +5345,7 @@ fn destack_io_completion_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5360,7 +5361,7 @@ fn destack_io_completion_submit_vm_replay(
     handle: resource::CompletionHandle,
     operation: CompletionOperationVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_COMPLETION_SUBMIT,
         binding.replay_payload_for(IO_COMPLETION_SUBMIT)?,
         context,
@@ -5384,7 +5385,7 @@ fn destack_io_completion_submit_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionSubmitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5397,7 +5398,7 @@ fn destack_io_completion_submit_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5415,7 +5416,7 @@ fn destack_io_completion_submit_batch_vm_replay(
     operationcount: u32,
     operationwordstride: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_COMPLETION_SUBMIT_BATCH,
         binding.replay_payload_for(IO_COMPLETION_SUBMIT_BATCH)?,
         context,
@@ -5450,7 +5451,7 @@ fn destack_io_completion_submit_batch_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionSubmitBatchReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5466,7 +5467,7 @@ fn destack_io_completion_submit_batch_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5483,7 +5484,7 @@ fn destack_io_completion_wait_vm_replay(
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_COMPLETION_WAIT,
         binding.replay_payload_for(IO_COMPLETION_WAIT)?,
         context,
@@ -5550,7 +5551,7 @@ fn destack_io_completion_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoCompletionWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5591,7 +5592,7 @@ fn destack_io_completion_wait_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5609,7 +5610,7 @@ fn destack_io_control_fcntl_vm_replay(
     argument: u64,
     flags: DescriptorControlFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_CONTROL_FCNTL,
         binding.replay_payload_for(IO_CONTROL_FCNTL)?,
         context,
@@ -5634,7 +5635,7 @@ fn destack_io_control_fcntl_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoControlFcntlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5650,7 +5651,7 @@ fn destack_io_control_fcntl_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5666,7 +5667,7 @@ fn destack_io_control_ioctl_vm_replay(
     handle: resource::ResourceId,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_CONTROL_IOCTL,
         binding.replay_payload_for(IO_CONTROL_IOCTL)?,
         context,
@@ -5696,7 +5697,7 @@ fn destack_io_control_ioctl_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoControlIoctlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5717,7 +5718,7 @@ fn destack_io_control_ioctl_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5732,7 +5733,7 @@ fn destack_io_device_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_DEVICE_CLOSE,
         binding.replay_payload_for(IO_DEVICE_CLOSE)?,
         context,
@@ -5754,7 +5755,7 @@ fn destack_io_device_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5767,7 +5768,7 @@ fn destack_io_device_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5783,7 +5784,7 @@ fn destack_io_device_control_vm_replay(
     handle: resource::DeviceHandle,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_DEVICE_CONTROL,
         binding.replay_payload_for(IO_DEVICE_CONTROL)?,
         context,
@@ -5813,7 +5814,7 @@ fn destack_io_device_control_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceControlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5834,7 +5835,7 @@ fn destack_io_device_control_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5851,7 +5852,7 @@ fn destack_io_device_open_vm_replay(
     flags: u32,
     mode: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_DEVICE_OPEN,
         binding.replay_payload_for(IO_DEVICE_OPEN)?,
         context,
@@ -5876,7 +5877,7 @@ fn destack_io_device_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5892,7 +5893,7 @@ fn destack_io_device_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5908,7 +5909,7 @@ fn destack_io_device_read_vm_replay(
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_DEVICE_READ,
         binding.replay_payload_for(IO_DEVICE_READ)?,
         context,
@@ -5933,7 +5934,7 @@ fn destack_io_device_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5949,7 +5950,7 @@ fn destack_io_device_read_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -5965,7 +5966,7 @@ fn destack_io_device_write_vm_replay(
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_DEVICE_WRITE,
         binding.replay_payload_for(IO_DEVICE_WRITE)?,
         context,
@@ -5990,7 +5991,7 @@ fn destack_io_device_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoDeviceWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6006,7 +6007,7 @@ fn destack_io_device_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6023,7 +6024,7 @@ fn destack_io_event_attach_vm_replay(
     target: resource::ResourceId,
     key: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_EVENT_ATTACH,
         binding.replay_payload_for(IO_EVENT_ATTACH)?,
         context,
@@ -6047,7 +6048,7 @@ fn destack_io_event_attach_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoEventAttachReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6060,7 +6061,7 @@ fn destack_io_event_attach_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6075,7 +6076,7 @@ fn destack_io_event_close_vm_replay(
     world: RuntimeWorld,
     token: EventToken,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_EVENT_CLOSE,
         binding.replay_payload_for(IO_EVENT_CLOSE)?,
         context,
@@ -6097,7 +6098,7 @@ fn destack_io_event_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6110,7 +6111,7 @@ fn destack_io_event_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6125,7 +6126,7 @@ fn destack_io_event_open_vm_replay(
     world: RuntimeWorld,
     initial: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_EVENT_OPEN,
         binding.replay_payload_for(IO_EVENT_OPEN)?,
         context,
@@ -6148,7 +6149,7 @@ fn destack_io_event_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6164,7 +6165,7 @@ fn destack_io_event_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6180,7 +6181,7 @@ fn destack_io_event_signal_vm_replay(
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_EVENT_SIGNAL,
         binding.replay_payload_for(IO_EVENT_SIGNAL)?,
         context,
@@ -6207,7 +6208,7 @@ fn destack_io_event_signal_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoEventSignalReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6220,7 +6221,7 @@ fn destack_io_event_signal_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6235,7 +6236,7 @@ fn destack_io_poll_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::PollHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_POLL_CLOSE,
         binding.replay_payload_for(IO_POLL_CLOSE)?,
         context,
@@ -6257,7 +6258,7 @@ fn destack_io_poll_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6270,7 +6271,7 @@ fn destack_io_poll_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6286,7 +6287,7 @@ fn destack_io_poll_deregister_vm_replay(
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_POLL_DEREGISTER,
         binding.replay_payload_for(IO_POLL_DEREGISTER)?,
         context,
@@ -6310,7 +6311,7 @@ fn destack_io_poll_deregister_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollDeregisterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6323,7 +6324,7 @@ fn destack_io_poll_deregister_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6338,7 +6339,7 @@ fn destack_io_poll_open_vm_replay(
     world: RuntimeWorld,
     backend: PollBackend,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_POLL_OPEN,
         binding.replay_payload_for(IO_POLL_OPEN)?,
         context,
@@ -6361,7 +6362,7 @@ fn destack_io_poll_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6377,7 +6378,7 @@ fn destack_io_poll_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6395,7 +6396,7 @@ fn destack_io_poll_register_vm_replay(
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_POLL_REGISTER,
         binding.replay_payload_for(IO_POLL_REGISTER)?,
         context,
@@ -6419,7 +6420,7 @@ fn destack_io_poll_register_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollRegisterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6432,7 +6433,7 @@ fn destack_io_poll_register_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6450,7 +6451,7 @@ fn destack_io_poll_update_vm_replay(
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_POLL_UPDATE,
         binding.replay_payload_for(IO_POLL_UPDATE)?,
         context,
@@ -6474,7 +6475,7 @@ fn destack_io_poll_update_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollUpdateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6487,7 +6488,7 @@ fn destack_io_poll_update_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6504,7 +6505,7 @@ fn destack_io_poll_wait_vm_replay(
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_POLL_WAIT,
         binding.replay_payload_for(IO_POLL_WAIT)?,
         context,
@@ -6573,7 +6574,7 @@ fn destack_io_poll_wait_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoPollWaitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6614,7 +6615,7 @@ fn destack_io_poll_wait_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6629,7 +6630,7 @@ fn destack_io_timerfd_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_TIMERFD_CLOSE,
         binding.replay_payload_for(IO_TIMERFD_CLOSE)?,
         context,
@@ -6651,7 +6652,7 @@ fn destack_io_timerfd_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6664,7 +6665,7 @@ fn destack_io_timerfd_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6679,7 +6680,7 @@ fn destack_io_timerfd_get_vm_replay(
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_TIMERFD_GET,
         binding.replay_payload_for(IO_TIMERFD_GET)?,
         context,
@@ -6707,7 +6708,7 @@ fn destack_io_timerfd_get_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdGetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6728,7 +6729,7 @@ fn destack_io_timerfd_get_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6744,7 +6745,7 @@ fn destack_io_timerfd_open_vm_replay(
     clock: TimerFdClock,
     flags: TimerFdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_TIMERFD_OPEN,
         binding.replay_payload_for(IO_TIMERFD_OPEN)?,
         context,
@@ -6769,7 +6770,7 @@ fn destack_io_timerfd_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6785,7 +6786,7 @@ fn destack_io_timerfd_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6800,7 +6801,7 @@ fn destack_io_timerfd_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_TIMERFD_READ,
         binding.replay_payload_for(IO_TIMERFD_READ)?,
         context,
@@ -6823,7 +6824,7 @@ fn destack_io_timerfd_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6839,7 +6840,7 @@ fn destack_io_timerfd_read_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6856,7 +6857,7 @@ fn destack_io_timerfd_set_vm_replay(
     spec: TimerFdSpecVm,
     flags: TimerFdSetFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_TIMERFD_SET,
         binding.replay_payload_for(IO_TIMERFD_SET)?,
         context,
@@ -6880,7 +6881,7 @@ fn destack_io_timerfd_set_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoTimerfdSetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6893,7 +6894,7 @@ fn destack_io_timerfd_set_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6908,7 +6909,7 @@ fn destack_io_uring_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_URING_CLOSE,
         binding.replay_payload_for(IO_URING_CLOSE)?,
         context,
@@ -6930,7 +6931,7 @@ fn destack_io_uring_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6943,7 +6944,7 @@ fn destack_io_uring_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -6958,7 +6959,7 @@ fn destack_io_uring_features_vm_replay(
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_URING_FEATURES,
         binding.replay_payload_for(IO_URING_FEATURES)?,
         context,
@@ -6992,7 +6993,7 @@ fn destack_io_uring_features_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringFeaturesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7019,7 +7020,7 @@ fn destack_io_uring_features_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -7034,7 +7035,7 @@ fn destack_io_uring_open_vm_replay(
     world: RuntimeWorld,
     parameters: UringParametersVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_URING_OPEN,
         binding.replay_payload_for(IO_URING_OPEN)?,
         context,
@@ -7057,7 +7058,7 @@ fn destack_io_uring_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7073,7 +7074,7 @@ fn destack_io_uring_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -7090,7 +7091,7 @@ fn destack_io_uring_register_buffers_vm_replay(
     addresses: VmSlice<u64>,
     lengths: VmSlice<u32>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_URING_REGISTER_BUFFERS,
         binding.replay_payload_for(IO_URING_REGISTER_BUFFERS)?,
         context,
@@ -7114,7 +7115,7 @@ fn destack_io_uring_register_buffers_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringRegisterBuffersReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7127,7 +7128,7 @@ fn destack_io_uring_register_buffers_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -7143,7 +7144,7 @@ fn destack_io_uring_register_files_vm_replay(
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_URING_REGISTER_FILES,
         binding.replay_payload_for(IO_URING_REGISTER_FILES)?,
         context,
@@ -7167,7 +7168,7 @@ fn destack_io_uring_register_files_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringRegisterFilesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7180,7 +7181,7 @@ fn destack_io_uring_register_files_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -7195,7 +7196,7 @@ fn destack_io_uring_unregister_buffers_vm_replay(
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_URING_UNREGISTER_BUFFERS,
         binding.replay_payload_for(IO_URING_UNREGISTER_BUFFERS)?,
         context,
@@ -7221,7 +7222,7 @@ fn destack_io_uring_unregister_buffers_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringUnregisterBuffersReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7234,7 +7235,7 @@ fn destack_io_uring_unregister_buffers_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -7249,7 +7250,7 @@ fn destack_io_uring_unregister_files_vm_replay(
     world: RuntimeWorld,
     handle: resource::UringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         IO_URING_UNREGISTER_FILES,
         binding.replay_payload_for(IO_URING_UNREGISTER_FILES)?,
         context,
@@ -7273,7 +7274,7 @@ fn destack_io_uring_unregister_files_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     IoUringUnregisterFilesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7286,7 +7287,7 @@ fn destack_io_uring_unregister_files_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

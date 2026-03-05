@@ -23,6 +23,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -762,154 +763,154 @@ fn encode_destack_tty_termios_set_process_group_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyHandleCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.handle.isTerminalFile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyHandleIsTerminalFileReplay {
     /// Replay result payload.
-    pub result: Result<bool, PlatformError>,
+    pub result: Result<bool, ReplayError>,
 }
 
 /// Replay payload for destack.tty.handle.stdioStderr.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyHandleStdioStderrReplay {
     /// Replay result payload.
-    pub result: Result<resource::TtyHandle, PlatformError>,
+    pub result: Result<resource::TtyHandle, ReplayError>,
 }
 
 /// Replay payload for destack.tty.handle.stdioStdin.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyHandleStdioStdinReplay {
     /// Replay result payload.
-    pub result: Result<resource::TtyHandle, PlatformError>,
+    pub result: Result<resource::TtyHandle, ReplayError>,
 }
 
 /// Replay payload for destack.tty.handle.stdioStdout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyHandleStdioStdoutReplay {
     /// Replay result payload.
-    pub result: Result<resource::TtyHandle, PlatformError>,
+    pub result: Result<resource::TtyHandle, ReplayError>,
 }
 
 /// Replay payload for destack.tty.io.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyIoReadReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.tty.io.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyIoWriteReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.tty.mode.getMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyModeGetModeReplay {
     /// Replay result payload.
-    pub result: Result<TtyMode, PlatformError>,
+    pub result: Result<TtyMode, ReplayError>,
 }
 
 /// Replay payload for destack.tty.mode.setMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyModeSetModeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.mode.setRawMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyModeSetRawModeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.pty.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyPtyCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.pty.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyPtyOpenReplay {
     /// Replay result payload.
-    pub result: Result<PtyPair, PlatformError>,
+    pub result: Result<PtyPair, ReplayError>,
 }
 
 /// Replay payload for destack.tty.size.getSize.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtySizeGetSizeReplay {
     /// Replay result payload.
-    pub result: Result<TtySize, PlatformError>,
+    pub result: Result<TtySize, ReplayError>,
 }
 
 /// Replay payload for destack.tty.size.setSize.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtySizeSetSizeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.termios.drain.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyTermiosDrainReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.termios.flow.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyTermiosFlowReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.termios.flush.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyTermiosFlushReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.termios.getAttributes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyTermiosGetAttributesReplay {
     /// Replay result payload.
-    pub result: Result<TtyTermiosAttributesReplayRecord, PlatformError>,
+    pub result: Result<TtyTermiosAttributesReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.tty.termios.getProcessGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyTermiosGetProcessGroupReplay {
     /// Replay result payload.
-    pub result: Result<process::ProcessId, PlatformError>,
+    pub result: Result<process::ProcessId, ReplayError>,
 }
 
 /// Replay payload for destack.tty.termios.sendBreak.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyTermiosSendBreakReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.termios.setAttributes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyTermiosSetAttributesReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.tty.termios.setProcessGroup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyTermiosSetProcessGroupReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Binding descriptor for destack.tty.handle.close.
@@ -1507,7 +1508,7 @@ fn destack_tty_handle_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_HANDLE_CLOSE,
         binding.replay_payload_for(TTY_HANDLE_CLOSE)?,
         || match world {
@@ -1527,7 +1528,7 @@ fn destack_tty_handle_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1539,7 +1540,7 @@ fn destack_tty_handle_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1554,7 +1555,7 @@ fn destack_tty_handle_is_terminal_file_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_HANDLE_IS_TERMINAL_FILE,
         binding.replay_payload_for(TTY_HANDLE_IS_TERMINAL_FILE)?,
         || match world {
@@ -1582,7 +1583,7 @@ fn destack_tty_handle_is_terminal_file_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleIsTerminalFileReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1600,7 +1601,7 @@ fn destack_tty_handle_is_terminal_file_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1612,7 +1613,7 @@ fn destack_tty_handle_stdio_stderr_replay(
     world: RuntimeWorld,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_HANDLE_STDIO_STDERR,
         binding.replay_payload_for(TTY_HANDLE_STDIO_STDERR)?,
         || match world {
@@ -1640,7 +1641,7 @@ fn destack_tty_handle_stdio_stderr_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleStdioStderrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1658,7 +1659,7 @@ fn destack_tty_handle_stdio_stderr_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1670,7 +1671,7 @@ fn destack_tty_handle_stdio_stdin_replay(
     world: RuntimeWorld,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_HANDLE_STDIO_STDIN,
         binding.replay_payload_for(TTY_HANDLE_STDIO_STDIN)?,
         || match world {
@@ -1696,7 +1697,7 @@ fn destack_tty_handle_stdio_stdin_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleStdioStdinReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1714,7 +1715,7 @@ fn destack_tty_handle_stdio_stdin_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1726,7 +1727,7 @@ fn destack_tty_handle_stdio_stdout_replay(
     world: RuntimeWorld,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_HANDLE_STDIO_STDOUT,
         binding.replay_payload_for(TTY_HANDLE_STDIO_STDOUT)?,
         || match world {
@@ -1754,7 +1755,7 @@ fn destack_tty_handle_stdio_stdout_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleStdioStdoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1772,7 +1773,7 @@ fn destack_tty_handle_stdio_stdout_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1788,7 +1789,7 @@ fn destack_tty_io_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_IO_READ,
         binding.replay_payload_for(TTY_IO_READ)?,
         || match world {
@@ -1816,7 +1817,7 @@ fn destack_tty_io_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyIoReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1834,7 +1835,7 @@ fn destack_tty_io_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1850,7 +1851,7 @@ fn destack_tty_io_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_IO_WRITE,
         binding.replay_payload_for(TTY_IO_WRITE)?,
         || match world {
@@ -1878,7 +1879,7 @@ fn destack_tty_io_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyIoWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1896,7 +1897,7 @@ fn destack_tty_io_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1911,7 +1912,7 @@ fn destack_tty_mode_get_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_MODE_GET_MODE,
         binding.replay_payload_for(TTY_MODE_GET_MODE)?,
         || match world {
@@ -1948,7 +1949,7 @@ fn destack_tty_mode_get_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyModeGetModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1975,7 +1976,7 @@ fn destack_tty_mode_get_mode_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1990,7 +1991,7 @@ fn destack_tty_mode_set_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_MODE_SET_MODE,
         binding.replay_payload_for(TTY_MODE_SET_MODE)?,
         || match world {
@@ -2012,7 +2013,7 @@ fn destack_tty_mode_set_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyModeSetModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2024,7 +2025,7 @@ fn destack_tty_mode_set_mode_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2039,7 +2040,7 @@ fn destack_tty_mode_set_raw_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_MODE_SET_RAW_MODE,
         binding.replay_payload_for(TTY_MODE_SET_RAW_MODE)?,
         || match world {
@@ -2061,7 +2062,7 @@ fn destack_tty_mode_set_raw_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyModeSetRawModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2073,7 +2074,7 @@ fn destack_tty_mode_set_raw_mode_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2087,7 +2088,7 @@ fn destack_tty_pty_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_PTY_CLOSE,
         binding.replay_payload_for(TTY_PTY_CLOSE)?,
         || match world {
@@ -2109,7 +2110,7 @@ fn destack_tty_pty_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyPtyCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2121,7 +2122,7 @@ fn destack_tty_pty_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2138,7 +2139,7 @@ fn destack_tty_pty_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&rows, &columns, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_PTY_OPEN,
         binding.replay_payload_for(TTY_PTY_OPEN)?,
         || match world {
@@ -2171,7 +2172,7 @@ fn destack_tty_pty_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyPtyOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2194,7 +2195,7 @@ fn destack_tty_pty_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2209,7 +2210,7 @@ fn destack_tty_size_get_size_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_SIZE_GET_SIZE,
         binding.replay_payload_for(TTY_SIZE_GET_SIZE)?,
         || match world {
@@ -2246,7 +2247,7 @@ fn destack_tty_size_get_size_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtySizeGetSizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2273,7 +2274,7 @@ fn destack_tty_size_get_size_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2288,7 +2289,7 @@ fn destack_tty_size_set_size_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_SIZE_SET_SIZE,
         binding.replay_payload_for(TTY_SIZE_SET_SIZE)?,
         || match world {
@@ -2310,7 +2311,7 @@ fn destack_tty_size_set_size_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtySizeSetSizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2322,7 +2323,7 @@ fn destack_tty_size_set_size_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2336,7 +2337,7 @@ fn destack_tty_termios_drain_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_TERMIOS_DRAIN,
         binding.replay_payload_for(TTY_TERMIOS_DRAIN)?,
         || match world {
@@ -2358,7 +2359,7 @@ fn destack_tty_termios_drain_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosDrainReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2370,7 +2371,7 @@ fn destack_tty_termios_drain_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2385,7 +2386,7 @@ fn destack_tty_termios_flow_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &action);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_TERMIOS_FLOW,
         binding.replay_payload_for(TTY_TERMIOS_FLOW)?,
         || match world {
@@ -2407,7 +2408,7 @@ fn destack_tty_termios_flow_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosFlowReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2419,7 +2420,7 @@ fn destack_tty_termios_flow_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2434,7 +2435,7 @@ fn destack_tty_termios_flush_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &queue);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_TERMIOS_FLUSH,
         binding.replay_payload_for(TTY_TERMIOS_FLUSH)?,
         || match world {
@@ -2456,7 +2457,7 @@ fn destack_tty_termios_flush_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosFlushReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2468,7 +2469,7 @@ fn destack_tty_termios_flush_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2483,7 +2484,7 @@ fn destack_tty_termios_get_attributes_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_TERMIOS_GET_ATTRIBUTES,
         binding.replay_payload_for(TTY_TERMIOS_GET_ATTRIBUTES)?,
         || match world {
@@ -2539,7 +2540,7 @@ fn destack_tty_termios_get_attributes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosGetAttributesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2581,7 +2582,7 @@ fn destack_tty_termios_get_attributes_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2596,7 +2597,7 @@ fn destack_tty_termios_get_process_group_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_TERMIOS_GET_PROCESS_GROUP,
         binding.replay_payload_for(TTY_TERMIOS_GET_PROCESS_GROUP)?,
         || match world {
@@ -2626,7 +2627,7 @@ fn destack_tty_termios_get_process_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosGetProcessGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2644,7 +2645,7 @@ fn destack_tty_termios_get_process_group_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2659,7 +2660,7 @@ fn destack_tty_termios_send_break_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &duration);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_TERMIOS_SEND_BREAK,
         binding.replay_payload_for(TTY_TERMIOS_SEND_BREAK)?,
         || match world {
@@ -2683,7 +2684,7 @@ fn destack_tty_termios_send_break_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosSendBreakReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2695,7 +2696,7 @@ fn destack_tty_termios_send_break_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2711,7 +2712,7 @@ fn destack_tty_termios_set_attributes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &attributes, &action);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_TERMIOS_SET_ATTRIBUTES,
         binding.replay_payload_for(TTY_TERMIOS_SET_ATTRIBUTES)?,
         || match world {
@@ -2737,7 +2738,7 @@ fn destack_tty_termios_set_attributes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosSetAttributesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2749,7 +2750,7 @@ fn destack_tty_termios_set_attributes_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2764,7 +2765,7 @@ fn destack_tty_termios_set_process_group_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &processgroupid);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         TTY_TERMIOS_SET_PROCESS_GROUP,
         binding.replay_payload_for(TTY_TERMIOS_SET_PROCESS_GROUP)?,
         || match world {
@@ -2794,7 +2795,7 @@ fn destack_tty_termios_set_process_group_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosSetProcessGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2806,7 +2807,7 @@ fn destack_tty_termios_set_process_group_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -3152,7 +3153,7 @@ fn destack_tty_handle_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_HANDLE_CLOSE,
         binding.replay_payload_for(TTY_HANDLE_CLOSE)?,
         context,
@@ -3174,7 +3175,7 @@ fn destack_tty_handle_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3187,7 +3188,7 @@ fn destack_tty_handle_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3202,7 +3203,7 @@ fn destack_tty_handle_is_terminal_file_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_HANDLE_IS_TERMINAL_FILE,
         binding.replay_payload_for(TTY_HANDLE_IS_TERMINAL_FILE)?,
         context,
@@ -3227,7 +3228,7 @@ fn destack_tty_handle_is_terminal_file_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleIsTerminalFileReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3243,7 +3244,7 @@ fn destack_tty_handle_is_terminal_file_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3257,7 +3258,7 @@ fn destack_tty_handle_stdio_stderr_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_HANDLE_STDIO_STDERR,
         binding.replay_payload_for(TTY_HANDLE_STDIO_STDERR)?,
         context,
@@ -3280,7 +3281,7 @@ fn destack_tty_handle_stdio_stderr_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleStdioStderrReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3296,7 +3297,7 @@ fn destack_tty_handle_stdio_stderr_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3310,7 +3311,7 @@ fn destack_tty_handle_stdio_stdin_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_HANDLE_STDIO_STDIN,
         binding.replay_payload_for(TTY_HANDLE_STDIO_STDIN)?,
         context,
@@ -3333,7 +3334,7 @@ fn destack_tty_handle_stdio_stdin_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleStdioStdinReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3349,7 +3350,7 @@ fn destack_tty_handle_stdio_stdin_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3363,7 +3364,7 @@ fn destack_tty_handle_stdio_stdout_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_HANDLE_STDIO_STDOUT,
         binding.replay_payload_for(TTY_HANDLE_STDIO_STDOUT)?,
         context,
@@ -3386,7 +3387,7 @@ fn destack_tty_handle_stdio_stdout_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyHandleStdioStdoutReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3402,7 +3403,7 @@ fn destack_tty_handle_stdio_stdout_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3418,7 +3419,7 @@ fn destack_tty_io_read_vm_replay(
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_IO_READ,
         binding.replay_payload_for(TTY_IO_READ)?,
         context,
@@ -3441,7 +3442,7 @@ fn destack_tty_io_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyIoReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3457,7 +3458,7 @@ fn destack_tty_io_read_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3473,7 +3474,7 @@ fn destack_tty_io_write_vm_replay(
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_IO_WRITE,
         binding.replay_payload_for(TTY_IO_WRITE)?,
         context,
@@ -3496,7 +3497,7 @@ fn destack_tty_io_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyIoWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3512,7 +3513,7 @@ fn destack_tty_io_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3527,7 +3528,7 @@ fn destack_tty_mode_get_mode_vm_replay(
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_MODE_GET_MODE,
         binding.replay_payload_for(TTY_MODE_GET_MODE)?,
         context,
@@ -3559,7 +3560,7 @@ fn destack_tty_mode_get_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyModeGetModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3584,7 +3585,7 @@ fn destack_tty_mode_get_mode_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3600,7 +3601,7 @@ fn destack_tty_mode_set_mode_vm_replay(
     handle: resource::TtyHandle,
     mode: TtyModeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_MODE_SET_MODE,
         binding.replay_payload_for(TTY_MODE_SET_MODE)?,
         context,
@@ -3622,7 +3623,7 @@ fn destack_tty_mode_set_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyModeSetModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3635,7 +3636,7 @@ fn destack_tty_mode_set_mode_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3651,7 +3652,7 @@ fn destack_tty_mode_set_raw_mode_vm_replay(
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_MODE_SET_RAW_MODE,
         binding.replay_payload_for(TTY_MODE_SET_RAW_MODE)?,
         context,
@@ -3675,7 +3676,7 @@ fn destack_tty_mode_set_raw_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyModeSetRawModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3688,7 +3689,7 @@ fn destack_tty_mode_set_raw_mode_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3703,7 +3704,7 @@ fn destack_tty_pty_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_PTY_CLOSE,
         binding.replay_payload_for(TTY_PTY_CLOSE)?,
         context,
@@ -3725,7 +3726,7 @@ fn destack_tty_pty_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyPtyCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3738,7 +3739,7 @@ fn destack_tty_pty_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3755,7 +3756,7 @@ fn destack_tty_pty_open_vm_replay(
     columns: u32,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_PTY_OPEN,
         binding.replay_payload_for(TTY_PTY_OPEN)?,
         context,
@@ -3785,7 +3786,7 @@ fn destack_tty_pty_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyPtyOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3806,7 +3807,7 @@ fn destack_tty_pty_open_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3821,7 +3822,7 @@ fn destack_tty_size_get_size_vm_replay(
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_SIZE_GET_SIZE,
         binding.replay_payload_for(TTY_SIZE_GET_SIZE)?,
         context,
@@ -3853,7 +3854,7 @@ fn destack_tty_size_get_size_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtySizeGetSizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3878,7 +3879,7 @@ fn destack_tty_size_get_size_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3894,7 +3895,7 @@ fn destack_tty_size_set_size_vm_replay(
     handle: resource::TtyHandle,
     size: TtySizeVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_SIZE_SET_SIZE,
         binding.replay_payload_for(TTY_SIZE_SET_SIZE)?,
         context,
@@ -3916,7 +3917,7 @@ fn destack_tty_size_set_size_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtySizeSetSizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3929,7 +3930,7 @@ fn destack_tty_size_set_size_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3944,7 +3945,7 @@ fn destack_tty_termios_drain_vm_replay(
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_TERMIOS_DRAIN,
         binding.replay_payload_for(TTY_TERMIOS_DRAIN)?,
         context,
@@ -3966,7 +3967,7 @@ fn destack_tty_termios_drain_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosDrainReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3979,7 +3980,7 @@ fn destack_tty_termios_drain_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -3995,7 +3996,7 @@ fn destack_tty_termios_flow_vm_replay(
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_TERMIOS_FLOW,
         binding.replay_payload_for(TTY_TERMIOS_FLOW)?,
         context,
@@ -4019,7 +4020,7 @@ fn destack_tty_termios_flow_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosFlowReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4032,7 +4033,7 @@ fn destack_tty_termios_flow_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4048,7 +4049,7 @@ fn destack_tty_termios_flush_vm_replay(
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_TERMIOS_FLUSH,
         binding.replay_payload_for(TTY_TERMIOS_FLUSH)?,
         context,
@@ -4072,7 +4073,7 @@ fn destack_tty_termios_flush_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosFlushReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4085,7 +4086,7 @@ fn destack_tty_termios_flush_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4100,7 +4101,7 @@ fn destack_tty_termios_get_attributes_vm_replay(
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_TERMIOS_GET_ATTRIBUTES,
         binding.replay_payload_for(TTY_TERMIOS_GET_ATTRIBUTES)?,
         context,
@@ -4141,7 +4142,7 @@ fn destack_tty_termios_get_attributes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosGetAttributesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4173,7 +4174,7 @@ fn destack_tty_termios_get_attributes_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4188,7 +4189,7 @@ fn destack_tty_termios_get_process_group_vm_replay(
     world: RuntimeWorld,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_TERMIOS_GET_PROCESS_GROUP,
         binding.replay_payload_for(TTY_TERMIOS_GET_PROCESS_GROUP)?,
         context,
@@ -4215,7 +4216,7 @@ fn destack_tty_termios_get_process_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosGetProcessGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4231,7 +4232,7 @@ fn destack_tty_termios_get_process_group_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4247,7 +4248,7 @@ fn destack_tty_termios_send_break_vm_replay(
     handle: resource::TtyHandle,
     duration: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_TERMIOS_SEND_BREAK,
         binding.replay_payload_for(TTY_TERMIOS_SEND_BREAK)?,
         context,
@@ -4271,7 +4272,7 @@ fn destack_tty_termios_send_break_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosSendBreakReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4284,7 +4285,7 @@ fn destack_tty_termios_send_break_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4301,7 +4302,7 @@ fn destack_tty_termios_set_attributes_vm_replay(
     attributes: TtyTermiosAttributesVm,
     action: TtyTermiosSetAction,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_TERMIOS_SET_ATTRIBUTES,
         binding.replay_payload_for(TTY_TERMIOS_SET_ATTRIBUTES)?,
         context,
@@ -4325,7 +4326,7 @@ fn destack_tty_termios_set_attributes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosSetAttributesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4338,7 +4339,7 @@ fn destack_tty_termios_set_attributes_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -4354,7 +4355,7 @@ fn destack_tty_termios_set_process_group_vm_replay(
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         TTY_TERMIOS_SET_PROCESS_GROUP,
         binding.replay_payload_for(TTY_TERMIOS_SET_PROCESS_GROUP)?,
         context,
@@ -4386,7 +4387,7 @@ fn destack_tty_termios_set_process_group_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     TtyTermiosSetProcessGroupReplay { result }
                 };
                 return Ok(Some(payload));
@@ -4399,7 +4400,7 @@ fn destack_tty_termios_set_process_group_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

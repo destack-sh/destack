@@ -13,8 +13,8 @@ use destack_workspace::{Platform, ProfileId, Program};
 use crate::model::{
     BindingCatalog, BindingEntry, BindingReturn, BindingType, CatalogBindingBlocking,
     CatalogBindingReplayKind, CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass,
-    CatalogRandomEventKind, CatalogReplayPayload, CatalogReplayPolicy, CatalogTimeEventKind,
-    ConstantCatalog, ConstantEntry, ConstantValue,
+    CatalogEntropyKind, CatalogReplayPayload, CatalogReplayPolicy, ConstantCatalog, ConstantEntry,
+    ConstantValue,
 };
 use crate::types::{
     binding_type_from_type_id, binding_type_symbols, collect_binding_params,
@@ -79,22 +79,22 @@ struct BindingDecorator {
 fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
     match name {
         "destack.time.clock.wallNs" => {
-            CatalogBindingReplayKind::Time(CatalogTimeEventKind::WallClockRead)
+            CatalogBindingReplayKind::Entropy(CatalogEntropyKind::TimeReadWall)
         }
         "destack.time.clock.monoNs" => {
-            CatalogBindingReplayKind::Time(CatalogTimeEventKind::MonotonicSample)
+            CatalogBindingReplayKind::Entropy(CatalogEntropyKind::TimeReadMonotonic)
         }
         "destack.random.stream.create" | "destack.random.stream.in" => {
-            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Stream)
+            CatalogBindingReplayKind::Entropy(CatalogEntropyKind::RandomStreamCreate)
         }
         "destack.random.stream.nextU64" | "destack.random.stream.nextU64From" => {
-            CatalogBindingReplayKind::Random(CatalogRandomEventKind::NextU64)
+            CatalogBindingReplayKind::Entropy(CatalogEntropyKind::RandomReadU64)
         }
         "destack.random.stream.fillBytes"
         | "destack.random.stream.fillBytesFrom"
         | "destack.random.secure.bytes"
         | "destack.random.secure.bytesTry" => {
-            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Bytes)
+            CatalogBindingReplayKind::Entropy(CatalogEntropyKind::RandomReadBytes)
         }
         _ => CatalogBindingReplayKind::BindingCall,
     }
@@ -1264,7 +1264,7 @@ fn scalar_string_literal(
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{BindingType, CatalogBindingReplayKind, CatalogRandomEventKind};
+    use crate::model::{BindingType, CatalogBindingReplayKind, CatalogEntropyKind};
 
     use super::{
         binding_replay_kind_for_name, binding_type_supports_integer_constants,
@@ -1305,11 +1305,11 @@ mod tests {
     fn test_binding_replay_kind_for_name_maps_random_stream_allocations() {
         assert_eq!(
             binding_replay_kind_for_name("destack.random.stream.create"),
-            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Stream)
+            CatalogBindingReplayKind::Entropy(CatalogEntropyKind::RandomStreamCreate)
         );
         assert_eq!(
             binding_replay_kind_for_name("destack.random.stream.in"),
-            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Stream)
+            CatalogBindingReplayKind::Entropy(CatalogEntropyKind::RandomStreamCreate)
         );
     }
 
@@ -1318,7 +1318,7 @@ mod tests {
     fn test_binding_replay_kind_for_name_maps_secure_bytes_try() {
         assert_eq!(
             binding_replay_kind_for_name("destack.random.secure.bytesTry"),
-            CatalogBindingReplayKind::Random(CatalogRandomEventKind::Bytes)
+            CatalogBindingReplayKind::Entropy(CatalogEntropyKind::RandomReadBytes)
         );
     }
 }

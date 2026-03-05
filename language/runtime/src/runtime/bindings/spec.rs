@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::runtime::capability::{PlatformCapabilityId, PlatformCapabilitySet};
-use crate::runtime::replay::{RandomEventKind, TimeEventKind};
+use crate::runtime::replay::EntropyKind;
 use destack_base::fnv1a_128;
 pub use destack_workspace::{BindingBlocking, BindingEffect, BindingScope};
 
@@ -55,10 +55,8 @@ impl BindingEffectClass {
 pub enum BindingReplayKind {
     /// Record a generic binding call payload.
     BindingCall,
-    /// Record a time event with a specific kind.
-    Time(TimeEventKind),
-    /// Record a random event with a specific kind.
-    Random(RandomEventKind),
+    /// Record one entropy event with one specific kind.
+    Entropy(EntropyKind),
 }
 
 /// Bitmask describing binding effect classes.
