@@ -22,8 +22,9 @@ use super::{
     PlatformSecurityOptionsJson, PlatformThreadOptions, PlatformThreadOptionsJson,
     PlatformTlsOptions, PlatformTlsOptionsJson, PlatformTtyOptions, PlatformTtyOptionsJson,
     RandomOptions, RandomOptionsJson, ReplayOptions, ReplayOptionsJson, RuntimeAccess,
-    RuntimeAccessJson, RuntimeRule, RuntimeRuleJson, RuntimeWorld, RuntimeWorldJson,
-    SchedulerOptions, SchedulerOptionsJson, TimeOptions, TimeOptionsJson,
+    RuntimeAccessJson, RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson, RuntimeRule,
+    RuntimeRuleJson, RuntimeWorld, RuntimeWorldJson, SchedulerOptions, SchedulerOptionsJson,
+    TimeOptions, TimeOptionsJson,
 };
 
 /// Default identity options for one runtime primary agent.
@@ -62,6 +63,8 @@ pub struct RuntimeOptions {
     pub scheduler: SchedulerOptions,
     /// Runtime garbage collector configuration.
     pub gc: GcOptions,
+    /// Runtime diagnostics configuration.
+    pub diagnostic: RuntimeDiagnosticOptions,
     /// Global filesystem runtime defaults.
     pub fs: PlatformFsOptions,
     /// Global network runtime defaults.
@@ -158,6 +161,8 @@ pub struct DsConfigRuntimeOptionsJson {
     pub scheduler: Option<SchedulerOptionsJson>,
     /// Runtime garbage collector configuration.
     pub gc: Option<GcOptionsJson>,
+    /// Runtime diagnostics configuration.
+    pub diagnostic: Option<RuntimeDiagnosticOptionsJson>,
     /// Global filesystem runtime defaults.
     pub fs: Option<PlatformFsOptionsJson>,
     /// Global network runtime defaults.
@@ -289,6 +294,11 @@ impl DsConfigRuntimeOptionsJson {
         // apply gc overrides
         if let Some(gc) = &self.gc {
             gc.apply_to(&mut options.gc);
+        }
+
+        // apply diagnostic overrides
+        if let Some(diagnostic) = &self.diagnostic {
+            diagnostic.apply_to(&mut options.diagnostic);
         }
 
         // apply filesystem defaults

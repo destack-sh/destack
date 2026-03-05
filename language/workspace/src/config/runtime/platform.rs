@@ -127,6 +127,20 @@ pub struct PlatformAudioOptions {
     pub target_latency_frames: Option<u32>,
     /// Optional target period size in frames.
     pub target_period_frames: Option<u32>,
+    /// Optional monitor worker poll interval in nanoseconds.
+    pub event_monitor_poll_interval_ns: Option<u64>,
+    /// Optional audio event queue capacity override.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional default audio event poll interval in nanoseconds.
+    pub default_event_poll_interval_ns: Option<u64>,
+    /// Optional stream wait slice in nanoseconds.
+    pub stream_wait_slice_ns: Option<u64>,
+    /// Optional maximum stream read bytes per operation.
+    pub max_stream_read_bytes: Option<u64>,
+    /// Optional maximum queued stream frame budget.
+    pub max_queued_frames: Option<u64>,
+    /// Optional worker poll interval in nanoseconds.
+    pub worker_poll_interval_ns: Option<u64>,
 }
 
 /// Input runtime options.
@@ -211,7 +225,10 @@ pub struct PlatformIoOptions {}
 
 /// IPC runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformIpcOptions {}
+pub struct PlatformIpcOptions {
+    /// Optional Unix semaphore poll interval in nanoseconds.
+    pub unix_semaphore_poll_interval_ns: Option<u64>,
+}
 
 /// Memory runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -736,6 +753,20 @@ pub struct PlatformAudioOptionsJson {
     pub target_latency_frames: Option<u32>,
     /// Optional target period size in frames.
     pub target_period_frames: Option<u32>,
+    /// Optional monitor worker poll interval in nanoseconds.
+    pub event_monitor_poll_interval_ns: Option<u64>,
+    /// Optional audio event queue capacity override.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional default audio event poll interval in nanoseconds.
+    pub default_event_poll_interval_ns: Option<u64>,
+    /// Optional stream wait slice in nanoseconds.
+    pub stream_wait_slice_ns: Option<u64>,
+    /// Optional maximum stream read bytes per operation.
+    pub max_stream_read_bytes: Option<u64>,
+    /// Optional maximum queued stream frame budget.
+    pub max_queued_frames: Option<u64>,
+    /// Optional worker poll interval in nanoseconds.
+    pub worker_poll_interval_ns: Option<u64>,
 }
 
 impl PlatformAudioOptionsJson {
@@ -764,6 +795,41 @@ impl PlatformAudioOptionsJson {
         // apply period-size overrides
         if let Some(target_period_frames) = self.target_period_frames {
             options.target_period_frames = Some(target_period_frames);
+        }
+
+        // apply monitor interval overrides
+        if let Some(event_monitor_poll_interval_ns) = self.event_monitor_poll_interval_ns {
+            options.event_monitor_poll_interval_ns = Some(event_monitor_poll_interval_ns);
+        }
+
+        // apply event queue overrides
+        if let Some(event_queue_capacity) = self.event_queue_capacity {
+            options.event_queue_capacity = Some(event_queue_capacity);
+        }
+
+        // apply event poll interval overrides
+        if let Some(default_event_poll_interval_ns) = self.default_event_poll_interval_ns {
+            options.default_event_poll_interval_ns = Some(default_event_poll_interval_ns);
+        }
+
+        // apply stream wait slice overrides
+        if let Some(stream_wait_slice_ns) = self.stream_wait_slice_ns {
+            options.stream_wait_slice_ns = Some(stream_wait_slice_ns);
+        }
+
+        // apply max stream read overrides
+        if let Some(max_stream_read_bytes) = self.max_stream_read_bytes {
+            options.max_stream_read_bytes = Some(max_stream_read_bytes);
+        }
+
+        // apply max queued frame overrides
+        if let Some(max_queued_frames) = self.max_queued_frames {
+            options.max_queued_frames = Some(max_queued_frames);
+        }
+
+        // apply worker poll interval overrides
+        if let Some(worker_poll_interval_ns) = self.worker_poll_interval_ns {
+            options.worker_poll_interval_ns = Some(worker_poll_interval_ns);
         }
     }
 }
@@ -1004,11 +1070,18 @@ impl PlatformIoOptionsJson {
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct PlatformIpcOptionsJson {}
+pub struct PlatformIpcOptionsJson {
+    /// Optional Unix semaphore poll interval in nanoseconds.
+    pub unix_semaphore_poll_interval_ns: Option<u64>,
+}
 
 impl PlatformIpcOptionsJson {
     /// Apply ipc overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformIpcOptions) {}
+    pub fn apply_to(&self, options: &mut PlatformIpcOptions) {
+        if let Some(unix_semaphore_poll_interval_ns) = self.unix_semaphore_poll_interval_ns {
+            options.unix_semaphore_poll_interval_ns = Some(unix_semaphore_poll_interval_ns);
+        }
+    }
 }
 
 /// Memory runtime options.
