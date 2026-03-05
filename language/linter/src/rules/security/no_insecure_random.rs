@@ -3,7 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
+use crate::rules::common::{
+    expression_is_symbol_or_global_qualified_member, expression_static_property_access,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,7 +35,6 @@ impl LintRule for NoInsecureRandom {
 
     /// Check module DIR nodes for Math.random usage.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
 
         // walk the module for Math.random calls
@@ -127,30 +128,25 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
 
     /// Return true when the expression is Math.random.
     fn is_math_random(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match member expressions
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Member { left, name, .. } = expression else {
+        // match static property access for random
+        let Some((receiver_id, property_name)) =
+            expression_static_property_access(self.ctx.tree, expression_id)
+        else {
             return false;
         };
-        if *name != self.random_name {
+        if property_name != self.random_name {
             return false;
         }
 
-        self.is_math_object(*left)
+        self.is_math_object(receiver_id)
     }
 
     /// Return true when the expression is a Math object reference.
     fn is_math_object(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol references
-        let target_symbol = expression_target_symbol(self.ctx.tree, expression_id);
-        if target_symbol == Some(self.math_symbol) {
-            return true;
-        }
-
-        // match global qualified references
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.math_symbol,
             &self.global_qualifiers,
             self.math_name,
         )
@@ -220,5 +216,31 @@ let value = Math.max(1, 2);
 "#,
         );
         test.result(result).assert_no_lint("no-insecure-random");
+    }
+
+    /// Report computed Math.random calls.
+    #[test]
+    fn test_flags_computed_math_random() {
+        let test = TestProgram::for_rule_with_prelude(NoInsecureRandom);
+        let result = test.lint_dir(
+            "no_insecure_random/test_flags_computed_math_random.ds",
+            r#"
+let value = Math["random"]();
+"#,
+        );
+        test.result(result).assert_lint("no-insecure-random");
+    }
+
+    /// Report global computed Math.random calls.
+    #[test]
+    fn test_flags_global_computed_math_random() {
+        let test = TestProgram::for_rule_with_prelude(NoInsecureRandom);
+        let result = test.lint_dir(
+            "no_insecure_random/test_flags_global_computed_math_random.ds",
+            r#"
+let value = globalThis["Math"]["random"]();
+"#,
+        );
+        test.result(result).assert_lint("no-insecure-random");
     }
 }
