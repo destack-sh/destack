@@ -29,10 +29,12 @@ declare_lint! {
 }
 
 impl LintRule for NoFloatingPromises {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoFloatingPromises::meta()
     }
 
+    /// Check module DIR nodes for floating Promise expressions.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let mut visitor = FloatingPromiseVisitor::new(ctx, meta);
@@ -89,6 +91,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -148,6 +151,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             return false;
         };
 
+        // resolve left id
         let left_id = expression_unwrap_parenthesized(self.ctx.tree, *left);
         let left_expression = self.ctx.tree.get(left_id);
         let dir::Expression::Member { name, .. } = left_expression else {
@@ -164,6 +168,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             return false;
         }
 
+        // require optional structure
         let Some(second_argument_id) = dynamic_arguments.get(1) else {
             return false;
         };
@@ -181,6 +186,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
         let expression = self.ctx.tree.get(expression_id);
 
+        // branch by expression kind
         match expression {
             dir::Expression::Await { .. } | dir::Expression::AwaitMaybe { .. } => true,
             dir::Expression::Unary {
@@ -266,6 +272,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             return None;
         }
 
+        // build replacement text
         let replacement = format!("void {expression_text}");
         let edits = self
             .ctx

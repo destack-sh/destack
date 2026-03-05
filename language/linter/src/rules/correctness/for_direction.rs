@@ -2,9 +2,9 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    ast_expression_unwrap_parenthesized, expression_numeric_sign, expression_path_segments,
+    expression_numeric_sign, expression_path_segments, expression_unwrap_parenthesized_syntax,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow for loops that go in the wrong direction.
@@ -45,13 +45,12 @@ struct CounterExpectation {
 
 impl LintRule for ForDirection {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         ForDirection::meta()
     }
 
     /// Check module AST nodes for for-loop direction mismatches.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
 
         // walk expression nodes and inspect for loops
@@ -80,6 +79,7 @@ impl LintRule for ForDirection {
                     continue;
                 };
 
+                // enforce this lint guard
                 if increment_direction != expectation.expected_direction {
                     mismatch_direction = Some(expectation.expected_direction);
                     break;
@@ -219,7 +219,7 @@ fn condition_counter_expectations(
     ctx: &LintModuleAstContext<'_>,
     condition_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<CounterExpectation> {
-    let condition_id = ast_expression_unwrap_parenthesized(ctx.tree, condition_id);
+    let condition_id = expression_unwrap_parenthesized_syntax(ctx.tree, condition_id);
     let condition = ctx.tree.get(condition_id);
 
     // require a binary comparison condition
@@ -268,7 +268,7 @@ fn update_direction_for_counter(
     counter_segments: &[ast::StringId],
 ) -> Option<Direction> {
     // normalize increment expression shape
-    let increment_id = ast_expression_unwrap_parenthesized(ctx.tree, increment_id);
+    let increment_id = expression_unwrap_parenthesized_syntax(ctx.tree, increment_id);
     let increment = ctx.tree.get(increment_id);
 
     // resolve update direction only for matching counter updates

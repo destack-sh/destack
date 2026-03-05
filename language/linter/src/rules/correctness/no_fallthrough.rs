@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::is_fallthrough_comment;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow fallthrough from one switch case to another.
@@ -25,13 +25,16 @@ declare_lint! {
 }
 
 impl LintRule for NoFallthrough {
-    fn meta(&self) -> &'static crate::LintMeta {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
         NoFallthrough::meta()
     }
 
+    /// Check module AST nodes for switch fallthrough cases.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Match { kind, cases, .. } = ctx.tree.get(node_id) else {
                 continue;
@@ -50,6 +53,7 @@ impl LintRule for NoFallthrough {
                 }
                 let next_case_id = cases[i + 1];
 
+                // resolve case
                 let case = ctx.tree.get(*case_id);
                 let (body_id, is_block) = match case {
                     ast::MatchCase::Expression { body, .. } => (*body, false),
@@ -98,12 +102,14 @@ impl LintRule for NoFallthrough {
                     is_terminating_statement(ctx, body_id)
                 };
 
+                // enforce this lint guard
                 if !terminates {
                     // allow explicit intentional fallthrough comments
                     if has_fallthrough_comment_between_cases(ctx, *case_id, next_case_id) {
                         continue;
                     }
 
+                    // resolve effective lint severity
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         continue;
@@ -155,6 +161,7 @@ fn has_fallthrough_comment_between_cases(
             return false;
         }
 
+        // resolve comment text
         let comment_text = ctx.get_span_text(comment_span);
         is_fallthrough_comment(comment_text)
     })
@@ -171,6 +178,7 @@ fn no_fallthrough_fix(
         return None;
     }
 
+    // append break at the end of this case body
     let edits = ctx
         .edit_builder()
         .insert(case_span.end, "\n        break;")

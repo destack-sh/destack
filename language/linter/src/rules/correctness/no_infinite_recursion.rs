@@ -29,10 +29,12 @@ declare_lint! {
 }
 
 impl LintRule for NoInfiniteRecursion {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoInfiniteRecursion::meta()
     }
 
+    /// Check module DIR nodes for unconditional recursion cycles.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
@@ -80,19 +82,23 @@ impl LintRule for NoInfiniteRecursion {
                 continue;
             };
 
+            // resolve cycle label
             let cycle_label = format_cycle_path(&cycle_path, &function_by_symbol);
             let is_self_cycle = component.len() == 1;
 
+            // inspect candidate syntax nodes
             for symbol in component {
                 let Some(function) = function_by_symbol.get(&symbol).copied() else {
                     continue;
                 };
 
+                // resolve effective lint severity
                 let severity = ctx.get_effective_severity(meta, function.decl_id);
                 if !severity.is_enabled() {
                     continue;
                 }
 
+                // resolve message
                 let message = if is_self_cycle {
                     "function unconditionally calls itself"
                 } else {
@@ -207,6 +213,7 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
     let module_id = ctx.module.id;
     let mut functions = Vec::new();
 
+    // inspect candidate syntax nodes
     for (decl_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
         let dir::Declaration::Function {
             descriptor,
@@ -217,6 +224,7 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
             continue;
         };
 
+        // build a readable function name for diagnostics
         let display_name = descriptor
             .name
             .map(|name| ctx.program.strings.get(name.string()).as_ref().to_string())
@@ -250,6 +258,7 @@ fn format_cycle_path(
 ) -> String {
     let mut names = Vec::with_capacity(cycle_path.len());
 
+    // map each symbol to a display name
     for symbol in cycle_path {
         let name = function_by_symbol
             .get(symbol)

@@ -25,13 +25,16 @@ declare_lint! {
 }
 
 impl LintRule for NoSparseArrays {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoSparseArrays::meta()
     }
 
+    /// Check module AST nodes for sparse array and tuple holes.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let elements = match expression {
@@ -44,6 +47,7 @@ impl LintRule for NoSparseArrays {
             for element_id in elements {
                 let value_id = argument_value_expression_id(ctx.tree, *element_id);
 
+                // resolve value
                 let value = ctx.tree.get(value_id);
                 if matches!(value, ast::Expression::Stub) {
                     let severity = ctx.get_effective_severity(meta, node_id);
@@ -84,6 +88,7 @@ fn no_sparse_arrays_fix(
     let stub_span = ctx.tree.get_span(stub_expression_id);
     let insert_position = stub_span.start.min(stub_span.end);
 
+    // build fix edits
     let edits = ctx
         .edit_builder()
         .insert(insert_position, "undefined")

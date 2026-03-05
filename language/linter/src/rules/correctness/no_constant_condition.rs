@@ -1,7 +1,8 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::expression_statement_span;
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow constant expressions in conditions.
@@ -25,13 +26,12 @@ declare_lint! {
 
 impl LintRule for NoConstantCondition {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoConstantCondition::meta()
     }
 
     /// Check module AST nodes for constant conditional expressions.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
 
         // walk conditional expressions
@@ -69,7 +69,7 @@ impl LintRule for NoConstantCondition {
                 continue;
             }
 
-            // build diagnostic
+            // build diagnostic payload
             let mut diagnostic = LintDiagnostic::new(
                 NO_CONSTANT_CONDITION.id,
                 NO_CONSTANT_CONDITION.code,
@@ -135,7 +135,7 @@ fn no_constant_condition_fix(
         }
 
         // otherwise delete only when in statement position
-        let statement_span = parent_statement_span(ctx, expression_id)?;
+        let statement_span = expression_statement_span(ctx.tree, &ctx.parents, expression_id)?;
         let edits = ctx.edit_builder().delete(statement_span).into_edits();
         return Some(
             LintFix::safe("Remove always-false condition statement branch").with_edits(edits),
@@ -149,7 +149,7 @@ fn no_constant_condition_fix(
     } = expression
         && !ctx.const_bool(*condition)?
     {
-        let statement_span = parent_statement_span(ctx, expression_id)?;
+        let statement_span = expression_statement_span(ctx.tree, &ctx.parents, expression_id)?;
         let edits = ctx.edit_builder().delete(statement_span).into_edits();
         return Some(LintFix::safe("Remove for loop that never executes").with_edits(edits));
     }
@@ -162,7 +162,7 @@ fn no_constant_condition_fix(
     } = expression
     {
         if !ctx.const_bool(*condition)? {
-            let statement_span = parent_statement_span(ctx, expression_id)?;
+            let statement_span = expression_statement_span(ctx.tree, &ctx.parents, expression_id)?;
             let edits = ctx.edit_builder().delete(statement_span).into_edits();
             return Some(LintFix::safe("Remove while loop that never executes").with_edits(edits));
         }
@@ -170,29 +170,6 @@ fn no_constant_condition_fix(
 
     None
 }
-
-/// Return the parent statement wrapper span for one expression.
-fn parent_statement_span(
-    ctx: &LintModuleAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<destack_source::Span> {
-    // resolve parent node id
-    let parent_id = ctx.parents.get(expression_id)?;
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
-        return None;
-    }
-
-    // require statement wrapper parent
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
-    if !matches!(parent_expression, ast::Expression::Statement(_)) {
-        return None;
-    }
-
-    // return statement span
-    Some(ctx.tree.get_span(parent_expression_id))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

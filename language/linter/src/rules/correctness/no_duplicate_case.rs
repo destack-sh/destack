@@ -30,13 +30,16 @@ declare_lint! {
 }
 
 impl LintRule for NoDuplicateCase {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoDuplicateCase::meta()
     }
 
+    /// Check module AST nodes for duplicate switch case selectors.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Match { kind, cases, .. } = ctx.tree.get(node_id) else {
                 continue;
@@ -84,13 +87,14 @@ impl LintRule for NoDuplicateCase {
                     } else {
                         seen_constant_values.push(constant_value);
 
+                        // enforce this lint guard
                         if let Some(number_value) = number_const_value(constant_value) {
                             seen_number_values.push(number_value);
                         }
                     }
                 }
 
-                // check numeric-folded duplicate values for arithmetic expressions
+                // check numeric folded duplicate values for arithmetic expressions
                 if !has_duplicate
                     && constant_value.is_none()
                     && let Some(number_value) = expression_numeric_value(ctx, expr_id)
@@ -102,6 +106,7 @@ impl LintRule for NoDuplicateCase {
                     }
                 }
 
+                // enforce this lint guard
                 if has_duplicate {
                     let severity = ctx.get_effective_severity(meta, expr_id);
                     if !severity.is_enabled() {

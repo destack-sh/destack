@@ -6,6 +6,8 @@ use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 
 use crate::{
     ConstValue, LintAstAnalysisCache, LintDiagnostic, LintMeta, LintRegexParse, LintRequirement,
+    find_control_character, find_control_characters, find_misleading_character_class,
+    find_useless_backreference,
 };
 
 /// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
@@ -245,7 +247,7 @@ impl<'a> LintModuleAstContext<'a> {
         }
     }
 
-    /// Resolve the decorator name as a dot-separated string.
+    /// Resolve the decorator name as a dot separated string.
     pub(crate) fn decorator_name(
         &self,
         decorator_id: ast::LocalNodeId<ast::Decorator>,
@@ -366,13 +368,26 @@ impl<'a> LintModuleAstContext<'a> {
     /// Return a control character found in the pattern string.
     pub fn regex_control_character(&self, id: ast::StringId) -> Option<char> {
         let pattern = self.strings.get(id);
-        crate::find_control_character(pattern.as_ref())
+        find_control_character(pattern.as_ref())
+    }
+
+    /// Return control characters found in the pattern string.
+    pub fn regex_control_characters(
+        &self,
+        pattern_id: ast::StringId,
+        flags_id: Option<ast::StringId>,
+    ) -> Vec<String> {
+        let pattern = self.strings.get(pattern_id);
+        let flags = flags_id.map(|id| self.strings.get(id));
+        let flags = flags.as_ref().map(|value| value.as_ref());
+
+        find_control_characters(pattern.as_ref(), flags)
     }
 
     /// Return a misleading character class description for the pattern string.
     pub fn regex_misleading_character_class(&self, id: ast::StringId) -> Option<&'static str> {
         let pattern = self.strings.get(id);
-        crate::find_misleading_character_class(pattern.as_ref())
+        find_misleading_character_class(pattern.as_ref())
     }
 
     /// Return a useless backreference description for the pattern string.
@@ -380,7 +395,7 @@ impl<'a> LintModuleAstContext<'a> {
         let parse = self.regex_parse(id);
         let error_kind = parse.error.as_ref().map(|error| &error.kind);
         let pattern = self.strings.get(id);
-        crate::find_useless_backreference(pattern.as_ref(), error_kind)
+        find_useless_backreference(pattern.as_ref(), error_kind)
     }
 }
 
@@ -436,7 +451,9 @@ function foo() {{}}
             "ast/test_allow_does_not_affect_other_lints.ds",
             r#"
 @allow("some-other-lint")
-function foo() {}
+function foo() {
+    if (ready) {}
+}
 "#,
         );
         test.result(result).assert_lint("no-empty");
@@ -451,7 +468,9 @@ function foo() {}
 @forbid("no-empty")
 function outer() {
     @allow("no-empty")
-    function inner() {}
+    function inner() {
+        if (ready) {}
+    }
 }
 "#,
         );
@@ -466,7 +485,9 @@ function outer() {
             "ast/test_warn_changes_severity.ds",
             r#"
 @warn("no-empty")
-function foo() {}
+function foo() {
+    if (ready) {}
+}
 "#,
         );
         // should still lint but with warning severity
@@ -480,7 +501,9 @@ function foo() {}
             "ast/test_deny_changes_severity.ds",
             r#"
 @deny("no-empty")
-function foo() {}
+function foo() {
+    if (ready) {}
+}
 "#,
         );
         // should still lint with error severity

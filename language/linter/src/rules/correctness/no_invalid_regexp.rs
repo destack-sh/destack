@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::ast_regex_pattern_info;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::regex_pattern_info;
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 /// The set of accepted JavaScript regular expression flags.
 const VALID_REGEX_FLAGS: [char; 8] = ['d', 'g', 'i', 'm', 's', 'u', 'v', 'y'];
@@ -30,7 +30,7 @@ declare_lint! {
 }
 
 impl LintRule for NoInvalidRegexp {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoInvalidRegexp::meta()
     }
 
@@ -38,9 +38,10 @@ impl LintRule for NoInvalidRegexp {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // resolve regex literal or constructor pattern info
-            let Some(pattern_info) = ast_regex_pattern_info(ctx.tree, node_id, regexp_name) else {
+            let Some(pattern_info) = regex_pattern_info(ctx.tree, node_id, regexp_name) else {
                 continue;
             };
 
@@ -75,6 +76,13 @@ impl LintRule for NoInvalidRegexp {
                 continue;
             };
 
+            // keep constructor unknown flags conservative, like source behavior:
+            // pattern validity can change based on runtime flags
+            if pattern_info.has_unknown_flags {
+                continue;
+            }
+
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
@@ -158,7 +166,7 @@ let re = /(?/
 let re = /\p/
 "#,
         );
-        // regex-syntax considers \p incomplete (missing property name)
+        // regex syntax considers \p incomplete, missing property name
         test.result(result).assert_lint("no-invalid-regexp");
     }
 
@@ -230,6 +238,19 @@ let re = new RegExp("ok", "gg")
             r#"
 let flags = "g";
 let re = RegExp("ok", flags)
+"#,
+        );
+        test.result(result).assert_no_lint("no-invalid-regexp");
+    }
+
+    #[test]
+    fn test_allows_unknown_flags_for_pattern_that_depends_on_runtime_mode() {
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
+        let result = test.lint_ast(
+            "no_invalid_regexp/test_allows_unknown_flags_for_pattern_that_depends_on_runtime_mode.ds",
+            r#"
+let flags = resolveFlags();
+let re = RegExp("{", flags)
 "#,
         );
         test.result(result).assert_no_lint("no-invalid-regexp");

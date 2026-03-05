@@ -106,6 +106,149 @@ pub(crate) fn find_control_character(s: &str) -> Option<char> {
     None
 }
 
+/// Find control characters in a regex pattern with optional flag semantics.
+pub(crate) fn find_control_characters(pattern: &str, flags: Option<&str>) -> Vec<String> {
+    let unicode_mode = flags.is_some_and(|flags| flags.contains('u') || flags.contains('v'));
+    let bytes = pattern.as_bytes();
+    let mut control_characters = Vec::new();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index] == b'\\' {
+            index += collect_control_escape(&mut control_characters, bytes, index, unicode_mode);
+            continue;
+        }
+
+        if let Some(character) = pattern[index..].chars().next() {
+            if character.is_ascii_control() {
+                push_control_character(&mut control_characters, character as u32);
+            }
+            index += character.len_utf8();
+            continue;
+        }
+
+        break;
+    }
+
+    control_characters
+}
+
+/// Parse one regex escape sequence and collect control characters.
+fn collect_control_escape(
+    control_characters: &mut Vec<String>,
+    bytes: &[u8],
+    index: usize,
+    unicode_mode: bool,
+) -> usize {
+    if index + 1 >= bytes.len() {
+        return 1;
+    }
+
+    match bytes[index + 1] {
+        b'x' => collect_hex_escape(control_characters, bytes, index),
+        b'u' => collect_unicode_escape(control_characters, bytes, index, unicode_mode),
+        _ => 2,
+    }
+}
+
+/// Parse `\xNN` escape and collect a control character when present.
+fn collect_hex_escape(control_characters: &mut Vec<String>, bytes: &[u8], index: usize) -> usize {
+    if index + 3 >= bytes.len() {
+        return 2;
+    }
+
+    let high = hex_nibble(bytes[index + 2]);
+    let low = hex_nibble(bytes[index + 3]);
+    let (Some(high), Some(low)) = (high, low) else {
+        return 2;
+    };
+
+    let value = (high << 4) | low;
+    push_control_character(control_characters, value as u32);
+    4
+}
+
+/// Parse `\uNNNN` or `\u{...}` escape and collect a control character when present.
+fn collect_unicode_escape(
+    control_characters: &mut Vec<String>,
+    bytes: &[u8],
+    index: usize,
+    unicode_mode: bool,
+) -> usize {
+    if index + 2 >= bytes.len() {
+        return 2;
+    }
+
+    if bytes[index + 2] == b'{' {
+        if !unicode_mode {
+            return 2;
+        }
+        return collect_unicode_braced_escape(control_characters, bytes, index);
+    }
+
+    if index + 5 >= bytes.len() {
+        return 2;
+    }
+
+    let mut value = 0u32;
+    for offset in 0..4 {
+        let Some(nibble) = hex_nibble(bytes[index + 2 + offset]) else {
+            return 2;
+        };
+        value = (value << 4) | nibble as u32;
+    }
+
+    push_control_character(control_characters, value);
+    6
+}
+
+/// Parse `\u{...}` escape and collect a control character when present.
+fn collect_unicode_braced_escape(
+    control_characters: &mut Vec<String>,
+    bytes: &[u8],
+    index: usize,
+) -> usize {
+    let mut cursor = index + 3;
+    let mut value = 0u32;
+    let mut has_digit = false;
+
+    while cursor < bytes.len() {
+        if bytes[cursor] == b'}' {
+            if has_digit {
+                push_control_character(control_characters, value);
+                return cursor - index + 1;
+            }
+            return 2;
+        }
+
+        let Some(nibble) = hex_nibble(bytes[cursor]) else {
+            return 2;
+        };
+        has_digit = true;
+        value = (value << 4) | nibble as u32;
+        cursor += 1;
+    }
+
+    2
+}
+
+/// Convert one ASCII hex byte to its numeric nibble value.
+fn hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+/// Add one control character to the collected diagnostics list.
+fn push_control_character(control_characters: &mut Vec<String>, value: u32) {
+    if value <= 0x1f {
+        control_characters.push(format!("\\x{value:02x}"));
+    }
+}
+
 /// Find a misleading character class in a pattern string.
 pub(crate) fn find_misleading_character_class(regex: &str) -> Option<&'static str> {
     let mut in_class = false;

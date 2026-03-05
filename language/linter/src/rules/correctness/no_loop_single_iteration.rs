@@ -41,13 +41,16 @@ declare_lint! {
 }
 
 impl LintRule for NoLoopSingleIteration {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoLoopSingleIteration::meta()
     }
 
+    /// Check module AST nodes for loops that always exit after one iteration.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -74,6 +77,7 @@ impl LintRule for NoLoopSingleIteration {
                     _ => "loop",
                 };
 
+                // build diagnostic payload
                 let mut diagnostic = LintDiagnostic::new(
                     NO_LOOP_SINGLE_ITERATION.id,
                     NO_LOOP_SINGLE_ITERATION.code,
@@ -109,11 +113,13 @@ fn no_loop_single_iteration_fix(
         return None;
     };
 
+    // resolve block
     let block = ctx.tree.get(*body);
     if block.expressions.len() != 1 {
         return None;
     }
 
+    // resolve single expression id
     let single_expression_id = block.expressions[0];
     let single_expression = unwrap_statement_expression(ctx, single_expression_id);
     if !matches!(
@@ -123,6 +129,7 @@ fn no_loop_single_iteration_fix(
         return None;
     }
 
+    // build replacement text
     let replacement_text = ctx
         .get_span_text(ctx.tree.get_span(single_expression_id))
         .to_string();
@@ -130,6 +137,7 @@ fn no_loop_single_iteration_fix(
         return None;
     }
 
+    // replace the loop with the single control flow statement
     let edits = ctx
         .edit_builder()
         .replace(ctx.tree.get_span(loop_expression_id), replacement_text)
@@ -194,6 +202,7 @@ fn block_flow(ctx: &LintModuleAstContext<'_>, body_id: ast::LocalNodeId<ast::Blo
             break;
         }
 
+        // fold the next expression flow into the block state
         let flow = expression_flow(ctx, *expression_id);
         reaches_next_iteration = reaches_next_iteration || flow.reaches_next_iteration;
         reaches_next_statement = flow.reaches_next_statement;
@@ -212,6 +221,7 @@ fn expression_flow(
 ) -> LoopFlow {
     let expr = ctx.tree.get(expr_id);
 
+    // branch by expression kind to model control flow
     match expr {
         // direct exit statements
         ast::Expression::Return { .. } => flow_exit_iteration(),

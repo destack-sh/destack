@@ -25,10 +25,12 @@ declare_lint! {
 }
 
 impl LintRule for NoDeprecated {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoDeprecated::meta()
     }
 
+    /// Check module DIR nodes for deprecated API usage.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let mut visitor = DeprecatedUsageVisitor::new(ctx, meta);
@@ -61,6 +63,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -80,17 +83,20 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
             return;
         }
 
+        // require optional structure
         let Some(deprecated_message) =
             self.deprecated_message_for_expression(expression_id, expression)
         else {
             return;
         };
 
+        // resolve effective lint severity
         let severity = self.ctx.get_effective_severity(self.meta, expression_id);
         if !severity.is_enabled() {
             return;
         }
 
+        // resolve diagnostic span
         let span = self.ctx.get_span(expression_id);
         let mut diagnostic = LintDiagnostic::new(
             NO_DEPRECATED.id,
@@ -102,6 +108,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
             span,
         );
 
+        // enforce this lint guard
         if let Some(message) = deprecated_message {
             diagnostic = diagnostic.with_label(format!("deprecated: {message}"));
         } else {

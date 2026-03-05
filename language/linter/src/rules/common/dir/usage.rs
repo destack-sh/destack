@@ -5,7 +5,10 @@ use destack_dir::{NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
 
-use super::{expression_candidate_symbols, resolution_target_symbols};
+use super::{
+    expression_assignment_target, expression_candidate_symbols, expression_is_standalone_statement,
+    resolution_target_symbols,
+};
 
 /// Collected symbol usage for one DIR module.
 #[derive(Debug, Clone, Default)]
@@ -110,6 +113,37 @@ pub fn collect_module_read_symbol_usage(
     reads
 }
 
+/// Collect read symbols and resolved read candidates for one module.
+pub fn collect_module_resolved_read_symbol_usage(
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+) -> HashSet<dir::GlobalSymbolId> {
+    let mut reads = HashSet::new();
+
+    // collect read usages from expression nodes
+    for (expression_id, expression) in tree.iter_nodes_of_type::<dir::Expression>() {
+        if !expression_reference_is_read(tree, expression_id) {
+            continue;
+        }
+
+        if let Some(symbol_id) = expression.target_symbol() {
+            reads.insert(symbol_id);
+        }
+
+        let global_expression_id = expression_id.into_global_any(module_id);
+        let Some(resolution_id) = types.get_resolution_for_node(global_expression_id) else {
+            continue;
+        };
+        let resolution = types.get_resolution(resolution_id);
+        for symbol_id in resolution_target_symbols(resolution) {
+            reads.insert(symbol_id);
+        }
+    }
+
+    reads
+}
+
 /// Collect assigned symbols for assignment-like expressions in one module.
 #[allow(clippy::too_many_arguments)]
 pub fn collect_assigned_symbol_usage(
@@ -130,7 +164,7 @@ pub fn collect_assigned_symbol_usage(
     for (assignment_expression_id, assignment_expression) in
         tree.iter_nodes_of_type::<dir::Expression>()
     {
-        let Some(assigned_expression_id) = assignment_target_expression_id(assignment_expression)
+        let Some(assigned_expression_id) = expression_assignment_target(assignment_expression)
         else {
             continue;
         };
@@ -152,26 +186,6 @@ pub fn collect_assigned_symbol_usage(
     }
 
     assigned_symbols
-}
-
-/// Return one assigned target expression for assignment-like expressions.
-fn assignment_target_expression_id(
-    expression: &dir::Expression,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    match expression {
-        dir::Expression::Assign { left, .. } | dir::Expression::AssignBinary { left, .. } => {
-            Some(*left)
-        }
-        dir::Expression::Unary {
-            operator:
-                dir::UnaryOperator::PreIncrement
-                | dir::UnaryOperator::PostIncrement
-                | dir::UnaryOperator::PreDecrement
-                | dir::UnaryOperator::PostDecrement,
-            right,
-        } => Some(*right),
-        _ => None,
-    }
 }
 
 /// Collect symbol reads while skipping pure write positions.
@@ -217,5 +231,69 @@ impl NodeVisitor for ReadSymbolCollector {
         }
 
         walk_expression(self, tree, id, expression);
+    }
+}
+
+/// Return true when one expression reference is consumed in a read context.
+fn expression_reference_is_read(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+
+    loop {
+        let Some(parent) = tree.get_parent(current_id.id) else {
+            return true;
+        };
+        if parent.ty != dir::NodeType::Expression {
+            return true;
+        }
+
+        let parent_id = parent.into_typed::<dir::Expression>();
+        let parent_expression = tree.get(parent_id);
+
+        match parent_expression {
+            // unwrap transparent wrappers and continue
+            dir::Expression::Parenthesized { expression } if *expression == current_id => {
+                current_id = parent_id;
+            }
+            dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. }
+                if *value == current_id =>
+            {
+                current_id = parent_id;
+            }
+            dir::Expression::Maybe { left } | dir::Expression::Must { left }
+                if *left == current_id =>
+            {
+                current_id = parent_id;
+            }
+
+            // plain assignment left side is write only
+            dir::Expression::Assign { left, .. } if *left == current_id => {
+                return false;
+            }
+
+            // update assignments read previous value only when the result is consumed
+            dir::Expression::AssignBinary { left, .. } if *left == current_id => {
+                return !expression_is_standalone_statement(tree, parent_id);
+            }
+
+            // standalone increments and decrements are treated as write only
+            dir::Expression::Unary {
+                operator:
+                    dir::UnaryOperator::PreIncrement
+                    | dir::UnaryOperator::PostIncrement
+                    | dir::UnaryOperator::PreDecrement
+                    | dir::UnaryOperator::PostDecrement,
+                right,
+            } if *right == current_id => {
+                return !expression_is_standalone_statement(tree, parent_id);
+            }
+
+            // all other parent contexts consume this value
+            _ => {
+                return true;
+            }
+        }
     }
 }

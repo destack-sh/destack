@@ -1,7 +1,10 @@
-use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    expression_enters_nested_declaration_scope,
+    function_signature_return_type_contains_reference_segment,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -25,16 +28,16 @@ declare_lint! {
 }
 
 impl LintRule for NoThrowInResultFunction {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoThrowInResultFunction::meta()
     }
 
+    /// Check module DIR nodes for throws in Result-returning callables.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        // intern "Result" name for type checking
-        // #Cleanup: use proper Result symbol from standard library for-no-throw-in-result-function?
-        // (though supporting any type that contains "Result" isn't actually that bad?)
+        // intern "Result" name for return type expression checks
         let result_name = ctx.program.strings.intern("Result");
 
         // collect declaration functions with Result return type
@@ -42,14 +45,19 @@ impl LintRule for NoThrowInResultFunction {
             .tree
             .iter_nodes_of_type::<dir::Declaration>()
             .filter_map(|(decl_id, decl)| {
+                // keep function declarations with executable bodies
                 if let dir::Declaration::Function {
                     signature,
                     body: Some(body_id),
                     ..
                 } = decl
                 {
-                    // check if return type is Result
-                    if is_result_return_type(ctx.tree, signature, result_name) {
+                    // check if return type is Result or wraps Result in static arguments
+                    if function_signature_return_type_contains_reference_segment(
+                        ctx.tree,
+                        signature,
+                        result_name,
+                    ) {
                         return Some((CallableOwner::Declaration(decl_id), *body_id));
                     }
                 }
@@ -68,7 +76,12 @@ impl LintRule for NoThrowInResultFunction {
                 continue;
             };
 
-            if !is_result_return_type(ctx.tree, signature, result_name) {
+            // enforce this lint guard
+            if !function_signature_return_type_contains_reference_segment(
+                ctx.tree,
+                signature,
+                result_name,
+            ) {
                 continue;
             }
 
@@ -80,44 +93,6 @@ impl LintRule for NoThrowInResultFunction {
             let mut visitor = ThrowInResultVisitor::new(ctx, meta, owner);
             visitor.run(body_id);
         }
-    }
-}
-
-/// Check if a function signature has a Result return type.
-fn is_result_return_type(
-    tree: &dir::NodeTree,
-    signature: &dir::FunctionSignature,
-    result_name: StringId,
-) -> bool {
-    // get the return type expression
-    let Some(return_type_id) = signature.return_type else {
-        return false;
-    };
-
-    // check if it's a reference that resolves to one Result terminal segment
-    let return_type = tree.get(return_type_id);
-    match return_type {
-        // match Result<T, E> via reference with static arguments
-        dir::Expression::LocalReference {
-            path,
-            static_arguments: Some(_),
-            ..
-        }
-        | dir::Expression::ModuleReference {
-            path,
-            static_arguments: Some(_),
-            ..
-        }
-        | dir::Expression::GlobalReference {
-            path,
-            static_arguments: Some(_),
-            ..
-        } => path.last_segment() == Some(result_name),
-        // match bare Result (unlikely but possible)
-        dir::Expression::LocalReference { path, .. }
-        | dir::Expression::ModuleReference { path, .. }
-        | dir::Expression::GlobalReference { path, .. } => path.last_segment() == Some(result_name),
-        _ => false,
     }
 }
 
@@ -169,6 +144,8 @@ impl<'a, 'b> ThrowInResultVisitor<'a, 'b> {
                 self.ctx.get_effective_severity(self.meta, member_id)
             }
         };
+
+        // skip disabled diagnostics
         if !severity.is_enabled() {
             return;
         }
@@ -210,13 +187,15 @@ impl NodeVisitor for ThrowInResultVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // track nested declarations, their control flow is local to that declaration
-        if let dir::Expression::Declaration { declaration } = expression {
-            let _declaration = tree.get(*declaration);
+        // track nested declaration scopes, their control flow is local
+        let enters_nested_scope = expression_enters_nested_declaration_scope(tree, expression);
+
+        // enter nested declaration scope depth
+        if enters_nested_scope {
             self.function_depth += 1;
         }
 
-        // only check throws in the top-level function, not nested functions
+        // only check throws in the top level function, not nested functions
         if self.function_depth == 0 && matches!(expression, dir::Expression::Throw { .. }) {
             self.report(id);
         }
@@ -224,9 +203,8 @@ impl NodeVisitor for ThrowInResultVisitor<'_, '_> {
         // walk children
         walk_expression(self, tree, id, expression);
 
-        // restore function depth
-        if let dir::Expression::Declaration { declaration } = expression {
-            let _declaration = tree.get(*declaration);
+        // leave nested declaration scope depth
+        if enters_nested_scope {
             self.function_depth -= 1;
         }
     }
@@ -341,6 +319,22 @@ class Parser {
     parse(): Result<number, string> {
         throw "bad";
     }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-throw-in-result-function");
+    }
+
+    /// Flag throw in Promise wrapped Result return type.
+    #[test]
+    fn test_flags_throw_in_promise_wrapped_result_return_type() {
+        let test = TestProgram::for_rule_with_prelude(NoThrowInResultFunction);
+        let result = test.lint_dir(
+            "no_throw_in_result_function/test_flags_throw_in_promise_wrapped_result_return_type.ds",
+            r#"
+async function parse(): Promise<Result<number, string>> {
+    throw "bad";
 }
 "#,
         );

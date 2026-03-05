@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
+use destack_source::{ModuleId, Span};
+
+use crate::LintModuleDirContext;
 
 /// Collect value-space binding symbols declared by one parameter.
 pub fn collect_parameter_value_binding_symbols(
@@ -9,6 +12,7 @@ pub fn collect_parameter_value_binding_symbols(
     parameter_id: dir::LocalNodeId<dir::Parameter>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
+    // resolve the parameter node
     let parameter = tree.get(parameter_id);
 
     // collect the parameter root symbol when it lives in value space
@@ -112,4 +116,97 @@ fn collect_symbol_when_value_space(
     ) {
         bindings.insert(symbol_id);
     }
+}
+
+/// Collect callable parameter value bindings as global symbols for one module.
+///
+/// This includes function declarations and member methods that have bodies.
+pub fn collect_callable_parameter_value_binding_symbols(
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+) -> HashSet<dir::GlobalSymbolId> {
+    let mut global_symbols = HashSet::new();
+
+    // inspect function declarations with bodies
+    for declaration_id in tree.iter_node_ids_of_type::<dir::Declaration>() {
+        let declaration = tree.get(declaration_id);
+        let dir::Declaration::Function {
+            signature,
+            body: Some(_),
+            ..
+        } = declaration
+        else {
+            continue;
+        };
+
+        collect_signature_parameter_value_binding_symbols(
+            module_id,
+            tree,
+            symbols,
+            signature,
+            &mut global_symbols,
+        );
+    }
+
+    // inspect member methods with bodies
+    for member_id in tree.iter_node_ids_of_type::<dir::Member>() {
+        let member = tree.get(member_id);
+        let dir::Member::Method {
+            signature,
+            body: Some(_),
+            ..
+        } = member
+        else {
+            continue;
+        };
+
+        collect_signature_parameter_value_binding_symbols(
+            module_id,
+            tree,
+            symbols,
+            signature,
+            &mut global_symbols,
+        );
+    }
+
+    global_symbols
+}
+
+/// Collect value-space parameter bindings for one callable signature as globals.
+fn collect_signature_parameter_value_binding_symbols(
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    symbols: &dir::SymbolTable,
+    signature: &dir::FunctionSignature,
+    global_symbols: &mut HashSet<dir::GlobalSymbolId>,
+) {
+    for parameter_id in &signature.dynamic_parameters {
+        let mut local_symbols = HashSet::new();
+        collect_parameter_value_binding_symbols(tree, symbols, *parameter_id, &mut local_symbols);
+
+        for local_symbol in local_symbols {
+            global_symbols.insert(local_symbol.into_global(module_id));
+        }
+    }
+}
+
+/// Resolve a precise report span for one unused binding inside a parameter pattern.
+pub fn parameter_binding_span(
+    ctx: &LintModuleDirContext<'_>,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+    local_node_id: dir::LocalNodeIdAny,
+) -> Span {
+    // prefer pattern node spans when available
+    if local_node_id.ty == dir::NodeType::Pattern {
+        return ctx.get_span(local_node_id.into_typed::<dir::Pattern>());
+    }
+
+    // then prefer pattern field spans
+    if local_node_id.ty == dir::NodeType::PatternField {
+        return ctx.get_span(local_node_id.into_typed::<dir::PatternField>());
+    }
+
+    // otherwise report at parameter span
+    ctx.get_span(parameter_id)
 }

@@ -83,6 +83,7 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
+        // inspect dir roots
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -283,6 +284,34 @@ items.toSorted();
             r#"
 let names: string[] = ["c", "a", "b"];
 names.toSorted();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("require-array-sort-compare");
+    }
+
+    #[test]
+    fn test_flags_sort_on_mixed_string_number_array_union() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "require_array_sort_compare/test_flags_sort_on_mixed_string_number_array_union.ds",
+            r#"
+let values: string[] | number[] = [3, 1, 2];
+values.sort();
+"#,
+        );
+        test.result(result)
+            .assert_lint("require-array-sort-compare");
+    }
+
+    #[test]
+    fn test_allows_sort_on_all_string_array_union() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "require_array_sort_compare/test_allows_sort_on_all_string_array_union.ds",
+            r#"
+let values: string[] | [string, string] = ["b", "a"];
+values.sort();
 "#,
         );
         test.result(result)

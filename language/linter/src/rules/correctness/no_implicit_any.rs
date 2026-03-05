@@ -27,10 +27,12 @@ declare_lint! {
 }
 
 impl LintRule for NoImplicitAny {
+    /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoImplicitAny::meta()
     }
 
+    /// Check module DIR nodes for implicit any declarations and parameters.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
@@ -40,11 +42,13 @@ impl LintRule for NoImplicitAny {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, declarator_id);
             if !severity.is_enabled() {
                 continue;
             }
 
+            // resolve diagnostic span
             let span = ctx.get_span(declarator_id);
             let mut diagnostic = LintDiagnostic::new(
                 NO_IMPLICIT_ANY.id,
@@ -73,11 +77,13 @@ impl LintRule for NoImplicitAny {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, parameter_id);
             if !severity.is_enabled() {
                 continue;
             }
 
+            // resolve diagnostic span
             let span = ctx.get_span(parameter_id);
             let mut diagnostic = LintDiagnostic::new(
                 NO_IMPLICIT_ANY.id,
@@ -141,7 +147,7 @@ fn should_report_declarator(
         return false;
     }
 
-    // collect declarator-bound symbols
+    // collect declarator bound symbols
     let mut bound_symbols = HashSet::new();
     collect_pattern_value_binding_symbols(
         ctx.tree,
@@ -166,6 +172,7 @@ fn should_report_declarator(
             return true;
         };
 
+        // enforce this lint guard
         if is_infer_var_type(ctx.types, type_id) || is_any_type(ctx.types, type_id) {
             return true;
         }
