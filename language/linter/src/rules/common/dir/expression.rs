@@ -82,6 +82,56 @@ pub fn expressions_have_equivalent_syntax(
         == normalize_expression_syntax(right_text.as_ref())
 }
 
+/// Return true when the infix source window between two operands contains one operator token.
+///
+/// This is a targeted fallback for lowered DIR shapes where the operator kind
+/// can be ambiguous but operand boundaries are still stable.
+pub fn infix_operator_window_contains(
+    ctx: &LintModuleDirContext<'_>,
+    left_id: dir::LocalNodeId<dir::Expression>,
+    right_id: dir::LocalNodeId<dir::Expression>,
+    operator_text: &str,
+) -> bool {
+    // require a non-empty operator token
+    if operator_text.is_empty() {
+        return false;
+    }
+
+    // resolve operand spans and require one valid source window
+    let left_span = ctx.get_span(left_id);
+    let right_span = ctx.get_span(right_id);
+    if left_span.file != right_span.file || left_span.end >= right_span.start {
+        return false;
+    }
+
+    // scan the source window and match the operator token
+    let source = ctx.source_text().as_bytes();
+    let start = left_span.end as usize;
+    let end = right_span.start as usize;
+    if end > source.len() || start >= end {
+        return false;
+    }
+
+    let operator_bytes = operator_text.as_bytes();
+    let mut byte_index = start;
+    while byte_index + operator_bytes.len() <= end {
+        // skip whitespace around infix operators
+        if source[byte_index].is_ascii_whitespace() {
+            byte_index += 1;
+            continue;
+        }
+
+        // match the exact operator token at this offset
+        if source[byte_index..].starts_with(operator_bytes) {
+            return true;
+        }
+
+        byte_index += 1;
+    }
+
+    false
+}
+
 /// Normalize expression syntax for token style equality checks.
 fn normalize_expression_syntax(source: &str) -> String {
     source

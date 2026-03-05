@@ -145,9 +145,86 @@ pub fn import_item_removal_span(
     Some(Span::new(item_span.file, previous_span.end, item_span.end))
 }
 
+/// Resolve the span that removes one top level `type` keyword from an import declaration.
+pub fn import_type_keyword_removal_span(import_span: Span, import_text: &str) -> Option<Span> {
+    let keyword_offset = import_text.find("import")?;
+    let mut type_start = keyword_offset + "import".len();
+    let bytes = import_text.as_bytes();
+
+    while type_start < bytes.len() && bytes[type_start].is_ascii_whitespace() {
+        type_start += 1;
+    }
+
+    if !import_text[type_start..].starts_with("type") {
+        return None;
+    }
+
+    let type_end = type_start + "type".len();
+    if type_end < bytes.len() && !bytes[type_end].is_ascii_whitespace() && bytes[type_end] != b'{' {
+        return None;
+    }
+
+    let removal_start = import_span.start + (keyword_offset + "import".len()) as u32;
+    let removal_end = import_span.start + type_end as u32;
+    Some(Span::new(import_span.file, removal_start, removal_end))
+}
+
+/// Remove one leading `type` keyword from one dependency item text.
+pub fn dependency_item_strip_inline_type_keyword(text: &str) -> Option<String> {
+    let bytes = text.as_bytes();
+    let mut cursor = 0;
+
+    while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+        cursor += 1;
+    }
+
+    if !text[cursor..].starts_with("type") {
+        return None;
+    }
+
+    let keyword_end = cursor + "type".len();
+    if keyword_end >= bytes.len() || !bytes[keyword_end].is_ascii_whitespace() {
+        return None;
+    }
+
+    let mut content_start = keyword_end;
+    while content_start < bytes.len() && bytes[content_start].is_ascii_whitespace() {
+        content_start += 1;
+    }
+
+    let mut rewritten = String::new();
+    rewritten.push_str(&text[..cursor]);
+    rewritten.push_str(&text[content_start..]);
+    Some(rewritten)
+}
+
+/// Add one leading `type` keyword to one dependency item text.
+pub fn dependency_item_insert_inline_type_keyword(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut cursor = 0;
+
+    while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+        cursor += 1;
+    }
+
+    if text[cursor..].starts_with("type")
+        && (cursor + "type".len()) < bytes.len()
+        && bytes[cursor + "type".len()].is_ascii_whitespace()
+    {
+        return text.to_string();
+    }
+
+    let mut rewritten = String::new();
+    rewritten.push_str(&text[..cursor]);
+    rewritten.push_str("type ");
+    rewritten.push_str(&text[cursor..]);
+    rewritten
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use destack_source::FileId;
 
     /// Keep side-effect imports stable and ahead of sorted regular imports.
     #[test]
@@ -199,5 +276,32 @@ mod tests {
 
         let order = sort_import_declaration_indices(&keys);
         assert_eq!(order, vec![3, 2, 1, 0]);
+    }
+
+    /// Resolve the exact removal span for top level `import type`.
+    #[test]
+    fn test_import_type_keyword_removal_span() {
+        let file = FileId::new(1);
+        let text = "import type { Foo } from \"foo\"";
+        let span = Span::new(file, 0, text.len() as u32);
+        let removal_span = import_type_keyword_removal_span(span, text)
+            .expect("expected top level type keyword span");
+        let removed_text = &text[removal_span.start as usize..removal_span.end as usize];
+        assert_eq!(removed_text, " type");
+    }
+
+    /// Remove one inline `type` keyword from one dependency item.
+    #[test]
+    fn test_dependency_item_strip_inline_type_keyword() {
+        let rewritten = dependency_item_strip_inline_type_keyword(" type Foo as Bar")
+            .expect("expected rewritten item");
+        assert_eq!(rewritten, " Foo as Bar");
+    }
+
+    /// Add one inline `type` keyword to one dependency item.
+    #[test]
+    fn test_dependency_item_insert_inline_type_keyword() {
+        let rewritten = dependency_item_insert_inline_type_keyword(" Foo as Bar");
+        assert_eq!(rewritten, " type Foo as Bar");
     }
 }
