@@ -1,14 +1,14 @@
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow struct declarations.
     ///
     /// Some codebases prefer classes over structs for consistency with
     /// existing TypeScript patterns or when identity semantics are needed.
-    /// This rule enforces class-only object definitions.
+    /// This rule enforces class only object definitions.
     #[lint(
         id = "no-struct",
         code = "LR027",
@@ -18,26 +18,29 @@ declare_lint! {
         requires_any = [],
         fixable = No,
         recommended = Off,
-        stability = Stable
+        stability = Stable,
+        declarations = Exclude
     )]
     pub NoStruct,
     "Disallow struct declarations"
 }
 
 impl LintRule for NoStruct {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoStruct::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate declarations
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
             if !matches!(declaration, Declaration::Struct { .. }) {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
@@ -132,5 +135,37 @@ type Point = { x: number, y: number };
 "#,
         );
         test.result(result).assert_no_lint("no-struct");
+    }
+
+    #[test]
+    fn test_skips_declaration_file_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoStruct);
+        let result = test.lint_ast(
+            "no_struct/test_skips_declaration_file_by_default.d.ds",
+            r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-struct");
+    }
+
+    #[test]
+    fn test_includes_declaration_file_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoStruct).with_options(|options| {
+            options.include_declaration_files = true;
+        });
+        let result = test.lint_ast(
+            "no_struct/test_includes_declaration_file_when_enabled.d.ds",
+            r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-struct");
     }
 }

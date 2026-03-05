@@ -1,10 +1,8 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    ast_expression_statement_ancestor, expand_span_to_statement_terminator,
-};
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{expand_span_to_statement_terminator, expression_statement_ancestor};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow the delete operator.
@@ -28,13 +26,12 @@ declare_lint! {
 
 impl LintRule for NoDelete {
     /// Return lint metadata.
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoDelete::meta()
     }
 
     /// Check module AST nodes for delete expressions.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
 
         // walk expressions to find delete usage
@@ -84,7 +81,7 @@ fn no_delete_fix(
     delete_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // require one standalone statement context around the delete expression
-    let statement_id = ast_expression_statement_ancestor(ctx.tree, ctx.parents, delete_id)?;
+    let statement_id = expression_statement_ancestor(ctx.tree, ctx.parents, delete_id)?;
 
     // remove the full statement span, including an optional trailing terminator
     let file = ctx.program.files.get(ctx.module.file_id);

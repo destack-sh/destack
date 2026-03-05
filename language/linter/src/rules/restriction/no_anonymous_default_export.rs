@@ -1,8 +1,8 @@
 use destack_ast::{self as ast, Declaration, DependencyMode, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::ast_expression_unwrap_parenthesized;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::expression_unwrap_parenthesized_syntax;
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow anonymous default exports.
@@ -26,7 +26,7 @@ declare_lint! {
 }
 
 impl LintRule for NoAnonymousDefaultExport {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoAnonymousDefaultExport::meta()
     }
 
@@ -42,14 +42,21 @@ impl LintRule for NoAnonymousDefaultExport {
                 Declaration::Class { descriptor, .. } => (descriptor, descriptor.name.is_none()),
                 _ => continue,
             };
+
+            // keep only default anonymous declarations
             if descriptor.export != Some(DependencyMode::Default) || !is_anonymous {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, declaration_id);
+
+            // skip disabled diagnostics
             if !severity.is_enabled() {
                 continue;
             }
+
+            // build declaration diagnostic
             let span = ctx.tree.get_span(declaration_id);
             let mut diagnostic = LintDiagnostic::new(
                 NO_ANONYMOUS_DEFAULT_EXPORT.id,
@@ -70,11 +77,13 @@ impl LintRule for NoAnonymousDefaultExport {
                 diagnostic = diagnostic.with_fix(fix);
             }
 
+            // report declaration diagnostic
             ctx.report(diagnostic);
         }
 
         // check anonymous default export expressions (e.g., `export default { foo: 1 }`)
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            // keep only export expressions
             let expression = ctx.tree.get(expression_id);
             let Expression::Export { items, .. } = expression else {
                 continue;
@@ -84,19 +93,31 @@ impl LintRule for NoAnonymousDefaultExport {
             for item_id in items {
                 // check if this is a default anonymous value export
                 let item = ctx.tree.get(*item_id);
+
+                // keep only default export items with values
                 if item.mode != DependencyMode::Default || item.value.is_none() {
                     continue;
                 }
-                let value_id = ast_expression_unwrap_parenthesized(ctx.tree, item.value.unwrap());
+                let Some(item_value) = item.value else {
+                    continue;
+                };
+                let value_id = expression_unwrap_parenthesized_syntax(ctx.tree, item_value);
                 let value = ctx.tree.get(value_id);
+
+                // skip named or call expression exports
                 if matches!(value, Expression::Path { .. } | Expression::Call { .. }) {
                     continue;
                 }
 
+                // resolve effective lint severity
                 let severity = ctx.get_effective_severity(meta, expression_id);
+
+                // skip disabled diagnostics
                 if !severity.is_enabled() {
                     continue;
                 }
+
+                // report expression diagnostic
                 let span = ctx.tree.get_span(expression_id);
                 ctx.report(
                     LintDiagnostic::new(
@@ -121,12 +142,14 @@ fn anonymous_default_declaration_fix(
     declaration_id: ast::LocalNodeId<ast::Declaration>,
     declaration: &Declaration,
 ) -> Option<LintFix> {
+    // map declaration kind to rewrite strategy
     let kind = match declaration {
         Declaration::Function { .. } => DefaultDeclarationKind::Function,
         Declaration::Class { .. } => DefaultDeclarationKind::Class,
         _ => return None,
     };
 
+    // build replacement text with an inserted default name
     let declaration_span = ctx.tree.get_span(declaration_id);
     let declaration_text = ctx.get_span_text(declaration_span);
     let declaration_text = declaration_text.as_ref();
@@ -148,6 +171,7 @@ enum DefaultDeclarationKind {
 impl DefaultDeclarationKind {
     /// Resolve the text insertion offset for adding `defaultExport`.
     fn default_name_insert_offset(&self, declaration_text: &str) -> Option<usize> {
+        // delegate to declaration kind-specific offset logic
         match self {
             Self::Function => function_name_insert_offset(declaration_text),
             Self::Class => class_name_insert_offset(declaration_text),
@@ -165,10 +189,13 @@ fn function_name_insert_offset(declaration_text: &str) -> Option<usize> {
     while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
         cursor += 1;
     }
+
+    // skip one generator marker
     if cursor < bytes.len() && bytes[cursor] == b'*' {
         cursor += 1;
     }
 
+    // skip leading whitespace before the export token
     while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
         cursor += 1;
     }
@@ -182,6 +209,7 @@ fn class_name_insert_offset(declaration_text: &str) -> Option<usize> {
     let mut cursor = keyword_offset + "class".len();
     let bytes = declaration_text.as_bytes();
 
+    // skip whitespace between `class` and an optional identifier
     while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
         cursor += 1;
     }

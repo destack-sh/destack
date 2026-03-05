@@ -1,9 +1,13 @@
 use destack_base::StringId;
-use destack_dir::{self as dir, DependencySource};
-use destack_source::Span;
+use destack_dir::{
+    self as dir, DependencySource, NodeVisitor, NodeVisitorOptions, walk_expression,
+};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_global_qualified_member;
+use crate::rules::common::{
+    expression_is_global_qualified_member, expression_static_string_literal,
+    expression_unwrap_transparent, statement_prefix_span,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -34,53 +38,116 @@ impl LintRule for NoRequireImports {
     /// Check module DIR nodes for require() import calls.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
+        let mut visitor = NoRequireImportsVisitor::new(ctx, meta);
+        visitor.run();
+    }
+}
+
+/// Visitor that flags require import usage.
+struct NoRequireImportsVisitor<'a, 'b> {
+    /// The lint context.
+    ctx: &'a mut LintModuleDirContext<'b>,
+    /// The lint metadata.
+    meta: &'a LintMeta,
+    /// The `require` name id.
+    require_name: StringId,
+    /// The global qualifier symbols.
+    global_qualifiers: Vec<dir::GlobalSymbolId>,
+    /// The visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
+    /// Build a visitor for require import checks.
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let require_name = ctx.program.strings.intern("require");
         let global_qualifiers = ctx.global_qualifier_symbols();
 
-        // check module expressions for CommonJS require imports
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
-            if !expression_uses_require_import(
-                ctx.tree,
-                expression,
-                &global_qualifiers,
-                require_name,
-            ) {
-                continue;
-            }
-
-            let severity = ctx.get_effective_severity(meta, expression_id);
-            if !severity.is_enabled() {
-                continue;
-            }
-
-            let span = ctx.get_span(expression_id);
-            let mut diagnostic = LintDiagnostic::new(
-                NO_REQUIRE_IMPORTS.id,
-                NO_REQUIRE_IMPORTS.code,
-                NO_REQUIRE_IMPORTS.category,
-                severity,
-                "require() import usage",
-                ctx.module.file_id,
-                span,
-            )
-            .with_label("use ESM import syntax instead of require()");
-
-            // compute fixes only when requested by the runner
-            if ctx.include_fixes
-                && let Some(fix) = no_require_import_fix(
-                    ctx,
-                    expression_id,
-                    expression,
-                    &global_qualifiers,
-                    require_name,
-                )
-            {
-                diagnostic = diagnostic.with_fix(fix);
-            }
-
-            ctx.report(diagnostic);
+        Self {
+            ctx,
+            meta,
+            require_name,
+            global_qualifiers,
+            options: NodeVisitorOptions::default(),
         }
+    }
+
+    /// Walk the module roots.
+    fn run(&mut self) {
+        let roots = self.ctx.roots.clone();
+        let tree = self.ctx.tree;
+
+        // inspect dir roots
+        for root_id in roots {
+            let expression = tree.get(root_id);
+            self.visit_expression(tree, root_id, expression);
+        }
+    }
+
+    /// Check one expression for require import usage.
+    fn check_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        if !expression_uses_require_import(
+            self.ctx.tree,
+            expression,
+            &self.global_qualifiers,
+            self.require_name,
+        ) {
+            return;
+        }
+
+        // resolve effective lint severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // resolve diagnostic span
+        let span = self.ctx.get_span(expression_id);
+        let mut diagnostic = LintDiagnostic::new(
+            NO_REQUIRE_IMPORTS.id,
+            NO_REQUIRE_IMPORTS.code,
+            NO_REQUIRE_IMPORTS.category,
+            severity,
+            "require() import usage",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use ESM import syntax instead of require()");
+
+        // compute fixes only when requested by the runner
+        if self.ctx.include_fixes
+            && let Some(fix) = no_require_import_fix(
+                self.ctx,
+                expression_id,
+                expression,
+                &self.global_qualifiers,
+                self.require_name,
+            )
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+}
+
+impl NodeVisitor for NoRequireImportsVisitor<'_, '_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        self.check_expression(id, expression);
+        walk_expression(self, tree, id, expression);
     }
 }
 
@@ -91,7 +158,7 @@ fn expression_uses_require_import(
     global_qualifiers: &[dir::GlobalSymbolId],
     require_name: StringId,
 ) -> bool {
-    // check require-based dependency expressions first
+    // check require based dependency expressions first
     match expression {
         dir::Expression::Declaration { declaration } => {
             let declaration = tree.get(*declaration);
@@ -117,7 +184,9 @@ fn expression_uses_require_import(
     let dir::Expression::Call { left, .. } = expression else {
         return false;
     };
-    let callee = tree.get(*left);
+    let callee_id = expression_unwrap_transparent(tree, *left);
+    let callee = tree.get(callee_id);
+
     // match unresolved bare require paths
     if let dir::Expression::UnresolvedPath { path, .. } = callee
         && path.segments.len() == 1
@@ -134,7 +203,7 @@ fn expression_uses_require_import(
         return true;
     }
 
-    expression_is_global_qualified_member(tree, *left, global_qualifiers, require_name)
+    expression_is_global_qualified_member(tree, callee_id, global_qualifiers, require_name)
 }
 
 /// Build a fix for one supported require() import form.
@@ -169,6 +238,7 @@ fn require_import_alias_fix(
         return None;
     };
 
+    // resolve declaration id
     let declaration_id = *declaration;
     let declaration = ctx.tree.get(declaration_id);
     let dir::Declaration::ImportAlias {
@@ -185,10 +255,12 @@ fn require_import_alias_fix(
         return None;
     }
 
+    // require optional structure
     let Some(dir::Name::Identifier(name_id)) = descriptor.name else {
         return None;
     };
 
+    // render the esm import replacement for this alias
     let local_name = ctx.program.strings.get(name_id);
     let target_text = escape_import_target(ctx.program.strings.get(*target).as_ref());
     let prefix = if *kind == dir::DependencyKind::Type {
@@ -198,34 +270,12 @@ fn require_import_alias_fix(
     };
     let replacement = format!("{prefix} {} from \"{target_text}\";", local_name.as_ref());
 
-    let span = require_import_alias_span(ctx, declaration_id)?;
-    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
-    Some(LintFix::r#unsafe("Rewrite require alias to ESM import").with_edits(edits))
-}
-
-/// Resolve one source span for the import-alias statement prefix.
-fn require_import_alias_span(
-    ctx: &LintModuleDirContext<'_>,
-    declaration_id: dir::LocalNodeId<dir::Declaration>,
-) -> Option<Span> {
+    // replace the original declaration statement prefix
     let declaration_span = ctx.get_span(declaration_id);
     let declaration_text = ctx.get_span_text(declaration_span);
-
-    let statement_length = declaration_text
-        .find(';')
-        .map(|offset| offset + 1)
-        .or_else(|| declaration_text.find('\n'))
-        .unwrap_or(declaration_text.len());
-
-    if statement_length == 0 {
-        return None;
-    }
-
-    Some(Span::new(
-        declaration_span.file,
-        declaration_span.start,
-        declaration_span.start + statement_length as u32,
-    ))
+    let span = statement_prefix_span(declaration_span, declaration_text)?;
+    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+    Some(LintFix::r#unsafe("Rewrite require alias to ESM import").with_edits(edits))
 }
 
 /// Build an unsafe fix for side effect `require("x")` statements.
@@ -253,7 +303,7 @@ fn require_side_effect_fix(
         return None;
     }
 
-    // keep only require-like callees
+    // keep only require like callees
     if !expression_uses_require_import(ctx.tree, expression, global_qualifiers, require_name) {
         return None;
     }
@@ -263,17 +313,12 @@ fn require_side_effect_fix(
         return None;
     }
 
+    // require one positional call argument
     let argument = ctx.tree.get(dynamic_arguments[0]);
     let dir::Argument::Positional { value, .. } = argument else {
         return None;
     };
-    let argument_value = ctx.tree.get(*value);
-    let dir::Expression::ScalarLiteral {
-        value: dir::ScalarLiteral::String(target),
-    } = argument_value
-    else {
-        return None;
-    };
+    let target = expression_static_string_literal(ctx.tree, *value)?;
 
     // keep standalone statement calls only
     let parent = ctx.tree.get_parent(expression_id.id)?;
@@ -281,6 +326,7 @@ fn require_side_effect_fix(
         return None;
     }
 
+    // require the call expression to be wrapped in a statement expression
     let statement_id = parent.into_typed::<dir::Expression>();
     let statement = ctx.tree.get(statement_id);
     let dir::Expression::Statement { statement } = statement else {
@@ -290,7 +336,8 @@ fn require_side_effect_fix(
         return None;
     }
 
-    let target_text = escape_import_target(ctx.program.strings.get(*target).as_ref());
+    // render one side effect esm import replacement
+    let target_text = escape_import_target(ctx.program.strings.get(target).as_ref());
     let replacement = format!("import \"{target_text}\";");
     let statement_span = ctx.get_span(statement_id);
     let edits = ctx
@@ -331,6 +378,19 @@ const fs = require("fs");
             "no_require_imports/test_flags_global_require_call.ds",
             r#"
 const fs = globalThis.require("fs");
+"#,
+        );
+        test.result(result).assert_lint("no-require-imports");
+    }
+
+    /// Report computed global require() import calls.
+    #[test]
+    fn test_flags_global_computed_require_call() {
+        let test = TestProgram::for_rule_with_prelude(NoRequireImports);
+        let result = test.lint_dir(
+            "no_require_imports/test_flags_global_computed_require_call.ds",
+            r#"
+const fs = globalThis["require"]("fs");
 "#,
         );
         test.result(result).assert_lint("no-require-imports");
@@ -456,7 +516,7 @@ fs;
         test.result(result).assert_no_lint("no-require-imports");
     }
 
-    /// Unsafely rewrite one import-equals require alias to ESM.
+    /// Unsafely rewrite one import equals require alias to ESM.
     #[test]
     fn test_fix_rewrites_import_equals_require_alias() {
         let test = TestProgram::for_rule_with_prelude(NoRequireImports);
@@ -475,7 +535,7 @@ import fs from "fs";
             );
     }
 
-    /// Keep trailing statements when rewriting import-equals aliases.
+    /// Keep trailing statements when rewriting import equals aliases.
     #[test]
     fn test_mutation_fix_rewrites_import_equals_require_alias_with_following_statement() {
         let test = TestProgram::for_rule_with_prelude(NoRequireImports);
@@ -499,6 +559,25 @@ fs;
             "no_require_imports/test_fix_rewrites_side_effect_require_statement.ds",
             r#"
 require("fs");
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-require-imports")
+            .assert_unsafe_fixed(
+                r#"
+import "fs";
+"#,
+            );
+    }
+
+    /// Unsafely rewrite side effect require template statement.
+    #[test]
+    fn test_fix_rewrites_static_template_require_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoRequireImports);
+        let result = test.lint_dir(
+            "no_require_imports/test_fix_rewrites_static_template_require_statement.ds",
+            r#"
+require(`fs`);
 "#,
         );
         test.result(result)

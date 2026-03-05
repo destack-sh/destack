@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow TypeScript enums.
@@ -17,20 +17,22 @@ declare_lint! {
         requires_any = [],
         fixable = No,
         recommended = Off,
-        stability = Stable
+        stability = Stable,
+        declarations = Exclude
     )]
     pub NoEnum,
     "Disallow TypeScript enums"
 }
 
 impl LintRule for NoEnum {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoEnum::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate declarations
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
             if matches!(declaration, ast::Declaration::Enum { .. }) {
@@ -115,5 +117,37 @@ const Color = {
 "#,
         );
         test.result(result).assert_no_lint("no-enum");
+    }
+
+    #[test]
+    fn test_skips_declaration_file_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoEnum);
+        let result = test.lint_ast(
+            "no_enum/test_skips_declaration_file_by_default.d.ts",
+            r#"
+declare enum Color {
+    Red,
+    Green
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-enum");
+    }
+
+    #[test]
+    fn test_includes_declaration_file_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoEnum).with_options(|options| {
+            options.include_declaration_files = true;
+        });
+        let result = test.lint_ast(
+            "no_enum/test_includes_declaration_file_when_enabled.d.ts",
+            r#"
+declare enum Color {
+    Red,
+    Green
+}
+"#,
+        );
+        test.result(result).assert_lint("no-enum");
     }
 }

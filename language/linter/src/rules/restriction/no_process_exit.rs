@@ -3,7 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
+use crate::rules::common::{
+    expression_is_symbol_or_global_qualified_member, expression_static_property_access,
+    statement_expression_ancestor,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,7 +36,6 @@ impl LintRule for NoProcessExit {
 
     /// Check module DIR nodes for process exit calls.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
 
         // walk the module for process exit calls
@@ -98,17 +100,18 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
     ) {
-        // match member access
-        let expression = self.ctx.tree.get(left);
-        let dir::Expression::Member { left, name, .. } = expression else {
+        // match static property access
+        let Some((receiver_id, property_name)) =
+            expression_static_property_access(self.ctx.tree, left)
+        else {
             return;
         };
-        if *name != self.exit_name {
+        if property_name != self.exit_name {
             return;
         }
 
         // require process receiver
-        if !self.is_process_expression(*left) {
+        if !self.is_process_expression(receiver_id) {
             return;
         }
 
@@ -143,15 +146,10 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
 
     /// Return true when the expression refers to the process object.
     fn is_process_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol references
-        if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id) {
-            return symbol == self.process_symbol;
-        }
-
-        // match global qualified references
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.process_symbol,
             &self.global_qualifiers,
             self.process_name,
         )
@@ -163,21 +161,8 @@ fn no_process_exit_fix(
     ctx: &LintModuleDirContext<'_>,
     call_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let parent = ctx.tree.get_parent(call_id.id)?;
-    if parent.ty != dir::NodeType::Expression {
-        return None;
-    }
-
-    let parent_id = parent.into_typed::<dir::Expression>();
-    let parent_expression = ctx.tree.get(parent_id);
-    let dir::Expression::Statement { statement } = parent_expression else {
-        return None;
-    };
-    if *statement != call_id {
-        return None;
-    }
-
-    let statement_span = ctx.get_span(parent_id);
+    let statement_id = statement_expression_ancestor(ctx.tree, call_id)?;
+    let statement_span = ctx.get_span(statement_id);
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::r#unsafe("Remove process.exit statement").with_edits(edits))
 }
@@ -238,6 +223,36 @@ globalThis.process.exit(1);
             .assert_has_fix("no-process-exit");
     }
 
+    /// Report computed process exit calls.
+    #[test]
+    fn test_flags_computed_process_exit_call() {
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
+            "no_process_exit/test_flags_computed_process_exit_call.ds",
+            r#"
+process["exit"](1);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-process-exit")
+            .assert_has_fix("no-process-exit");
+    }
+
+    /// Report global computed process exit calls.
+    #[test]
+    fn test_flags_global_computed_process_exit_call() {
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
+            "no_process_exit/test_flags_global_computed_process_exit_call.ds",
+            r#"
+globalThis.process["exit"](1);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-process-exit")
+            .assert_has_fix("no-process-exit");
+    }
+
     /// Allow other process calls.
     #[test]
     fn test_allows_other_process_call() {
@@ -281,6 +296,21 @@ globalThis.process.exit(1);
             .assert_unsafe_fixed(r#""#);
     }
 
+    /// Unsafely remove parenthesized standalone process.exit statements.
+    #[test]
+    fn test_fix_removes_parenthesized_process_exit_statement() {
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
+            "no_process_exit/test_fix_removes_parenthesized_process_exit_statement.ds",
+            r#"
+(process.exit(1));
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-process-exit")
+            .assert_unsafe_fixed(r#""#);
+    }
+
     /// Do not auto-fix process.exit values when used in expressions.
     #[test]
     fn test_no_fix_when_process_exit_result_is_used() {
@@ -296,7 +326,7 @@ const status = process.exit(1);
             .assert_has_no_fix("no-process-exit");
     }
 
-    /// Mutation: detect zero-status process.exit statements.
+    /// Mutation: detect zero status process.exit statements.
     #[test]
     fn test_mutation_detects_process_exit_zero_status() {
         let test = TestProgram::for_rule_with_prelude(NoProcessExit);

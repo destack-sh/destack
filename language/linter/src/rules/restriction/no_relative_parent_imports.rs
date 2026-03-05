@@ -1,7 +1,7 @@
-use destack_base::StringId;
-use destack_dir as dir;
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_import_target_static_specifier;
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -34,56 +34,96 @@ impl LintRule for NoRelativeParentImports {
     /// Check module DIR nodes for parent relative imports.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-
-        // inspect import and re export expressions
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
-            let Some(target_id) = expression_target_specifier(expression) else {
-                continue;
-            };
-            let is_parent_relative = {
-                let target_text = ctx.program.strings.get(target_id);
-                is_relative_parent_specifier(target_text.as_ref())
-            };
-            if !is_parent_relative {
-                continue;
-            }
-
-            let severity = ctx.get_effective_severity(meta, expression_id);
-            if !severity.is_enabled() {
-                continue;
-            }
-
-            let target_text = ctx.program.strings.get(target_id).to_string();
-            let span = ctx.get_span(expression_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_RELATIVE_PARENT_IMPORTS.id,
-                    NO_RELATIVE_PARENT_IMPORTS.code,
-                    NO_RELATIVE_PARENT_IMPORTS.category,
-                    severity,
-                    format!("parent relative import `{target_text}`"),
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("avoid importing through parent relative paths")
-                .with_note("prefer package aliases or rooted module paths"),
-            );
-        }
+        let mut visitor = NoRelativeParentImportsVisitor::new(ctx, meta);
+        visitor.run();
     }
 }
 
-/// Return the target module specifier for import like expressions.
-fn expression_target_specifier(expression: &dir::Expression) -> Option<StringId> {
-    match expression {
-        dir::Expression::Import { target, .. }
-        | dir::Expression::ReExport { target, .. }
-        | dir::Expression::UnresolvedReExport { target, .. } => Some(*target),
-        dir::Expression::UnresolvedImport {
-            target: dir::ImportTarget::String(target),
-            ..
-        } => Some(*target),
-        _ => None,
+/// Visitor that checks import targets for parent relative paths.
+struct NoRelativeParentImportsVisitor<'a, 'b> {
+    /// The lint context.
+    ctx: &'a mut LintModuleDirContext<'b>,
+    /// The lint metadata.
+    meta: &'a LintMeta,
+    /// The visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl<'a, 'b> NoRelativeParentImportsVisitor<'a, 'b> {
+    /// Build a visitor for parent relative import checks.
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+        Self {
+            ctx,
+            meta,
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Walk the module roots.
+    fn run(&mut self) {
+        let roots = self.ctx.roots.clone();
+        let tree = self.ctx.tree;
+
+        // inspect dir roots
+        for root_id in roots {
+            let expression = tree.get(root_id);
+            self.visit_expression(tree, root_id, expression);
+        }
+    }
+
+    /// Check one expression for a parent relative import target.
+    fn check_expression(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        let Some(target_id) = expression_import_target_static_specifier(expression) else {
+            return;
+        };
+
+        // resolve target text
+        let target_text = self.ctx.program.strings.get(target_id).to_string();
+        if !is_relative_parent_specifier(target_text.as_ref()) {
+            return;
+        }
+
+        // resolve effective lint severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // resolve diagnostic span
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                NO_RELATIVE_PARENT_IMPORTS.id,
+                NO_RELATIVE_PARENT_IMPORTS.code,
+                NO_RELATIVE_PARENT_IMPORTS.category,
+                severity,
+                format!("parent relative import `{target_text}`"),
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("avoid importing through parent relative paths")
+            .with_note("prefer package aliases or rooted module paths"),
+        );
+    }
+}
+
+impl NodeVisitor for NoRelativeParentImportsVisitor<'_, '_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        self.check_expression(id, expression);
+        walk_expression(self, tree, id, expression);
     }
 }
 

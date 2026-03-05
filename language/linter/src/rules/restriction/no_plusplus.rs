@@ -1,7 +1,8 @@
 use destack_ast::{self as ast, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::expression_statement_ancestor;
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `++` and `--` operators.
@@ -24,13 +25,14 @@ declare_lint! {
 }
 
 impl LintRule for NoPlusplus {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoPlusplus::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let ast::Expression::Unary { operator, .. } = expression else {
@@ -46,6 +48,7 @@ impl LintRule for NoPlusplus {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
@@ -63,7 +66,8 @@ impl LintRule for NoPlusplus {
             )
             .with_label("use `+= 1` or `-= 1` instead");
 
-            if is_discarded_update_expression(ctx, node_id) {
+            // attach fix when enabled
+            if ctx.compute_fixes && is_discarded_update_expression(ctx, node_id) {
                 let operand_id = unary_operand_id(expression);
                 let Some(operand_id) = operand_id else {
                     ctx.report(diagnostic);
@@ -97,29 +101,53 @@ fn is_discarded_update_expression(
     ctx: &LintModuleAstContext<'_>,
     node_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let Some(parent_id) = ctx.parents.get(node_id) else {
-        return false;
-    };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
-
     // standalone statement position
-    if matches!(parent_expression, ast::Expression::Statement(_)) {
+    if expression_statement_ancestor(ctx.tree, ctx.parents, node_id).is_some() {
         return true;
     }
 
-    // for loop increment position
-    matches!(
-        parent_expression,
-        ast::Expression::For {
-            increment: Some(increment_id),
-            ..
-        } if *increment_id == node_id
-    )
+    // for loop afterthought position
+    expression_is_for_loop_afterthought(ctx, node_id)
+}
+
+/// Return true when one expression is in a for-loop afterthought chain.
+fn expression_is_for_loop_afterthought(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // start from the update expression
+    let mut current_id = expression_id;
+
+    // walk through parenthesized and sequence wrappers up to one for increment
+    loop {
+        let Some(parent_id) = ctx.parents.get(current_id) else {
+            return false;
+        };
+        if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+            return false;
+        }
+
+        // resolve parent expression id
+        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        let parent_expression = ctx.tree.get(parent_expression_id);
+        match parent_expression {
+            ast::Expression::Parenthesized { expression } if *expression == current_id => {
+                current_id = parent_expression_id;
+            }
+            ast::Expression::SequenceExpression { expressions }
+                if expressions.contains(&current_id) =>
+            {
+                current_id = parent_expression_id;
+            }
+            ast::Expression::For {
+                increment: Some(increment_id),
+                ..
+            } => {
+                return *increment_id == current_id;
+            }
+            _ => return false,
+        }
+    }
 }
 
 /// Return the operand id from a unary update expression.
@@ -262,6 +290,44 @@ for (; keepGoing(); --index) {}
             .assert_safe_fixed(
                 r#"
 for (; keepGoing(); index -= 1) {}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_post_increment_in_for_afterthought_sequence() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_fix_post_increment_in_for_afterthought_sequence.ts",
+            r#"
+for (; keepGoing(); (touch(), index++)) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_fix("no-plusplus")
+            .assert_safe_fixed(
+                r#"
+for (; keepGoing(); (touch(), index += 1)) {}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_parenthesized_post_increment_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoPlusplus);
+        let result = test.lint_ast(
+            "no_plusplus/test_fix_parenthesized_post_increment_statement.ts",
+            r#"
+(count++);
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-plusplus")
+            .assert_has_fix("no-plusplus")
+            .assert_safe_fixed(
+                r#"
+(count += 1);
 "#,
             );
     }
