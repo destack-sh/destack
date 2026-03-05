@@ -7,7 +7,11 @@ repository_root="$(cd "${script_directory}/../.." && pwd)"
 # shellcheck source=./scripts/toolchain/lib/runtime-common.sh
 source "${script_directory}/lib/runtime-common.sh"
 
-runtime_require_command shellcheck "missing shellcheck: install shellcheck to lint runtime toolchain scripts" >&2 || exit 1
+runtime_require_or_auto_install_linux_command \
+	shellcheck \
+	shellcheck \
+	"missing shellcheck: install shellcheck to lint runtime toolchain scripts" \
+	"just runtime-toolchain-lint" >&2 || exit 1
 
 runtime_toolchain_shell_scripts=(
 	"${script_directory}"/*.sh

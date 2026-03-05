@@ -235,6 +235,10 @@ alias runtime-toolchain-bootstrap := runtime-toolchain-install
 runtime-android-check:
     just language/runtime-android-check
 
+# ensure android host dependencies needed by sdkmanager setup
+runtime-android-host-deps:
+    just language/runtime-android-host-deps
+
 # run language runtime ios target checks
 runtime-ios-check:
     just language/runtime-ios-check
@@ -246,6 +250,10 @@ runtime-wasip1-check:
 # run language runtime linux host checks
 runtime-linux-check:
     just language/runtime-linux-check
+
+# run language runtime wayland backend checks against one real compositor
+runtime-linux-wayland-check:
+    just language/runtime-linux-wayland-check
 
 # run language runtime macos host checks
 runtime-macos-check:

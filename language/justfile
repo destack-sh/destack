@@ -185,6 +185,10 @@ runtime-cross-targets-check:
 runtime-android-check:
     ../scripts/toolchain/runtime-android-check.sh
 
+# ensure android host dependencies needed by sdkmanager setup
+runtime-android-host-deps:
+    ../scripts/toolchain/runtime-android-host-deps.sh
+
 # check runtime for ios target using active xcode sdk
 runtime-ios-check:
     ../scripts/toolchain/runtime-ios-check.sh
@@ -199,6 +203,10 @@ runtime-linux-check:
     LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C cargo test -p destack_runtime runtime::host::linux:: -- --nocapture
     just run-runtime-smoke-host
+
+# check runtime wayland backend against one real compositor on linux host
+runtime-linux-wayland-check:
+    ../scripts/toolchain/runtime-linux-wayland-check.sh
 
 # check runtime on macos host
 runtime-macos-check:

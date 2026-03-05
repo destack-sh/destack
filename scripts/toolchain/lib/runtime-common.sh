@@ -47,6 +47,70 @@ runtime_set_standard_environment() {
 	export CARGO_INCREMENTAL=0
 }
 
+runtime_auto_install_toolchains_enabled() {
+	auto_install="${DESTACK_AUTO_INSTALL_TOOLCHAINS:-0}"
+	[ "${auto_install}" = "1" ]
+}
+
+runtime_linux_install_package() {
+	package_name="$1"
+
+	if [ "$(runtime_host_kernel)" != "Linux" ]; then
+		return 1
+	fi
+
+	if ! command -v apt-get >/dev/null 2>&1; then
+		echo "cannot auto install ${package_name}: apt-get is not available"
+		return 1
+	fi
+
+	if [ "$(id -u)" -eq 0 ]; then
+		apt-get update
+		apt-get install -y "${package_name}"
+		return "$?"
+	fi
+
+	if ! command -v sudo >/dev/null 2>&1; then
+		echo "cannot auto install ${package_name}: sudo is required on non-root linux hosts"
+		return 1
+	fi
+
+	sudo apt-get update
+	sudo apt-get install -y "${package_name}"
+}
+
+runtime_require_or_auto_install_linux_command() {
+	command_name="$1"
+	package_name="$2"
+	missing_message="$3"
+	auto_install_hint="$4"
+
+	if runtime_require_command "${command_name}" "${missing_message}" >/dev/null 2>&1; then
+		return 0
+	fi
+
+	if ! runtime_auto_install_toolchains_enabled; then
+		echo "${missing_message}"
+		if [ -n "${auto_install_hint}" ]; then
+			echo "or run with auto install: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 ${auto_install_hint}"
+		fi
+		return 1
+	fi
+
+	if [ "$(runtime_host_kernel)" != "Linux" ]; then
+		echo "${missing_message}"
+		echo "auto install is only supported on linux hosts for ${package_name}"
+		return 1
+	fi
+
+	echo "auto install requested: installing ${package_name}"
+	if ! runtime_linux_install_package "${package_name}"; then
+		return 1
+	fi
+
+	runtime_require_command "${command_name}" "${missing_message}" >/dev/null 2>&1
+}
+
 runtime_detect_timeout_command() {
 	if command -v timeout >/dev/null 2>&1; then
 		printf '%s\n' timeout

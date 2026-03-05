@@ -32,3 +32,6 @@ jobs:
 
       - name: Run linux runtime check
         run: just runtime-linux-check
+
+      - name: Run linux wayland backend check
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-linux-wayland-check

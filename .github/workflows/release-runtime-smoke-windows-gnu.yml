@@ -25,10 +25,5 @@ jobs:
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
 
-      - name: Install Wine
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wine64
-
       - name: Build and run runtime smoke release binary
-        run: just runtime-windows-gnu-smoke --release
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-windows-gnu-smoke --release
