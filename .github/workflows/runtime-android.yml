@@ -43,10 +43,8 @@ jobs:
           rust_components: clippy
           rust_targets: aarch64-linux-android
 
-      - name: Install Android host dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-17-jre-headless unzip
+      - name: Ensure Android host dependencies
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-android-host-deps
 
       - name: Restore Android sdk cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830

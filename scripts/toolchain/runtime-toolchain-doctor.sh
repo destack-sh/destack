@@ -123,9 +123,11 @@ fi
 if [ "${host_kernel}" = "Linux" ]; then
 	check_rust_target x86_64-unknown-linux-gnu required
 	check_rust_target aarch64-unknown-linux-gnu required
+	check_command weston required "weston wayland compositor"
 else
 	check_rust_target x86_64-unknown-linux-gnu optional
 	check_rust_target aarch64-unknown-linux-gnu optional
+	check_command weston optional "weston wayland compositor"
 fi
 
 # android ndk resolution

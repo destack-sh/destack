@@ -48,7 +48,11 @@ runtime_windows_gnu_is_execution_host() {
 }
 
 runtime_windows_gnu_require_wine() {
-	runtime_require_command wine "missing wine: install wine to run windows gnu executables"
+	runtime_require_or_auto_install_linux_command \
+		wine \
+		wine64 \
+		"missing wine: install wine to run windows gnu executables" \
+		"just runtime-windows-gnu-check"
 }
 
 runtime_windows_gnu_exe_directory() {

@@ -63,6 +63,20 @@ else
 		default_android_sdk_root="${HOME}/Android/Sdk"
 	fi
 
+	# install linux host dependencies for android sdk setup
+	if [ "${host_kernel}" = "Linux" ] && ! command -v curl >/dev/null 2>&1; then
+		echo "installing curl for android sdk setup"
+		runtime_linux_install_package curl
+	fi
+	if [ "${host_kernel}" = "Linux" ] && ! command -v unzip >/dev/null 2>&1; then
+		echo "installing unzip for android sdk setup"
+		runtime_linux_install_package unzip
+	fi
+	if [ "${host_kernel}" = "Linux" ] && ! command -v java >/dev/null 2>&1; then
+		echo "installing openjdk for android sdk setup"
+		runtime_linux_install_package openjdk-17-jre-headless
+	fi
+
 	if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
 		echo "android ndk is missing and curl/unzip are required to install it" >&2
 		echo "install curl and unzip, then re-run: just runtime-toolchain-install" >&2
@@ -87,7 +101,12 @@ if [ -z "$(runtime_command_path python3)" ]; then
 	echo "python3 is missing: install python3 for runtime windows gnu test artifact parsing"
 fi
 if runtime_windows_gnu_is_execution_host && [ -z "$(runtime_command_path wine)" ]; then
-	echo "wine is missing: install wine to run windows gnu executable runtime tests"
+	if [ "${host_kernel}" = "Linux" ]; then
+		echo "installing wine for windows gnu executable runtime tests"
+		runtime_linux_install_package wine64
+	else
+		echo "wine is missing: install wine to run windows gnu executable runtime tests"
+	fi
 fi
 if [ "${host_kernel}" = "Darwin" ] && [ -z "$(runtime_command_path x86_64-w64-mingw32-gcc)" ]; then
 	echo "mingw-w64 compiler is missing: install mingw-w64 for macos windows gnu runtime lanes"
@@ -96,6 +115,22 @@ if [ "${host_kernel}" = "Linux" ] &&
 	command -v pkg-config >/dev/null 2>&1 &&
 	! pkg-config --exists dbus-1 >/dev/null 2>&1; then
 	echo "dbus pkg-config is missing: install libdbus-1-dev and pkg-config for linux gnu cross lane"
+fi
+
+# weston is required for the linux wayland display lane
+if [ "${host_kernel}" = "Linux" ] && [ -z "$(runtime_command_path weston)" ]; then
+	echo "installing weston for the linux wayland display lane"
+	if ! runtime_linux_install_package weston; then
+		echo "failed to install weston automatically"
+		echo "install weston manually, then re-run: just runtime-toolchain-install"
+		exit 1
+	fi
+fi
+
+# install shellcheck for runtime toolchain lint lane
+if [ "${host_kernel}" = "Linux" ] && [ -z "$(runtime_command_path shellcheck)" ]; then
+	echo "installing shellcheck for runtime toolchain lint lane"
+	runtime_linux_install_package shellcheck
 fi
 
 "${script_directory}/runtime-toolchain-doctor.sh"

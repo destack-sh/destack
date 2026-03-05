@@ -26,10 +26,5 @@ jobs:
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
 
-      - name: Install Wine
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wine64
-
       - name: Run windows gnu runtime checks
-        run: just runtime-windows-gnu-check
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-windows-gnu-check

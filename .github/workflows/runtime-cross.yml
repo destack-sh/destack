@@ -25,13 +25,8 @@ jobs:
       - name: Setup Zig
         uses: ./.github/actions/setup-zig
 
-      - name: Install Runtime toolchain dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
-
       - name: Lint runtime toolchain scripts
-        run: just runtime-toolchain-lint
+        run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just runtime-toolchain-lint
 
       - name: Run runtime cross-target checks
         run: just runtime-cross-targets-check
