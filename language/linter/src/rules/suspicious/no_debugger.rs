@@ -1,7 +1,8 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::expression_statement_ancestor;
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow debugger statements in production code.
@@ -24,24 +25,28 @@ declare_lint! {
 }
 
 impl LintRule for NoDebugger {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoDebugger::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect expression nodes for debugger usage
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            // keep only debugger expressions
             let expression = ctx.tree.get(node_id);
             if !matches!(expression, ast::Expression::Debugger) {
                 continue;
             }
 
+            // resolve the effective lint severity at this node
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
             }
 
+            // build one base diagnostic before optional fix attachment
             let span = ctx.tree.get_span(node_id);
             let diagnostic = LintDiagnostic::new(
                 NO_DEBUGGER.id,
@@ -54,22 +59,24 @@ impl LintRule for NoDebugger {
             )
             .with_label("remove this debugger statement");
 
-            // check if parent is Statement (i.e., `debugger;` as a standalone statement)
-            // if so, delete the whole statement span safely (includes semicolon)
-            if let Some(parent_id) = ctx.parents.get(node_id)
-                && ctx.tree.get_node_type(parent_id) == ast::NodeType::Expression
-            {
-                let parent_expr_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-                let parent_expr = ctx.tree.get(parent_expr_id);
-                if matches!(parent_expr, ast::Expression::Statement(_)) {
-                    let parent_span = ctx.tree.get_span(parent_expr_id);
-                    let diagnostic = diagnostic
-                        .with_fix(LintFix::safe("Remove debugger statement").delete(parent_span));
-                    ctx.report(diagnostic);
-                    continue;
-                }
+            // report without fix payload when fixes are disabled
+            if !ctx.compute_fixes {
+                ctx.report(diagnostic);
+                continue;
             }
-            // not in statement position: offer unsafe fix only
+
+            // prefer deleting the full enclosing statement as a safe fix
+            if let Some(statement_expression_id) =
+                expression_statement_ancestor(ctx.tree, &ctx.parents, node_id)
+            {
+                let statement_span = ctx.tree.get_span(statement_expression_id);
+                let diagnostic = diagnostic
+                    .with_fix(LintFix::safe("Remove debugger statement").delete(statement_span));
+                ctx.report(diagnostic);
+                continue;
+            }
+
+            // fall back to deleting only the expression span as an unsafe fix
             let diagnostic =
                 diagnostic.with_fix(LintFix::r#unsafe("Remove debugger expression").delete(span));
             ctx.report(diagnostic);
