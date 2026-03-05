@@ -9,7 +9,8 @@ use std::collections::HashSet;
 use crate::rules::common::{
     collect_pattern_value_binding_symbols, expression_enters_nested_declaration_scope,
     expression_is_promise_like, expression_type_or_call_return_type_map,
-    expression_unwrap_parenthesized, is_promise_type, well_known_symbol_candidates,
+    expression_unwrap_parenthesized, is_promise_type, remove_first_async_keyword,
+    well_known_symbol_candidates,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -570,15 +571,7 @@ fn expression_is_async_callable_value(
 fn require_await_fix(ctx: &LintModuleDirContext<'_>, callable_span: Span) -> Option<LintFix> {
     // resolve callable source text
     let callable_text = ctx.get_span_text(callable_span);
-    let (async_start, async_end) = first_async_keyword_range(callable_text)?;
-
-    // remove the async token range
-    let mut replacement = String::with_capacity(callable_text.len());
-    replacement.push_str(&callable_text[..async_start]);
-    replacement.push_str(&callable_text[async_end..]);
-    if replacement == callable_text {
-        return None;
-    }
+    let replacement = remove_first_async_keyword(callable_text)?;
 
     // build one edit set
     let edits = ctx
@@ -586,48 +579,6 @@ fn require_await_fix(ctx: &LintModuleDirContext<'_>, callable_span: Span) -> Opt
         .replace(callable_span, replacement)
         .into_edits();
     Some(LintFix::r#unsafe("Remove async keyword").with_edits(edits))
-}
-
-/// Resolve the first standalone `async` keyword token and trailing whitespace.
-fn first_async_keyword_range(text: &str) -> Option<(usize, usize)> {
-    // scan each `async` occurrence and keep the first standalone token
-    let mut search_start = 0;
-    while let Some(relative_index) = text[search_start..].find("async") {
-        let async_start = search_start + relative_index;
-        let async_end = async_start + "async".len();
-
-        // require one non identifier boundary before and after `async`
-        let before_is_identifier = text[..async_start]
-            .chars()
-            .next_back()
-            .is_some_and(is_identifier_character);
-        let after_is_identifier = text[async_end..]
-            .chars()
-            .next()
-            .is_some_and(is_identifier_character);
-        if before_is_identifier || after_is_identifier {
-            search_start = async_end;
-            continue;
-        }
-
-        // include trailing whitespace in the removed range
-        let mut remove_end = async_end;
-        while let Some(character) = text[remove_end..].chars().next() {
-            if !character.is_whitespace() {
-                break;
-            }
-            remove_end += character.len_utf8();
-        }
-
-        return Some((async_start, remove_end));
-    }
-
-    None
-}
-
-/// Return true when one character can appear in an identifier token.
-fn is_identifier_character(character: char) -> bool {
-    character == '_' || character == '$' || character.is_ascii_alphanumeric()
 }
 
 #[cfg(test)]

@@ -291,6 +291,19 @@ const re = RegExp("\\1(a)[", "u");
     }
 
     #[test]
+    fn test_ignores_backreference_when_pattern_has_unclosed_quantifier_error() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
+        let result = test.lint_ast(
+            "no_useless_backreference/test_ignores_backreference_when_pattern_has_unclosed_quantifier_error.ds",
+            r#"
+const re = RegExp("\\1(a){", "u");
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-useless-backreference");
+    }
+
+    #[test]
     fn test_detects_forward_backreference_in_regexp_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
         let result = test.lint_ast(

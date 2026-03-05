@@ -5,7 +5,7 @@ use crate::rules::common::{declaration_at_allowed_root, declaration_expression};
 use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow variable or function declarations in nested blocks.
+    /// Disallow function declarations in nested blocks.
     ///
     /// Function and variable declarations in nested blocks can be confusing
     /// and may not behave as expected due to hoisting. Declare them at the
@@ -22,7 +22,7 @@ declare_lint! {
         stability = Stable
     )]
     pub NoInnerDeclarations,
-    "Disallow declarations in nested blocks"
+    "Disallow function declarations in nested blocks"
 }
 
 impl LintRule for NoInnerDeclarations {
