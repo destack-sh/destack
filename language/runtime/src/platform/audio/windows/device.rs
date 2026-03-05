@@ -9,8 +9,8 @@ use crate::platform::audio::{
     AudioShareMode, core as audio_core,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::runtime::BindingCallContext;
 
 /// List host audio backends.
 ///
@@ -100,11 +100,11 @@ pub(crate) unsafe fn destack_audio_device_close(
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()));
     if removed.is_none() {
-        return Err(core_platform::io_not_found(
+        return Err(audio_core::audio_not_found(
             "destack.audio.device.close",
             format!("unknown audio device handle {}", handle.0.0),
         ));
@@ -182,7 +182,7 @@ pub(crate) unsafe fn destack_audio_device_default(
             .or_else(|| devices.first()),
     }
     .ok_or_else(|| {
-        core_platform::io_not_found(
+        audio_core::audio_not_found(
             "destack.audio.device.default",
             "no default audio device available",
         )
@@ -319,7 +319,7 @@ pub(crate) unsafe fn destack_audio_device_open(
             "audio:null:duplex" => audio_core::null_device(AudioDeviceDirection::Duplex),
             "audio:null:loopback" => audio_core::null_device(AudioDeviceDirection::Loopback),
             _ => {
-                return Err(core_platform::io_not_found(
+                return Err(audio_core::audio_not_found(
                     "destack.audio.device.open",
                     format!("unknown null backend device id: {id}"),
                 ));
@@ -366,11 +366,10 @@ pub(crate) unsafe fn destack_audio_device_open(
         opened_direction: options.direction,
         options,
     });
-    let handle_id = context.runtime().resources.insert(
-        ResourceEntry::new(ResourceKind::AudioDevice)
+    let handle_id = context.agent().resources.insert(
+        ResourceEntry::new(ResourceKind::AudioDevice, Some(context.engine()))
             .with_label(audio_core::AUDIO_DEVICE_RESOURCE_LABEL)
             .with_payload(payload),
-        Some(context.engine()),
     );
 
     unsafe {

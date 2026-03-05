@@ -5,8 +5,8 @@ use std::time::Duration;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{AudioEvent, AudioEventSubscriptionOptions, core as audio_core};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::platform::{NativeSlice, PlatformError, resource};
+use crate::runtime::BindingCallContext;
 
 /// Close one audio event subscription.
 ///
@@ -34,20 +34,20 @@ pub(crate) unsafe fn destack_audio_event_close(
         let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
         binding.options.backend
     };
-    audio_core::unregister_event_binding(context, &binding);
+    audio_core::unregister_event_binding(&binding);
 
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()));
     if removed.is_none() {
-        return Err(core_platform::io_not_found(
+        return Err(audio_core::audio_not_found(
             "destack.audio.event.close",
             format!("unknown audio event handle {}", handle.0.0),
         ));
     }
 
-    let _ = audio_core::refresh_backend_device_monitor(context, backend);
+    let _ = audio_core::refresh_backend_device_monitor(backend);
 
     Ok(())
 }
@@ -88,17 +88,16 @@ pub(crate) unsafe fn destack_audio_event_open(
     let binding = audio_core::build_event_binding(context, options)?;
     let payload = Arc::new(Mutex::new(binding));
 
-    let handle = context.runtime().resources.insert(
-        ResourceEntry::new(ResourceKind::AudioEvent)
+    let handle = context.agent().resources.insert(
+        ResourceEntry::new(ResourceKind::AudioEvent, Some(context.engine()))
             .with_label(audio_core::AUDIO_EVENT_RESOURCE_LABEL)
             .with_payload(payload.clone()),
-        Some(context.engine()),
     );
-    audio_core::register_event_binding(context, &payload);
-    if let Err(error) = audio_core::refresh_backend_device_monitor(context, options.backend) {
-        audio_core::unregister_event_binding(context, &payload);
+    audio_core::register_event_binding(&payload);
+    if let Err(error) = audio_core::refresh_backend_device_monitor(options.backend) {
+        audio_core::unregister_event_binding(&payload);
         let _ = context
-            .runtime()
+            .agent()
             .resources
             .remove(handle, Some(context.engine()));
         return Err(error);

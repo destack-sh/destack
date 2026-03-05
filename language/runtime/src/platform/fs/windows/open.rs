@@ -97,7 +97,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
         })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -180,7 +180,7 @@ pub(crate) unsafe fn destack_fs_open_utf16(
         })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -269,7 +269,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
         })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -358,7 +358,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
         })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {

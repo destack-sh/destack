@@ -10,7 +10,7 @@ pub(crate) fn configured_system_certificate_files(
     default_files: &[&str],
 ) -> Vec<PathBuf> {
     // prefer explicit runtime option overrides
-    let configured_files = &context.runtime().options.crypto.system_certificate_files;
+    let configured_files = &context.agent().options.crypto.system_certificate_files;
     if !configured_files.is_empty() {
         return configured_files.clone();
     }
@@ -26,7 +26,7 @@ pub(crate) fn configured_system_certificate_directories(
 ) -> Vec<PathBuf> {
     // prefer explicit runtime option overrides
     let configured_directories = &context
-        .runtime()
+        .agent()
         .options
         .crypto
         .system_certificate_directories;
@@ -44,15 +44,9 @@ pub(crate) fn configured_keystore_path(
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     match kind {
-        CryptoStoreKind::User => context
-            .runtime()
-            .options
-            .crypto
-            .host_store_paths
-            .user
-            .clone(),
+        CryptoStoreKind::User => context.agent().options.crypto.host_store_paths.user.clone(),
         CryptoStoreKind::Machine => context
-            .runtime()
+            .agent()
             .options
             .crypto
             .host_store_paths

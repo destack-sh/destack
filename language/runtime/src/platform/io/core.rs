@@ -1,10 +1,12 @@
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(unix)]
+use crate::platform::core as core_platform;
 use crate::platform::diagnostic::io_error_code_from_errno;
 use crate::platform::io::{
     CompletionEvent, CompletionOperation, CompletionOperationKind, EventToken, PollBackend,
@@ -15,12 +17,12 @@ use crate::platform::proactor::{
     ProactorOp, ProactorRequest,
 };
 use crate::platform::resource::{self, ResourceEntry, ResourceKind};
-use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::platform::{NativeSlice, PlatformError, PlatformErrorCode, ResourceId};
+use crate::runtime::BindingCallContext;
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformInterest, PollerEvent,
     PollerEventPayload, PollerToken, create_host_poller_for_io,
 };
-use crate::runtime::{BindingCallContext, NativeSlice};
 
 #[cfg(target_os = "linux")]
 use io_uring::IoUring;
@@ -160,26 +162,29 @@ impl PollResource {
     }
 }
 
-/// Runtime-scoped key for event attachment routing.
+/// Agent-scoped key for event attachment routing.
+type EventAttachmentKey = (usize, ResourceId);
 /// Attachment targets keyed by poll resource id.
 type EventAttachmentTargets = HashMap<ResourceId, u64>;
-/// Runtime attachment registry keyed by event token resource id.
-type EventAttachmentRegistry = HashMap<ResourceId, EventAttachmentTargets>;
+/// Global event attachment registry keyed by agent and token.
+type EventAttachmentRegistry = HashMap<EventAttachmentKey, EventAttachmentTargets>;
 
-/// Runtime-owned io module state.
-#[derive(Default)]
-pub(crate) struct IoRuntimeState {
-    /// Event attachment routing keyed by event token id.
-    event_attachments: Mutex<EventAttachmentRegistry>,
+/// Return a stable identity key for the current agent.
+pub(super) fn agent_key(context: &BindingCallContext) -> usize {
+    context.agent() as *const _ as usize
 }
 
-/// Return runtime-owned io module state.
-fn io_runtime_state(context: &BindingCallContext) -> Arc<IoRuntimeState> {
-    context
-        .runtime()
-        .platform_state
-        .io
-        .runtime_state(IoRuntimeState::default)
+/// Build one not-found error for poll handles.
+fn poll_not_found(op: &'static str, handle: resource::PollHandle) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(op.to_string()),
+        None,
+        format!("poll handle {} not found", handle.0.0),
+    ))
+    .boxed()
 }
 
 /// Resolve one poll resource payload from one poll handle.
@@ -188,20 +193,25 @@ fn resolve_poll_resource(
     handle: resource::PollHandle,
 ) -> RuntimeResult<Arc<PollResource>> {
     // resolve the poll entry payload
-    let resolved = resource::with_payload::<Arc<PollResource>, _>(
-        context,
-        handle.0,
-        ResourceKind::Poll,
-        None,
-        |payload, _entry| Arc::clone(payload),
-    );
+    let resolved = context
+        .agent()
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Poll {
+                return None;
+            }
+
+            entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<PollResource>>())
+                .cloned()
+        })
+        .flatten();
 
     match resolved {
         Some(resource) => Ok(resource),
-        None => Err(core_platform::io_not_found(
-            "destack.io.poll.handle",
-            format!("poll handle {} not found", handle.0.0),
-        )),
+        None => Err(poll_not_found("destack.io.poll.handle", handle)),
     }
 }
 
@@ -320,7 +330,7 @@ pub(super) fn poll_open(
     // store the poll instance as one runtime resource
     let entry = ResourceEntry::new(ResourceKind::Poll).with_payload(resource);
     let handle = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -337,9 +347,13 @@ pub(super) fn poll_close(
 
     // drop stale event token attachments for this poll handle
     {
-        let runtime_state = io_runtime_state(context);
-        let mut attachments_by_token = runtime_state.event_attachments.lock();
-        attachments_by_token.retain(|_, attachments| {
+        let current_agent_key = agent_key(context);
+        let mut attachments_by_token = event_attachment_map().lock();
+        attachments_by_token.retain(|(key, _), attachments| {
+            if *key != current_agent_key {
+                return true;
+            }
+
             attachments.remove(&handle.0);
             !attachments.is_empty()
         });
@@ -347,14 +361,11 @@ pub(super) fn poll_close(
 
     // remove one poll instance from the resource table
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(core_platform::io_not_found(
-            "destack.io.poll.close",
-            format!("poll handle {} not found", handle.0.0),
-        ));
+        return Err(poll_not_found("destack.io.poll.close", handle));
     }
 
     Ok(())
@@ -463,6 +474,65 @@ pub(super) fn poll_wait(
     Ok(output)
 }
 
+/// Build one not-found error for completion handles.
+fn completion_not_found(
+    operation: &'static str,
+    handle: resource::CompletionHandle,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("completion handle {} not found", handle.0.0),
+    ))
+    .boxed()
+}
+
+/// Build one not-found error for event tokens.
+pub(super) fn event_not_found(operation: &'static str, token: EventToken) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("event token {} not found", token.0),
+    ))
+    .boxed()
+}
+
+/// Build one not-found error for io_uring handles.
+#[cfg(target_os = "linux")]
+fn uring_not_found(operation: &'static str, handle: resource::UringHandle) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("io_uring handle {} not found", handle.0.0),
+    ))
+    .boxed()
+}
+
+/// Build one not-found error for io targets.
+pub(super) fn io_target_not_found(
+    operation: &'static str,
+    target: ResourceId,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("target resource {} not found", target.0),
+    ))
+    .boxed()
+}
+
 /// Build one io error from one explicit errno and message.
 #[cfg_attr(not(unix), allow(dead_code))]
 fn io_error_with_errno(operation: &'static str, errno: i32, detail: String) -> Box<RuntimeError> {
@@ -512,32 +582,56 @@ fn resolve_completion_resource(
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<Arc<CompletionResource>> {
     // resolve one completion resource payload
-    let resolved = resource::resolve_payload::<Arc<CompletionResource>>(
-        context,
-        handle.0,
-        ResourceKind::Completion,
-        Some(COMPLETION_RESOURCE_LABEL),
-    );
+    let resolved = context
+        .agent()
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Completion {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(COMPLETION_RESOURCE_LABEL) {
+                return None;
+            }
+
+            entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<CompletionResource>>())
+                .cloned()
+        })
+        .flatten();
 
     match resolved {
         Some(resource) => Ok(resource),
-        None => Err(core_platform::io_not_found(
-            "destack.io.completion.handle",
-            format!("completion handle {} not found", handle.0.0),
-        )),
+        None => Err(completion_not_found("destack.io.completion.handle", handle)),
     }
 }
 
 /// Return whether one event token exists and carries the event label.
 fn event_exists(context: &BindingCallContext, token: EventToken) -> bool {
-    resource::with_entry(
-        context,
-        ResourceId(token.0),
-        ResourceKind::Event,
-        Some(EVENT_RESOURCE_LABEL),
-        |_| true,
-    )
-    .unwrap_or(false)
+    context
+        .agent()
+        .resources
+        .with_entry(ResourceId(token.0), |entry| {
+            if entry.kind != ResourceKind::Event {
+                return false;
+            }
+
+            entry.label.as_deref() == Some(EVENT_RESOURCE_LABEL)
+        })
+        .unwrap_or(false)
+}
+
+/// Return attachment mappings for event tokens.
+fn event_attachment_map() -> &'static Mutex<EventAttachmentRegistry> {
+    static ATTACHMENTS: OnceLock<Mutex<EventAttachmentRegistry>> = OnceLock::new();
+    ATTACHMENTS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Return the attachment key for one event token in one agent.
+fn event_attachment_key(context: &BindingCallContext, token: EventToken) -> (usize, ResourceId) {
+    (agent_key(context), ResourceId(token.0))
 }
 
 /// Resolve one io_uring payload from one uring handle.
@@ -547,19 +641,29 @@ fn resolve_uring_resource(
     handle: resource::UringHandle,
 ) -> RuntimeResult<Arc<UringResource>> {
     // resolve one io_uring resource payload
-    let resolved = resource::resolve_payload::<Arc<UringResource>>(
-        context,
-        handle.0,
-        ResourceKind::Uring,
-        Some(URING_RESOURCE_LABEL),
-    );
+    let resolved = context
+        .agent()
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Uring {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(URING_RESOURCE_LABEL) {
+                return None;
+            }
+
+            entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<UringResource>>())
+                .cloned()
+        })
+        .flatten();
 
     match resolved {
         Some(resource) => Ok(resource),
-        None => Err(core_platform::io_not_found(
-            "destack.io.uring.handle",
-            format!("io_uring handle {} not found", handle.0.0),
-        )),
+        None => Err(uring_not_found("destack.io.uring.handle", handle)),
     }
 }
 
@@ -891,7 +995,7 @@ pub(super) fn completion_open(
     }
 
     // create one host completion backend
-    let proactor = io_host::host_completion_create_proactor(context, entries)?;
+    let proactor = io_host::host_completion_create_proactor(entries)?;
     let resource = Arc::new(CompletionResource::new(proactor));
 
     // store one runtime completion resource
@@ -899,7 +1003,7 @@ pub(super) fn completion_open(
         .with_label(COMPLETION_RESOURCE_LABEL)
         .with_payload(resource);
     let handle = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -916,14 +1020,11 @@ pub(super) fn completion_close(
 
     // remove one completion queue from the resource table
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(core_platform::io_not_found(
-            "destack.io.completion.close",
-            format!("completion handle {} not found", handle.0.0),
-        ));
+        return Err(completion_not_found("destack.io.completion.close", handle));
     }
 
     Ok(())
@@ -1092,11 +1193,8 @@ pub(super) fn completion_cancel(
     target: ResourceId,
 ) -> RuntimeResult<u32> {
     // reject unknown targets early
-    if !context.runtime().resources.contains(target) {
-        return Err(core_platform::io_not_found(
-            "destack.io.completion.cancel",
-            format!("target resource {} not found", target.0),
-        ));
+    if !context.agent().resources.contains(target) {
+        return Err(io_target_not_found("destack.io.completion.cancel", target));
     }
 
     // resolve one completion backend and collect matching tokens
@@ -1172,18 +1270,12 @@ pub(super) fn event_open(context: &BindingCallContext, initial: u64) -> RuntimeR
 pub(super) fn event_close(context: &BindingCallContext, token: EventToken) -> RuntimeResult<()> {
     // verify this token points to one event resource
     if !event_exists(context, token) {
-        return Err(core_platform::io_not_found(
-            "destack.io.event.close",
-            format!("event token {} not found", token.0),
-        ));
+        return Err(event_not_found("destack.io.event.close", token));
     }
 
     // remove stored poll attachments for this token
-    let runtime_state = io_runtime_state(context);
-    runtime_state
-        .event_attachments
-        .lock()
-        .remove(&ResourceId(token.0));
+    let attachment_key = event_attachment_key(context, token);
+    event_attachment_map().lock().remove(&attachment_key);
 
     io_host::host_event_close(context, token)
 }
@@ -1196,10 +1288,7 @@ pub(super) fn event_signal(
 ) -> RuntimeResult<()> {
     // verify this token points to one event resource
     if !event_exists(context, token) {
-        return Err(core_platform::io_not_found(
-            "destack.io.event.signal",
-            format!("event token {} not found", token.0),
-        ));
+        return Err(event_not_found("destack.io.event.signal", token));
     }
 
     // reject one reserved eventfd increment value
@@ -1224,11 +1313,10 @@ pub(super) fn event_signal(
     io_host::host_event_signal(context, token, value)?;
 
     // read current attachment mappings before dispatch
-    let runtime_state = io_runtime_state(context);
-    let attachments = runtime_state
-        .event_attachments
+    let attachment_key = event_attachment_key(context, token);
+    let attachments = event_attachment_map()
         .lock()
-        .get(&ResourceId(token.0))
+        .get(&attachment_key)
         .cloned()
         .unwrap_or_default();
 
@@ -1243,18 +1331,18 @@ pub(super) fn event_signal(
 
     // prune stale attachments that no longer point to live poll handles
     if !stale_targets.is_empty() {
-        let mut attachments_by_token = runtime_state.event_attachments.lock();
-        if let Some(attachments) = attachments_by_token.get_mut(&ResourceId(token.0)) {
+        let mut attachments_by_token = event_attachment_map().lock();
+        if let Some(attachments) = attachments_by_token.get_mut(&attachment_key) {
             for target in stale_targets {
                 attachments.remove(&target);
             }
         }
 
         if matches!(
-            attachments_by_token.get(&ResourceId(token.0)),
+            attachments_by_token.get(&attachment_key),
             Some(attachments) if attachments.is_empty()
         ) {
-            attachments_by_token.remove(&ResourceId(token.0));
+            attachments_by_token.remove(&attachment_key);
         }
     }
 
@@ -1269,19 +1357,13 @@ pub(super) fn event_attach(
     key: u64,
 ) -> RuntimeResult<()> {
     // reject unknown target ids early
-    if !context.runtime().resources.contains(target) {
-        return Err(core_platform::io_not_found(
-            "destack.io.event.attach",
-            format!("target resource {} not found", target.0),
-        ));
+    if !context.agent().resources.contains(target) {
+        return Err(io_target_not_found("destack.io.event.attach", target));
     }
 
     // reject unknown event tokens early
     if !event_exists(context, token) {
-        return Err(core_platform::io_not_found(
-            "destack.io.event.attach",
-            format!("event token {} not found", token.0),
-        ));
+        return Err(event_not_found("destack.io.event.attach", token));
     }
 
     // reject non-poll targets for attachment routing
@@ -1294,10 +1376,10 @@ pub(super) fn event_attach(
     }
 
     // store the attachment routing metadata for this token
-    let runtime_state = io_runtime_state(context);
-    let mut attachments = runtime_state.event_attachments.lock();
+    let attachment_key = event_attachment_key(context, token);
+    let mut attachments = event_attachment_map().lock();
     attachments
-        .entry(ResourceId(token.0))
+        .entry(attachment_key)
         .or_default()
         .insert(target, key);
 
@@ -1378,7 +1460,7 @@ pub(super) fn uring_open(
             .with_label(URING_RESOURCE_LABEL)
             .with_payload(resource);
         let handle = context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.engine()));
 
@@ -1404,14 +1486,11 @@ pub(super) fn uring_close(
 
         // remove one ring resource from the table
         let removed = context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(handle.0, Some(context.engine()));
         if !removed {
-            return Err(core_platform::io_not_found(
-                "destack.io.uring.close",
-                format!("io_uring handle {} not found", handle.0.0),
-            ));
+            return Err(uring_not_found("destack.io.uring.close", handle));
         }
 
         return Ok(());
@@ -1465,16 +1544,11 @@ pub(super) fn uring_register_files(
         let mut descriptors = Vec::with_capacity(files.len());
         for file in files {
             let fd = context
-                .runtime()
+                .agent()
                 .resources
                 .with_entry(*file, |entry| entry.fd())
                 .flatten()
-                .ok_or_else(|| {
-                    core_platform::io_not_found(
-                        "destack.io.uring.registerFiles",
-                        format!("target resource {} not found", file.0),
-                    )
-                })?;
+                .ok_or_else(|| io_target_not_found("destack.io.uring.registerFiles", *file))?;
             descriptors.push(fd);
         }
 

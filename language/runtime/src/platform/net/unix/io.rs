@@ -486,7 +486,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
             .with_fd(descriptor)
             .with_finalizer(FileFinalizer { fd: descriptor });
         let id = context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.engine()));
         handles.push(TransferredHandle(id));

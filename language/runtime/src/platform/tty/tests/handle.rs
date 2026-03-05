@@ -51,7 +51,7 @@ fn register_non_terminal_file(context: &BindingCallContext) -> RuntimeResult<Fil
         .with_fd(descriptor)
         .with_finalizer(UnixFileFinalizer { descriptor });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -112,7 +112,7 @@ fn test_tty_handle_is_terminal_file_reports_false_for_non_terminal_file() {
 
         context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(handle.0, Some(context.call_context.engine()));
 
@@ -145,7 +145,7 @@ fn test_tty_handle_is_terminal_file_reports_true_for_terminal_file() {
             });
         let file_id = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(file_entry, Some(context.call_context.engine()));
         let file_handle = FileHandle(file_id);
@@ -155,7 +155,7 @@ fn test_tty_handle_is_terminal_file_reports_true_for_terminal_file() {
 
         context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(file_handle.0, Some(context.call_context.engine()));
         context.destack_tty_pty_close(pair.controller)?;

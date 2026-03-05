@@ -28,7 +28,7 @@ fn test_resource_kind_returns_kind_label() {
         let entry = ResourceEntry::new(ResourceKind::Timer);
         let id = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.call_context.engine()));
 
@@ -51,7 +51,7 @@ fn test_resource_close_removes_entry_and_runs_finalizer() {
         let entry = ResourceEntry::new(ResourceKind::Pipe).with_finalizer(finalizer);
         let id = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.call_context.engine()));
 
@@ -59,7 +59,7 @@ fn test_resource_close_removes_entry_and_runs_finalizer() {
         context.destack_resource_close(id)?;
 
         // closing should remove the entry and invoke finalization
-        assert!(!context.call_context.runtime().resources.contains(id));
+        assert!(!context.call_context.agent().resources.contains(id));
         assert_eq!(hits.load(Ordering::SeqCst), 1);
 
         Ok(())
@@ -76,7 +76,7 @@ fn test_resource_remove_removes_entry_and_runs_finalizer() {
         let entry = ResourceEntry::new(ResourceKind::Socket).with_finalizer(finalizer);
         let id = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.call_context.engine()));
 
@@ -84,7 +84,7 @@ fn test_resource_remove_removes_entry_and_runs_finalizer() {
         context.destack_resource_remove(id)?;
 
         // removal should delete the entry and invoke finalization
-        assert!(!context.call_context.runtime().resources.contains(id));
+        assert!(!context.call_context.agent().resources.contains(id));
         assert_eq!(hits.load(Ordering::SeqCst), 1);
 
         Ok(())
@@ -99,7 +99,7 @@ fn test_resource_transfer_keeps_existing_entry() {
         let entry = ResourceEntry::new(ResourceKind::File);
         let id = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.call_context.engine()));
 
@@ -107,7 +107,7 @@ fn test_resource_transfer_keeps_existing_entry() {
         context.destack_resource_transfer(id, ResourceOwnership::Owned)?;
 
         // transfer should keep the entry in the table
-        assert!(context.call_context.runtime().resources.contains(id));
+        assert!(context.call_context.agent().resources.contains(id));
 
         Ok(())
     });

@@ -108,12 +108,12 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
 
         let read_target = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(read_entry, Some(context.call_context.engine()));
         let write_target = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(write_entry, Some(context.call_context.engine()));
 
@@ -199,12 +199,12 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
 
         let read_target = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(read_entry, Some(context.call_context.engine()));
         let write_target = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .insert(write_entry, Some(context.call_context.engine()));
 
@@ -226,12 +226,12 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
 fn remove_poll_targets(context: &IoHarnessContext<'_>, targets: PollTargets) {
     context
         .call_context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(targets.read_target, Some(context.call_context.engine()));
     context
         .call_context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(targets.write_target, Some(context.call_context.engine()));
 }
@@ -311,8 +311,8 @@ fn test_io_poll_open_close_roundtrip() {
 #[test]
 fn test_io_poll_close_rejects_non_poll_handle() {
     with_harness_context(|mut context| {
-        let foreign = context.call_context.runtime().resources.insert(
-            ResourceEntry::new(ResourceKind::Unknown),
+        let foreign = context.call_context.agent().resources.insert(
+            ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
         );
         let forged = PollHandle(foreign);
@@ -320,10 +320,10 @@ fn test_io_poll_close_rejects_non_poll_handle() {
             context.destack_io_poll_close(forged),
             PlatformErrorCode::IoNotFound,
         )?;
-        assert!(context.call_context.runtime().resources.contains(foreign));
+        assert!(context.call_context.agent().resources.contains(foreign));
         context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(foreign, Some(context.call_context.engine()));
 
@@ -445,8 +445,8 @@ fn test_io_poll_rejects_non_pollable_target() {
     with_harness_context(|mut context| {
         let handle = context.destack_io_poll_open(PollBackend::Auto)?;
 
-        let target = context.call_context.runtime().resources.insert(
-            ResourceEntry::new(ResourceKind::Unknown),
+        let target = context.call_context.agent().resources.insert(
+            ResourceEntry::new(ResourceKind::File),
             Some(context.call_context.engine()),
         );
         assert_platform_error_code(
@@ -457,7 +457,7 @@ fn test_io_poll_rejects_non_pollable_target() {
         context.destack_io_poll_close(handle)?;
         context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(target, Some(context.call_context.engine()));
 

@@ -38,7 +38,7 @@ pub(crate) unsafe fn destack_fs_close(
 ) -> RuntimeResult<()> {
     // validate the handle kind
     let is_file = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::File)
         .unwrap_or(false);
@@ -52,7 +52,7 @@ pub(crate) unsafe fn destack_fs_close(
 
     // remove the resource and close the descriptor
     if !context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()))
     {
@@ -89,7 +89,7 @@ pub(crate) unsafe fn destack_fs_closedir(
 ) -> RuntimeResult<()> {
     // validate the handle kind
     let is_directory = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::Directory)
         .unwrap_or(false);
@@ -103,7 +103,7 @@ pub(crate) unsafe fn destack_fs_closedir(
 
     // remove the resource entry
     if !context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()))
     {
@@ -445,7 +445,7 @@ pub(crate) unsafe fn destack_fs_dup(
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -492,7 +492,7 @@ pub(crate) unsafe fn destack_fs_dup2(
 
     // replace the target resource entry
     if let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(target.0, Some(context.engine()))
     {
@@ -502,7 +502,7 @@ pub(crate) unsafe fn destack_fs_dup2(
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
     context
-        .runtime()
+        .agent()
         .resources
         .insert_with_id(target.0, entry, Some(context.engine()));
     unsafe {
@@ -561,7 +561,7 @@ pub(crate) unsafe fn destack_fs_dup3(
 
     // replace the target resource entry
     if let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(target.0, Some(context.engine()))
     {
@@ -571,7 +571,7 @@ pub(crate) unsafe fn destack_fs_dup3(
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
     context
-        .runtime()
+        .agent()
         .resources
         .insert_with_id(target.0, entry, Some(context.engine()));
     unsafe {
@@ -653,7 +653,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
             .with_fd(file_fd)
             .with_finalizer(FdFinalizer { fd: file_fd });
         let resource_id = context
-            .runtime()
+            .agent()
             .resources
             .insert(resource, Some(context.engine()));
         unsafe {

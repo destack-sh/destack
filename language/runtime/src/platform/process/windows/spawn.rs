@@ -487,7 +487,7 @@ fn spawn_process(
         .with_handle(process_handle)
         .with_finalizer(ProcessHandleFinalizer::new(process_handle as HANDLE));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 

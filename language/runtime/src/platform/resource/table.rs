@@ -1,213 +1,21 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::fmt;
 #[cfg(unix)]
 use std::os::unix::io::RawFd;
 #[cfg(windows)]
 use std::os::windows::io::{RawHandle, RawSocket};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
+use tracing::error;
 
-use super::{ResourceId, ResourceSnapshotAdapter, ResourceSnapshotPolicy};
+use super::{
+    ResourceHandle, ResourceId, ResourceKind, ResourceSnapshotAdapter, ResourceSnapshotPolicy,
+};
+use crate::runtime::Hooks;
 use crate::runtime::bindings::BindingEngine;
-use crate::runtime::{HookState, Hooks};
-
-/// Resource classification for platform handles.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ResourceKind {
-    /// File handle resources.
-    File,
-    /// Directory handle resources.
-    Directory,
-    /// Pipe endpoint resources.
-    Pipe,
-    /// Socket handle resources.
-    Socket,
-    /// Listener handle resources.
-    Listener,
-    /// Timer handle resources.
-    Timer,
-    /// Timer fd-style resources.
-    TimerFd,
-    /// File watch resources.
-    Watch,
-    /// Process handle resources.
-    Process,
-    /// Poll handle resources.
-    Poll,
-    /// Completion queue resources.
-    Completion,
-    /// User event token resources.
-    Event,
-    /// io_uring ring resources.
-    Uring,
-    /// Process fd-style resources.
-    ProcessFd,
-    /// Shared memory resources.
-    SharedMemory,
-    /// Semaphore resources.
-    Semaphore,
-    /// Signal subscription resources.
-    Signal,
-    /// Signal fd-style queue resources.
-    SignalFd,
-    /// Thread-domain resources.
-    Thread,
-    /// Mutex resources.
-    Mutex,
-    /// Read-write lock resources.
-    RwLock,
-    /// Condition variable resources.
-    CondVar,
-    /// Thread semaphore resources.
-    ThreadSemaphore,
-    /// Barrier resources.
-    Barrier,
-    /// Thread local key resources.
-    ThreadLocal,
-    /// Dynamic library resources.
-    Library,
-    /// Symbol resources.
-    Symbol,
-    /// Crypto store resources.
-    CryptoStore,
-    /// Crypto key resources.
-    CryptoKey,
-    /// Crypto certificate resources.
-    CryptoCertificate,
-    /// Crypto digest resources.
-    CryptoDigest,
-    /// Crypto mac resources.
-    CryptoMac,
-    /// Crypto cipher resources.
-    CryptoCipher,
-    /// TLS context resources.
-    TlsContext,
-    /// TLS session resources.
-    TlsSession,
-    /// Device endpoint resources.
-    Device,
-    /// Pty resources.
-    Pty,
-    /// Tty resources.
-    Tty,
-    /// Sandbox resources.
-    Sandbox,
-    /// Inspector resources.
-    Inspector,
-    /// Profile resources.
-    Profile,
-    /// Trace resources.
-    Trace,
-    /// IPC transferred-handle resources.
-    Transferred,
-    /// Message queue resources.
-    MessageQueue,
-    /// Audio device resources.
-    AudioDevice,
-    /// Audio stream resources.
-    AudioStream,
-    /// Audio event subscription resources.
-    AudioEvent,
-    /// Display resources.
-    Display,
-    /// Window resources.
-    Window,
-    /// Input device handle resources.
-    Input,
-    /// GPU adapter resources.
-    GpuAdapter,
-    /// GPU device resources.
-    GpuDevice,
-    /// GPU queue resources.
-    GpuQueue,
-    /// GPU command list resources.
-    GpuCommandList,
-    /// GPU memory resources.
-    GpuMemory,
-    /// GPU buffer resources.
-    GpuBuffer,
-    /// GPU texture resources.
-    GpuTexture,
-    /// GPU sampler resources.
-    GpuSampler,
-    /// GPU shader resources.
-    GpuShader,
-    /// GPU pipeline resources.
-    GpuPipeline,
-    /// Unknown resource kind.
-    Unknown,
-}
-
-impl ResourceKind {
-    /// Return one stable runtime label for this resource kind.
-    pub const fn label(self) -> &'static str {
-        match self {
-            ResourceKind::File => "file",
-            ResourceKind::Directory => "directory",
-            ResourceKind::Pipe => "pipe",
-            ResourceKind::Socket => "socket",
-            ResourceKind::Listener => "listener",
-            ResourceKind::Timer => "timer",
-            ResourceKind::TimerFd => "timer_fd",
-            ResourceKind::Watch => "watch",
-            ResourceKind::Process => "process",
-            ResourceKind::Poll => "poll",
-            ResourceKind::Completion => "completion",
-            ResourceKind::Event => "event",
-            ResourceKind::Uring => "uring",
-            ResourceKind::ProcessFd => "process_fd",
-            ResourceKind::SharedMemory => "shared_memory",
-            ResourceKind::Semaphore => "semaphore",
-            ResourceKind::Signal => "signal",
-            ResourceKind::SignalFd => "signal_fd",
-            ResourceKind::Thread => "thread",
-            ResourceKind::Mutex => "mutex",
-            ResourceKind::RwLock => "rw_lock",
-            ResourceKind::CondVar => "cond_var",
-            ResourceKind::ThreadSemaphore => "thread_semaphore",
-            ResourceKind::Barrier => "barrier",
-            ResourceKind::ThreadLocal => "thread_local",
-            ResourceKind::Library => "library",
-            ResourceKind::Symbol => "symbol",
-            ResourceKind::CryptoStore => "crypto_store",
-            ResourceKind::CryptoKey => "crypto_key",
-            ResourceKind::CryptoCertificate => "crypto_certificate",
-            ResourceKind::CryptoDigest => "crypto_digest",
-            ResourceKind::CryptoMac => "crypto_mac",
-            ResourceKind::CryptoCipher => "crypto_cipher",
-            ResourceKind::TlsContext => "tls_context",
-            ResourceKind::TlsSession => "tls_session",
-            ResourceKind::Device => "device",
-            ResourceKind::Pty => "pty",
-            ResourceKind::Tty => "tty",
-            ResourceKind::Sandbox => "sandbox",
-            ResourceKind::Inspector => "inspector",
-            ResourceKind::Profile => "profile",
-            ResourceKind::Trace => "trace",
-            ResourceKind::Transferred => "transferred",
-            ResourceKind::MessageQueue => "message_queue",
-            ResourceKind::AudioDevice => "audio_device",
-            ResourceKind::AudioStream => "audio_stream",
-            ResourceKind::AudioEvent => "audio_event",
-            ResourceKind::Display => "display",
-            ResourceKind::Window => "window",
-            ResourceKind::Input => "input",
-            ResourceKind::GpuAdapter => "gpu_adapter",
-            ResourceKind::GpuDevice => "gpu_device",
-            ResourceKind::GpuQueue => "gpu_queue",
-            ResourceKind::GpuCommandList => "gpu_command_list",
-            ResourceKind::GpuMemory => "gpu_memory",
-            ResourceKind::GpuBuffer => "gpu_buffer",
-            ResourceKind::GpuTexture => "gpu_texture",
-            ResourceKind::GpuSampler => "gpu_sampler",
-            ResourceKind::GpuShader => "gpu_shader",
-            ResourceKind::GpuPipeline => "gpu_pipeline",
-            ResourceKind::Unknown => "unknown",
-        }
-    }
-}
 
 /// Finalizer callback for resource cleanup.
 pub trait ResourceFinalizer: Send + Sync {
@@ -285,68 +93,9 @@ impl ResourceEntry {
         }
     }
 
-    /// Create one labeled resource entry.
-    pub fn labeled(kind: ResourceKind, label: impl Into<String>) -> Self {
-        Self::new(kind).with_label(label)
-    }
-
-    /// Create one labeled resource entry with one typed payload.
-    pub fn labeled_payload(
-        kind: ResourceKind,
-        label: impl Into<String>,
-        payload: impl Any + Send + Sync,
-    ) -> Self {
-        Self::new(kind).with_label(label).with_payload(payload)
-    }
-
-    /// Create one labeled resource entry with one typed payload and finalizer.
-    pub fn labeled_payload_finalizer(
-        kind: ResourceKind,
-        label: impl Into<String>,
-        payload: impl Any + Send + Sync,
-        finalizer: impl ResourceFinalizer + 'static,
-    ) -> Self {
-        Self::new(kind)
-            .with_label(label)
-            .with_payload(payload)
-            .with_finalizer(finalizer)
-    }
-
-    /// Create one labeled resource entry with one finalizer.
-    pub fn labeled_finalizer(
-        kind: ResourceKind,
-        label: impl Into<String>,
-        finalizer: impl ResourceFinalizer + 'static,
-    ) -> Self {
-        Self::new(kind).with_label(label).with_finalizer(finalizer)
-    }
-
-    /// Create one labeled unix descriptor entry with one finalizer.
-    #[cfg(unix)]
-    pub fn labeled_fd_finalizer(
-        kind: ResourceKind,
-        label: impl Into<String>,
-        descriptor: RawFd,
-        finalizer: impl ResourceFinalizer + 'static,
-    ) -> Self {
-        Self::new(kind)
-            .with_label(label)
-            .with_fd(descriptor)
-            .with_finalizer(finalizer)
-    }
-
-    /// Create one labeled windows handle entry with one finalizer.
-    #[cfg(windows)]
-    pub fn labeled_handle_finalizer(
-        kind: ResourceKind,
-        label: impl Into<String>,
-        handle: RawHandle,
-        finalizer: impl ResourceFinalizer + 'static,
-    ) -> Self {
-        Self::new(kind)
-            .with_label(label)
-            .with_handle(handle)
-            .with_finalizer(finalizer)
+    /// Create a new resource entry for one typed handle.
+    pub fn for_handle<H: ResourceHandle>() -> Self {
+        Self::new(H::KIND)
     }
 
     /// Attach a diagnostic label.
@@ -418,39 +167,30 @@ impl ResourceEntry {
     /// Read a raw file descriptor payload when present.
     #[cfg(unix)]
     pub fn fd(&self) -> Option<RawFd> {
-        self.payload_ref::<RawFd>().copied()
+        self.payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<RawFd>())
+            .copied()
     }
 
     /// Read a raw handle payload when present.
     #[cfg(windows)]
     pub fn handle(&self) -> Option<RawHandle> {
-        self.raw_handle
-            .or_else(|| self.payload_ref::<HandlePayload>().map(|payload| payload.0))
+        self.raw_handle.or_else(|| {
+            self.payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<HandlePayload>())
+                .map(|payload| payload.0)
+        })
     }
 
     /// Read a raw socket payload when present.
     #[cfg(windows)]
     pub fn socket(&self) -> Option<RawSocket> {
-        self.payload_ref::<RawSocket>().copied()
-    }
-
-    /// Read one typed payload reference when present.
-    pub fn payload_ref<T: Send + Sync + 'static>(&self) -> Option<&T> {
         self.payload
             .as_ref()
-            .and_then(|payload| payload.downcast_ref::<T>())
-    }
-
-    /// Read one mutable typed payload reference when present.
-    pub fn payload_mut<T: Send + Sync + 'static>(&mut self) -> Option<&mut T> {
-        self.payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<T>())
-    }
-
-    /// Read one cloned typed payload value when present.
-    pub fn payload_cloned<T: Clone + Send + Sync + 'static>(&self) -> Option<T> {
-        self.payload_ref::<T>().cloned()
+            .and_then(|payload| payload.downcast_ref::<RawSocket>())
+            .copied()
     }
 
     /// Attach a resource finalizer.
@@ -470,30 +210,12 @@ impl ResourceEntry {
 /// External resource table and finalizer registry.
 #[derive(Debug)]
 pub struct ResourceTable {
-    /// Mutable slot table for all resources.
-    inner: RwLock<ResourceTableInner>,
+    /// Next resource identifier to allocate.
+    next_id: AtomicU64,
+    /// Stored resource entries.
+    entries: RwLock<HashMap<ResourceId, ResourceEntry>>,
     /// Runtime hooks sink for non-binding resource mutations.
     hooks: RwLock<Option<Arc<Hooks>>>,
-}
-
-/// Mutable slot table payload.
-#[derive(Debug)]
-struct ResourceTableInner {
-    /// Allocated slots indexed by resource slot id minus one.
-    slots: Vec<ResourceSlot>,
-    /// Reusable slot ids with no active entry.
-    free_slots: Vec<u32>,
-    /// Next slot id for first-use allocations.
-    next_slot: u32,
-}
-
-/// One slot payload in the resource table.
-#[derive(Debug)]
-struct ResourceSlot {
-    /// Current generation stamp for this slot.
-    generation: u32,
-    /// Active entry payload when one is present.
-    entry: Option<ResourceEntry>,
 }
 
 impl ResourceTable {
@@ -502,86 +224,14 @@ impl ResourceTable {
         *self.hooks.write() = Some(hooks);
     }
 
-    /// Number of bits used for one resource slot id.
-    const SLOT_BITS: u64 = 32;
-    /// Mask for one packed resource slot id.
-    const SLOT_MASK: u64 = (1u64 << Self::SLOT_BITS) - 1;
-
-    /// Decode one resource id into slot and generation selectors.
-    fn decode_resource_id(resource_id: ResourceId) -> Option<(u32, u32)> {
-        let slot = (resource_id.0 & Self::SLOT_MASK) as u32;
-        let generation = (resource_id.0 >> Self::SLOT_BITS) as u32;
-        if slot == 0 {
-            return None;
-        }
-
-        Some((slot, generation))
-    }
-
-    /// Encode one slot and generation selector into one resource id.
-    fn encode_resource_id(slot: u32, generation: u32) -> ResourceId {
-        let value = (u64::from(generation) << Self::SLOT_BITS) | u64::from(slot);
-        ResourceId(value)
-    }
-
-    /// Return one mutable slot reference for one decoded slot id.
-    fn slot_mut(inner: &mut ResourceTableInner, slot: u32) -> Option<&mut ResourceSlot> {
-        let index = slot.checked_sub(1)? as usize;
-        inner.slots.get_mut(index)
-    }
-
-    /// Return one read-only slot reference for one decoded slot id.
-    fn slot(inner: &ResourceTableInner, slot: u32) -> Option<&ResourceSlot> {
-        let index = slot.checked_sub(1)? as usize;
-        inner.slots.get(index)
-    }
-
-    /// Return one next generation value after one removal.
-    fn next_generation(generation: u32) -> u32 {
-        generation.wrapping_add(1)
-    }
-
     /// Allocate and insert a resource entry.
     pub fn insert(&self, entry: ResourceEntry, engine: Option<BindingEngine>) -> ResourceId {
-        let mut inner = self.inner.write();
-
-        let (resource_id, slot_index) = if let Some(slot) = inner.free_slots.pop() {
-            let id = Self::slot(&inner, slot)
-                .map(|value| Self::encode_resource_id(slot, value.generation))
-                .unwrap_or_else(|| panic!("resource table free slot {slot} is missing"));
-            let index = slot
-                .checked_sub(1)
-                .unwrap_or_else(|| panic!("resource table free slot {slot} is invalid"))
-                as usize;
-            (id, index)
-        } else {
-            let slot = inner.next_slot;
-            inner.next_slot = inner
-                .next_slot
-                .checked_add(1)
-                .unwrap_or_else(|| panic!("resource table exhausted all slot ids"));
-            inner.slots.push(ResourceSlot {
-                generation: 0,
-                entry: None,
-            });
-            let id = Self::encode_resource_id(slot, 0);
-            let index = slot
-                .checked_sub(1)
-                .unwrap_or_else(|| panic!("resource table allocated invalid slot id {slot}"))
-                as usize;
-            (id, index)
-        };
-
-        let slot = inner
-            .slots
-            .get_mut(slot_index)
-            .unwrap_or_else(|| panic!("resource table missing slot {slot_index}"));
-        slot.entry = Some(entry);
-        drop(inner);
-
-        self.emit_resource_attach(resource_id, engine);
-
-        resource_id
+        let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
+        let resource_kind = entry.kind;
+        let resource_label = entry.label.clone();
+        self.entries.write().insert(id, entry);
+        self.emit_resource_attach(id, resource_kind, resource_label.as_deref(), engine);
+        id
     }
 
     /// Insert a resource entry with an explicit id.
@@ -591,41 +241,21 @@ impl ResourceTable {
         entry: ResourceEntry,
         engine: Option<BindingEngine>,
     ) {
-        let (slot, generation) = Self::decode_resource_id(resource_id)
-            .unwrap_or_else(|| panic!("resource table insert_with_id received invalid id 0"));
-
-        let mut inner = self.inner.write();
-        let required_len = slot as usize;
-        if inner.slots.len() < required_len {
-            inner.slots.resize_with(required_len, || ResourceSlot {
-                generation: 0,
-                entry: None,
-            });
-        }
-
-        let slot_entry = Self::slot_mut(&mut inner, slot)
-            .unwrap_or_else(|| panic!("resource table missing slot {slot}"));
-        slot_entry.generation = generation;
-        slot_entry.entry = Some(entry);
-        inner.free_slots.retain(|value| *value != slot);
-        inner.next_slot = inner.next_slot.max(slot.saturating_add(1));
-        drop(inner);
-
-        self.emit_resource_attach(resource_id, engine);
+        let resource_kind = entry.kind;
+        let resource_label = entry.label.clone();
+        self.entries.write().insert(resource_id, entry);
+        self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
+        self.emit_resource_attach(
+            resource_id,
+            resource_kind,
+            resource_label.as_deref(),
+            engine,
+        );
     }
 
     /// Return true if the table contains the resource id.
     pub fn contains(&self, resource_id: ResourceId) -> bool {
-        let Some((slot, generation)) = Self::decode_resource_id(resource_id) else {
-            return false;
-        };
-
-        let inner = self.inner.read();
-        let Some(slot_entry) = Self::slot(&inner, slot) else {
-            return false;
-        };
-
-        slot_entry.generation == generation && slot_entry.entry.is_some()
+        self.entries.read().contains_key(&resource_id)
     }
 
     /// Run a closure with a read-only entry reference.
@@ -634,14 +264,8 @@ impl ResourceTable {
         resource_id: ResourceId,
         f: impl FnOnce(&ResourceEntry) -> R,
     ) -> Option<R> {
-        let (slot, generation) = Self::decode_resource_id(resource_id)?;
-        let inner = self.inner.read();
-        let slot_entry = Self::slot(&inner, slot)?;
-        if slot_entry.generation != generation {
-            return None;
-        }
-        let entry = slot_entry.entry.as_ref()?;
-
+        let entries = self.entries.read();
+        let entry = entries.get(&resource_id)?;
         Some(f(entry))
     }
 
@@ -651,14 +275,8 @@ impl ResourceTable {
         resource_id: ResourceId,
         f: impl FnOnce(&mut ResourceEntry) -> R,
     ) -> Option<R> {
-        let (slot, generation) = Self::decode_resource_id(resource_id)?;
-        let mut inner = self.inner.write();
-        let slot_entry = Self::slot_mut(&mut inner, slot)?;
-        if slot_entry.generation != generation {
-            return None;
-        }
-        let entry = slot_entry.entry.as_mut()?;
-
+        let mut entries = self.entries.write();
+        let entry = entries.get_mut(&resource_id)?;
         Some(f(entry))
     }
 
@@ -668,46 +286,43 @@ impl ResourceTable {
         resource_id: ResourceId,
         engine: Option<BindingEngine>,
     ) -> Option<ResourceEntry> {
-        let (slot, generation) = Self::decode_resource_id(resource_id)?;
-        let mut inner = self.inner.write();
-        let slot_entry = Self::slot_mut(&mut inner, slot)?;
-        if slot_entry.generation != generation {
-            return None;
-        }
-
-        let removed = slot_entry.entry.take();
-        if removed.is_some() {
-            slot_entry.generation = Self::next_generation(slot_entry.generation);
-            inner.free_slots.push(slot);
-        }
-        drop(inner);
-
-        if removed.is_some() {
-            self.emit_resource_detach(resource_id, engine);
+        let removed = self.entries.write().remove(&resource_id);
+        if let Some(entry) = removed.as_ref() {
+            self.emit_resource_detach(resource_id, entry.kind, entry.label.as_deref(), engine);
         }
 
         removed
     }
 
     /// Emit one resource-attach hook through the shared runtime hook sink.
-    fn emit_resource_attach(&self, resource_id: ResourceId, engine: Option<BindingEngine>) {
-        if let Some(hooks) = self.hooks.read().as_ref().cloned() {
-            hooks.on_resource_attach(HookState {
-                engine,
-                resource_id: Some(resource_id),
-                ..HookState::empty()
-            });
+    fn emit_resource_attach(
+        &self,
+        resource_id: ResourceId,
+        resource_kind: ResourceKind,
+        resource_label: Option<&str>,
+        engine: Option<BindingEngine>,
+    ) {
+        if let Some(hooks) = self.hooks.read().as_ref().cloned()
+            && let Err(error) =
+                hooks.on_resource_attach(resource_id, resource_kind, resource_label, engine)
+        {
+            error!(?error, "resource attach hook failed");
         }
     }
 
     /// Emit one resource-detach hook through the shared runtime hook sink.
-    fn emit_resource_detach(&self, resource_id: ResourceId, engine: Option<BindingEngine>) {
-        if let Some(hooks) = self.hooks.read().as_ref().cloned() {
-            hooks.on_resource_detach(HookState {
-                engine,
-                resource_id: Some(resource_id),
-                ..HookState::empty()
-            });
+    fn emit_resource_detach(
+        &self,
+        resource_id: ResourceId,
+        resource_kind: ResourceKind,
+        resource_label: Option<&str>,
+        engine: Option<BindingEngine>,
+    ) {
+        if let Some(hooks) = self.hooks.read().as_ref().cloned()
+            && let Err(error) =
+                hooks.on_resource_detach(resource_id, resource_kind, resource_label, engine)
+        {
+            error!(?error, "resource detach hook failed");
         }
     }
 
@@ -728,11 +343,8 @@ impl ResourceTable {
 impl Default for ResourceTable {
     fn default() -> Self {
         Self {
-            inner: RwLock::new(ResourceTableInner {
-                slots: Vec::new(),
-                free_slots: Vec::new(),
-                next_slot: 1,
-            }),
+            next_id: AtomicU64::new(1),
+            entries: RwLock::new(HashMap::new()),
             hooks: RwLock::new(None),
         }
     }
@@ -743,7 +355,7 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use super::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, ResourceTable};
+    use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceTable};
 
     /// Ensures entries can be inserted, removed, and finalized.
     #[test]
@@ -769,43 +381,6 @@ mod tests {
         // removing again should return false
         let removed_again = table.remove_and_finalize(resource_id, None);
         assert!(!removed_again);
-    }
-
-    /// Ensures stale handles are rejected after slot reuse.
-    #[test]
-    fn test_rejects_stale_handle_after_reuse() {
-        // create a new resource table
-        let table = ResourceTable::default();
-
-        // allocate one handle and then remove it
-        let first = table.insert(ResourceEntry::new(ResourceKind::Timer), None);
-        assert!(table.remove(first, None).is_some());
-        assert!(!table.contains(first));
-
-        // allocate one new handle and ensure the stale handle is rejected
-        let second = table.insert(ResourceEntry::new(ResourceKind::Timer), None);
-        assert_ne!(first, second);
-        assert!(!table.contains(first));
-        assert!(table.contains(second));
-    }
-
-    /// Ensures explicit id insertion respects generation checks.
-    #[test]
-    fn test_insert_with_id_honors_generation() {
-        // create a new resource table
-        let table = ResourceTable::default();
-        let slot = ResourceId(7);
-        let generation = ResourceId((3u64 << 32) | 7u64);
-
-        // insert one legacy id and then one generated id in the same slot
-        table.insert_with_id(slot, ResourceEntry::new(ResourceKind::Timer), None);
-        assert!(table.contains(slot));
-        table.remove(slot, None);
-        table.insert_with_id(generation, ResourceEntry::new(ResourceKind::Timer), None);
-
-        // stale and current ids should resolve as expected
-        assert!(!table.contains(slot));
-        assert!(table.contains(generation));
     }
 
     struct TestFinalizer {

@@ -127,15 +127,9 @@ pub(super) fn configured_store_path(
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     match kind {
-        CryptoStoreKind::User => context
-            .runtime()
-            .options
-            .crypto
-            .host_store_paths
-            .user
-            .clone(),
+        CryptoStoreKind::User => context.agent().options.crypto.host_store_paths.user.clone(),
         CryptoStoreKind::Machine => context
-            .runtime()
+            .agent()
             .options
             .crypto
             .host_store_paths
@@ -148,7 +142,7 @@ pub(super) fn configured_store_path(
 /// Return one configured macOS keychain service for host snapshot bytes.
 pub(super) fn configured_keychain_snapshot_service(context: &BindingCallContext) -> String {
     context
-        .runtime()
+        .agent()
         .options
         .crypto
         .macos_keychain_snapshot_service
@@ -159,7 +153,7 @@ pub(super) fn configured_keychain_snapshot_service(context: &BindingCallContext)
 /// Return one configured macOS keychain account for host snapshot bytes.
 pub(super) fn configured_keychain_snapshot_account(context: &BindingCallContext) -> String {
     context
-        .runtime()
+        .agent()
         .options
         .crypto
         .macos_keychain_snapshot_account

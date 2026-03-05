@@ -3,8 +3,10 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{bindings_generated as bindings, core as core_process};
-use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
+    core as core_platform,
+};
 
 use crate::runtime::BindingCallContext;
 use bindings::*;
@@ -72,7 +74,7 @@ fn register_stdio_fd(
         .with_fd(duplicated)
         .with_finalizer(StdioFdFinalizer { fd: duplicated });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -88,15 +90,21 @@ fn resolve_process_fd(
     context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<ProcessId> {
-    resource::require_payload::<core_process::ProcessFdBinding>(
-        context,
-        handle.0,
-        resource::ResourceKind::ProcessFd,
-        None,
-        "handle",
-        "process fd",
-    )
-    .map(|binding| binding.pid)
+    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
+            .map(|binding| binding.pid)
+    });
+
+    resolved.flatten().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown process fd handle",
+        ))
+        .boxed()
+    })
 }
 
 /// Resolve a signal-fd handle into its signal mask payload.
@@ -104,15 +112,21 @@ fn resolve_signal_fd(
     context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<Vec<Signal>> {
-    resource::require_payload::<core_process::SignalFdBinding>(
-        context,
-        handle.0,
-        resource::ResourceKind::SignalFd,
-        None,
-        "handle",
-        "signal fd",
-    )
-    .map(|binding| binding.signals)
+    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
+            .map(|binding| binding.signals.clone())
+    });
+
+    resolved.flatten().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed()
+    })
 }
 
 /// Replace the signal mask payload for one signal-fd handle.
@@ -121,22 +135,22 @@ fn update_signal_fd(
     handle: resource::SignalFdHandle,
     signals: Vec<Signal>,
 ) -> RuntimeResult<()> {
-    let updated = resource::with_entry_mut(
-        context,
-        handle.0,
-        resource::ResourceKind::SignalFd,
-        None,
-        |entry| {
-            entry
-                .payload_mut::<core_process::SignalFdBinding>()
-                .map(|binding| {
-                    binding.signals = signals;
-                })
-        },
-    );
+    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<core_process::SignalFdBinding>())
+            .map(|binding| {
+                binding.signals = signals;
+            })
+    });
 
     if updated.flatten().is_none() {
-        return Err(core_platform::unknown_handle("handle", "signal fd"));
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed());
     }
 
     Ok(())
@@ -147,16 +161,20 @@ fn ensure_process_fd_handle(
     context: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    let is_process_fd = resource::with_payload::<core_process::ProcessFdBinding, _>(
-        context,
-        handle.0,
-        resource::ResourceKind::ProcessFd,
-        None,
-        |_binding, _entry| true,
-    );
+    let is_process_fd = context.agent().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
+            .is_some()
+    });
 
     if is_process_fd != Some(true) {
-        return Err(core_platform::unknown_handle("handle", "process fd"));
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown process fd handle",
+        ))
+        .boxed());
     }
 
     Ok(())
@@ -167,16 +185,20 @@ fn ensure_signal_fd_handle(
     context: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    let is_signal_fd = resource::with_payload::<core_process::SignalFdBinding, _>(
-        context,
-        handle.0,
-        resource::ResourceKind::SignalFd,
-        None,
-        |_binding, _entry| true,
-    );
+    let is_signal_fd = context.agent().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
+            .is_some()
+    });
 
     if is_signal_fd != Some(true) {
-        return Err(core_platform::unknown_handle("handle", "signal fd"));
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed());
     }
 
     Ok(())
@@ -278,11 +300,15 @@ pub(crate) unsafe fn destack_process_process_fd_close(
     ensure_process_fd_handle(context, handle)?;
 
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(core_platform::unknown_handle("handle", "process fd"));
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown process fd handle",
+        ))
+        .boxed());
     }
 
     Ok(())
@@ -327,7 +353,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
         .with_label("process.fd")
         .with_payload(core_process::ProcessFdBinding { pid });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -435,7 +461,7 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let process_id = resolve_process_fd(context, handle)?;
-    let status = super::wait::process_wait_pid_timeout(context, process_id.0, timeoutns)?;
+    let status = super::wait::process_wait_pid_timeout(process_id.0, timeoutns)?;
     unsafe {
         *out = status;
     }
@@ -467,11 +493,15 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
     ensure_signal_fd_handle(context, handle)?;
 
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(core_platform::unknown_handle("handle", "signal fd"));
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed());
     }
 
     Ok(())
@@ -516,7 +546,7 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
         .with_label("process.signal.fd")
         .with_payload(core_process::SignalFdBinding { signals });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 

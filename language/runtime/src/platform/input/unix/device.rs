@@ -144,7 +144,7 @@ pub(crate) unsafe fn destack_input_close(
     input_core::release_macos_subscription(context, handle);
 
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
@@ -276,7 +276,7 @@ pub(crate) unsafe fn destack_input_open(
         macos_state: input_core::initial_macos_state(spec.backend),
     };
 
-    let entry = ResourceEntry::new(resource::ResourceKind::Input)
+    let entry = ResourceEntry::new(resource::ResourceKind::InputDevice)
         .with_label(input_core::INPUT_RESOURCE_LABEL)
         .with_payload(binding);
     let entry = if let Some(descriptor) = descriptor {
@@ -288,7 +288,7 @@ pub(crate) unsafe fn destack_input_open(
         entry
     };
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 

@@ -254,7 +254,7 @@ pub(super) fn transferable_descriptor(
     handle: TransferredHandle,
 ) -> RuntimeResult<RawFd> {
     let descriptor = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| entry.fd());
     match descriptor.flatten() {

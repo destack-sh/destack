@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::{Arc, LazyLock, Mutex as StdMutex};
 
 use openssl::pkey::PKey;
 use openssl::sha::sha256;
@@ -20,8 +20,8 @@ use crate::platform::crypto::{
     CryptoStoreMacCapability, CryptoStoreOptions, CryptoStoreProvider,
     CryptoStoreSignatureCapability, host as crypto_host,
 };
+use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
-use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::certificate::{certificate_has_subject_alternative_name, x509_name_to_string};
@@ -32,10 +32,11 @@ use super::core::{
     DEFAULT_KEY_LIST_LIMIT, HostKeyBackend, HostKeyMaterial, KEY_USAGE_DECRYPT,
     KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT,
     KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY, KEY_USAGE_WRAP, decode_native_string,
-    host_store_supports_certificate_write, host_store_supports_hardware_backed_key,
-    host_store_supports_hardware_backed_pair_algorithm, host_store_supports_key_persistence,
-    insert_certificate_resource, insert_key_resource, invalid_data, openssl_error,
-    resolve_key_resource, resolve_store_resource,
+    handle_not_found, host_store_supports_certificate_write,
+    host_store_supports_hardware_backed_key, host_store_supports_hardware_backed_pair_algorithm,
+    host_store_supports_key_persistence, insert_certificate_resource, insert_key_resource,
+    invalid_argument, invalid_data, not_supported, openssl_error, resolve_key_resource,
+    resolve_store_resource,
 };
 use super::digest::digest_output_size_bytes;
 use super::probe::{
@@ -46,30 +47,13 @@ use super::probe::{
 
 /// Current version for serialized host-key store snapshots.
 const HOST_KEY_SNAPSHOT_VERSION: u32 = 1;
-
-/// Resolve one default key-list limit from runtime options.
-fn resolved_default_key_list_limit(context: &BindingCallContext) -> usize {
-    let configured = context
-        .runtime()
-        .module_options
-        .crypto
-        .default_key_list_limit;
-    let configured = core_platform::option_u64_to_usize(configured);
-
-    configured.unwrap_or(DEFAULT_KEY_LIST_LIMIT).max(1)
-}
-
-/// Resolve one default certificate-list limit from runtime options.
-fn resolved_default_certificate_list_limit(context: &BindingCallContext) -> usize {
-    let configured = context
-        .runtime()
-        .module_options
-        .crypto
-        .default_certificate_list_limit;
-    let configured = core_platform::option_u64_to_usize(configured);
-
-    configured.unwrap_or(DEFAULT_CERTIFICATE_LIST_LIMIT).max(1)
-}
+/// Global lock for host key snapshot backend operations.
+static HOST_KEY_SNAPSHOT_LOCK: StdMutex<()> = StdMutex::new(());
+/// Global cache for deduplicated host-lane key and certificate handles.
+static HOST_STORE_HANDLE_CACHE: LazyLock<StdMutex<HashMap<usize, HostStoreHandleCache>>> =
+    LazyLock::new(|| StdMutex::new(HashMap::new()));
+/// Maximum runtime cache entries kept in the host-lane dedup cache.
+const HOST_STORE_HANDLE_CACHE_RUNTIME_LIMIT: usize = 64;
 
 /// Encoded host-key snapshot payload.
 #[derive(Serialize, Deserialize)]
@@ -161,29 +145,15 @@ struct HostStoreHandleCache {
     certificate_handles: HashMap<(CryptoStoreKind, [u8; 32]), resource::CryptoCertificateHandle>,
 }
 
-/// Runtime-owned mutable state for crypto store lanes.
-#[derive(Default)]
-pub(crate) struct CryptoStoreRuntimeState {
-    /// Lock for host key snapshot backend operations.
-    host_key_snapshot_lock: StdMutex<()>,
-    /// Deduplicated host-lane key and certificate handles.
-    host_store_handle_cache: StdMutex<HostStoreHandleCache>,
-}
-
-/// Return runtime-owned mutable state for crypto store lanes.
-fn crypto_store_runtime_state(context: &BindingCallContext) -> Arc<CryptoStoreRuntimeState> {
-    context
-        .runtime()
-        .platform_state
-        .crypto
-        .crypto_store_runtime_state(CryptoStoreRuntimeState::default)
+/// Return one stable cache key for the active runtime state.
+fn runtime_cache_key(context: &BindingCallContext) -> usize {
+    context.agent() as *const _ as usize
 }
 
 /// Acquire one host-store cache guard and recover from poisoning.
-fn host_store_cache_guard(
-    runtime_state: &CryptoStoreRuntimeState,
-) -> std::sync::MutexGuard<'_, HostStoreHandleCache> {
-    match runtime_state.host_store_handle_cache.lock() {
+fn host_store_cache_guard() -> std::sync::MutexGuard<'static, HashMap<usize, HostStoreHandleCache>>
+{
+    match HOST_STORE_HANDLE_CACHE.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     }
@@ -195,23 +165,28 @@ fn resolve_cached_host_key_handle(
     kind: CryptoStoreKind,
     persistent_id: &str,
 ) -> Option<resource::CryptoKeyHandle> {
-    let runtime_state = crypto_store_runtime_state(context);
-
     // load one cached handle for this runtime and key identity
     let cache_key = (kind, persistent_id.to_string());
-    let mut cache = host_store_cache_guard(&runtime_state);
+    let runtime_key = runtime_cache_key(context);
+    let mut cache_map = host_store_cache_guard();
+    let cache = cache_map.get_mut(&runtime_key)?;
     let handle = cache.key_handles.get(&cache_key).copied()?;
 
     // keep only cache entries that still point to the same key resource
     let is_valid = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
                 return false;
             }
 
-            let Some(resource) = entry.payload_cloned::<Arc<Mutex<CryptoKeyResource>>>() else {
+            let Some(resource) = entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>())
+                .map(Arc::clone)
+            else {
                 return false;
             };
             let resource = resource.lock();
@@ -235,10 +210,14 @@ fn cache_host_key_handle(
     persistent_id: &str,
     handle: resource::CryptoKeyHandle,
 ) {
-    let runtime_state = crypto_store_runtime_state(context);
+    let runtime_key = runtime_cache_key(context);
     let cache_key = (kind, persistent_id.to_string());
-    let mut cache = host_store_cache_guard(&runtime_state);
-    cache.key_handles.insert(cache_key, handle);
+    let mut cache_map = host_store_cache_guard();
+    if cache_map.len() > HOST_STORE_HANDLE_CACHE_RUNTIME_LIMIT {
+        cache_map.clear();
+    }
+    let runtime_cache = cache_map.entry(runtime_key).or_default();
+    runtime_cache.key_handles.insert(cache_key, handle);
 }
 
 /// Resolve one cached host certificate handle when it still references the requested lane.
@@ -247,23 +226,27 @@ fn resolve_cached_host_certificate_handle(
     kind: CryptoStoreKind,
     fingerprint: [u8; 32],
 ) -> Option<resource::CryptoCertificateHandle> {
-    let runtime_state = crypto_store_runtime_state(context);
-
     // load one cached handle for this runtime and certificate identity
     let cache_key = (kind, fingerprint);
-    let mut cache = host_store_cache_guard(&runtime_state);
+    let runtime_key = runtime_cache_key(context);
+    let mut cache_map = host_store_cache_guard();
+    let cache = cache_map.get_mut(&runtime_key)?;
     let handle = cache.certificate_handles.get(&cache_key).copied()?;
 
     // keep only cache entries that still point to the requested lane
     let is_valid = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
                 return false;
             }
 
-            let Some(resource) = entry.payload_cloned::<Arc<Mutex<CryptoCertificateResource>>>()
+            let Some(resource) = entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoCertificateResource>>>())
+                .map(Arc::clone)
             else {
                 return false;
             };
@@ -288,10 +271,14 @@ fn cache_host_certificate_handle(
     fingerprint: [u8; 32],
     handle: resource::CryptoCertificateHandle,
 ) {
-    let runtime_state = crypto_store_runtime_state(context);
+    let runtime_key = runtime_cache_key(context);
     let cache_key = (kind, fingerprint);
-    let mut cache = host_store_cache_guard(&runtime_state);
-    cache.certificate_handles.insert(cache_key, handle);
+    let mut cache_map = host_store_cache_guard();
+    if cache_map.len() > HOST_STORE_HANDLE_CACHE_RUNTIME_LIMIT {
+        cache_map.clear();
+    }
+    let runtime_cache = cache_map.entry(runtime_key).or_default();
+    runtime_cache.certificate_handles.insert(cache_key, handle);
 }
 
 /// Compute one stable certificate fingerprint for host-lane deduplication.
@@ -926,7 +913,7 @@ pub(crate) fn store_open(
     // open one ephemeral in-memory store lane
     if options.kind == CryptoStoreKind::Ephemeral {
         if !namespace.is_empty() {
-            return Err(core_platform::invalid_argument(
+            return Err(invalid_argument(
                 "options.namespace",
                 "namespace is not supported for ephemeral stores",
             ));
@@ -960,11 +947,11 @@ pub(crate) fn store_open(
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
     ) {
         if !crypto_host::host_store_lane_is_available(context, options.kind) {
-            return Err(core_platform::not_supported("destack.crypto.store.open"));
+            return Err(not_supported("destack.crypto.store.open"));
         }
 
         if !namespace.is_empty() {
-            return Err(core_platform::invalid_argument(
+            return Err(invalid_argument(
                 "options.namespace",
                 "namespace is not supported for this store kind",
             ));
@@ -1032,7 +1019,7 @@ pub(crate) fn store_open(
     }
 
     // reject unsupported store kinds
-    Err(core_platform::not_supported("destack.crypto.store.open"))
+    Err(not_supported("destack.crypto.store.open"))
 }
 
 /// Close one crypto store.
@@ -1042,21 +1029,23 @@ pub(crate) fn store_close(
 ) -> RuntimeResult<()> {
     // remove store resource entry
     let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
-        return Err(core_platform::io_not_found(
+        return Err(handle_not_found(
             "destack.crypto.store.close",
-            format!("unknown crypto store handle {}", handle.0.0),
+            "crypto store",
+            handle.0.0,
         ));
     };
 
     // validate handle kind
     if entry.kind != CRYPTO_STORE_RESOURCE_KIND {
-        return Err(core_platform::io_not_found(
+        return Err(handle_not_found(
             "destack.crypto.store.close",
-            format!("unknown crypto store handle {}", handle.0.0),
+            "crypto store",
+            handle.0.0,
         ));
     }
 
@@ -1082,12 +1071,12 @@ pub(crate) fn store_list_keys(
     let offset = if cursor_raw.is_empty() {
         0usize
     } else {
-        cursor_raw.parse::<usize>().map_err(|_| {
-            core_platform::invalid_argument("query.cursor", "cursor must be one integer index")
-        })?
+        cursor_raw
+            .parse::<usize>()
+            .map_err(|_| invalid_argument("query.cursor", "cursor must be one integer index"))?
     };
     let limit = if query.limit == 0 {
-        resolved_default_key_list_limit(context)
+        DEFAULT_KEY_LIST_LIMIT
     } else {
         query.limit as usize
     };
@@ -1095,16 +1084,16 @@ pub(crate) fn store_list_keys(
     // collect key descriptors that satisfy the query
     let mut filtered = Vec::new();
     for key_handle in &key_handles {
-        let Some(key_resource) = context
-            .runtime()
-            .resources
-            .with_entry(key_handle.0, |entry| {
-                if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
-                    return None;
-                }
-                entry.payload_cloned::<Arc<Mutex<CryptoKeyResource>>>()
-            })
-        else {
+        let Some(key_resource) = context.agent().resources.with_entry(key_handle.0, |entry| {
+            if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
+                return None;
+            }
+            entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>())
+                .map(Arc::clone)
+        }) else {
             continue;
         };
         let Some(key_resource) = key_resource else {
@@ -1175,12 +1164,12 @@ pub(crate) fn store_list_certificates(
     let offset = if cursor_raw.is_empty() {
         0usize
     } else {
-        cursor_raw.parse::<usize>().map_err(|_| {
-            core_platform::invalid_argument("query.cursor", "cursor must be one integer index")
-        })?
+        cursor_raw
+            .parse::<usize>()
+            .map_err(|_| invalid_argument("query.cursor", "cursor must be one integer index"))?
     };
     let limit = if query.limit == 0 {
-        resolved_default_certificate_list_limit(context)
+        DEFAULT_CERTIFICATE_LIST_LIMIT
     } else {
         query.limit as usize
     };
@@ -1190,13 +1179,19 @@ pub(crate) fn store_list_certificates(
     for certificate_handle in &certificate_handles {
         let Some(certificate_resource) =
             context
-                .runtime()
+                .agent()
                 .resources
                 .with_entry(certificate_handle.0, |entry| {
                     if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
                         return None;
                     }
-                    entry.payload_cloned::<Arc<Mutex<CryptoCertificateResource>>>()
+                    entry
+                        .payload
+                        .as_ref()
+                        .and_then(|payload| {
+                            payload.downcast_ref::<Arc<Mutex<CryptoCertificateResource>>>()
+                        })
+                        .map(Arc::clone)
                 })
         else {
             continue;
@@ -1291,7 +1286,7 @@ pub(super) fn persist_key_if_required(
 
     // reject host lanes without key persistence support
     if !host_store_supports_key_persistence(store_resource.kind) {
-        return Err(core_platform::not_supported(operation));
+        return Err(not_supported(operation));
     }
 
     // upsert this key into host persistence storage
@@ -1332,7 +1327,7 @@ pub(super) fn delete_persistent_key_if_present(
 
     // reject key deletion from host lanes that do not support key persistence
     if !host_store_supports_key_persistence(key_resource.store_provenance.kind) {
-        return Err(core_platform::not_supported(operation));
+        return Err(not_supported(operation));
     }
 
     // validate one persistent identifier before deleting
@@ -1365,7 +1360,7 @@ fn insert_store_resource(
         .with_label(CRYPTO_STORE_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -1407,10 +1402,8 @@ fn load_host_persistent_key_records(
     kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<Vec<PersistedKeyRecord>> {
-    let runtime_state = crypto_store_runtime_state(context);
-
     // serialize host snapshot reads and writes across threads
-    let _lock_guard = runtime_state.host_key_snapshot_lock.lock().map_err(|_| {
+    let _lock_guard = HOST_KEY_SNAPSHOT_LOCK.lock().map_err(|_| {
         invalid_data(
             operation,
             "failed to lock host key snapshot storage for read",
@@ -1448,10 +1441,8 @@ fn store_host_persistent_key_records(
     records: &[PersistedKeyRecord],
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let runtime_state = crypto_store_runtime_state(context);
-
     // serialize host snapshot reads and writes across threads
-    let _lock_guard = runtime_state.host_key_snapshot_lock.lock().map_err(|_| {
+    let _lock_guard = HOST_KEY_SNAPSHOT_LOCK.lock().map_err(|_| {
         invalid_data(
             operation,
             "failed to lock host key snapshot storage for write",

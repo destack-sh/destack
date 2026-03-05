@@ -909,7 +909,7 @@ fn rollback_key_publish(
 
     // remove the key resource and zeroize secret bytes before drop
     let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()))
     else {
@@ -2649,7 +2649,7 @@ pub(crate) fn key_delete(
 
     // remove key resource and verify kind
     let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()))
     else {

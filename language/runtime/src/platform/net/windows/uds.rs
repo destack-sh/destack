@@ -187,7 +187,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -270,7 +270,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -468,7 +468,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
         .with_socket(client_socket as _)
         .with_finalizer(SocketFinalizer::new(client_socket));
     let first_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(first_entry, Some(context.engine()));
 
@@ -477,7 +477,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
         .with_socket(server_socket as _)
         .with_finalizer(SocketFinalizer::new(server_socket));
     let second_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(second_entry, Some(context.engine()));
 

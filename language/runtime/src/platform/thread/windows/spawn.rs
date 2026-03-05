@@ -9,7 +9,7 @@ use windows_sys::Win32::System::Threading::{
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::resource::ThreadHandle;
+use crate::platform::resource::{ResourceKind, ThreadHandle};
 use crate::platform::thread::{ThreadOptions, core as core_thread, resource as resource_thread};
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::NativeStringRef;
@@ -223,6 +223,7 @@ pub(crate) unsafe fn destack_thread_spawn(
     // store one spawned thread resource
     let resource_id = core_thread::insert_thread_resource(
         context,
+        ResourceKind::Thread,
         "thread",
         resource_thread::ThreadResource { native_handle },
     );

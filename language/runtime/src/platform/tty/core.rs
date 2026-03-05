@@ -54,7 +54,7 @@ pub(crate) fn close_tty_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_tty_handle(operation))?;
@@ -63,7 +63,7 @@ pub(crate) fn close_tty_resource(
     }
 
     if !context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()))
     {
@@ -80,7 +80,7 @@ pub(crate) fn close_pty_resource(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let kind = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| invalid_pty_handle(operation))?;
@@ -89,7 +89,7 @@ pub(crate) fn close_pty_resource(
     }
 
     if !context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()))
     {

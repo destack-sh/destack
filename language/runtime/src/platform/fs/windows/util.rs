@@ -730,7 +730,7 @@ pub(super) fn posix_sids(
 ) -> RuntimeResult<(SidHandle, SidHandle)> {
     // read the domain SID from configuration
     let domain_sid = context
-        .runtime()
+        .agent()
         .options
         .platform
         .windows

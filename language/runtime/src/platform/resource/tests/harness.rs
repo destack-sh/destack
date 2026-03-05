@@ -17,6 +17,11 @@ impl<'call> ResourceHarnessContext<'call> {
             .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
     }
 
+    /// Return a stable label for one native resource kind.
+    fn native_kind_label(kind: ResourceKind) -> &'static str {
+        kind.label()
+    }
+
     /// Decode one vm resource kind payload into a stable label.
     fn vm_kind_label(&mut self, kind: ResourceKindVm) -> RuntimeResult<String> {
         let context = self.vm_context_mut().ok_or_else(|| {
@@ -27,7 +32,7 @@ impl<'call> ResourceHarnessContext<'call> {
             .boxed()
         })?;
         let value = context
-            .string_ref(kind.0)
+            .string_ref(kind)
             .map_err(|error| RuntimeError::from(error).boxed())?;
 
         Ok(value.as_str().to_string())
@@ -39,7 +44,7 @@ impl<'call> ResourceHarnessContext<'call> {
         value: HarnessValue<ResourceKind, ResourceKindVm>,
     ) -> RuntimeResult<String> {
         match value {
-            HarnessValue::Native(kind) => Ok(kind.label().to_string()),
+            HarnessValue::Native(kind) => Ok(Self::native_kind_label(kind).to_string()),
             HarnessValue::Vm(kind) => self.vm_kind_label(kind),
         }
     }

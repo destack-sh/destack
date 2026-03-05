@@ -143,7 +143,7 @@ pub(crate) fn mac_open(
             .with_label(CRYPTO_MAC_LABEL)
             .with_payload(Arc::new(Mutex::new(resource_value)));
         let resource_id = context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.engine()));
 
@@ -171,7 +171,7 @@ pub(crate) fn mac_open(
         .with_label(CRYPTO_MAC_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -307,7 +307,7 @@ pub(crate) fn mac_close(
 ) -> RuntimeResult<()> {
     // remove mac resource entry
     let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()))
     else {

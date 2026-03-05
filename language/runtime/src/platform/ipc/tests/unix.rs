@@ -77,14 +77,14 @@ fn test_unix_ancillary_send_receive_roundtrip() {
         let left = resource::SocketHandle(
             context
                 .call_context
-                .runtime()
+                .agent()
                 .resources
                 .insert(left_entry, Some(context.call_context.engine())),
         );
         let right = resource::SocketHandle(
             context
                 .call_context
-                .runtime()
+                .agent()
                 .resources
                 .insert(right_entry, Some(context.call_context.engine())),
         );
@@ -94,12 +94,12 @@ fn test_unix_ancillary_send_receive_roundtrip() {
         if duplicated < 0 {
             context
                 .call_context
-                .runtime()
+                .agent()
                 .resources
                 .remove_and_finalize(left.0, Some(context.call_context.engine()));
             context
                 .call_context
-                .runtime()
+                .agent()
                 .resources
                 .remove_and_finalize(right.0, Some(context.call_context.engine()));
             return Err(unix_test_error(
@@ -115,7 +115,7 @@ fn test_unix_ancillary_send_receive_roundtrip() {
         let transferred = resource::TransferredHandle(
             context
                 .call_context
-                .runtime()
+                .agent()
                 .resources
                 .insert(transferred_entry, Some(context.call_context.engine())),
         );
@@ -135,22 +135,22 @@ fn test_unix_ancillary_send_receive_roundtrip() {
         // cleanup all registered resources
         context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(left.0, Some(context.call_context.engine()));
         context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(right.0, Some(context.call_context.engine()));
         context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(transferred.0, Some(context.call_context.engine()));
         context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(handles[0].0, Some(context.call_context.engine()));
 

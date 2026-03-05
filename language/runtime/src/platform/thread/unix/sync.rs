@@ -13,7 +13,7 @@ use crate::platform::PlatformError;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::core as core_platform;
 use crate::platform::resource::{
-    BarrierHandle, CondVarHandle, MutexHandle, RwLockHandle, ThreadSemaphoreHandle,
+    BarrierHandle, CondVarHandle, MutexHandle, ResourceKind, RwLockHandle, ThreadSemaphoreHandle,
 };
 use crate::platform::thread::{core as core_thread, resource as resource_thread};
 
@@ -425,6 +425,7 @@ pub(crate) unsafe fn destack_thread_barrier_create(
         // store one barrier resource
         let resource_id = core_thread::insert_thread_resource(
             context,
+            ResourceKind::Barrier,
             "thread.barrier",
             resource_thread::BarrierResource {
                 barrier: UnsafeCell::new(unsafe { barrier.assume_init() }),
@@ -577,6 +578,7 @@ pub(crate) unsafe fn destack_thread_cond_var_create(
     // store one condition-variable resource
     let resource_id = core_thread::insert_thread_resource(
         context,
+        ResourceKind::CondVar,
         "thread.condvar",
         resource_thread::CondVarResource {
             condvar: UnsafeCell::new(unsafe { condvar.assume_init() }),
@@ -809,6 +811,7 @@ pub(crate) unsafe fn destack_thread_mutex_create(
     // store one mutex resource
     let resource_id = core_thread::insert_thread_resource(
         context,
+        ResourceKind::Mutex,
         "thread.mutex",
         resource_thread::MutexResource {
             mutex: UnsafeCell::new(unsafe { mutex.assume_init() }),
@@ -1001,6 +1004,7 @@ pub(crate) unsafe fn destack_thread_rwlock_create(
     // store one read-write lock resource
     let resource_id = core_thread::insert_thread_resource(
         context,
+        ResourceKind::RwLock,
         "thread.rwlock",
         resource_thread::RwLockResource {
             rwlock: UnsafeCell::new(unsafe { rwlock.assume_init() }),
@@ -1286,6 +1290,7 @@ pub(crate) unsafe fn destack_thread_semaphore_create(
     // store one semaphore resource
     let resource_id = core_thread::insert_thread_resource(
         context,
+        ResourceKind::ThreadSemaphore,
         "thread.semaphore",
         resource_thread::SemaphoreResource {
             semaphore: UnsafeCell::new(unsafe { semaphore.assume_init() }),

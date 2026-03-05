@@ -196,7 +196,7 @@ pub(super) fn tty_binding(
     operation: &'static str,
 ) -> RuntimeResult<Option<Arc<WindowsTtyBinding>>> {
     let resolved = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Tty {
@@ -209,7 +209,7 @@ pub(super) fn tty_binding(
 
     if resolved.is_none() {
         let kind = context
-            .runtime()
+            .agent()
             .resources
             .with_entry(handle.0, |entry| entry.kind);
         if let Some(kind) = kind
@@ -229,7 +229,7 @@ pub(super) fn tty_handle(
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
     let resolved = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Tty {
@@ -289,7 +289,7 @@ pub(super) fn register_pty_pair(
         .with_label(PTY_RESOURCE_LABEL)
         .with_finalizer(WindowsPseudoConsoleFinalizer { pseudo_console });
     let controller_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(controller_entry, Some(context.engine()));
 
@@ -301,7 +301,7 @@ pub(super) fn register_pty_pair(
             write_handle,
         });
     let worker_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(worker_entry, Some(context.engine()));
 

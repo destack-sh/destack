@@ -54,7 +54,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {

@@ -296,7 +296,7 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
             .with_label("process.test.pipe.stdout")
             .with_handle(write_handle);
         let pipe_resource_id = call_context
-            .runtime()
+            .agent()
             .resources
             .insert(pipe_entry, Some(call_context.engine()));
         let pipe_handle = resource::PipeHandle(pipe_resource_id);
@@ -345,7 +345,7 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
 
         // close the parent write descriptor to allow EOF on the read side
         let _ = call_context
-            .runtime()
+            .agent()
             .resources
             .remove(pipe_resource_id, Some(call_context.engine()));
         pipe.close_write();
