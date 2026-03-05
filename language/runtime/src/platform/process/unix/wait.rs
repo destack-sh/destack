@@ -24,10 +24,10 @@ use std::time::{Duration, Instant};
 
 /// Resolve a process handle into its process id payload.
 fn resolve_spawned_process_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessId> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -70,7 +70,7 @@ fn is_terminal_wait_status(status: &ProcessWaitStatus) -> bool {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait_pid(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     pid: ProcessId,
     flags: ProcessWaitFlags,
@@ -104,21 +104,21 @@ pub(crate) unsafe fn destack_process_wait_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_try_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let process_id = resolve_spawned_process_handle(context, handle)?;
+    let process_id = resolve_spawned_process_handle(binding, handle)?;
     let status = process_wait_pid(process_id.0, PROCESS_WAIT_FLAG_NOHANG)?;
 
     if is_terminal_wait_status(&status) {
-        let _ = context
+        let _ = binding
             .agent()
             .resources
-            .remove_and_finalize(handle.0, Some(context.engine()));
+            .remove_and_finalize(handle.0, Some(binding.engine()));
     }
 
     unsafe {
@@ -146,7 +146,7 @@ pub(crate) unsafe fn destack_process_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,
@@ -154,14 +154,14 @@ pub(crate) unsafe fn destack_process_wait(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let process_id = resolve_spawned_process_handle(context, handle)?;
+    let process_id = resolve_spawned_process_handle(binding, handle)?;
     let status = process_wait_pid(process_id.0, flags.0)?;
 
     if is_terminal_wait_status(&status) {
-        let _ = context
+        let _ = binding
             .agent()
             .resources
-            .remove_and_finalize(handle.0, Some(context.engine()));
+            .remove_and_finalize(handle.0, Some(binding.engine()));
     }
 
     unsafe {

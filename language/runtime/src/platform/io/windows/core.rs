@@ -65,7 +65,7 @@ pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box
 
 /// Execute one generic descriptor fcntl-style operation.
 pub(crate) fn host_control_fcntl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ResourceId,
     command: DescriptorControlCommand,
     argument: u64,
@@ -81,13 +81,13 @@ pub(crate) fn host_control_fcntl(
     }
 
     // reject fcntl controls on windows hosts
-    let _ = (context, handle, command, argument);
+    let _ = (binding, handle, command, argument);
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.fcntl")).boxed())
 }
 
 /// Execute one generic descriptor ioctl-style operation.
 pub(crate) fn host_control_ioctl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ResourceId,
     request: DescriptorRequest,
 ) -> RuntimeResult<DescriptorResult> {
@@ -138,7 +138,7 @@ pub(crate) fn host_control_ioctl(
     let mut output_lane = vec![0u8; request.output_size as usize];
 
     // resolve one host-backed resource entry
-    let entry = context
+    let entry = binding
         .agent()
         .resources
         .with_entry(handle, |entry| (entry.socket(), entry.handle()))
@@ -178,7 +178,7 @@ pub(crate) fn host_control_ioctl(
         }
 
         let output_len = (bytes_returned as usize).min(output_lane.len());
-        let output = context.store_slice(output_lane[..output_len].to_vec());
+        let output = binding.store_slice(output_lane[..output_len].to_vec());
         return Ok(DescriptorResult {
             return_value: 0,
             output,
@@ -215,7 +215,7 @@ pub(crate) fn host_control_ioctl(
         }
 
         let output_len = (bytes_returned as usize).min(output_lane.len());
-        let output = context.store_slice(output_lane[..output_len].to_vec());
+        let output = binding.store_slice(output_lane[..output_len].to_vec());
         return Ok(DescriptorResult {
             return_value: 0,
             output,
@@ -241,11 +241,11 @@ pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> HostPollerBac
 
 /// Resolve one poll target resource into one platform handle.
 pub(crate) fn host_poll_resolve_target_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = context.agent().resources.with_entry(target, |entry| {
+    let resolved = binding.agent().resources.with_entry(target, |entry| {
         entry.socket().map(PlatformHandle::from_raw_socket)
     });
 
@@ -271,12 +271,12 @@ pub(crate) fn host_poll_resolve_target_handle(
 
 /// Resolve one completion target resource into one platform handle.
 pub(crate) fn host_completion_resolve_target_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: ResourceId,
     operation: &'static str,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = context.agent().resources.with_entry(target, |entry| {
+    let resolved = binding.agent().resources.with_entry(target, |entry| {
         if let Some(socket) = entry.socket() {
             return Some(PlatformHandle::from_raw_socket(socket));
         }
@@ -303,7 +303,7 @@ pub(crate) fn host_completion_resolve_target_handle(
 
 /// Register one accepted socket handle into the runtime resource table.
 pub(crate) fn host_completion_register_accepted_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: PlatformHandle,
 ) -> RuntimeResult<i64> {
     let socket = handle.as_raw_socket();
@@ -313,16 +313,16 @@ pub(crate) fn host_completion_register_accepted_handle(
         .with_finalizer(WindowsSocketFinalizer {
             socket: socket as SOCKET,
         });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     Ok(resource_id.0 as i64)
 }
 
 /// Open one event token on Windows hosts.
 pub(crate) fn host_event_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     initial: u64,
 ) -> RuntimeResult<EventToken> {
     // allocate one manual-reset event object
@@ -343,23 +343,23 @@ pub(crate) fn host_event_open(
         .with_label(io_core::EVENT_RESOURCE_LABEL)
         .with_handle(handle as _)
         .with_finalizer(WindowsHandleFinalizer { handle });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     Ok(EventToken(resource_id.0))
 }
 
 /// Close one event token on Windows hosts.
 pub(crate) fn host_event_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
     // remove one token resource from the runtime table
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(ResourceId(token.0), Some(context.engine()));
+        .remove_and_finalize(ResourceId(token.0), Some(binding.engine()));
     if !removed {
         return Err(io_core::event_not_found("destack.io.event.close", token));
     }
@@ -369,14 +369,14 @@ pub(crate) fn host_event_close(
 
 /// Signal one event token on Windows hosts.
 pub(crate) fn host_event_signal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     token: EventToken,
     value: u64,
 ) -> RuntimeResult<()> {
     let _ = value;
 
     // resolve one event handle from the token resource
-    let handle = context
+    let handle = binding
         .agent()
         .resources
         .with_entry(ResourceId(token.0), |entry| {

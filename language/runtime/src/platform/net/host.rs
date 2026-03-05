@@ -23,7 +23,7 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// List host packet backends.
 pub(crate) unsafe fn destack_net_packet_backend_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<PacketBackendDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -36,7 +36,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
     {
         descriptors.push(PacketBackendDescriptor {
             backend: PacketBackend::AfPacket,
-            name: context.store_string("af_packet"),
+            name: binding.store_string("af_packet"),
             available: true,
             priority: 100,
             capability_flags: PacketBackendCapabilityFlags(0),
@@ -47,7 +47,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
     {
         descriptors.push(PacketBackendDescriptor {
             backend: PacketBackend::Bpf,
-            name: context.store_string("bpf"),
+            name: binding.store_string("bpf"),
             available: true,
             priority: 100,
             capability_flags: PacketBackendCapabilityFlags(0),
@@ -58,7 +58,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
     {
         descriptors.push(PacketBackendDescriptor {
             backend: PacketBackend::WinRawSocket,
-            name: context.store_string("win_raw_socket"),
+            name: binding.store_string("win_raw_socket"),
             available: true,
             priority: 100,
             capability_flags: PacketBackendCapabilityFlags(0),
@@ -69,7 +69,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
     {
         descriptors.push(PacketBackendDescriptor {
             backend: PacketBackend::Null,
-            name: context.store_string("null"),
+            name: binding.store_string("null"),
             available: false,
             priority: 0,
             capability_flags: PacketBackendCapabilityFlags(0),
@@ -80,7 +80,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
     {
         descriptors.push(PacketBackendDescriptor {
             backend: PacketBackend::Null,
-            name: context.store_string("null"),
+            name: binding.store_string("null"),
             available: false,
             priority: 0,
             capability_flags: PacketBackendCapabilityFlags(0),
@@ -88,7 +88,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
     }
 
     unsafe {
-        *out = context.store_slice(descriptors);
+        *out = binding.store_slice(descriptors);
     }
 
     Ok(())

@@ -26,7 +26,7 @@ const UNIX_SEND_OPERATION: &str = "destack.ipc.unix.send";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_receive(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UnixReceiveAncillary,
     socket: resource::SocketHandle,
     maxhandles: u32,
@@ -55,7 +55,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_send(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     socket: resource::SocketHandle,
     argument_payload: NativeSlice<u8>,

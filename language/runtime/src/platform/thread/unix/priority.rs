@@ -40,7 +40,7 @@ fn pthread_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -51,7 +51,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 
     // resolve the thread handle resource
     let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "thread handle",
@@ -125,7 +125,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_priority(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut i32,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
@@ -136,7 +136,7 @@ pub(crate) unsafe fn destack_thread_get_priority(
 
     // resolve the thread handle resource
     let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "thread handle",
@@ -177,7 +177,7 @@ pub(crate) unsafe fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
@@ -192,7 +192,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 
     // resolve the thread handle resource
     let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "thread handle",
@@ -263,13 +263,13 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_priority(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
     // resolve the thread handle resource
     let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
-        context,
+        binding,
         handle.0,
         "handle",
         "thread handle",

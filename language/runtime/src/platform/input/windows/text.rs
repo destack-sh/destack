@@ -25,11 +25,11 @@ fn is_text_capable_backend(resolved: &input_core::WindowsInputResolved) -> bool 
 
 /// Query text-session active state for one opened Windows input handle.
 pub(super) fn text_is_active(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -39,15 +39,15 @@ pub(super) fn text_is_active(
 
 /// Read text-area hint state for one opened Windows input handle.
 pub(super) fn text_get_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     operation: &'static str,
 ) -> RuntimeResult<InputTextInputArea> {
     // resolve one optional explicit target window handle
-    let _ = input_core::resolve_window_target_handle(context, target, operation)?;
+    let _ = input_core::resolve_window_target_handle(binding, target, operation)?;
 
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -57,68 +57,68 @@ pub(super) fn text_get_area(
 
 /// Update text-area hint state for one opened Windows input handle.
 pub(super) fn text_set_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     area: InputTextInputArea,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one optional explicit target window handle
-    let _ = input_core::resolve_window_target_handle(context, target, operation)?;
+    let _ = input_core::resolve_window_target_handle(binding, target, operation)?;
 
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    input_core::set_text_area(context, handle, area, operation)
+    input_core::set_text_area(binding, handle, area, operation)
 }
 
 /// Start one text session for one opened Windows input handle.
 pub(super) fn text_start(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     input_type: InputTextInputType,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one optional explicit target window handle
-    let _ = input_core::resolve_window_target_handle(context, target, operation)?;
+    let _ = input_core::resolve_window_target_handle(binding, target, operation)?;
 
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    input_core::set_text_state(context, handle, true, input_type, operation)
+    input_core::set_text_state(binding, handle, true, input_type, operation)
 }
 
 /// Stop one text session for one opened Windows input handle.
 pub(super) fn text_stop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one optional explicit target window handle
-    let _ = input_core::resolve_window_target_handle(context, target, operation)?;
+    let _ = input_core::resolve_window_target_handle(binding, target, operation)?;
 
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    input_core::set_text_state(context, handle, false, resolved.text_input_type, operation)
+    input_core::set_text_state(binding, handle, false, resolved.text_input_type, operation)
 }
 
 /// Read one composition event for one opened Windows input handle.
 pub(super) fn text_read_composition(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputCompositionEvent> {
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -143,19 +143,19 @@ pub(super) fn text_read_composition(
     let mut event = loop {
         // consume one already-queued composition event before reading host records
         if let Some(pending) =
-            input_event::pop_pending_console_composition_event(context, handle, operation)?
+            input_event::pop_pending_console_composition_event(binding, handle, operation)?
         {
-            break input_event::build_composition_event_from_pending(context, pending);
+            break input_event::build_composition_event_from_pending(binding, pending);
         }
 
         // read one host record and demux it into input and composition queues
         let pending_record =
             input_event::read_console_record_from_host(host_handle, nonblocking, operation)?;
-        input_event::queue_console_record_for_demux(context, handle, pending_record, operation)?;
+        input_event::queue_console_record_for_demux(binding, handle, pending_record, operation)?;
     };
 
     // stamp one per-handle sequence number for this composition read
-    event.metadata.sequence = input_core::next_sequence(context, handle, operation)?;
+    event.metadata.sequence = input_core::next_sequence(binding, handle, operation)?;
     Ok(event)
 }
 
@@ -177,7 +177,7 @@ pub(super) fn text_read_composition(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_get_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputTextInputArea,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -188,7 +188,7 @@ pub(crate) unsafe fn destack_input_text_get_area(
     }
 
     // read one per-handle text-area hint
-    let area = text_get_area(context, handle, target, "destack.input.text.getArea")?;
+    let area = text_get_area(binding, handle, target, "destack.input.text.getArea")?;
 
     // write output area
     unsafe {
@@ -215,7 +215,7 @@ pub(crate) unsafe fn destack_input_text_get_area(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_is_active(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -225,7 +225,7 @@ pub(crate) unsafe fn destack_input_text_is_active(
     }
 
     // query one per-handle text-session state
-    let active = text_is_active(context, handle, "destack.input.text.isActive")?;
+    let active = text_is_active(binding, handle, "destack.input.text.isActive")?;
 
     // write active-state output
     unsafe {
@@ -253,7 +253,7 @@ pub(crate) unsafe fn destack_input_text_is_active(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_read_composition(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -264,7 +264,7 @@ pub(crate) unsafe fn destack_input_text_read_composition(
 
     // read one composition event from the backend queue
     let event =
-        text_read_composition(context, handle, false, "destack.input.text.readComposition")?;
+        text_read_composition(binding, handle, false, "destack.input.text.readComposition")?;
 
     // write event output
     unsafe {
@@ -292,12 +292,12 @@ pub(crate) unsafe fn destack_input_text_read_composition(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_set_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     area: InputTextInputArea,
 ) -> RuntimeResult<()> {
-    text_set_area(context, handle, target, area, "destack.input.text.setArea")
+    text_set_area(binding, handle, target, area, "destack.input.text.setArea")
 }
 
 /// Start text input.
@@ -320,13 +320,13 @@ pub(crate) unsafe fn destack_input_text_set_area(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_start(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     inputtype: InputTextInputType,
 ) -> RuntimeResult<()> {
     text_start(
-        context,
+        binding,
         handle,
         target,
         inputtype,
@@ -352,11 +352,11 @@ pub(crate) unsafe fn destack_input_text_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_stop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
 ) -> RuntimeResult<()> {
-    text_stop(context, handle, target, "destack.input.text.stop")
+    text_stop(binding, handle, target, "destack.input.text.stop")
 }
 
 /// Poll one composition event without blocking.
@@ -377,7 +377,7 @@ pub(crate) unsafe fn destack_input_text_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_try_read_composition(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -388,7 +388,7 @@ pub(crate) unsafe fn destack_input_text_try_read_composition(
 
     // poll one composition event without blocking
     let event = text_read_composition(
-        context,
+        binding,
         handle,
         true,
         "destack.input.text.tryReadComposition",

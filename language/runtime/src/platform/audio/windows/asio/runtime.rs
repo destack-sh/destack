@@ -33,7 +33,7 @@ pub(super) fn open_stream(
     let host_ops: Arc<dyn audio_core::AudioHostStreamOps> = Arc::new(AsioHostStreamOps {
         runtime: runtime.clone(),
     });
-    let binding = Arc::new(audio_core::AudioStreamBinding {
+    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -62,7 +62,7 @@ pub(super) fn open_stream(
     });
 
     // install one weak binding pointer for callback-side queue access
-    let set_binding = runtime.binding.set(Arc::downgrade(&binding));
+    let set_binding = runtime.binding.set(Arc::downgrade(&stream_binding));
     if set_binding.is_err() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "id",
@@ -74,7 +74,7 @@ pub(super) fn open_stream(
     // publish one active ASIO runtime for callback dispatch
     install_active_runtime(&runtime)?;
 
-    Ok(binding)
+    Ok(stream_binding)
 }
 
 /// Open one ASIO runtime payload for one parsed stable id.

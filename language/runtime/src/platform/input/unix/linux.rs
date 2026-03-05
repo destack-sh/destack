@@ -620,7 +620,7 @@ pub(super) fn linux_runtime_device_id_for_path(path: &str) -> String {
 
 /// Enumerate Linux evdev devices and map them into runtime metadata.
 pub(super) fn list_linux_devices(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let evdev_paths = list_linux_device_paths()?;
     let hidraw_paths = list_linux_hidraw_paths()?;
@@ -634,11 +634,11 @@ pub(super) fn list_linux_devices(
         let runtime_id = linux_runtime_device_id(path.as_str(), &metadata, false);
 
         devices.push(InputDeviceDescriptor {
-            id: context.store_string(&runtime_id),
-            instance_id: context.store_string(&metadata.instance_id),
-            hardware_id: context.store_string(&metadata.hardware_id),
-            name: context.store_string(&metadata.name),
-            transport: context.store_string(metadata.transport),
+            id: binding.store_string(&runtime_id),
+            instance_id: binding.store_string(&metadata.instance_id),
+            hardware_id: binding.store_string(&metadata.hardware_id),
+            name: binding.store_string(&metadata.name),
+            transport: binding.store_string(metadata.transport),
             kind: metadata.kind,
             vendor_id: metadata.vendor_id,
             product_id: metadata.product_id,
@@ -667,11 +667,11 @@ pub(super) fn list_linux_devices(
         let runtime_id = linux_runtime_device_id(path.as_str(), &metadata, true);
 
         devices.push(InputDeviceDescriptor {
-            id: context.store_string(&runtime_id),
-            instance_id: context.store_string(&metadata.instance_id),
-            hardware_id: context.store_string(&metadata.hardware_id),
-            name: context.store_string(&metadata.name),
-            transport: context.store_string(metadata.transport),
+            id: binding.store_string(&runtime_id),
+            instance_id: binding.store_string(&metadata.instance_id),
+            hardware_id: binding.store_string(&metadata.hardware_id),
+            name: binding.store_string(&metadata.name),
+            transport: binding.store_string(metadata.transport),
             kind: metadata.kind,
             vendor_id: metadata.vendor_id,
             product_id: metadata.product_id,
@@ -702,7 +702,7 @@ pub(super) fn list_linux_devices(
 
 /// Read one Linux evdev event from one descriptor.
 pub(super) fn read_linux_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
     nonblocking: bool,
     device_id: &str,
@@ -801,7 +801,7 @@ pub(super) fn read_linux_event(
 
         // map one normalized event payload and return the updated modifier bitset
         let mapped_event = map_linux_event(
-            context,
+            binding,
             event,
             device_id,
             device_kind,
@@ -958,7 +958,7 @@ fn pointer_buttons_from_key_bits(key_bits: &[u8]) -> u32 {
 
 /// Query one keyboard snapshot from one Linux input descriptor.
 pub(super) fn keyboard_state_snapshot(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
     sequence: u64,
     device_id: &str,
@@ -982,10 +982,10 @@ pub(super) fn keyboard_state_snapshot(
     Ok(InputKeyboardState {
         timestamp_ns: input_core::monotonic_timestamp_ns(),
         sequence,
-        device_id: context.store_string(device_id),
+        device_id: binding.store_string(device_id),
         modifiers,
-        pressed_codes: context.store_array(pressed_codes.clone()),
-        pressed_scan_codes: context.store_array(pressed_codes),
+        pressed_codes: binding.store_array(pressed_codes.clone()),
+        pressed_scan_codes: binding.store_array(pressed_codes),
     })
 }
 
@@ -1086,7 +1086,7 @@ fn read_gamepad_trigger(descriptor: RawFd, axis: u16) -> f64 {
 
 /// Query one gamepad snapshot from one Linux input descriptor.
 pub(super) fn gamepad_state_snapshot(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
     player_index: u8,
     operation: &'static str,
@@ -1273,15 +1273,15 @@ pub(super) fn gamepad_state_snapshot(
         },
         supports_rumble: supports_linux_rumble(descriptor),
         supports_trigger_rumble: false,
-        axes: context.store_array(axes),
-        buttons: context.store_array(buttons),
-        touches: context.store_array(Vec::<InputGamepadTouchState>::new()),
+        axes: binding.store_array(axes),
+        buttons: binding.store_array(buttons),
+        touches: binding.store_array(Vec::<InputGamepadTouchState>::new()),
     })
 }
 
 /// Query one touch snapshot from one Linux input descriptor.
 pub(super) fn touch_state_snapshot(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
     sequence: u64,
     device_id: &str,
@@ -1329,8 +1329,8 @@ pub(super) fn touch_state_snapshot(
     Ok(InputTouchState {
         timestamp_ns: input_core::monotonic_timestamp_ns(),
         sequence,
-        device_id: context.store_string(device_id),
-        contacts: context.store_array(contacts),
+        device_id: binding.store_string(device_id),
+        contacts: binding.store_array(contacts),
     })
 }
 
@@ -1866,7 +1866,7 @@ fn is_touch_absolute_code(code: u16) -> bool {
 
 /// Map one Linux evdev payload into one runtime input event.
 fn map_linux_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     raw: LinuxInputEvent,
     device_id: &str,
     device_kind: InputDeviceKind,
@@ -1921,7 +1921,7 @@ fn map_linux_event(
         0.0
     };
 
-    let mut payload = input_core::empty_unix_event_payload(context);
+    let mut payload = input_core::empty_unix_event_payload(binding);
     match kind {
         InputEventKind::Key => {
             payload.key = InputKeyEventPayload {
@@ -1978,7 +1978,7 @@ fn map_linux_event(
         }
         InputEventKind::Text => {
             payload.text = InputTextEventPayload {
-                text: context.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
+                text: binding.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
             };
         }
         InputEventKind::Device => {
@@ -2016,7 +2016,7 @@ fn map_linux_event(
         InputEventKind::Composition => {
             payload.composition = InputCompositionEventPayload {
                 action,
-                text: context.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
+                text: binding.store_string(input_core::UNIX_INPUT_EMPTY_TEXT),
                 selection_start: 0,
                 selection_end: 0,
             };
@@ -2024,7 +2024,7 @@ fn map_linux_event(
     }
 
     input_core::build_unix_input_event(
-        context,
+        binding,
         kind,
         linux_event_timestamp_ns(&raw),
         0,
@@ -2312,7 +2312,7 @@ pub(super) fn linux_device_kind_for_path(path: &str) -> InputDeviceKind {
 
 /// Query one backend-derived capabilities payload for one opened Linux descriptor.
 pub(super) fn query_linux_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
     device_kind: InputDeviceKind,
     supports_exclusive_grab: bool,
@@ -2483,9 +2483,9 @@ pub(super) fn query_linux_capabilities(
     };
 
     InputDeviceCapabilities {
-        kinds: context.store_array(kinds),
-        axes: context.store_array(axes),
-        buttons: context.store_array(buttons),
+        kinds: binding.store_array(kinds),
+        axes: binding.store_array(axes),
+        buttons: binding.store_array(buttons),
         metadata_origin: InputCapabilityMetadataOrigin::BackendDescriptor,
         axis_metadata_fidelity,
         button_metadata_fidelity,

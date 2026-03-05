@@ -8,13 +8,13 @@ use crate::runtime::BindingCallContext;
 /// Resolve a socket or listener handle to its resource entry.
 #[cfg_attr(not(any(unix, windows)), allow(dead_code))]
 pub(crate) fn require_resource<T>(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: ResourceId,
     kind: ResourceKind,
     label: &str,
     with_entry: impl FnOnce(&ResourceEntry) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(id, |entry| {

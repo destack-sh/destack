@@ -27,7 +27,7 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
     flags: CopyFlags,
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
     flags: CopyFlags,
@@ -105,7 +105,7 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     src: FileHandle,
     src_offset: FileOffset,
@@ -133,7 +133,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
             len: chunk as u32,
         };
         let mut bytes_read = 0u64;
-        unsafe { destack_fs_pread(context, &mut bytes_read, src, buffer_slice, src_offset) }?;
+        unsafe { destack_fs_pread(binding, &mut bytes_read, src, buffer_slice, src_offset) }?;
         if bytes_read == 0 {
             break;
         }
@@ -142,7 +142,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
             len: bytes_read as u32,
         };
         let mut bytes_written = 0u64;
-        unsafe { destack_fs_pwrite(context, &mut bytes_written, dst, read_slice, dst_offset) }?;
+        unsafe { destack_fs_pwrite(binding, &mut bytes_written, dst, read_slice, dst_offset) }?;
         total = total.saturating_add(bytes_written);
 
         // advance source and destination offsets
@@ -188,7 +188,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: OsPath,
     to: OsPath,
     flags: CopyFlags,
@@ -197,7 +197,7 @@ pub(crate) unsafe fn destack_fs_copyfile(
         from,
         to,
         "path",
-        |from, to| unsafe { destack_fs_copyfile_bytes(context, from, to, flags) },
-        |from, to| unsafe { destack_fs_copyfile_utf16(context, from, to, flags) },
+        |from, to| unsafe { destack_fs_copyfile_bytes(binding, from, to, flags) },
+        |from, to| unsafe { destack_fs_copyfile_utf16(binding, from, to, flags) },
     )
 }

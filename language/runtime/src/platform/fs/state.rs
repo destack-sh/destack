@@ -6,7 +6,7 @@ use super::host::WindowsMmapRuntimeState;
 
 /// Runtime-owned filesystem module state.
 #[derive(Default)]
-pub struct PlatformFsState {
+pub(crate) struct PlatformFsState {
     /// Runtime-owned windows mmap state.
     #[cfg(windows)]
     windows_mmap_runtime_state: OnceLock<Arc<WindowsMmapRuntimeState>>,

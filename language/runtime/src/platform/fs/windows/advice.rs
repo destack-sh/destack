@@ -29,7 +29,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _handle: FileHandle,
     _offset: FileOffset,
     _length: FileSize,
@@ -56,7 +56,7 @@ pub(crate) unsafe fn destack_fs_fadvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fallocate(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -79,7 +79,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
     }
 
     // resolve the handle
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // compute the allocation end offset
     let length = i64::try_from(length.0).map_err(|_| {
@@ -137,11 +137,11 @@ pub(crate) unsafe fn destack_fs_fallocate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sync_file_range(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     _offset: FileOffset,
     _length: FileSize,
     _flags: SyncFlags,
 ) -> RuntimeResult<()> {
-    unsafe { destack_fs_fdatasync(_context, handle) }
+    unsafe { destack_fs_fdatasync(binding, handle) }
 }

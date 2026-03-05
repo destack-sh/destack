@@ -10,11 +10,11 @@ use crate::runtime::BindingCallContext;
 
 /// Resolve one file handle into one unix descriptor.
 fn file_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::FileHandle,
     operation: &'static str,
 ) -> RuntimeResult<libc::c_int> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -54,7 +54,7 @@ fn is_terminal_descriptor(descriptor: libc::c_int, operation: &'static str) -> R
 
 /// Register one duplicated stdio descriptor as a tty handle.
 fn register_stdio_tty(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
     descriptor: libc::c_int,
     operation: &'static str,
@@ -98,10 +98,10 @@ fn register_stdio_tty(
         .with_finalizer(UnixDescriptorFinalizer {
             descriptor: duplicated,
         });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::TtyHandle(resource_id));
@@ -128,10 +128,10 @@ fn register_stdio_tty(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    close_tty_resource(context, handle, "destack.tty.handle.close")
+    close_tty_resource(binding, handle, "destack.tty.handle.close")
 }
 
 /// Return whether one file handle is attached to a terminal.
@@ -152,7 +152,7 @@ pub(crate) unsafe fn destack_tty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_is_terminal_file(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
@@ -160,7 +160,7 @@ pub(crate) unsafe fn destack_tty_is_terminal_file(
     ensure_out(out, "out")?;
 
     // resolve one file descriptor and query host tty state
-    let descriptor = file_descriptor(context, handle, "destack.tty.handle.isTerminalFile")?;
+    let descriptor = file_descriptor(binding, handle, "destack.tty.handle.isTerminalFile")?;
     let is_terminal = is_terminal_descriptor(descriptor, "destack.tty.handle.isTerminalFile")?;
 
     unsafe {
@@ -189,11 +189,11 @@ pub(crate) unsafe fn destack_tty_is_terminal_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stdin(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
     register_stdio_tty(
-        context,
+        binding,
         out,
         libc::STDIN_FILENO,
         "destack.tty.handle.stdioStdin",
@@ -220,11 +220,11 @@ pub(crate) unsafe fn destack_tty_stdio_stdin(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stdout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
     register_stdio_tty(
-        context,
+        binding,
         out,
         libc::STDOUT_FILENO,
         "destack.tty.handle.stdioStdout",
@@ -251,11 +251,11 @@ pub(crate) unsafe fn destack_tty_stdio_stdout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stderr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
     register_stdio_tty(
-        context,
+        binding,
         out,
         libc::STDERR_FILENO,
         "destack.tty.handle.stdioStderr",

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use dir::{
-    Argument, BindingAnchor, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    Block, Declarator, Expression, LocalNodeId, LocalNodeIdAny, LocalSymbolId, Mutability, Name,
-    NodeType, Path, Pattern,
+    Argument, BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
+    Declarator, Expression, LocalNodeId, LocalNodeIdAny, LocalSymbolId, Mutability, Name, NodeType,
+    Path, Pattern,
 };
 
 use super::ElaborateState;

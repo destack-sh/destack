@@ -99,11 +99,11 @@ where
 
 /// Resolve one tty handle into one unix descriptor.
 pub(super) fn tty_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -121,11 +121,11 @@ pub(super) fn tty_descriptor(
 
 /// Resolve one pty handle into one unix descriptor.
 pub(super) fn pty_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PtyHandle,
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -157,7 +157,7 @@ pub(super) fn set_cloexec(
 
 /// Register one unix pty pair in the resource table.
 pub(super) fn register_pty_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     controller_descriptor: RawFd,
     worker_descriptor: RawFd,
 ) -> PtyPair {
@@ -167,10 +167,10 @@ pub(super) fn register_pty_pair(
         .with_finalizer(UnixDescriptorFinalizer {
             descriptor: controller_descriptor,
         });
-    let controller_id = context
+    let controller_id = binding
         .agent()
         .resources
-        .insert(controller_entry, Some(context.engine()));
+        .insert(controller_entry, Some(binding.engine()));
 
     let worker_entry = ResourceEntry::new(ResourceKind::Tty)
         .with_label(TTY_RESOURCE_LABEL)
@@ -178,10 +178,10 @@ pub(super) fn register_pty_pair(
         .with_finalizer(UnixDescriptorFinalizer {
             descriptor: worker_descriptor,
         });
-    let worker_id = context
+    let worker_id = binding
         .agent()
         .resources
-        .insert(worker_entry, Some(context.engine()));
+        .insert(worker_entry, Some(binding.engine()));
 
     PtyPair {
         controller: resource::PtyHandle(controller_id),

@@ -12,7 +12,7 @@ use super::super::core::{
 
 /// Read one credential record from unsupported unix host backends.
 pub(crate) fn read_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     Err(core_platform::not_supported(OS_CREDENTIALS_READ_OPERATION))
@@ -20,7 +20,7 @@ pub(crate) fn read_credentials(
 
 /// Write one credential record to unsupported unix host backends.
 pub(crate) fn write_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
     Err(core_platform::not_supported(OS_CREDENTIALS_WRITE_OPERATION))
@@ -28,7 +28,7 @@ pub(crate) fn write_credentials(
 
 /// Delete one credential record from unsupported unix host backends.
 pub(crate) fn delete_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _service: &str,
     _account: &str,
     _access_group: Option<&str>,
@@ -40,7 +40,7 @@ pub(crate) fn delete_credentials(
 
 /// Return whether one credential record exists in unsupported unix host backends.
 pub(crate) fn contains_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _service: &str,
     _account: &str,
     _access_group: Option<&str>,
@@ -52,7 +52,7 @@ pub(crate) fn contains_credentials(
 
 /// Run one host authentication challenge on unsupported unix host backends.
 pub(crate) fn authenticate_credentials(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     Err(core_platform::not_supported(

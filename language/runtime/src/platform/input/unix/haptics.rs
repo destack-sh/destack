@@ -12,24 +12,26 @@ use crate::runtime::BindingCallContext;
 
 /// Resolve one opened haptics-capable Unix binding.
 fn resolve_haptics_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
-    // validate one opened unix input binding
-    let binding = input_core::resolve_unix_input_binding(context, handle, operation)?;
+    // validate one opened unix input resolved_binding
+    let resolved_binding = input_core::resolve_unix_input_binding(binding, handle, operation)?;
 
     // haptics currently ride on gamepad-capable handles
-    if binding.device_kind != InputDeviceKind::Gamepad {
+    if resolved_binding.device_kind != InputDeviceKind::Gamepad {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     // require platform-backed descriptor handles for haptics operations
-    if binding.backend != input_core::UnixInputBackend::Platform || binding.descriptor.is_none() {
+    if resolved_binding.backend != input_core::UnixInputBackend::Platform
+        || resolved_binding.descriptor.is_none()
+    {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    Ok(binding)
+    Ok(resolved_binding)
 }
 
 /// List supported haptic effects.
@@ -49,7 +51,7 @@ fn resolve_haptics_binding(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_effects(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputHapticEffectType>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -58,13 +60,14 @@ pub(crate) unsafe fn destack_input_haptics_effects(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve one opened haptics-capable binding
-    let binding = resolve_haptics_binding(context, handle, "destack.input.haptics.effects")?;
+    // resolve one opened haptics-capable resolved_binding
+    let resolved_binding =
+        resolve_haptics_binding(binding, handle, "destack.input.haptics.effects")?;
 
     // route effect discovery by host support
     #[cfg(target_os = "linux")]
     {
-        let Some(descriptor) = binding.descriptor else {
+        let Some(descriptor) = resolved_binding.descriptor else {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.input.haptics.effects",
             ))
@@ -79,7 +82,7 @@ pub(crate) unsafe fn destack_input_haptics_effects(
             .boxed());
         }
         unsafe {
-            *out = context.store_array(effects);
+            *out = binding.store_array(effects);
         }
 
         return Ok(());
@@ -87,7 +90,7 @@ pub(crate) unsafe fn destack_input_haptics_effects(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = binding;
+        let _ = resolved_binding;
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.input.haptics.effects",
         ))
@@ -113,7 +116,7 @@ pub(crate) unsafe fn destack_input_haptics_effects(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_play(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
@@ -124,8 +127,8 @@ pub(crate) unsafe fn destack_input_haptics_play(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve one opened haptics-capable binding
-    let binding = resolve_haptics_binding(context, handle, "destack.input.haptics.play")?;
+    // resolve one opened haptics-capable resolved_binding
+    let resolved_binding = resolve_haptics_binding(binding, handle, "destack.input.haptics.play")?;
 
     // validate requested effect payload
     input_validation::validate_haptics_params(params)?;
@@ -138,7 +141,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
     // route playback by host support
     #[cfg(target_os = "linux")]
     {
-        let Some(descriptor) = binding.descriptor else {
+        let Some(descriptor) = resolved_binding.descriptor else {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.input.haptics.play",
             ))
@@ -154,7 +157,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
         }
 
         let previous_effect_id = input_core::linux_active_rumble_effect_id(
-            context,
+            binding,
             handle,
             "destack.input.haptics.play",
         )?;
@@ -169,7 +172,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
         let effect_id =
             input_linux::play_linux_rumble(descriptor, params, "destack.input.haptics.play")?;
         input_core::set_linux_active_rumble_effect_id(
-            context,
+            binding,
             handle,
             Some(effect_id),
             "destack.input.haptics.play",
@@ -189,7 +192,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (binding, effect, params);
+        let _ = (resolved_binding, effect, params);
         Err(RuntimeError::from(PlatformError::not_supported("destack.input.haptics.play")).boxed())
     }
 }
@@ -211,16 +214,16 @@ pub(crate) unsafe fn destack_input_haptics_play(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_stop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    // resolve one opened haptics-capable binding
-    let binding = resolve_haptics_binding(context, handle, "destack.input.haptics.stop")?;
+    // resolve one opened haptics-capable resolved_binding
+    let resolved_binding = resolve_haptics_binding(binding, handle, "destack.input.haptics.stop")?;
 
     // route stop semantics by host support
     #[cfg(target_os = "linux")]
     {
-        let Some(descriptor) = binding.descriptor else {
+        let Some(descriptor) = resolved_binding.descriptor else {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.input.haptics.stop",
             ))
@@ -228,7 +231,7 @@ pub(crate) unsafe fn destack_input_haptics_stop(
         };
 
         let active_effect_id = input_core::linux_active_rumble_effect_id(
-            context,
+            binding,
             handle,
             "destack.input.haptics.stop",
         )?;
@@ -241,7 +244,7 @@ pub(crate) unsafe fn destack_input_haptics_stop(
         }
 
         input_core::set_linux_active_rumble_effect_id(
-            context,
+            binding,
             handle,
             None,
             "destack.input.haptics.stop",
@@ -251,7 +254,7 @@ pub(crate) unsafe fn destack_input_haptics_stop(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = binding;
+        let _ = resolved_binding;
         Err(RuntimeError::from(PlatformError::not_supported("destack.input.haptics.stop")).boxed())
     }
 }

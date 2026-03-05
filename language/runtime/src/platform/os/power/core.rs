@@ -27,14 +27,14 @@ pub(crate) const OS_POWER_STATE_OPERATION: &str = "destack.os.power.state";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_power_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PowerState,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
     core_platform::ensure_out(out, "out")?;
 
     // read one normalized host power state and write output
-    let state = backend::read_power_state(context)?;
+    let state = backend::read_power_state(binding)?;
     unsafe {
         out.write(state);
     }

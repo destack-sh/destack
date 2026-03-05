@@ -38,16 +38,16 @@ const MESSAGE_QUEUE_UNLINK_OPERATION: &str = "destack.ipc.message.queueUnlink";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
         // remove one queue resource and close it through the registered finalizer
-        let removed = context
+        let removed = binding
             .agent()
             .resources
-            .remove_and_finalize(handle.0, Some(context.engine()));
+            .remove_and_finalize(handle.0, Some(binding.engine()));
         if !removed {
             return Err(core_platform::invalid_argument(
                 "handle",
@@ -59,7 +59,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
     }
 
     #[cfg(not(target_os = "linux"))]
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(MESSAGE_QUEUE_CLOSE_OPERATION))
@@ -83,7 +83,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::MessageQueueHandle,
     name: NativeStringRef,
     flags: u32,
@@ -167,7 +167,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
         }
 
         // register queue handle and write output
-        let handle = register_message_queue(context, queue);
+        let handle = register_message_queue(binding, queue);
         unsafe {
             out.write(handle);
         }
@@ -176,7 +176,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
     }
 
     #[cfg(not(target_os = "linux"))]
-    let _ = (context, name, flags, mode, maxmessages, maxmessagebytes);
+    let _ = (binding, name, flags, mode, maxmessages, maxmessagebytes);
 
     #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(MESSAGE_QUEUE_OPEN_OPERATION))
@@ -200,7 +200,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_receive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut MessageQueueReceive,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
@@ -211,7 +211,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
     #[cfg(target_os = "linux")]
     {
         // resolve one native queue descriptor and caller buffer
-        let queue = message_queue_descriptor(context, handle, MESSAGE_QUEUE_RECEIVE_OPERATION)?;
+        let queue = message_queue_descriptor(binding, handle, MESSAGE_QUEUE_RECEIVE_OPERATION)?;
         let bytes = unsafe { buffer.as_mut_slice()? };
 
         // receive one queue message with timeout control
@@ -279,7 +279,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
     }
 
     #[cfg(not(target_os = "linux"))]
-    let _ = (context, handle, timeoutns, buffer);
+    let _ = (binding, handle, timeoutns, buffer);
 
     #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(
@@ -305,7 +305,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_send(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
@@ -314,7 +314,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
     #[cfg(target_os = "linux")]
     {
         // resolve one native queue descriptor and caller payload
-        let queue = message_queue_descriptor(context, handle, MESSAGE_QUEUE_SEND_OPERATION)?;
+        let queue = message_queue_descriptor(binding, handle, MESSAGE_QUEUE_SEND_OPERATION)?;
         let payload = unsafe { argument_payload.as_slice()? };
 
         // send one message with timeout control
@@ -373,7 +373,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
     }
 
     #[cfg(not(target_os = "linux"))]
-    let _ = (context, handle, priority, timeoutns, argument_payload);
+    let _ = (binding, handle, priority, timeoutns, argument_payload);
 
     #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(MESSAGE_QUEUE_SEND_OPERATION))
@@ -397,12 +397,12 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_unlink(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
-        let _ = context;
+        let _ = binding;
 
         // decode and normalize one queue name
         let name = posix_name(name, "name")?;
@@ -422,7 +422,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
     }
 
     #[cfg(not(target_os = "linux"))]
-    let _ = (context, name);
+    let _ = (binding, name);
 
     #[cfg(not(target_os = "linux"))]
     Err(core_platform::not_supported(MESSAGE_QUEUE_UNLINK_OPERATION))

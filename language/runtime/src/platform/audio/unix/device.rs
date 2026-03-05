@@ -30,16 +30,16 @@ use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_backend_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<AudioBackendDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let backends = backend_descriptors(context);
+    let backends = backend_descriptors(binding);
     unsafe {
-        *out = context.store_slice(backends);
+        *out = binding.store_slice(backends);
     }
 
     Ok(())
@@ -63,7 +63,7 @@ pub(crate) unsafe fn destack_audio_backend_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_rescan(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: AudioBackend,
     backend_policy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<()> {
@@ -73,7 +73,7 @@ pub(crate) unsafe fn destack_audio_device_rescan(
     if backend != AudioBackend::Null {
         audio_platform_core::rescan_host_backend(backend)?;
     }
-    audio_core::refresh_device_subscriptions_for_rescan(context, backend)?;
+    audio_core::refresh_device_subscriptions_for_rescan(binding, backend)?;
 
     Ok(())
 }
@@ -96,13 +96,13 @@ pub(crate) unsafe fn destack_audio_device_rescan(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()));
+        .remove(handle.0, Some(binding.engine()));
     if removed.is_none() {
         return Err(core_platform::io_not_found(
             "destack.audio.device.close",
@@ -132,7 +132,7 @@ pub(crate) unsafe fn destack_audio_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_default(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeStringRef,
     direction: AudioDeviceDirection,
     backend: AudioBackend,
@@ -189,7 +189,7 @@ pub(crate) unsafe fn destack_audio_device_default(
     })?;
 
     unsafe {
-        *out = context.store_string(&selected.id);
+        *out = binding.store_string(&selected.id);
     }
     Ok(())
 }
@@ -212,7 +212,7 @@ pub(crate) unsafe fn destack_audio_device_default(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut AudioDeviceDescriptor,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -220,9 +220,9 @@ pub(crate) unsafe fn destack_audio_device_descriptor(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let binding =
-        audio_core::resolve_device_binding(context, handle, "destack.audio.device.descriptor")?;
-    let descriptor = audio_core::descriptor_from_binding(context, &binding);
+    let resolved_binding =
+        audio_core::resolve_device_binding(binding, handle, "destack.audio.device.descriptor")?;
+    let descriptor = audio_core::descriptor_from_binding(binding, &resolved_binding);
     unsafe {
         *out = descriptor;
     }
@@ -248,7 +248,7 @@ pub(crate) unsafe fn destack_audio_device_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<AudioDeviceDescriptor>,
     request: AudioDeviceListRequest,
 ) -> RuntimeResult<()> {
@@ -259,11 +259,11 @@ pub(crate) unsafe fn destack_audio_device_list(
     let devices = audio_core::enumerate_devices_for_request(request)?;
     let mut descriptors = Vec::with_capacity(devices.len());
     for device in &devices {
-        descriptors.push(audio_core::descriptor_from_info(context, device));
+        descriptors.push(audio_core::descriptor_from_info(binding, device));
     }
 
     unsafe {
-        *out = context.store_slice(descriptors);
+        *out = binding.store_slice(descriptors);
     }
     Ok(())
 }
@@ -286,7 +286,7 @@ pub(crate) unsafe fn destack_audio_device_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::AudioDeviceHandle,
     id: NativeStringRef,
     options: AudioDeviceOpenOptions,
@@ -366,11 +366,11 @@ pub(crate) unsafe fn destack_audio_device_open(
         opened_direction: options.direction,
         options,
     });
-    let handle_id = context.agent().resources.insert(
+    let handle_id = binding.agent().resources.insert(
         ResourceEntry::new(ResourceKind::AudioDevice)
             .with_label(audio_core::AUDIO_DEVICE_RESOURCE_LABEL)
             .with_payload(payload),
-        Some(context.engine()),
+        Some(binding.engine()),
     );
 
     unsafe {

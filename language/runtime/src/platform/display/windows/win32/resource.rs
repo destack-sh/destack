@@ -59,27 +59,27 @@ impl ResourceFinalizer for Win32WindowFinalizer {
 
 /// Insert one monitor resource for one monitor identifier.
 pub(super) fn open_display_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: String,
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(DISPLAY_RESOURCE_LABEL)
         .with_payload(Win32DisplayBinding { id });
-    let resource_id = context
-        .runtime()
+    let resource_id = binding
+        .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     resource::DisplayHandle(resource_id)
 }
 
 /// Resolve one monitor identifier from one opened display handle.
 pub(super) fn resolve_display_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     operation: &'static str,
 ) -> RuntimeResult<String> {
-    let binding = resolve_payload::<Win32DisplayBinding>(
-        context,
+    let resolved_binding = resolve_payload::<Win32DisplayBinding>(
+        binding,
         handle.0,
         ResourceKind::Display,
         Some(DISPLAY_RESOURCE_LABEL),
@@ -91,17 +91,17 @@ pub(super) fn resolve_display_id(
         )
     })?;
 
-    Ok(binding.id)
+    Ok(resolved_binding.id)
 }
 
 /// Resolve one window binding payload from one opened window handle.
 pub(super) fn resolve_window_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<Win32WindowBinding>>> {
     resolve_payload::<Arc<Mutex<Win32WindowBinding>>>(
-        context,
+        binding,
         window.0,
         ResourceKind::Window,
         Some(WINDOW_RESOURCE_LABEL),
@@ -116,12 +116,12 @@ pub(super) fn resolve_window_binding(
 
 /// Resolve one monitor-event binding payload from one opened monitor-event handle.
 pub(super) fn resolve_monitor_event_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<MonitorEventBinding>> {
     resolve_payload::<Arc<MonitorEventBinding>>(
-        context,
+        binding,
         handle.0,
         ResourceKind::Display,
         Some(DISPLAY_EVENT_RESOURCE_LABEL),
@@ -136,12 +136,12 @@ pub(super) fn resolve_monitor_event_binding(
 
 /// Resolve one window-event binding payload from one opened window-event handle.
 pub(super) fn resolve_window_event_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<WindowEventBinding>> {
     resolve_payload::<Arc<WindowEventBinding>>(
-        context,
+        binding,
         handle.0,
         ResourceKind::Window,
         Some(WINDOW_EVENT_RESOURCE_LABEL),

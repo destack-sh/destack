@@ -30,10 +30,10 @@ use crate::platform::resource;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -60,7 +60,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::MessageQueueHandle,
     name: NativeStringRef,
     flags: u32,
@@ -68,7 +68,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
     maxmessages: u32,
     maxmessagebytes: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, name, flags, mode, maxmessages, maxmessagebytes);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -95,13 +95,13 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_receive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut MessageQueueReceive,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, timeoutns, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -128,13 +128,13 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_send(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, priority, timeoutns, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -161,10 +161,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_unlink(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = name;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -191,10 +191,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.close")).boxed())
@@ -218,11 +218,11 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PipePair,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.open")).boxed())
@@ -246,12 +246,12 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.read")).boxed())
@@ -275,12 +275,12 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.write")).boxed())
@@ -304,10 +304,10 @@ pub(crate) unsafe fn destack_ipc_pipe_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -334,13 +334,13 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     size: u64,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, name, size, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -367,14 +367,14 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_map(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SharedMemoryMapping,
     handle: resource::SharedMemoryHandle,
     offset: u64,
     length: u64,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, handle, offset, length, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sharedMemory.map")).boxed())
@@ -398,12 +398,12 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, name, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -430,11 +430,11 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (address, length);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -461,13 +461,13 @@ pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     expected: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (sharedmemory, offset, expected, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sync.futexWait")).boxed())
@@ -491,13 +491,13 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wake(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     count: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, sharedmemory, offset, count);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sync.futexWake")).boxed())
@@ -521,13 +521,13 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SemaphoreHandle,
     name: NativeStringRef,
     initial: u32,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, name, initial, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -554,11 +554,11 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_post(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, count);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -585,11 +585,11 @@ pub(crate) unsafe fn destack_ipc_semaphore_post(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -616,12 +616,12 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_receive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UnixReceiveAncillary,
     socket: resource::SocketHandle,
     maxhandles: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, socket, maxhandles);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.unix.receive")).boxed())
@@ -645,13 +645,13 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_send(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     socket: resource::SocketHandle,
     argument_payload: NativeSlice<u8>,
     handles: NativeSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
     let _ = (out, socket, argument_payload, handles);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.unix.send")).boxed())

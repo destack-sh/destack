@@ -26,7 +26,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_size(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtySize,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -34,7 +34,7 @@ pub(crate) unsafe fn destack_tty_get_size(
     ensure_out(out, "out")?;
 
     // resolve one tty descriptor
-    let descriptor = tty_descriptor(context, handle, "destack.tty.size.getSize")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.size.getSize")?;
 
     // query one host winsize snapshot
     let mut host_size = MaybeUninit::<libc::winsize>::zeroed();
@@ -82,12 +82,12 @@ pub(crate) unsafe fn destack_tty_get_size(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_size(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     size: TtySize,
 ) -> RuntimeResult<()> {
     // resolve one tty descriptor
-    let descriptor = tty_descriptor(context, handle, "destack.tty.size.setSize")?;
+    let descriptor = tty_descriptor(binding, handle, "destack.tty.size.setSize")?;
 
     // validate and project caller dimensions into winsize
     let rows = validate_winsize_dimension(size.rows, "size.rows")?;

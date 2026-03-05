@@ -226,12 +226,12 @@ fn is_windows_option_not_supported(code: i32) -> bool {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_nonblocking(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // set the nonblocking flag
     let mut value: u32 = if enabled { 1 } else { 0 };
@@ -264,12 +264,12 @@ pub(crate) unsafe fn destack_net_set_nonblocking(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_no_delay(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // set TCP_NODELAY
     let value: u32 = if enabled { 1 } else { 0 };
@@ -310,11 +310,11 @@ pub(crate) unsafe fn destack_net_set_no_delay(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_linger(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     linger: Linger,
 ) -> RuntimeResult<()> {
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = LINGER {
         l_onoff: if linger.enabled { 1 } else { 0 },
         l_linger: linger.seconds as u16,
@@ -355,7 +355,7 @@ pub(crate) unsafe fn destack_net_set_linger(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_keep_alive(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
     idle_seconds: u32,
@@ -363,7 +363,7 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
     probe_count: u32,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // set SO_KEEPALIVE
     let value: u32 = if enabled { 1 } else { 0 };
@@ -478,7 +478,7 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_keep_alive(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut KeepAliveConfig,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -488,7 +488,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
     }
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // read SO_KEEPALIVE
     let mut enabled: u32 = 0;
@@ -596,12 +596,12 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_addr(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // set SO_REUSEADDR
     let value: u32 = if enabled { 1 } else { 0 };
@@ -642,12 +642,12 @@ pub(crate) unsafe fn destack_net_set_reuse_addr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_port(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply SO_REUSE_UNICASTPORT as the Windows reuse-port lane
     let value: u32 = if enabled { 1 } else { 0 };
@@ -695,12 +695,12 @@ pub(crate) unsafe fn destack_net_set_reuse_port(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_recv_buffer(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply the socket option
     let rc = unsafe {
@@ -739,12 +739,12 @@ pub(crate) unsafe fn destack_net_set_recv_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_send_buffer(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply the socket option
     let rc = unsafe {
@@ -783,12 +783,12 @@ pub(crate) unsafe fn destack_net_set_send_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_broadcast(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply the socket option
     let value: u32 = if enabled { 1 } else { 0 };
@@ -828,12 +828,12 @@ pub(crate) unsafe fn destack_net_set_broadcast(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_ttl(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply the socket option
     let rc = unsafe {
@@ -872,12 +872,12 @@ pub(crate) unsafe fn destack_net_set_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_tos(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     tos: u32,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply the socket option
     let rc = unsafe {
@@ -916,12 +916,12 @@ pub(crate) unsafe fn destack_net_set_tos(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_read_timeout(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply the socket option
     let rc = unsafe {
@@ -960,12 +960,12 @@ pub(crate) unsafe fn destack_net_set_read_timeout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_write_timeout(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply the socket option
     let rc = unsafe {
@@ -988,13 +988,13 @@ pub(crate) unsafe fn destack_net_set_write_timeout(
 
 /// Join a multicast group.
 pub(crate) unsafe fn destack_net_join_multicast(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve socket metadata
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let family = socket_family(socket)?;
     let group = unsafe { group.as_str()? };
     let interface_address = unsafe { interface_address.as_str()? };
@@ -1097,13 +1097,13 @@ pub(crate) unsafe fn destack_net_join_multicast(
 
 /// Leave a multicast group.
 pub(crate) unsafe fn destack_net_leave_multicast(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve socket metadata
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let family = socket_family(socket)?;
     let group = unsafe { group.as_str()? };
     let interface_address = unsafe { interface_address.as_str()? };
@@ -1222,12 +1222,12 @@ pub(crate) unsafe fn destack_net_leave_multicast(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { destack_net_join_multicast(context, handle, group, interface_address) }
+    unsafe { destack_net_join_multicast(binding, handle, group, interface_address) }
 }
 
 /// Join an IPv6 multicast group.
@@ -1248,13 +1248,13 @@ pub(crate) unsafe fn destack_net_join_multicast_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_index: u32,
 ) -> RuntimeResult<()> {
-    let interface_index_text = context.store_string(&interface_index.to_string());
-    unsafe { destack_net_join_multicast(context, handle, group, interface_index_text) }
+    let interface_index_text = binding.store_string(&interface_index.to_string());
+    unsafe { destack_net_join_multicast(binding, handle, group, interface_index_text) }
 }
 
 /// Leave an IPv4 multicast group.
@@ -1275,12 +1275,12 @@ pub(crate) unsafe fn destack_net_join_multicast_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { destack_net_leave_multicast(context, handle, group, interface_address) }
+    unsafe { destack_net_leave_multicast(binding, handle, group, interface_address) }
 }
 
 /// Leave an IPv6 multicast group.
@@ -1301,13 +1301,13 @@ pub(crate) unsafe fn destack_net_leave_multicast_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     group: NativeStringRef,
     interface_index: u32,
 ) -> RuntimeResult<()> {
-    let interface_index_text = context.store_string(&interface_index.to_string());
-    unsafe { destack_net_leave_multicast(context, handle, group, interface_index_text) }
+    let interface_index_text = binding.store_string(&interface_index.to_string());
+    unsafe { destack_net_leave_multicast(binding, handle, group, interface_index_text) }
 }
 
 /// Enable or disable multicast loopback.
@@ -1328,12 +1328,12 @@ pub(crate) unsafe fn destack_net_leave_multicast_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_loop(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve socket metadata
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let family = socket_family(socket)?;
     let value: u32 = if enabled { 1 } else { 0 };
 
@@ -1387,12 +1387,12 @@ pub(crate) unsafe fn destack_net_set_multicast_loop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_ttl(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
     // resolve socket metadata
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let family = socket_family(socket)?;
 
     // select the socket option
@@ -1446,12 +1446,12 @@ pub(crate) unsafe fn destack_net_set_multicast_ttl(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_set_only_v6(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // apply IPV6_V6ONLY
     let value: u32 = if enabled { 1 } else { 0 };
@@ -1493,7 +1493,7 @@ pub(crate) unsafe fn destack_net_set_only_v6(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_no_delay(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1503,7 +1503,7 @@ pub(crate) unsafe fn destack_net_get_no_delay(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_bool(socket, IPPROTO_TCP, TCP_NODELAY, "getsockopt(TCP_NODELAY)")?;
     unsafe {
         *out = value;
@@ -1531,7 +1531,7 @@ pub(crate) unsafe fn destack_net_get_no_delay(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_reuse_addr(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1541,7 +1541,7 @@ pub(crate) unsafe fn destack_net_get_reuse_addr(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_bool(socket, SOL_SOCKET, SO_REUSEADDR, "getsockopt(SO_REUSEADDR)")?;
     unsafe {
         *out = value;
@@ -1569,7 +1569,7 @@ pub(crate) unsafe fn destack_net_get_reuse_addr(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_reuse_port(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1579,7 +1579,7 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
     }
 
     // resolve and read SO_REUSE_UNICASTPORT
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let mut value: u32 = 0;
     let mut length = mem::size_of::<u32>() as i32;
     let rc = unsafe {
@@ -1631,7 +1631,7 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_linger(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Linger,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1641,7 +1641,7 @@ pub(crate) unsafe fn destack_net_get_linger(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let mut value = LINGER {
         l_onoff: 0,
         l_linger: 0,
@@ -1692,7 +1692,7 @@ pub(crate) unsafe fn destack_net_get_linger(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_recv_buffer(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1702,7 +1702,7 @@ pub(crate) unsafe fn destack_net_get_recv_buffer(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(socket, SOL_SOCKET, SO_RCVBUF, "getsockopt(SO_RCVBUF)")?;
     unsafe {
         *out = value;
@@ -1730,7 +1730,7 @@ pub(crate) unsafe fn destack_net_get_recv_buffer(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_send_buffer(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1740,7 +1740,7 @@ pub(crate) unsafe fn destack_net_get_send_buffer(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(socket, SOL_SOCKET, SO_SNDBUF, "getsockopt(SO_SNDBUF)")?;
     unsafe {
         *out = value;
@@ -1768,7 +1768,7 @@ pub(crate) unsafe fn destack_net_get_send_buffer(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_broadcast(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1778,7 +1778,7 @@ pub(crate) unsafe fn destack_net_get_broadcast(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_bool(socket, SOL_SOCKET, SO_BROADCAST, "getsockopt(SO_BROADCAST)")?;
     unsafe {
         *out = value;
@@ -1806,7 +1806,7 @@ pub(crate) unsafe fn destack_net_get_broadcast(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_ttl(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1816,7 +1816,7 @@ pub(crate) unsafe fn destack_net_get_ttl(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(socket, IPPROTO_IP, IP_TTL, "getsockopt(IP_TTL)")?;
     unsafe {
         *out = value;
@@ -1844,7 +1844,7 @@ pub(crate) unsafe fn destack_net_get_ttl(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_tos(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1854,7 +1854,7 @@ pub(crate) unsafe fn destack_net_get_tos(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(socket, IPPROTO_IP, IP_TOS, "getsockopt(IP_TOS)")?;
     unsafe {
         *out = value;
@@ -1882,7 +1882,7 @@ pub(crate) unsafe fn destack_net_get_tos(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_read_timeout(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1892,7 +1892,7 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(socket, SOL_SOCKET, SO_RCVTIMEO, "getsockopt(SO_RCVTIMEO)")?;
     unsafe {
         *out = value;
@@ -1920,7 +1920,7 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_write_timeout(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1930,7 +1930,7 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(socket, SOL_SOCKET, SO_SNDTIMEO, "getsockopt(SO_SNDTIMEO)")?;
     unsafe {
         *out = value;
@@ -1958,7 +1958,7 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_only_v6(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -1968,7 +1968,7 @@ pub(crate) unsafe fn destack_net_get_only_v6(
     }
 
     // resolve and read the socket option
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_bool(socket, IPPROTO_IPV6, IPV6_V6ONLY, "getsockopt(IPV6_V6ONLY)")?;
     unsafe {
         *out = value;
@@ -1995,14 +1995,14 @@ pub(crate) unsafe fn destack_net_get_only_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_sock_opt_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
     value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor and value payload
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = unsafe { value.as_slice()? };
 
     // apply host socket option bytes
@@ -2043,7 +2043,7 @@ pub(crate) unsafe fn destack_net_set_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_sock_opt_raw(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: SocketHandle,
     level: SocketOptionLevel,
@@ -2063,7 +2063,7 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
     }
 
     // query host socket option bytes
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let mut value = vec![0u8; maxbytes as usize];
     let mut length = value.len() as i32;
     let rc = unsafe {
@@ -2085,7 +2085,7 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
 
     // write output payload
     unsafe {
-        *out = context.store_array(value);
+        *out = binding.store_array(value);
     }
 
     Ok(())
@@ -2109,7 +2109,7 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_timestamping(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<()> {
@@ -2122,7 +2122,7 @@ pub(crate) unsafe fn destack_net_set_timestamping(
     }
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // map runtime mode to SO_TIMESTAMP values
     let value: u32 = if mode == SocketTimestampingMode::Off {
@@ -2167,7 +2167,7 @@ pub(crate) unsafe fn destack_net_set_timestamping(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_timestamping(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketTimestampingMode,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -2177,7 +2177,7 @@ pub(crate) unsafe fn destack_net_get_timestamping(
     }
 
     // resolve the socket descriptor and read SO_TIMESTAMP mode
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = get_socket_u32(
         socket,
         SOL_SOCKET,
@@ -2216,7 +2216,7 @@ pub(crate) unsafe fn destack_net_get_timestamping(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_packet_mark(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _handle: SocketHandle,
     _mark: u32,
 ) -> RuntimeResult<()> {
@@ -2241,7 +2241,7 @@ pub(crate) unsafe fn destack_net_set_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_packet_mark(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _out: *mut u32,
     _handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -2266,12 +2266,12 @@ pub(crate) unsafe fn destack_net_get_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     interface_address: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve socket and parse interface address
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let interface_address = unsafe { interface_address.as_str()? };
     let interface_address = parse_ipv4_interface(interface_address)?;
     let value = IN_ADDR {
@@ -2318,7 +2318,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeStringRef,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -2328,7 +2328,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
     }
 
     // query IP_MULTICAST_IF
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let mut value = IN_ADDR {
         S_un: IN_ADDR_0 { S_addr: 0 },
     };
@@ -2351,7 +2351,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
 
     // encode and write string output
     let address = Ipv4Addr::from(u32::from_be(unsafe { value.S_un.S_addr }));
-    let address = context.store_string(&address.to_string());
+    let address = binding.store_string(&address.to_string());
     unsafe {
         *out = address;
     }
@@ -2377,12 +2377,12 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     interface_index: u32,
 ) -> RuntimeResult<()> {
     // resolve socket and apply IPV6_MULTICAST_IF
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value = interface_index;
     let rc = unsafe {
         setsockopt(
@@ -2421,7 +2421,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -2431,7 +2431,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
     }
 
     // query IPV6_MULTICAST_IF
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let mut value: u32 = 0;
     let mut length = mem::size_of::<u32>() as i32;
     let rc = unsafe {
@@ -2476,7 +2476,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_loop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -2486,7 +2486,7 @@ pub(crate) unsafe fn destack_net_get_multicast_loop(
     }
 
     // select option by socket family
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let family = socket_family(socket)?;
     let (level, option) = match family {
         SocketFamily::IPv4 => (IPPROTO_IP, IP_MULTICAST_LOOP),
@@ -2527,7 +2527,7 @@ pub(crate) unsafe fn destack_net_get_multicast_loop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_ttl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
@@ -2537,7 +2537,7 @@ pub(crate) unsafe fn destack_net_get_multicast_ttl(
     }
 
     // select option by socket family
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let family = socket_family(socket)?;
     let (level, option) = match family {
         SocketFamily::IPv4 => (IPPROTO_IP, IP_MULTICAST_TTL),
@@ -2578,7 +2578,7 @@ pub(crate) unsafe fn destack_net_get_multicast_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_source_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
@@ -2604,7 +2604,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v4(
     let interface_address = parse_ipv4_interface(interface_address)?;
 
     // apply host source-specific membership
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let request = IP_MREQ_SOURCE {
         imr_multiaddr: IN_ADDR {
             S_un: IN_ADDR_0 {
@@ -2659,7 +2659,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_source_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
@@ -2684,7 +2684,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v6(
     })?;
 
     // build one group-source request and apply host membership
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let request = GROUP_SOURCE_REQ {
         gsr_interface: interface_index,
         gsr_group: socket_address_storage_ipv6(group),
@@ -2727,7 +2727,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
@@ -2753,7 +2753,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
     let interface_address = parse_ipv4_interface(interface_address)?;
 
     // apply host source-specific membership removal
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let request = IP_MREQ_SOURCE {
         imr_multiaddr: IN_ADDR {
             S_un: IN_ADDR_0 {
@@ -2808,7 +2808,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
@@ -2833,7 +2833,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
     })?;
 
     // build one group-source request and apply host membership removal
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let request = GROUP_SOURCE_REQ {
         gsr_interface: interface_index,
         gsr_group: socket_address_storage_ipv6(group),
@@ -2876,7 +2876,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_raw_socket(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     protocol: i32,
@@ -2907,10 +2907,10 @@ pub(crate) unsafe fn destack_net_raw_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -2936,12 +2936,12 @@ pub(crate) unsafe fn destack_net_raw_socket(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_raw_set_header_included(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     // resolve socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let value: u32 = if enabled { 1 } else { 0 };
 
     // apply IP_HDRINCL

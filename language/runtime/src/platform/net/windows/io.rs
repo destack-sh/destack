@@ -93,7 +93,7 @@ fn is_message_extension_not_supported(code: i32) -> bool {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_read(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -104,7 +104,7 @@ pub(crate) unsafe fn destack_net_read(
     }
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // decode and validate the buffer
     let buffer = unsafe { buffer.as_mut_slice()? };
@@ -151,7 +151,7 @@ pub(crate) unsafe fn destack_net_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_write(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_net_write(
     }
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // decode and validate the buffer
     let buffer = unsafe { buffer.as_slice()? };
@@ -209,7 +209,7 @@ pub(crate) unsafe fn destack_net_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_readv(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -224,7 +224,7 @@ pub(crate) unsafe fn destack_net_readv(
     let mut total = 0u64;
     for buffer in buffers {
         let mut local = 0u64;
-        unsafe { destack_net_read(context, &mut local, handle, *buffer) }?;
+        unsafe { destack_net_read(binding, &mut local, handle, *buffer) }?;
         total = total.saturating_add(local);
         if local < buffer.len as u64 {
             break;
@@ -256,7 +256,7 @@ pub(crate) unsafe fn destack_net_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_writev(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -271,7 +271,7 @@ pub(crate) unsafe fn destack_net_writev(
     let mut total = 0u64;
     for buffer in buffers {
         let mut local = 0u64;
-        unsafe { destack_net_write(context, &mut local, handle, *buffer) }?;
+        unsafe { destack_net_write(binding, &mut local, handle, *buffer) }?;
         total = total.saturating_add(local);
         if local < buffer.len as u64 {
             break;
@@ -303,7 +303,7 @@ pub(crate) unsafe fn destack_net_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_msg(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketRecvMessage,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -325,7 +325,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     }
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // decode and validate the buffer
     let buffer = unsafe { buffer.as_mut_slice()? };
@@ -380,7 +380,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
 
         let address = if address_length > 0 {
             Some(socket_address_raw_from_storage(
-                context,
+                binding,
                 &address,
                 address_length,
             )?)
@@ -392,8 +392,8 @@ pub(crate) unsafe fn destack_net_recv_msg(
         } else {
             recv_flags
         };
-        let empty_control = context.store_array(Vec::<u8>::new());
-        let empty_fds = context.store_array(Vec::<TransferredHandle>::new());
+        let empty_control = binding.store_array(Vec::<u8>::new());
+        let empty_fds = binding.store_array(Vec::<TransferredHandle>::new());
         unsafe {
             *out = SocketRecvMessage {
                 bytes: bytes_received,
@@ -474,7 +474,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     // decode source-address payload
     let address = if message.namelen > 0 {
         Some(socket_address_raw_from_storage(
-            context,
+            binding,
             &address,
             message.namelen,
         )?)
@@ -484,9 +484,9 @@ pub(crate) unsafe fn destack_net_recv_msg(
 
     // decode raw ancillary payload
     let control_len = (message.Control.len as usize).min(control.len());
-    let control = context.store_array(control[..control_len].to_vec());
+    let control = binding.store_array(control[..control_len].to_vec());
     let fds: Vec<TransferredHandle> = Vec::new();
-    let fds = context.store_array(fds);
+    let fds = binding.store_array(fds);
 
     // map receive flags to truncation metadata
     let recv_flags = SocketMessageFlags(message.dwFlags);
@@ -530,7 +530,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_recv_mmsg(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u64>,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -549,7 +549,7 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
     for buffer in buffers {
         let slice = unsafe { buffer.as_mut_slice()? };
         let mut bytes = 0u64;
-        unsafe { destack_net_read(context, &mut bytes, handle, *buffer) }?;
+        unsafe { destack_net_read(binding, &mut bytes, handle, *buffer) }?;
 
         // stop on orderly shutdown
         if bytes == 0 {
@@ -568,7 +568,7 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
 
     // write the output array
     unsafe {
-        *out = context.store_array(counts);
+        *out = binding.store_array(counts);
     }
 
     // preserve the explicit flags parameter for future Winsock support
@@ -593,7 +593,7 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_send_msg(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -623,7 +623,7 @@ pub(crate) unsafe fn destack_net_send_msg(
     })?;
 
     // resolve the socket descriptor
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // decode and validate the buffer
     let buffer = unsafe { buffer.as_slice()? };
@@ -793,7 +793,7 @@ pub(crate) unsafe fn destack_net_send_msg(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_send_mmsg(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -811,7 +811,7 @@ pub(crate) unsafe fn destack_net_send_mmsg(
     // send each buffer in sequence
     for buffer in buffers {
         let mut bytes = 0u64;
-        unsafe { destack_net_write(context, &mut bytes, handle, *buffer) }?;
+        unsafe { destack_net_write(binding, &mut bytes, handle, *buffer) }?;
         sent_count = sent_count.saturating_add(1);
     }
 
@@ -843,7 +843,7 @@ pub(crate) unsafe fn destack_net_send_mmsg(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_recv_from(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketRecvFrom,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -858,7 +858,7 @@ pub(crate) unsafe fn destack_net_recv_from(
     core_platform::ensure_winsock()?;
 
     // resolve runtime values
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let buffer = unsafe { buffer.as_mut_slice()? };
     let buffer_len = i32::try_from(buffer.len()).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
@@ -889,7 +889,7 @@ pub(crate) unsafe fn destack_net_recv_from(
     }
 
     // encode sender metadata and payload length
-    let address = socket_address_raw_from_storage(context, &address, address_length)?;
+    let address = socket_address_raw_from_storage(binding, &address, address_length)?;
     unsafe {
         *out = SocketRecvFrom {
             bytes: bytes as u64,
@@ -920,7 +920,7 @@ pub(crate) unsafe fn destack_net_recv_from(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_send_to(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffer: NativeSlice<u8>,
@@ -935,7 +935,7 @@ pub(crate) unsafe fn destack_net_send_to(
     core_platform::ensure_winsock()?;
 
     // resolve runtime values
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
     let buffer = unsafe { buffer.as_slice()? };
     let buffer_len = i32::try_from(buffer.len()).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(

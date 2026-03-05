@@ -146,8 +146,8 @@ struct HostStoreHandleCache {
 }
 
 /// Return one stable cache key for the active runtime state.
-fn runtime_cache_key(context: &BindingCallContext) -> usize {
-    context.agent() as *const _ as usize
+fn runtime_cache_key(binding: &BindingCallContext) -> usize {
+    binding.agent() as *const _ as usize
 }
 
 /// Acquire one host-store cache guard and recover from poisoning.
@@ -161,19 +161,19 @@ fn host_store_cache_guard() -> std::sync::MutexGuard<'static, HashMap<usize, Hos
 
 /// Resolve one cached host key handle when it still references the requested key.
 fn resolve_cached_host_key_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     persistent_id: &str,
 ) -> Option<resource::CryptoKeyHandle> {
     // load one cached handle for this runtime and key identity
     let cache_key = (kind, persistent_id.to_string());
-    let runtime_key = runtime_cache_key(context);
+    let runtime_key = runtime_cache_key(binding);
     let mut cache_map = host_store_cache_guard();
     let cache = cache_map.get_mut(&runtime_key)?;
     let handle = cache.key_handles.get(&cache_key).copied()?;
 
     // keep only cache entries that still point to the same key resource
-    let is_valid = context
+    let is_valid = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -205,12 +205,12 @@ fn resolve_cached_host_key_handle(
 
 /// Cache one host key handle for one runtime and persistent key identity.
 fn cache_host_key_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     persistent_id: &str,
     handle: resource::CryptoKeyHandle,
 ) {
-    let runtime_key = runtime_cache_key(context);
+    let runtime_key = runtime_cache_key(binding);
     let cache_key = (kind, persistent_id.to_string());
     let mut cache_map = host_store_cache_guard();
     if cache_map.len() > HOST_STORE_HANDLE_CACHE_RUNTIME_LIMIT {
@@ -222,19 +222,19 @@ fn cache_host_key_handle(
 
 /// Resolve one cached host certificate handle when it still references the requested lane.
 fn resolve_cached_host_certificate_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     fingerprint: [u8; 32],
 ) -> Option<resource::CryptoCertificateHandle> {
     // load one cached handle for this runtime and certificate identity
     let cache_key = (kind, fingerprint);
-    let runtime_key = runtime_cache_key(context);
+    let runtime_key = runtime_cache_key(binding);
     let mut cache_map = host_store_cache_guard();
     let cache = cache_map.get_mut(&runtime_key)?;
     let handle = cache.certificate_handles.get(&cache_key).copied()?;
 
     // keep only cache entries that still point to the requested lane
-    let is_valid = context
+    let is_valid = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -266,12 +266,12 @@ fn resolve_cached_host_certificate_handle(
 
 /// Cache one host certificate handle for one runtime and certificate identity.
 fn cache_host_certificate_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     fingerprint: [u8; 32],
     handle: resource::CryptoCertificateHandle,
 ) {
-    let runtime_key = runtime_cache_key(context);
+    let runtime_key = runtime_cache_key(binding);
     let cache_key = (kind, fingerprint);
     let mut cache_map = host_store_cache_guard();
     if cache_map.len() > HOST_STORE_HANDLE_CACHE_RUNTIME_LIMIT {
@@ -295,7 +295,7 @@ fn host_certificate_fingerprint(
 
 /// List store backend kinds that are currently available.
 pub(crate) fn store_probe_kinds(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<CryptoStoreKind>> {
     // probe all lanes and return the available subset
     let mut kinds = Vec::new();
@@ -306,7 +306,7 @@ pub(crate) fn store_probe_kinds(
         CryptoStoreKind::Machine,
         CryptoStoreKind::Provider,
     ] {
-        let capability = store_probe_capability(context, kind, CryptoStoreProvider::OpenSsl)?;
+        let capability = store_probe_capability(binding, kind, CryptoStoreProvider::OpenSsl)?;
         if capability.is_available {
             kinds.push(kind);
         }
@@ -317,7 +317,7 @@ pub(crate) fn store_probe_kinds(
 
 /// Return capabilities for one store backend lane.
 pub(crate) fn store_probe_capability(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     provider: CryptoStoreProvider,
 ) -> RuntimeResult<CryptoStoreCapability> {
@@ -334,28 +334,28 @@ pub(crate) fn store_probe_capability(
             identity: CryptoStoreIdentity {
                 kind,
                 provider: CryptoStoreProvider::OpenSsl,
-                namespace: context.store_string(""),
+                namespace: binding.store_string(""),
             },
             is_available: true,
             supports_hardware_backed: false,
             supports_persistent: false,
             supports_key_export: true,
-            supported_key_algorithms: context.store_array(probe_key_algorithms()),
-            supported_key_formats: context.store_array(probe_key_formats()),
-            supported_key_residencies: context.store_array(vec![
+            supported_key_algorithms: binding.store_array(probe_key_algorithms()),
+            supported_key_formats: binding.store_array(probe_key_formats()),
+            supported_key_residencies: binding.store_array(vec![
                 CryptoKeyResidency::SoftwareExportable,
                 CryptoKeyResidency::SoftwareNonExportable,
             ]),
-            key_capabilities: context
-                .store_array(store_key_capabilities(context, kind, true, true, false)),
-            signature_capabilities: context
-                .store_array(store_signature_capabilities(context, true)),
-            asymmetric_encryption_capabilities: context
-                .store_array(store_asymmetric_encryption_capabilities(context, true)),
-            key_wrap_capabilities: context.store_array(store_key_wrap_capabilities(context, true)),
-            cipher_capabilities: context.store_array(store_cipher_capabilities(true)),
-            mac_capabilities: context.store_array(store_mac_capabilities(context, true)),
-            agreement_capabilities: context.store_array(store_agreement_capabilities(true)),
+            key_capabilities: binding
+                .store_array(store_key_capabilities(binding, kind, true, true, false)),
+            signature_capabilities: binding
+                .store_array(store_signature_capabilities(binding, true)),
+            asymmetric_encryption_capabilities: binding
+                .store_array(store_asymmetric_encryption_capabilities(binding, true)),
+            key_wrap_capabilities: binding.store_array(store_key_wrap_capabilities(binding, true)),
+            cipher_capabilities: binding.store_array(store_cipher_capabilities(true)),
+            mac_capabilities: binding.store_array(store_mac_capabilities(binding, true)),
+            agreement_capabilities: binding.store_array(store_agreement_capabilities(true)),
             certificate_capabilities: CryptoStoreCertificateCapability {
                 supports_import: true,
                 supports_export: true,
@@ -366,9 +366,9 @@ pub(crate) fn store_probe_capability(
             },
         },
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine => {
-            let store_capability = host_store_capability(context, kind);
+            let store_capability = host_store_capability(binding, kind);
             let supports_certificate_write = store_capability.is_available
-                && host_store_supports_certificate_write(context, kind);
+                && host_store_supports_certificate_write(binding, kind);
             let supports_certificate_read = store_capability.is_available;
             let supported_key_residencies = if store_capability.supports_persistent {
                 let mut residencies = vec![
@@ -386,56 +386,56 @@ pub(crate) fn store_probe_capability(
                 identity: CryptoStoreIdentity {
                     kind,
                     provider: CryptoStoreProvider::OpenSsl,
-                    namespace: context.store_string(""),
+                    namespace: binding.store_string(""),
                 },
                 is_available: store_capability.is_available,
                 supports_hardware_backed: store_capability.supports_hardware_backed,
                 supports_persistent: store_capability.supports_persistent,
                 supports_key_export: store_capability.supports_key_export,
-                supported_key_algorithms: context.store_array(
+                supported_key_algorithms: binding.store_array(
                     if store_capability.supports_persistent {
                         probe_key_algorithms()
                     } else {
                         Vec::<CryptoKeyAlgorithm>::new()
                     },
                 ),
-                supported_key_formats: context.store_array(
+                supported_key_formats: binding.store_array(
                     if store_capability.supports_persistent {
                         probe_key_formats()
                     } else {
                         Vec::<CryptoKeyFormat>::new()
                     },
                 ),
-                supported_key_residencies: context.store_array(supported_key_residencies),
-                key_capabilities: context.store_array(store_key_capabilities(
-                    context,
+                supported_key_residencies: binding.store_array(supported_key_residencies),
+                key_capabilities: binding.store_array(store_key_capabilities(
+                    binding,
                     kind,
                     store_capability.supports_persistent,
                     store_capability.supports_key_export,
                     store_capability.supports_hardware_backed,
                 )),
-                signature_capabilities: context.store_array(store_signature_capabilities(
-                    context,
+                signature_capabilities: binding.store_array(store_signature_capabilities(
+                    binding,
                     store_capability.supports_persistent,
                 )),
-                asymmetric_encryption_capabilities: context.store_array(
+                asymmetric_encryption_capabilities: binding.store_array(
                     store_asymmetric_encryption_capabilities(
-                        context,
+                        binding,
                         store_capability.supports_persistent,
                     ),
                 ),
-                key_wrap_capabilities: context.store_array(store_key_wrap_capabilities(
-                    context,
+                key_wrap_capabilities: binding.store_array(store_key_wrap_capabilities(
+                    binding,
                     store_capability.supports_persistent,
                 )),
-                cipher_capabilities: context.store_array(store_cipher_capabilities(
+                cipher_capabilities: binding.store_array(store_cipher_capabilities(
                     store_capability.supports_persistent,
                 )),
-                mac_capabilities: context.store_array(store_mac_capabilities(
-                    context,
+                mac_capabilities: binding.store_array(store_mac_capabilities(
+                    binding,
                     store_capability.supports_persistent,
                 )),
-                agreement_capabilities: context.store_array(store_agreement_capabilities(
+                agreement_capabilities: binding.store_array(store_agreement_capabilities(
                     store_capability.supports_persistent,
                 )),
                 certificate_capabilities: CryptoStoreCertificateCapability {
@@ -455,23 +455,23 @@ pub(crate) fn store_probe_capability(
                 identity: CryptoStoreIdentity {
                     kind,
                     provider,
-                    namespace: context.store_string(""),
+                    namespace: binding.store_string(""),
                 },
                 is_available,
                 supports_hardware_backed: false,
                 supports_persistent: false,
                 supports_key_export: is_available,
-                supported_key_algorithms: context.store_array(if is_available {
+                supported_key_algorithms: binding.store_array(if is_available {
                     probe_key_algorithms()
                 } else {
                     Vec::<CryptoKeyAlgorithm>::new()
                 }),
-                supported_key_formats: context.store_array(if is_available {
+                supported_key_formats: binding.store_array(if is_available {
                     probe_key_formats()
                 } else {
                     Vec::<CryptoKeyFormat>::new()
                 }),
-                supported_key_residencies: context.store_array(if is_available {
+                supported_key_residencies: binding.store_array(if is_available {
                     vec![
                         CryptoKeyResidency::SoftwareExportable,
                         CryptoKeyResidency::SoftwareNonExportable,
@@ -479,24 +479,24 @@ pub(crate) fn store_probe_capability(
                 } else {
                     Vec::<CryptoKeyResidency>::new()
                 }),
-                key_capabilities: context.store_array(store_key_capabilities(
-                    context,
+                key_capabilities: binding.store_array(store_key_capabilities(
+                    binding,
                     kind,
                     is_available,
                     true,
                     false,
                 )),
-                signature_capabilities: context
-                    .store_array(store_signature_capabilities(context, is_available)),
-                asymmetric_encryption_capabilities: context.store_array(
-                    store_asymmetric_encryption_capabilities(context, is_available),
+                signature_capabilities: binding
+                    .store_array(store_signature_capabilities(binding, is_available)),
+                asymmetric_encryption_capabilities: binding.store_array(
+                    store_asymmetric_encryption_capabilities(binding, is_available),
                 ),
-                key_wrap_capabilities: context
-                    .store_array(store_key_wrap_capabilities(context, is_available)),
-                cipher_capabilities: context.store_array(store_cipher_capabilities(is_available)),
-                mac_capabilities: context
-                    .store_array(store_mac_capabilities(context, is_available)),
-                agreement_capabilities: context
+                key_wrap_capabilities: binding
+                    .store_array(store_key_wrap_capabilities(binding, is_available)),
+                cipher_capabilities: binding.store_array(store_cipher_capabilities(is_available)),
+                mac_capabilities: binding
+                    .store_array(store_mac_capabilities(binding, is_available)),
+                agreement_capabilities: binding
                     .store_array(store_agreement_capabilities(is_available)),
                 certificate_capabilities: CryptoStoreCertificateCapability {
                     supports_import: supports_certificate_operations,
@@ -515,7 +515,7 @@ pub(crate) fn store_probe_capability(
 
 /// Return key-wrap capability rows for one availability state.
 fn store_key_wrap_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     is_available: bool,
 ) -> Vec<CryptoStoreKeyWrapCapability> {
     if !is_available {
@@ -527,10 +527,10 @@ fn store_key_wrap_capabilities(
         let (wrapping_key_algorithm, supported_digests) = match algorithm {
             CryptoKeyWrapAlgorithm::RsaOaep => (
                 CryptoKeyAlgorithm::Rsa,
-                context.store_slice(probe_digest_algorithms()),
+                binding.store_slice(probe_digest_algorithms()),
             ),
             CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp => {
-                (CryptoKeyAlgorithm::Aes, context.store_slice(Vec::new()))
+                (CryptoKeyAlgorithm::Aes, binding.store_slice(Vec::new()))
             }
             CryptoKeyWrapAlgorithm::Unknown => continue,
         };
@@ -549,7 +549,7 @@ fn store_key_wrap_capabilities(
 
 /// Return key capability rows for one store identity.
 fn store_key_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     supports_key_operations: bool,
     supports_key_export: bool,
@@ -562,7 +562,7 @@ fn store_key_capabilities(
     let mut capabilities = Vec::new();
     for algorithm in probe_key_algorithms() {
         for residency in store_supported_residencies_for_algorithm(
-            context,
+            binding,
             kind,
             algorithm,
             supports_hardware_backed,
@@ -606,8 +606,8 @@ fn store_key_capabilities(
                 supports_export_private: supports_export,
                 supports_export_secret: supports_export,
                 supported_usage_mask,
-                supported_import_formats: context.store_slice(import_formats),
-                supported_export_formats: context.store_slice(export_formats),
+                supported_import_formats: binding.store_slice(import_formats),
+                supported_export_formats: binding.store_slice(export_formats),
             });
         }
     }
@@ -617,7 +617,7 @@ fn store_key_capabilities(
 
 /// Return signature capability rows for one store identity.
 fn store_signature_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     supports_key_operations: bool,
 ) -> Vec<CryptoStoreSignatureCapability> {
     if !supports_key_operations {
@@ -647,7 +647,7 @@ fn store_signature_capabilities(
             signature_algorithm: algorithm,
             supports_sign: true,
             supports_verify: true,
-            supported_digests: context.store_slice(supported_digests),
+            supported_digests: binding.store_slice(supported_digests),
         });
     }
 
@@ -656,7 +656,7 @@ fn store_signature_capabilities(
 
 /// Return asymmetric-encryption capability rows for one store identity.
 fn store_asymmetric_encryption_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     supports_key_operations: bool,
 ) -> Vec<CryptoStoreAsymmetricEncryptionCapability> {
     if !supports_key_operations {
@@ -668,7 +668,7 @@ fn store_asymmetric_encryption_capabilities(
         algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
         supports_encrypt: true,
         supports_decrypt: true,
-        supported_digests: context.store_slice(probe_digest_algorithms()),
+        supported_digests: binding.store_slice(probe_digest_algorithms()),
     }]
 }
 
@@ -715,7 +715,7 @@ fn store_cipher_capabilities(is_available: bool) -> Vec<CryptoStoreCipherCapabil
 
 /// Return mac capability rows for one store identity.
 fn store_mac_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     is_available: bool,
 ) -> Vec<CryptoStoreMacCapability> {
     if !is_available {
@@ -743,7 +743,7 @@ fn store_mac_capabilities(
             algorithm,
             supports_one_shot: true,
             supports_streaming: true,
-            supported_digests: context.store_slice(digests),
+            supported_digests: binding.store_slice(digests),
             min_tag_length_bytes: 1,
             max_tag_length_bytes,
         });
@@ -781,7 +781,7 @@ fn store_agreement_capabilities(is_available: bool) -> Vec<CryptoStoreAgreementC
 
 /// Return supported key residencies for one key algorithm lane.
 fn store_supported_residencies_for_algorithm(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     supports_hardware_backed: bool,
@@ -796,7 +796,7 @@ fn store_supported_residencies_for_algorithm(
     }
 
     // include host-backed hardware lane only when this algorithm is actually supported
-    if store_supports_hardware_residency(context, kind, algorithm) {
+    if store_supports_hardware_residency(binding, kind, algorithm) {
         residencies.push(CryptoKeyResidency::HardwareOpaque);
     }
 
@@ -805,7 +805,7 @@ fn store_supported_residencies_for_algorithm(
 
 /// Return whether one key algorithm supports the hardware residency lane for one store.
 fn store_supports_hardware_residency(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
 ) -> bool {
@@ -815,12 +815,12 @@ fn store_supports_hardware_residency(
         CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::Hmac | CryptoKeyAlgorithm::ChaCha20
     ) {
         return crypto_host::host_store_supports_hardware_backed_secret_key(
-            context, kind, algorithm,
+            binding, kind, algorithm,
         );
     }
 
     // hardware-backed pair support is algorithm specific per host lane
-    host_store_supports_hardware_backed_pair_algorithm(context, kind, algorithm)
+    host_store_supports_hardware_backed_pair_algorithm(binding, kind, algorithm)
 }
 
 /// Return key usage mask bits for one key algorithm and residency lane.
@@ -904,7 +904,7 @@ fn key_formats_for_algorithm(algorithm: CryptoKeyAlgorithm) -> Vec<CryptoKeyForm
 
 /// Open one crypto store.
 pub(crate) fn store_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: CryptoStoreOptions,
 ) -> RuntimeResult<resource::CryptoStoreHandle> {
     // decode store option strings
@@ -926,7 +926,7 @@ pub(crate) fn store_open(
             keys: Vec::new(),
             certificates: Vec::new(),
         };
-        return Ok(insert_store_resource(context, store));
+        return Ok(insert_store_resource(binding, store));
     }
 
     // open one runtime provider store lane
@@ -938,7 +938,7 @@ pub(crate) fn store_open(
             keys: Vec::new(),
             certificates: Vec::new(),
         };
-        return Ok(insert_store_resource(context, store));
+        return Ok(insert_store_resource(binding, store));
     }
 
     // open host-backed system, user, or machine certificate lanes
@@ -946,7 +946,7 @@ pub(crate) fn store_open(
         options.kind,
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
     ) {
-        if !crypto_host::host_store_lane_is_available(context, options.kind) {
+        if !crypto_host::host_store_lane_is_available(binding, options.kind) {
             return Err(not_supported("destack.crypto.store.open"));
         }
 
@@ -957,9 +957,9 @@ pub(crate) fn store_open(
             ));
         }
 
-        let host_certificates = crypto_host::open_host_store_certificates(context, options.kind)?;
+        let host_certificates = crypto_host::open_host_store_certificates(binding, options.kind)?;
         let host_keys =
-            load_host_persistent_keys(context, options.kind, "destack.crypto.store.open")?;
+            load_host_persistent_keys(binding, options.kind, "destack.crypto.store.open")?;
         let store_provenance = CryptoStoreProvenanceResource {
             kind: options.kind,
             provider: CryptoStoreProvider::OpenSsl,
@@ -973,14 +973,14 @@ pub(crate) fn store_open(
 
             let persistent_id = key_resource.persistent_id.clone();
             let handle = if persistent_id.is_empty() {
-                insert_key_resource(context, key_resource)
+                insert_key_resource(binding, key_resource)
             } else if let Some(handle) =
-                resolve_cached_host_key_handle(context, options.kind, &persistent_id)
+                resolve_cached_host_key_handle(binding, options.kind, &persistent_id)
             {
                 handle
             } else {
-                let handle = insert_key_resource(context, key_resource);
-                cache_host_key_handle(context, options.kind, &persistent_id, handle);
+                let handle = insert_key_resource(binding, key_resource);
+                cache_host_key_handle(binding, options.kind, &persistent_id, handle);
                 handle
             };
 
@@ -993,7 +993,7 @@ pub(crate) fn store_open(
             let fingerprint =
                 host_certificate_fingerprint(certificate.as_ref(), "destack.crypto.store.open")?;
             if let Some(handle) =
-                resolve_cached_host_certificate_handle(context, options.kind, fingerprint)
+                resolve_cached_host_certificate_handle(binding, options.kind, fingerprint)
             {
                 certificates.push(handle);
                 continue;
@@ -1003,8 +1003,8 @@ pub(crate) fn store_open(
                 certificate,
                 store_provenance: store_provenance.clone(),
             };
-            let handle = insert_certificate_resource(context, certificate_resource);
-            cache_host_certificate_handle(context, options.kind, fingerprint, handle);
+            let handle = insert_certificate_resource(binding, certificate_resource);
+            cache_host_certificate_handle(binding, options.kind, fingerprint, handle);
             certificates.push(handle);
         }
 
@@ -1015,7 +1015,7 @@ pub(crate) fn store_open(
             keys,
             certificates,
         };
-        return Ok(insert_store_resource(context, store));
+        return Ok(insert_store_resource(binding, store));
     }
 
     // reject unsupported store kinds
@@ -1024,14 +1024,14 @@ pub(crate) fn store_open(
 
 /// Close one crypto store.
 pub(crate) fn store_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
     // remove store resource entry
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return Err(handle_not_found(
             "destack.crypto.store.close",
@@ -1054,12 +1054,12 @@ pub(crate) fn store_close(
 
 /// List keys from one store.
 pub(crate) fn store_list_keys(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQuery,
 ) -> RuntimeResult<CryptoKeyListPage> {
     // resolve one store resource and clone key handles
-    let resource = resolve_store_resource(context, handle, "destack.crypto.store.listKeys")?;
+    let resource = resolve_store_resource(binding, handle, "destack.crypto.store.listKeys")?;
     let key_handles = {
         let resource = resource.lock();
         resource.keys.clone()
@@ -1084,7 +1084,7 @@ pub(crate) fn store_list_keys(
     // collect key descriptors that satisfy the query
     let mut filtered = Vec::new();
     for key_handle in &key_handles {
-        let Some(key_resource) = context.agent().resources.with_entry(key_handle.0, |entry| {
+        let Some(key_resource) = binding.agent().resources.with_entry(key_handle.0, |entry| {
             if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
                 return None;
             }
@@ -1117,7 +1117,7 @@ pub(crate) fn store_list_keys(
 
         filtered.push(CryptoKeyListEntry {
             handle: *key_handle,
-            label: context.store_string(&key_resource.label),
+            label: binding.store_string(&key_resource.label),
             algorithm: key_resource.algorithm,
             usage_mask: key_resource.usage_mask,
         });
@@ -1128,26 +1128,26 @@ pub(crate) fn store_list_keys(
     let end = start.saturating_add(limit).min(filtered.len());
     let entries = filtered[start..end].to_vec();
     let next_cursor = if end < filtered.len() {
-        context.store_string(&end.to_string())
+        binding.store_string(&end.to_string())
     } else {
-        context.store_string("")
+        binding.store_string("")
     };
 
     Ok(CryptoKeyListPage {
-        entries: context.store_array(entries),
+        entries: binding.store_array(entries),
         next_cursor,
     })
 }
 
 /// List certificates from one store.
 pub(crate) fn store_list_certificates(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQuery,
 ) -> RuntimeResult<CryptoCertificateListPage> {
     // resolve one store resource and clone certificate handles
     let resource =
-        resolve_store_resource(context, handle, "destack.crypto.store.listCertificates")?;
+        resolve_store_resource(binding, handle, "destack.crypto.store.listCertificates")?;
     let certificate_handles = {
         let resource = resource.lock();
         resource.certificates.clone()
@@ -1178,7 +1178,7 @@ pub(crate) fn store_list_certificates(
     let mut filtered = Vec::new();
     for certificate_handle in &certificate_handles {
         let Some(certificate_resource) =
-            context
+            binding
                 .agent()
                 .resources
                 .with_entry(certificate_handle.0, |entry| {
@@ -1228,9 +1228,9 @@ pub(crate) fn store_list_certificates(
 
         filtered.push(CryptoCertificateListEntry {
             handle: *certificate_handle,
-            subject: context.store_string(&subject),
-            issuer: context.store_string(&issuer),
-            serial_number: context.store_string(&serial_number),
+            subject: binding.store_string(&subject),
+            issuer: binding.store_string(&issuer),
+            serial_number: binding.store_string(&serial_number),
         });
     }
 
@@ -1239,28 +1239,28 @@ pub(crate) fn store_list_certificates(
     let end = start.saturating_add(limit).min(filtered.len());
     let entries = filtered[start..end].to_vec();
     let next_cursor = if end < filtered.len() {
-        context.store_string(&end.to_string())
+        binding.store_string(&end.to_string())
     } else {
-        context.store_string("")
+        binding.store_string("")
     };
 
     Ok(CryptoCertificateListPage {
-        entries: context.store_array(entries),
+        entries: binding.store_array(entries),
         next_cursor,
     })
 }
 
 /// Persist one key into one host-backed store lane when required.
 pub(super) fn persist_key_if_required(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     key: resource::CryptoKeyHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve store and key resources
-    let store_resource = resolve_store_resource(context, store, operation)?;
+    let store_resource = resolve_store_resource(binding, store, operation)?;
     let store_resource = store_resource.lock();
-    let key_resource = resolve_key_resource(context, key, operation)?;
+    let key_resource = resolve_key_resource(binding, key, operation)?;
     let key_resource = key_resource.lock();
 
     // skip non-persistent keys
@@ -1290,7 +1290,7 @@ pub(super) fn persist_key_if_required(
     }
 
     // upsert this key into host persistence storage
-    let mut records = load_host_persistent_key_records(context, store_resource.kind, operation)?;
+    let mut records = load_host_persistent_key_records(binding, store_resource.kind, operation)?;
     let mut replaced = false;
     let record = key_to_persisted_record(&key_resource, operation)?;
     for persisted_record in &mut records {
@@ -1305,12 +1305,12 @@ pub(super) fn persist_key_if_required(
         records.push(record);
     }
 
-    store_host_persistent_key_records(context, store_resource.kind, &records, operation)
+    store_host_persistent_key_records(binding, store_resource.kind, &records, operation)
 }
 
 /// Delete one persisted host-lane key entry when present.
 pub(super) fn delete_persistent_key_if_present(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     key_resource: &CryptoKeyResource,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -1340,11 +1340,11 @@ pub(super) fn delete_persistent_key_if_present(
 
     // remove the record and persist updated host-key state
     let mut records =
-        load_host_persistent_key_records(context, key_resource.store_provenance.kind, operation)?;
+        load_host_persistent_key_records(binding, key_resource.store_provenance.kind, operation)?;
     records.retain(|record| record.persistent_id != key_resource.persistent_id);
 
     store_host_persistent_key_records(
-        context,
+        binding,
         key_resource.store_provenance.kind,
         &records,
         operation,
@@ -1353,32 +1353,32 @@ pub(super) fn delete_persistent_key_if_present(
 
 /// Insert one store resource and return its handle.
 fn insert_store_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     resource_value: CryptoStoreResource,
 ) -> resource::CryptoStoreHandle {
     let entry = ResourceEntry::new(CRYPTO_STORE_RESOURCE_KIND)
         .with_label(CRYPTO_STORE_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::CryptoStoreHandle(resource_id)
 }
 
 /// Return one capability snapshot for one host store lane.
 fn host_store_capability(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> HostStoreCapabilityState {
     // compute lane availability and key policy support
-    let is_available = crypto_host::host_store_lane_is_available(context, kind);
+    let is_available = crypto_host::host_store_lane_is_available(binding, kind);
     let supports_persistent = is_available
         && host_store_supports_key_persistence(kind)
-        && host_store_persistence_backend_is_available(context, kind);
+        && host_store_persistence_backend_is_available(binding, kind);
     let supports_hardware_backed =
-        supports_persistent && host_store_supports_hardware_backed_key(context, kind);
+        supports_persistent && host_store_supports_hardware_backed_key(binding, kind);
 
     HostStoreCapabilityState {
         is_available,
@@ -1390,15 +1390,15 @@ fn host_store_capability(
 
 /// Return whether one host lane has a writable persistent-key backend.
 fn host_store_persistence_backend_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    crypto_host::host_store_persistence_backend_is_available(context, kind)
+    crypto_host::host_store_persistence_backend_is_available(binding, kind)
 }
 
 /// Load one persisted host-key record set for one lane.
 fn load_host_persistent_key_records(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<Vec<PersistedKeyRecord>> {
@@ -1411,7 +1411,7 @@ fn load_host_persistent_key_records(
     })?;
 
     // read backend-specific snapshot bytes
-    let snapshot_bytes = crypto_host::load_host_key_snapshot_bytes(context, kind, operation)?;
+    let snapshot_bytes = crypto_host::load_host_key_snapshot_bytes(binding, kind, operation)?;
     let Some(snapshot_bytes) = snapshot_bytes else {
         return Ok(Vec::new());
     };
@@ -1436,7 +1436,7 @@ fn load_host_persistent_key_records(
 
 /// Store one persisted host-key record set for one lane.
 fn store_host_persistent_key_records(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     records: &[PersistedKeyRecord],
     operation: &'static str,
@@ -1463,7 +1463,7 @@ fn store_host_persistent_key_records(
     let snapshot_bytes = Zeroizing::new(snapshot_bytes);
 
     // write backend-specific snapshot bytes
-    crypto_host::store_host_key_snapshot_bytes(context, kind, &snapshot_bytes, operation)
+    crypto_host::store_host_key_snapshot_bytes(binding, kind, &snapshot_bytes, operation)
 }
 
 /// Convert one key resource into one persisted host-key record.
@@ -1734,7 +1734,7 @@ fn decode_digest_algorithm(
 
 /// Load host-persisted keys for one store lane.
 fn load_host_persistent_keys(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<Vec<CryptoKeyResource>> {
@@ -1744,7 +1744,7 @@ fn load_host_persistent_keys(
     }
 
     // decode key records into runtime key resources
-    let records = load_host_persistent_key_records(context, kind, operation)?;
+    let records = load_host_persistent_key_records(binding, kind, operation)?;
     let mut keys = Vec::with_capacity(records.len());
     for record in records {
         let key_resource = key_from_persisted_record(kind, record, operation)?;

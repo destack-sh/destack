@@ -37,7 +37,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     use windows_sys::Win32::System::Environment::SetCurrentDirectoryW;
@@ -84,7 +84,7 @@ pub(crate) unsafe fn destack_process_chdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_cwd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
     use windows_sys::Win32::System::Environment::GetCurrentDirectoryW;
@@ -111,7 +111,7 @@ pub(crate) unsafe fn destack_process_cwd(
     }
 
     let cwd = String::from_utf16_lossy(&buffer[..length as usize]);
-    let path = core_fs::os_path_from_utf8_string(context, cwd);
+    let path = core_fs::os_path_from_utf8_string(binding, cwd);
 
     unsafe {
         *out = path;

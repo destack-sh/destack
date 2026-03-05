@@ -44,7 +44,7 @@ const RENAME_WHITEOUT: u32 = 0x4;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
 ) -> RuntimeResult<()> {
@@ -79,7 +79,7 @@ pub(crate) unsafe fn destack_fs_link_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -114,7 +114,7 @@ pub(crate) unsafe fn destack_fs_link_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing: PathBytes,
     new_dir: DirectoryHandle,
@@ -128,14 +128,14 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
     let existing_path = if existing_pathbuf.is_absolute() {
         existing_pathbuf
     } else {
-        let mut base = directory_path(context, existing_dir)?;
+        let mut base = directory_path(binding, existing_dir)?;
         base.push(existing_pathbuf);
         base
     };
     let new_path = if new_pathbuf.is_absolute() {
         new_pathbuf
     } else {
-        let mut base = directory_path(context, new_dir)?;
+        let mut base = directory_path(binding, new_dir)?;
         base.push(new_pathbuf);
         base
     };
@@ -143,11 +143,11 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
     // re-encode the resolved paths
     let existing_bytes = bytes_from_pathbuf(&existing_path, "existing")?;
     let new_bytes = bytes_from_pathbuf(&new_path, "new")?;
-    let existing = PathBytesAbi::<NativeAbi>(context.store_array(existing_bytes));
-    let new = PathBytesAbi::<NativeAbi>(context.store_array(new_bytes));
+    let existing = PathBytesAbi::<NativeAbi>(binding.store_array(existing_bytes));
+    let new = PathBytesAbi::<NativeAbi>(binding.store_array(new_bytes));
 
     // create the hard link
-    unsafe { destack_fs_link_bytes(context, existing, new) }
+    unsafe { destack_fs_link_bytes(binding, existing, new) }
 }
 
 /// Create a hard link relative to directory handles.
@@ -168,7 +168,7 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing: PathUtf16,
     new_dir: DirectoryHandle,
@@ -182,24 +182,24 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
     let existing_path = if existing_pathbuf.is_absolute() {
         existing_pathbuf
     } else {
-        let mut base = directory_path(context, existing_dir)?;
+        let mut base = directory_path(binding, existing_dir)?;
         base.push(existing_pathbuf);
         base
     };
     let new_path = if new_pathbuf.is_absolute() {
         new_pathbuf
     } else {
-        let mut base = directory_path(context, new_dir)?;
+        let mut base = directory_path(binding, new_dir)?;
         base.push(new_pathbuf);
         base
     };
 
     // re-encode the resolved paths
-    let existing = path_utf16_from_pathbuf(context, &existing_path);
-    let new = path_utf16_from_pathbuf(context, &new_path);
+    let existing = path_utf16_from_pathbuf(binding, &existing_path);
+    let new = path_utf16_from_pathbuf(binding, &new_path);
 
     // create the hard link
-    unsafe { destack_fs_link_utf16(context, existing, new) }
+    unsafe { destack_fs_link_utf16(binding, existing, new) }
 }
 
 /// Create a symbolic link.
@@ -220,7 +220,7 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: PathBytes,
     path: PathBytes,
     kind: SymlinkType,
@@ -271,7 +271,7 @@ pub(crate) unsafe fn destack_fs_symlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: PathUtf16,
     path: PathUtf16,
     kind: SymlinkType,
@@ -322,7 +322,7 @@ pub(crate) unsafe fn destack_fs_symlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: PathBytes,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -331,19 +331,19 @@ pub(crate) unsafe fn destack_fs_symlinkat_bytes(
     // decode the relative path
     let pathbuf = pathbuf_from_bytes(path, "path")?;
     if pathbuf.is_absolute() {
-        return unsafe { destack_fs_symlink_bytes(context, target, path, kind) };
+        return unsafe { destack_fs_symlink_bytes(binding, target, path, kind) };
     }
 
     // resolve the directory handle
-    let mut base = directory_path(context, dir)?;
+    let mut base = directory_path(binding, dir)?;
     base.push(pathbuf);
 
     // re-encode the resolved path
     let bytes = bytes_from_pathbuf(&base, "path")?;
-    let path = PathBytesAbi::<NativeAbi>(context.store_array(bytes));
+    let path = PathBytesAbi::<NativeAbi>(binding.store_array(bytes));
 
     // create the symlink
-    unsafe { destack_fs_symlink_bytes(context, target, path, kind) }
+    unsafe { destack_fs_symlink_bytes(binding, target, path, kind) }
 }
 
 /// Create a symbolic link relative to a directory handle.
@@ -364,7 +364,7 @@ pub(crate) unsafe fn destack_fs_symlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: PathUtf16,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -373,18 +373,18 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
     // decode the relative path
     let pathbuf = pathbuf_from_utf16(path, "path")?;
     if pathbuf.is_absolute() {
-        return unsafe { destack_fs_symlink_utf16(context, target, path, kind) };
+        return unsafe { destack_fs_symlink_utf16(binding, target, path, kind) };
     }
 
     // resolve the directory handle
-    let mut base = directory_path(context, dir)?;
+    let mut base = directory_path(binding, dir)?;
     base.push(pathbuf);
 
     // re-encode the resolved path
-    let path = path_utf16_from_pathbuf(context, &base);
+    let path = path_utf16_from_pathbuf(binding, &base);
 
     // create the symlink
-    unsafe { destack_fs_symlink_utf16(context, target, path, kind) }
+    unsafe { destack_fs_symlink_utf16(binding, target, path, kind) }
 }
 
 /// Read a symbolic link.
@@ -405,7 +405,7 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PathBytes,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -428,7 +428,7 @@ pub(crate) unsafe fn destack_fs_readlink_bytes(
 
     // write the output
     unsafe {
-        *out = PathBytesAbi::<NativeAbi>(context.store_array(bytes));
+        *out = PathBytesAbi::<NativeAbi>(binding.store_array(bytes));
     }
 
     Ok(())
@@ -452,7 +452,7 @@ pub(crate) unsafe fn destack_fs_readlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PathUtf16,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -475,7 +475,7 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
 
     // write the output
     unsafe {
-        *out = path_utf16_from_units(context, &wide);
+        *out = path_utf16_from_units(binding, &wide);
     }
 
     Ok(())
@@ -499,7 +499,7 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PathBytes,
     dir: DirectoryHandle,
     path: PathBytes,
@@ -507,19 +507,19 @@ pub(crate) unsafe fn destack_fs_readlinkat_bytes(
     // decode the relative path
     let pathbuf = pathbuf_from_bytes(path, "path")?;
     if pathbuf.is_absolute() {
-        return unsafe { destack_fs_readlink_bytes(context, out, path) };
+        return unsafe { destack_fs_readlink_bytes(binding, out, path) };
     }
 
     // resolve the directory handle
-    let mut base = directory_path(context, dir)?;
+    let mut base = directory_path(binding, dir)?;
     base.push(pathbuf);
 
     // re-encode the resolved path
     let bytes = bytes_from_pathbuf(&base, "path")?;
-    let path = PathBytesAbi::<NativeAbi>(context.store_array(bytes));
+    let path = PathBytesAbi::<NativeAbi>(binding.store_array(bytes));
 
     // read the symlink
-    unsafe { destack_fs_readlink_bytes(context, out, path) }
+    unsafe { destack_fs_readlink_bytes(binding, out, path) }
 }
 
 /// Read a symbolic link relative to a directory handle.
@@ -540,7 +540,7 @@ pub(crate) unsafe fn destack_fs_readlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PathUtf16,
     dir: DirectoryHandle,
     path: PathUtf16,
@@ -548,18 +548,18 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
     // decode the relative path
     let pathbuf = pathbuf_from_utf16(path, "path")?;
     if pathbuf.is_absolute() {
-        return unsafe { destack_fs_readlink_utf16(context, out, path) };
+        return unsafe { destack_fs_readlink_utf16(binding, out, path) };
     }
 
     // resolve the directory handle
-    let mut base = directory_path(context, dir)?;
+    let mut base = directory_path(binding, dir)?;
     base.push(pathbuf);
 
     // re-encode the resolved path
-    let path = path_utf16_from_pathbuf(context, &base);
+    let path = path_utf16_from_pathbuf(binding, &base);
 
     // read the symlink
-    unsafe { destack_fs_readlink_utf16(context, out, path) }
+    unsafe { destack_fs_readlink_utf16(binding, out, path) }
 }
 
 /// Resolve a path to its canonical form.
@@ -580,7 +580,7 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PathBytes,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -612,7 +612,7 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
 
     // write the output
     unsafe {
-        *out = PathBytesAbi::<NativeAbi>(context.store_array(bytes));
+        *out = PathBytesAbi::<NativeAbi>(binding.store_array(bytes));
     }
 
     Ok(())
@@ -636,7 +636,7 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PathUtf16,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -668,7 +668,7 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 
     // write the output
     unsafe {
-        *out = path_utf16_from_units(context, &wide);
+        *out = path_utf16_from_units(binding, &wide);
     }
 
     Ok(())
@@ -692,7 +692,7 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
 ) -> RuntimeResult<()> {
@@ -727,7 +727,7 @@ pub(crate) unsafe fn destack_fs_rename_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -806,7 +806,7 @@ fn rename_paths_with_flags_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathBytes,
     to_dir: DirectoryHandle,
@@ -821,27 +821,27 @@ pub(crate) unsafe fn destack_fs_renameat_bytes(
         let from_path = if from_pathbuf.is_absolute() {
             from_pathbuf
         } else {
-            let mut base = directory_path(context, from_dir)?;
+            let mut base = directory_path(binding, from_dir)?;
             base.push(from_pathbuf);
             base
         };
         let to_path = if to_pathbuf.is_absolute() {
             to_pathbuf
         } else {
-            let mut base = directory_path(context, to_dir)?;
+            let mut base = directory_path(binding, to_dir)?;
             base.push(to_pathbuf);
             base
         };
         let from =
-            PathBytesAbi::<NativeAbi>(context.store_array(bytes_from_pathbuf(&from_path, "from")?));
+            PathBytesAbi::<NativeAbi>(binding.store_array(bytes_from_pathbuf(&from_path, "from")?));
         let to =
-            PathBytesAbi::<NativeAbi>(context.store_array(bytes_from_pathbuf(&to_path, "to")?));
-        return unsafe { destack_fs_rename_bytes(context, from, to) };
+            PathBytesAbi::<NativeAbi>(binding.store_array(bytes_from_pathbuf(&to_path, "to")?));
+        return unsafe { destack_fs_rename_bytes(binding, from, to) };
     }
 
     // resolve the directory handles
-    let from_root = directory_handle(context, from_dir)?;
-    let to_root = directory_handle(context, to_dir)?;
+    let from_root = directory_handle(binding, from_dir)?;
+    let to_root = directory_handle(binding, to_dir)?;
     let from_path = wide_from_pathbuf_no_nul(&from_pathbuf);
     let to_path = wide_from_pathbuf_no_nul(&to_pathbuf);
 
@@ -883,7 +883,7 @@ pub(crate) unsafe fn destack_fs_renameat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathUtf16,
     to_dir: DirectoryHandle,
@@ -898,25 +898,25 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
         let from_path = if from_pathbuf.is_absolute() {
             from_pathbuf
         } else {
-            let mut base = directory_path(context, from_dir)?;
+            let mut base = directory_path(binding, from_dir)?;
             base.push(from_pathbuf);
             base
         };
         let to_path = if to_pathbuf.is_absolute() {
             to_pathbuf
         } else {
-            let mut base = directory_path(context, to_dir)?;
+            let mut base = directory_path(binding, to_dir)?;
             base.push(to_pathbuf);
             base
         };
-        let from = path_utf16_from_pathbuf(context, &from_path);
-        let to = path_utf16_from_pathbuf(context, &to_path);
-        return unsafe { destack_fs_rename_utf16(context, from, to) };
+        let from = path_utf16_from_pathbuf(binding, &from_path);
+        let to = path_utf16_from_pathbuf(binding, &to_path);
+        return unsafe { destack_fs_rename_utf16(binding, from, to) };
     }
 
     // resolve the directory handles
-    let from_root = directory_handle(context, from_dir)?;
-    let to_root = directory_handle(context, to_dir)?;
+    let from_root = directory_handle(binding, from_dir)?;
+    let to_root = directory_handle(binding, to_dir)?;
     let from_path = wide_from_pathbuf_no_nul(&from_pathbuf);
     let to_path = wide_from_pathbuf_no_nul(&to_pathbuf);
 
@@ -958,7 +958,7 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathBytes,
     to_dir: DirectoryHandle,
@@ -983,27 +983,27 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
         let from_path = if from_pathbuf.is_absolute() {
             from_pathbuf
         } else {
-            let mut base = directory_path(context, from_dir)?;
+            let mut base = directory_path(binding, from_dir)?;
             base.push(from_pathbuf);
             base
         };
         let to_path = if to_pathbuf.is_absolute() {
             to_pathbuf
         } else {
-            let mut base = directory_path(context, to_dir)?;
+            let mut base = directory_path(binding, to_dir)?;
             base.push(to_pathbuf);
             base
         };
         let from =
-            PathBytesAbi::<NativeAbi>(context.store_array(bytes_from_pathbuf(&from_path, "from")?));
+            PathBytesAbi::<NativeAbi>(binding.store_array(bytes_from_pathbuf(&from_path, "from")?));
         let to =
-            PathBytesAbi::<NativeAbi>(context.store_array(bytes_from_pathbuf(&to_path, "to")?));
+            PathBytesAbi::<NativeAbi>(binding.store_array(bytes_from_pathbuf(&to_path, "to")?));
         return rename_paths_with_flags(from, to, replace);
     }
 
     // resolve the directory handles
-    let from_root = directory_handle(context, from_dir)?;
-    let to_root = directory_handle(context, to_dir)?;
+    let from_root = directory_handle(binding, from_dir)?;
+    let to_root = directory_handle(binding, to_dir)?;
     let from_path = wide_from_pathbuf_no_nul(&from_pathbuf);
     let to_path = wide_from_pathbuf_no_nul(&to_pathbuf);
 
@@ -1045,7 +1045,7 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: PathUtf16,
     to_dir: DirectoryHandle,
@@ -1070,25 +1070,25 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
         let from_path = if from_pathbuf.is_absolute() {
             from_pathbuf
         } else {
-            let mut base = directory_path(context, from_dir)?;
+            let mut base = directory_path(binding, from_dir)?;
             base.push(from_pathbuf);
             base
         };
         let to_path = if to_pathbuf.is_absolute() {
             to_pathbuf
         } else {
-            let mut base = directory_path(context, to_dir)?;
+            let mut base = directory_path(binding, to_dir)?;
             base.push(to_pathbuf);
             base
         };
-        let from = path_utf16_from_pathbuf(context, &from_path);
-        let to = path_utf16_from_pathbuf(context, &to_path);
+        let from = path_utf16_from_pathbuf(binding, &from_path);
+        let to = path_utf16_from_pathbuf(binding, &to_path);
         return rename_paths_with_flags_utf16(from, to, replace);
     }
 
     // resolve the directory handles
-    let from_root = directory_handle(context, from_dir)?;
-    let to_root = directory_handle(context, to_dir)?;
+    let from_root = directory_handle(binding, from_dir)?;
+    let to_root = directory_handle(binding, to_dir)?;
     let from_path = wide_from_pathbuf_no_nul(&from_pathbuf);
     let to_path = wide_from_pathbuf_no_nul(&to_pathbuf);
 
@@ -1130,7 +1130,7 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     // decode the path
@@ -1164,7 +1164,7 @@ pub(crate) unsafe fn destack_fs_unlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     // decode the path
@@ -1198,7 +1198,7 @@ pub(crate) unsafe fn destack_fs_unlink_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathBytes,
     flags: AtFlags,
@@ -1208,13 +1208,13 @@ pub(crate) unsafe fn destack_fs_unlinkat_bytes(
     if pathbuf.is_absolute() {
         let remove_dir = flags.0 & AT_REMOVEDIR != 0;
         if remove_dir {
-            return unsafe { destack_fs_rmdir_bytes(context, path) };
+            return unsafe { destack_fs_rmdir_bytes(binding, path) };
         }
-        return unsafe { destack_fs_unlink_bytes(context, path) };
+        return unsafe { destack_fs_unlink_bytes(binding, path) };
     }
 
     // resolve the directory handle
-    let root = directory_handle(context, dir)?;
+    let root = directory_handle(binding, dir)?;
     let path = wide_from_pathbuf_no_nul(&pathbuf);
     let remove_dir = flags.0 & AT_REMOVEDIR != 0;
     let mut options = if remove_dir {
@@ -1260,7 +1260,7 @@ pub(crate) unsafe fn destack_fs_unlinkat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     flags: AtFlags,
@@ -1270,13 +1270,13 @@ pub(crate) unsafe fn destack_fs_unlinkat_utf16(
     if pathbuf.is_absolute() {
         let remove_dir = flags.0 & AT_REMOVEDIR != 0;
         if remove_dir {
-            return unsafe { destack_fs_rmdir_utf16(context, path) };
+            return unsafe { destack_fs_rmdir_utf16(binding, path) };
         }
-        return unsafe { destack_fs_unlink_utf16(context, path) };
+        return unsafe { destack_fs_unlink_utf16(binding, path) };
     }
 
     // resolve the directory handle
-    let root = directory_handle(context, dir)?;
+    let root = directory_handle(binding, dir)?;
     let path = wide_from_pathbuf_no_nul(&pathbuf);
     let remove_dir = flags.0 & AT_REMOVEDIR != 0;
     let mut options = if remove_dir {
@@ -1322,7 +1322,7 @@ pub(crate) unsafe fn destack_fs_unlinkat_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: OsPath,
     to: OsPath,
 ) -> RuntimeResult<()> {
@@ -1330,8 +1330,8 @@ pub(crate) unsafe fn destack_fs_rename(
         from,
         to,
         "path",
-        |from, to| unsafe { destack_fs_rename_bytes(context, from, to) },
-        |from, to| unsafe { destack_fs_rename_utf16(context, from, to) },
+        |from, to| unsafe { destack_fs_rename_bytes(binding, from, to) },
+        |from, to| unsafe { destack_fs_rename_utf16(binding, from, to) },
     )
 }
 
@@ -1353,7 +1353,7 @@ pub(crate) unsafe fn destack_fs_rename(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: OsPath,
     to_dir: DirectoryHandle,
@@ -1363,8 +1363,8 @@ pub(crate) unsafe fn destack_fs_renameat(
         from,
         to,
         "path",
-        |from, to| unsafe { destack_fs_renameat_bytes(context, from_dir, from, to_dir, to) },
-        |from, to| unsafe { destack_fs_renameat_utf16(context, from_dir, from, to_dir, to) },
+        |from, to| unsafe { destack_fs_renameat_bytes(binding, from_dir, from, to_dir, to) },
+        |from, to| unsafe { destack_fs_renameat_utf16(binding, from_dir, from, to_dir, to) },
     )
 }
 
@@ -1386,7 +1386,7 @@ pub(crate) unsafe fn destack_fs_renameat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from_dir: DirectoryHandle,
     from: OsPath,
     to_dir: DirectoryHandle,
@@ -1398,10 +1398,10 @@ pub(crate) unsafe fn destack_fs_renameat2(
         to,
         "path",
         |from, to| unsafe {
-            destack_fs_renameat2_bytes(context, from_dir, from, to_dir, to, flags)
+            destack_fs_renameat2_bytes(binding, from_dir, from, to_dir, to, flags)
         },
         |from, to| unsafe {
-            destack_fs_renameat2_utf16(context, from_dir, from, to_dir, to, flags)
+            destack_fs_renameat2_utf16(binding, from_dir, from, to_dir, to, flags)
         },
     )
 }
@@ -1424,14 +1424,14 @@ pub(crate) unsafe fn destack_fs_renameat2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_unlink_bytes(context, path) },
-        |path| unsafe { destack_fs_unlink_utf16(context, path) },
+        |path| unsafe { destack_fs_unlink_bytes(binding, path) },
+        |path| unsafe { destack_fs_unlink_utf16(binding, path) },
     )
 }
 
@@ -1453,7 +1453,7 @@ pub(crate) unsafe fn destack_fs_unlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     flags: AtFlags,
@@ -1461,8 +1461,8 @@ pub(crate) unsafe fn destack_fs_unlinkat(
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_unlinkat_bytes(context, dir, path, flags) },
-        |path| unsafe { destack_fs_unlinkat_utf16(context, dir, path, flags) },
+        |path| unsafe { destack_fs_unlinkat_bytes(binding, dir, path, flags) },
+        |path| unsafe { destack_fs_unlinkat_utf16(binding, dir, path, flags) },
     )
 }
 
@@ -1484,7 +1484,7 @@ pub(crate) unsafe fn destack_fs_unlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     existing_path: OsPath,
     new_path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1493,10 +1493,10 @@ pub(crate) unsafe fn destack_fs_link(
         new_path,
         "path",
         |existing_path, new_path| unsafe {
-            destack_fs_link_bytes(context, existing_path, new_path)
+            destack_fs_link_bytes(binding, existing_path, new_path)
         },
         |existing_path, new_path| unsafe {
-            destack_fs_link_utf16(context, existing_path, new_path)
+            destack_fs_link_utf16(binding, existing_path, new_path)
         },
     )
 }
@@ -1519,7 +1519,7 @@ pub(crate) unsafe fn destack_fs_link(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     existing_dir: DirectoryHandle,
     existing_path: OsPath,
     new_dir: DirectoryHandle,
@@ -1532,7 +1532,7 @@ pub(crate) unsafe fn destack_fs_linkat(
         "path",
         |existing_path, new_path| unsafe {
             destack_fs_linkat_bytes(
-                context,
+                binding,
                 existing_dir,
                 existing_path,
                 new_dir,
@@ -1542,7 +1542,7 @@ pub(crate) unsafe fn destack_fs_linkat(
         },
         |existing_path, new_path| unsafe {
             destack_fs_linkat_utf16(
-                context,
+                binding,
                 existing_dir,
                 existing_path,
                 new_dir,
@@ -1571,7 +1571,7 @@ pub(crate) unsafe fn destack_fs_linkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: OsPath,
     path: OsPath,
     kind: SymlinkType,
@@ -1580,8 +1580,8 @@ pub(crate) unsafe fn destack_fs_symlink(
         target,
         path,
         "path",
-        |target, path| unsafe { destack_fs_symlink_bytes(context, target, path, kind) },
-        |target, path| unsafe { destack_fs_symlink_utf16(context, target, path, kind) },
+        |target, path| unsafe { destack_fs_symlink_bytes(binding, target, path, kind) },
+        |target, path| unsafe { destack_fs_symlink_utf16(binding, target, path, kind) },
     )
 }
 
@@ -1603,7 +1603,7 @@ pub(crate) unsafe fn destack_fs_symlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: OsPath,
     dir: DirectoryHandle,
     path: OsPath,
@@ -1613,8 +1613,8 @@ pub(crate) unsafe fn destack_fs_symlinkat(
         target,
         path,
         "path",
-        |target, path| unsafe { destack_fs_symlinkat_bytes(context, target, dir, path, kind) },
-        |target, path| unsafe { destack_fs_symlinkat_utf16(context, target, dir, path, kind) },
+        |target, path| unsafe { destack_fs_symlinkat_bytes(binding, target, dir, path, kind) },
+        |target, path| unsafe { destack_fs_symlinkat_utf16(binding, target, dir, path, kind) },
     )
 }
 
@@ -1636,7 +1636,7 @@ pub(crate) unsafe fn destack_fs_symlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1648,7 +1648,7 @@ pub(crate) unsafe fn destack_fs_readlink(
         match path.encoding {
             PathEncoding::Bytes => {
                 let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_readlink_bytes(context, &mut inner, path.bytes) }?;
+                unsafe { destack_fs_readlink_bytes(binding, &mut inner, path.bytes) }?;
                 unsafe {
                     *out = core_fs::path_ref_from_bytes(inner);
                 }
@@ -1657,10 +1657,10 @@ pub(crate) unsafe fn destack_fs_readlink(
             PathEncoding::Utf16 => {
                 let bytes = core_fs::with_utf16_as_bytes(path.utf16, "path", |path| {
                     let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_readlink_bytes(context, &mut inner, path) }?;
+                    unsafe { destack_fs_readlink_bytes(binding, &mut inner, path) }?;
                     Ok(inner)
                 })?;
-                let utf16 = core_fs::path_utf16_from_bytes(context, bytes, "path")?;
+                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
                 unsafe {
                     *out = core_fs::path_ref_from_utf16(utf16);
                 }
@@ -1674,7 +1674,7 @@ pub(crate) unsafe fn destack_fs_readlink(
         "path",
         |path| {
             let mut inner = core_fs::empty_path_bytes();
-            unsafe { destack_fs_readlink_bytes(context, &mut inner, path) }?;
+            unsafe { destack_fs_readlink_bytes(binding, &mut inner, path) }?;
             unsafe {
                 *out = core_fs::path_ref_from_bytes(inner);
             }
@@ -1682,7 +1682,7 @@ pub(crate) unsafe fn destack_fs_readlink(
         },
         |path| {
             let mut inner = core_fs::empty_path_utf16();
-            unsafe { destack_fs_readlink_utf16(context, &mut inner, path) }?;
+            unsafe { destack_fs_readlink_utf16(binding, &mut inner, path) }?;
             unsafe {
                 *out = core_fs::path_ref_from_utf16(inner);
             }
@@ -1709,7 +1709,7 @@ pub(crate) unsafe fn destack_fs_readlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut OsPath,
     dir: DirectoryHandle,
     path: OsPath,
@@ -1722,7 +1722,7 @@ pub(crate) unsafe fn destack_fs_readlinkat(
         match path.encoding {
             PathEncoding::Bytes => {
                 let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path.bytes) }?;
+                unsafe { destack_fs_readlinkat_bytes(binding, &mut inner, dir, path.bytes) }?;
                 unsafe {
                     *out = core_fs::path_ref_from_bytes(inner);
                 }
@@ -1731,10 +1731,10 @@ pub(crate) unsafe fn destack_fs_readlinkat(
             PathEncoding::Utf16 => {
                 let bytes = core_fs::with_utf16_as_bytes(path.utf16, "path", |path| {
                     let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path) }?;
+                    unsafe { destack_fs_readlinkat_bytes(binding, &mut inner, dir, path) }?;
                     Ok(inner)
                 })?;
-                let utf16 = core_fs::path_utf16_from_bytes(context, bytes, "path")?;
+                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
                 unsafe {
                     *out = core_fs::path_ref_from_utf16(utf16);
                 }
@@ -1748,7 +1748,7 @@ pub(crate) unsafe fn destack_fs_readlinkat(
         "path",
         |path| {
             let mut inner = core_fs::empty_path_bytes();
-            unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path) }?;
+            unsafe { destack_fs_readlinkat_bytes(binding, &mut inner, dir, path) }?;
             unsafe {
                 *out = core_fs::path_ref_from_bytes(inner);
             }
@@ -1756,7 +1756,7 @@ pub(crate) unsafe fn destack_fs_readlinkat(
         },
         |path| {
             let mut inner = core_fs::empty_path_utf16();
-            unsafe { destack_fs_readlinkat_utf16(context, &mut inner, dir, path) }?;
+            unsafe { destack_fs_readlinkat_utf16(binding, &mut inner, dir, path) }?;
             unsafe {
                 *out = core_fs::path_ref_from_utf16(inner);
             }
@@ -1783,7 +1783,7 @@ pub(crate) unsafe fn destack_fs_readlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1795,7 +1795,7 @@ pub(crate) unsafe fn destack_fs_realpath(
         match path.encoding {
             PathEncoding::Bytes => {
                 let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_realpath_bytes(context, &mut inner, path.bytes) }?;
+                unsafe { destack_fs_realpath_bytes(binding, &mut inner, path.bytes) }?;
                 unsafe {
                     *out = core_fs::path_ref_from_bytes(inner);
                 }
@@ -1804,10 +1804,10 @@ pub(crate) unsafe fn destack_fs_realpath(
             PathEncoding::Utf16 => {
                 let bytes = core_fs::with_utf16_as_bytes(path.utf16, "path", |path| {
                     let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_realpath_bytes(context, &mut inner, path) }?;
+                    unsafe { destack_fs_realpath_bytes(binding, &mut inner, path) }?;
                     Ok(inner)
                 })?;
-                let utf16 = core_fs::path_utf16_from_bytes(context, bytes, "path")?;
+                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
                 unsafe {
                     *out = core_fs::path_ref_from_utf16(utf16);
                 }
@@ -1821,7 +1821,7 @@ pub(crate) unsafe fn destack_fs_realpath(
         "path",
         |path| {
             let mut inner = core_fs::empty_path_bytes();
-            unsafe { destack_fs_realpath_bytes(context, &mut inner, path) }?;
+            unsafe { destack_fs_realpath_bytes(binding, &mut inner, path) }?;
             unsafe {
                 *out = core_fs::path_ref_from_bytes(inner);
             }
@@ -1829,7 +1829,7 @@ pub(crate) unsafe fn destack_fs_realpath(
         },
         |path| {
             let mut inner = core_fs::empty_path_utf16();
-            unsafe { destack_fs_realpath_utf16(context, &mut inner, path) }?;
+            unsafe { destack_fs_realpath_utf16(binding, &mut inner, path) }?;
             unsafe {
                 *out = core_fs::path_ref_from_utf16(inner);
             }
@@ -1856,7 +1856,7 @@ pub(crate) unsafe fn destack_fs_realpath(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkfifo(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
@@ -1877,7 +1877,7 @@ pub(crate) unsafe fn destack_fs_mkfifo(
             }
             #[cfg(not(unix))]
             {
-                let _ = (_context, mode, path);
+                let _ = (binding, mode, path);
                 Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkfifo")).boxed())
             }
         },
@@ -1903,7 +1903,7 @@ pub(crate) unsafe fn destack_fs_mkfifo(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkfifoat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -1914,7 +1914,7 @@ pub(crate) unsafe fn destack_fs_mkfifoat(
         |path| {
             #[cfg(unix)]
             {
-                let directory_fd = directory_descriptor(context, dir)?;
+                let directory_fd = directory_descriptor(binding, dir)?;
                 let path = path_bytes_to_cstring(path, "path")?;
                 let result =
                     unsafe { libc::mkfifoat(directory_fd, path.as_ptr(), mode.0 as libc::mode_t) };
@@ -1928,7 +1928,7 @@ pub(crate) unsafe fn destack_fs_mkfifoat(
             }
             #[cfg(not(unix))]
             {
-                let _ = (context, dir, path, mode);
+                let _ = (binding, dir, path, mode);
                 Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkfifoat")).boxed())
             }
         },
@@ -1956,7 +1956,7 @@ pub(crate) unsafe fn destack_fs_mkfifoat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mknod(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     mode: FileMode,
     device: NodeDevice,
@@ -1984,7 +1984,7 @@ pub(crate) unsafe fn destack_fs_mknod(
             }
             #[cfg(not(unix))]
             {
-                let _ = (_context, mode, device, path);
+                let _ = (binding, mode, device, path);
                 Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mknod")).boxed())
             }
         },
@@ -2010,7 +2010,7 @@ pub(crate) unsafe fn destack_fs_mknod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mknodat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     dir: DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -2022,7 +2022,7 @@ pub(crate) unsafe fn destack_fs_mknodat(
         |path| {
             #[cfg(unix)]
             {
-                let directory_fd = directory_descriptor(context, dir)?;
+                let directory_fd = directory_descriptor(binding, dir)?;
                 let path = path_bytes_to_cstring(path, "path")?;
                 let result = unsafe {
                     libc::mknodat(
@@ -2042,7 +2042,7 @@ pub(crate) unsafe fn destack_fs_mknodat(
             }
             #[cfg(not(unix))]
             {
-                let _ = (context, dir, mode, device, path);
+                let _ = (binding, dir, mode, device, path);
                 Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mknodat")).boxed())
             }
         },

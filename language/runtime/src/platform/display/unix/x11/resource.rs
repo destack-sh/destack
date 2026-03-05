@@ -34,45 +34,45 @@ impl ResourceFinalizer for X11WindowFinalizer {
 
 /// Insert one monitor resource for one monitor identifier.
 pub(super) fn open_display_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: String,
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
         .with_payload(X11DisplayBinding { id });
-    let resource_id = context
-        .runtime()
+    let resource_id = binding
+        .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::DisplayHandle(resource_id)
 }
 
 /// Resolve one monitor identifier from one opened display handle.
 pub(super) fn resolve_display_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     operation: &'static str,
 ) -> RuntimeResult<String> {
-    let binding = resolve_payload::<X11DisplayBinding>(
-        context,
+    let resolved_binding = resolve_payload::<X11DisplayBinding>(
+        binding,
         handle.0,
         ResourceKind::Display,
         Some(core::DISPLAY_RESOURCE_LABEL),
     )
     .ok_or_else(|| core::display_not_found(operation, handle))?;
 
-    Ok(binding.id)
+    Ok(resolved_binding.id)
 }
 
 /// Resolve one window binding payload from one opened window handle.
 pub(super) fn resolve_window_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<X11WindowBinding>>> {
     resolve_payload::<Arc<Mutex<X11WindowBinding>>>(
-        context,
+        binding,
         window.0,
         ResourceKind::Window,
         Some(core::WINDOW_RESOURCE_LABEL),
@@ -82,12 +82,12 @@ pub(super) fn resolve_window_binding(
 
 /// Resolve one monitor-event binding payload from one opened monitor-event handle.
 pub(super) fn resolve_monitor_event_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<MonitorEventBinding>> {
     resolve_payload::<Arc<MonitorEventBinding>>(
-        context,
+        binding,
         handle.0,
         ResourceKind::Display,
         Some(core::DISPLAY_EVENT_RESOURCE_LABEL),
@@ -102,12 +102,12 @@ pub(super) fn resolve_monitor_event_binding(
 
 /// Resolve one window-event binding payload from one opened window-event handle.
 pub(super) fn resolve_window_event_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::WindowEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<WindowEventBinding>> {
     resolve_payload::<Arc<WindowEventBinding>>(
-        context,
+        binding,
         handle.0,
         ResourceKind::Window,
         Some(core::WINDOW_EVENT_RESOURCE_LABEL),
@@ -123,16 +123,18 @@ pub(super) fn resolve_window_event_binding(
 /// Build one resource entry for one opened x11 window binding.
 pub(super) fn window_resource_entry(
     connection: Arc<core::X11ConnectionState>,
-    binding: Arc<Mutex<X11WindowBinding>>,
+    window_binding: Arc<Mutex<X11WindowBinding>>,
 ) -> ResourceEntry {
     let window_id = {
-        let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        binding.window
+        let window_binding_guard = window_binding
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        window_binding_guard.window
     };
 
     ResourceEntry::new(ResourceKind::Window)
         .with_label(core::WINDOW_RESOURCE_LABEL)
-        .with_payload(binding)
+        .with_payload(window_binding)
         .with_finalizer(X11WindowFinalizer {
             connection,
             window: window_id,

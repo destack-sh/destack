@@ -135,12 +135,12 @@ fn normalize_handle_path(path: String) -> String {
 
 /// Resolve a raw handle path from one resource entry.
 fn path_from_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle_id: resource::ResourceId,
     kind: resource::ResourceKind,
     label: &str,
 ) -> RuntimeResult<String> {
-    let handle = core_fs::require_resource(context, handle_id, kind, label, |entry| {
+    let handle = core_fs::require_resource(binding, handle_id, kind, label, |entry| {
         entry
             .handle()
             .map(|handle| handle as HANDLE)
@@ -274,7 +274,7 @@ fn exec_replace_with_path(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exec(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     command: fs::OsPath,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
@@ -303,7 +303,7 @@ pub(crate) unsafe fn destack_process_exec(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_execat(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     directory: resource::DirectoryHandle,
     path: fs::OsPath,
     arguments: NativeStringSlice,
@@ -318,7 +318,7 @@ pub(crate) unsafe fn destack_process_execat(
     }
 
     let directory_path = path_from_handle(
-        context,
+        binding,
         directory.0,
         resource::ResourceKind::Directory,
         "directory",
@@ -354,13 +354,13 @@ pub(crate) unsafe fn destack_process_execat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_fexec(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     executable: resource::FileHandle,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
 ) -> RuntimeResult<()> {
     let command = path_from_handle(
-        context,
+        binding,
         executable.0,
         resource::ResourceKind::File,
         "executable",

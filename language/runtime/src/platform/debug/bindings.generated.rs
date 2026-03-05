@@ -10,9 +10,9 @@ use crate::platform::debug::{
     InspectorEndpoint, InspectorEndpointReplayRecord, InspectorEndpointVm, ProfileKind, TraceLevel,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
+    NativeArray, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray,
+    abi as platform_abi,
 };
-use crate::runtime::NativeStringRef;
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, native_call,
@@ -768,11 +768,11 @@ pub const DEBUG_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 
 /// Native replay implementations for debug bindings.
 #[inline]
-fn destack_debug_core_break_now_replay(context: &BindingCallContext) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+fn destack_debug_core_break_now_replay(binding: &BindingCallContext) -> RuntimeResult<()> {
+    binding.replay().run_binding_with_policy(
         DEBUG_CORE_BREAK_NOW,
-        context.replay_payload_for(DEBUG_CORE_BREAK_NOW)?,
-        || unsafe { platform_runtime_native::destack_debug_break_now(context) },
+        binding.replay_payload_for(DEBUG_CORE_BREAK_NOW)?,
+        || unsafe { platform_runtime_native::destack_debug_break_now(binding) },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -804,15 +804,15 @@ fn destack_debug_core_break_now_replay(context: &BindingCallContext) -> RuntimeR
 
 #[inline]
 fn destack_debug_core_mark_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &label;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_CORE_MARK,
-        context.replay_payload_for(DEBUG_CORE_MARK)?,
-        || unsafe { platform_runtime_native::destack_debug_mark(context, label) },
+        binding.replay_payload_for(DEBUG_CORE_MARK)?,
+        || unsafe { platform_runtime_native::destack_debug_mark(binding, label) },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -844,17 +844,17 @@ fn destack_debug_core_mark_replay(
 
 #[inline]
 fn destack_debug_inspector_endpoint_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InspectorEndpoint,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_INSPECTOR_ENDPOINT,
-        context.replay_payload_for(DEBUG_INSPECTOR_ENDPOINT)?,
+        binding.replay_payload_for(DEBUG_INSPECTOR_ENDPOINT)?,
         || unsafe {
-            platform_runtime_native::destack_debug_inspector_endpoint(context, out, handle)
+            platform_runtime_native::destack_debug_inspector_endpoint(binding, out, handle)
         },
         |result| {
             if let Ok(()) = result {
@@ -890,7 +890,7 @@ fn destack_debug_inspector_endpoint_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_url = context.store_string(&value.url);
+                    let value_native_url = binding.store_string(&value.url);
                     let value_native_process_id = value.process_id;
                     let value_native = InspectorEndpoint {
                         url: value_native_url,
@@ -909,18 +909,18 @@ fn destack_debug_inspector_endpoint_replay(
 
 #[inline]
 fn destack_debug_inspector_start_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::InspectorHandle,
     host: NativeStringRef,
     port: u16,
 ) -> RuntimeResult<()> {
     let _ = (&host, &port);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_INSPECTOR_START,
-        context.replay_payload_for(DEBUG_INSPECTOR_START)?,
+        binding.replay_payload_for(DEBUG_INSPECTOR_START)?,
         || unsafe {
-            platform_runtime_native::destack_debug_inspector_start(context, out, host, port)
+            platform_runtime_native::destack_debug_inspector_start(binding, out, host, port)
         },
         |result| {
             if let Ok(()) = result {
@@ -965,15 +965,15 @@ fn destack_debug_inspector_start_replay(
 
 #[inline]
 fn destack_debug_inspector_stop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_INSPECTOR_STOP,
-        context.replay_payload_for(DEBUG_INSPECTOR_STOP)?,
-        || unsafe { platform_runtime_native::destack_debug_inspector_stop(context, handle) },
+        binding.replay_payload_for(DEBUG_INSPECTOR_STOP)?,
+        || unsafe { platform_runtime_native::destack_debug_inspector_stop(binding, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -1005,16 +1005,16 @@ fn destack_debug_inspector_stop_replay(
 
 #[inline]
 fn destack_debug_profile_snapshot_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_PROFILE_SNAPSHOT,
-        context.replay_payload_for(DEBUG_PROFILE_SNAPSHOT)?,
-        || unsafe { platform_runtime_native::destack_debug_profile_snapshot(context, out, handle) },
+        binding.replay_payload_for(DEBUG_PROFILE_SNAPSHOT)?,
+        || unsafe { platform_runtime_native::destack_debug_profile_snapshot(binding, out, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -1055,7 +1055,7 @@ fn destack_debug_profile_snapshot_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -1069,16 +1069,16 @@ fn destack_debug_profile_snapshot_replay(
 
 #[inline]
 fn destack_debug_profile_start_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ProfileHandle,
     kind: ProfileKind,
 ) -> RuntimeResult<()> {
     let _ = &kind;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_PROFILE_START,
-        context.replay_payload_for(DEBUG_PROFILE_START)?,
-        || unsafe { platform_runtime_native::destack_debug_profile_start(context, out, kind) },
+        binding.replay_payload_for(DEBUG_PROFILE_START)?,
+        || unsafe { platform_runtime_native::destack_debug_profile_start(binding, out, kind) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -1122,15 +1122,15 @@ fn destack_debug_profile_start_replay(
 
 #[inline]
 fn destack_debug_profile_stop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_PROFILE_STOP,
-        context.replay_payload_for(DEBUG_PROFILE_STOP)?,
-        || unsafe { platform_runtime_native::destack_debug_profile_stop(context, handle) },
+        binding.replay_payload_for(DEBUG_PROFILE_STOP)?,
+        || unsafe { platform_runtime_native::destack_debug_profile_stop(binding, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -1162,18 +1162,18 @@ fn destack_debug_profile_stop_replay(
 
 #[inline]
 fn destack_debug_trace_emit_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     category: NativeStringRef,
     name: NativeStringRef,
     payloadjson: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&category, &name, &payloadjson);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_TRACE_EMIT,
-        context.replay_payload_for(DEBUG_TRACE_EMIT)?,
+        binding.replay_payload_for(DEBUG_TRACE_EMIT)?,
         || unsafe {
-            platform_runtime_native::destack_debug_trace_emit(context, category, name, payloadjson)
+            platform_runtime_native::destack_debug_trace_emit(binding, category, name, payloadjson)
         },
         |result| {
             if let Ok(()) = result {
@@ -1206,18 +1206,18 @@ fn destack_debug_trace_emit_replay(
 
 #[inline]
 fn destack_debug_trace_start_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TraceHandle,
     level: TraceLevel,
     destination: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&level, &destination);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_TRACE_START,
-        context.replay_payload_for(DEBUG_TRACE_START)?,
+        binding.replay_payload_for(DEBUG_TRACE_START)?,
         || unsafe {
-            platform_runtime_native::destack_debug_trace_start(context, out, level, destination)
+            platform_runtime_native::destack_debug_trace_start(binding, out, level, destination)
         },
         |result| {
             if let Ok(()) = result {
@@ -1262,15 +1262,15 @@ fn destack_debug_trace_start_replay(
 
 #[inline]
 fn destack_debug_trace_stop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         DEBUG_TRACE_STOP,
-        context.replay_payload_for(DEBUG_TRACE_STOP)?,
-        || unsafe { platform_runtime_native::destack_debug_trace_stop(context, handle) },
+        binding.replay_payload_for(DEBUG_TRACE_STOP)?,
+        || unsafe { platform_runtime_native::destack_debug_trace_stop(binding, handle) },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -1452,14 +1452,14 @@ pub unsafe extern "C" fn destack_debug_trace_stop(handle: resource::TraceHandle)
 /// VM replay implementations for debug bindings.
 #[inline]
 fn destack_debug_core_break_now_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_CORE_BREAK_NOW,
-        runtime.replay_payload_for(DEBUG_CORE_BREAK_NOW)?,
+        binding.replay_payload_for(DEBUG_CORE_BREAK_NOW)?,
         context,
-        |context| platform_runtime_vm::destack_debug_break_now(runtime, context),
+        |context| platform_runtime_vm::destack_debug_break_now(binding, context),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
@@ -1495,15 +1495,15 @@ fn destack_debug_core_break_now_vm_replay(
 
 #[inline]
 fn destack_debug_core_mark_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     label: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_CORE_MARK,
-        runtime.replay_payload_for(DEBUG_CORE_MARK)?,
+        binding.replay_payload_for(DEBUG_CORE_MARK)?,
         context,
-        |context| platform_runtime_vm::destack_debug_mark(runtime, context, label),
+        |context| platform_runtime_vm::destack_debug_mark(binding, context, label),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
@@ -1539,15 +1539,15 @@ fn destack_debug_core_mark_vm_replay(
 
 #[inline]
 fn destack_debug_inspector_endpoint_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_INSPECTOR_ENDPOINT,
-        runtime.replay_payload_for(DEBUG_INSPECTOR_ENDPOINT)?,
+        binding.replay_payload_for(DEBUG_INSPECTOR_ENDPOINT)?,
         context,
-        |context| platform_runtime_vm::destack_debug_inspector_endpoint(runtime, context, handle),
+        |context| platform_runtime_vm::destack_debug_inspector_endpoint(binding, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -1603,16 +1603,16 @@ fn destack_debug_inspector_endpoint_vm_replay(
 
 #[inline]
 fn destack_debug_inspector_start_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     host: vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_INSPECTOR_START,
-        runtime.replay_payload_for(DEBUG_INSPECTOR_START)?,
+        binding.replay_payload_for(DEBUG_INSPECTOR_START)?,
         context,
-        |context| platform_runtime_vm::destack_debug_inspector_start(runtime, context, host, port),
+        |context| platform_runtime_vm::destack_debug_inspector_start(binding, context, host, port),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -1652,15 +1652,15 @@ fn destack_debug_inspector_start_vm_replay(
 
 #[inline]
 fn destack_debug_inspector_stop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_INSPECTOR_STOP,
-        runtime.replay_payload_for(DEBUG_INSPECTOR_STOP)?,
+        binding.replay_payload_for(DEBUG_INSPECTOR_STOP)?,
         context,
-        |context| platform_runtime_vm::destack_debug_inspector_stop(runtime, context, handle),
+        |context| platform_runtime_vm::destack_debug_inspector_stop(binding, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
@@ -1696,15 +1696,15 @@ fn destack_debug_inspector_stop_vm_replay(
 
 #[inline]
 fn destack_debug_profile_snapshot_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_PROFILE_SNAPSHOT,
-        runtime.replay_payload_for(DEBUG_PROFILE_SNAPSHOT)?,
+        binding.replay_payload_for(DEBUG_PROFILE_SNAPSHOT)?,
         context,
-        |context| platform_runtime_vm::destack_debug_profile_snapshot(runtime, context, handle),
+        |context| platform_runtime_vm::destack_debug_profile_snapshot(binding, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -1744,15 +1744,15 @@ fn destack_debug_profile_snapshot_vm_replay(
 
 #[inline]
 fn destack_debug_profile_start_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_PROFILE_START,
-        runtime.replay_payload_for(DEBUG_PROFILE_START)?,
+        binding.replay_payload_for(DEBUG_PROFILE_START)?,
         context,
-        |context| platform_runtime_vm::destack_debug_profile_start(runtime, context, kind),
+        |context| platform_runtime_vm::destack_debug_profile_start(binding, context, kind),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -1792,15 +1792,15 @@ fn destack_debug_profile_start_vm_replay(
 
 #[inline]
 fn destack_debug_profile_stop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_PROFILE_STOP,
-        runtime.replay_payload_for(DEBUG_PROFILE_STOP)?,
+        binding.replay_payload_for(DEBUG_PROFILE_STOP)?,
         context,
-        |context| platform_runtime_vm::destack_debug_profile_stop(runtime, context, handle),
+        |context| platform_runtime_vm::destack_debug_profile_stop(binding, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
@@ -1836,19 +1836,19 @@ fn destack_debug_profile_stop_vm_replay(
 
 #[inline]
 fn destack_debug_trace_emit_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     category: vm::StringHandle,
     name: vm::StringHandle,
     payloadjson: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_TRACE_EMIT,
-        runtime.replay_payload_for(DEBUG_TRACE_EMIT)?,
+        binding.replay_payload_for(DEBUG_TRACE_EMIT)?,
         context,
         |context| {
             platform_runtime_vm::destack_debug_trace_emit(
-                runtime,
+                binding,
                 context,
                 category,
                 name,
@@ -1890,17 +1890,17 @@ fn destack_debug_trace_emit_vm_replay(
 
 #[inline]
 fn destack_debug_trace_start_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     level: TraceLevel,
     destination: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_TRACE_START,
-        runtime.replay_payload_for(DEBUG_TRACE_START)?,
+        binding.replay_payload_for(DEBUG_TRACE_START)?,
         context,
         |context| {
-            platform_runtime_vm::destack_debug_trace_start(runtime, context, level, destination)
+            platform_runtime_vm::destack_debug_trace_start(binding, context, level, destination)
         },
         |context, result| {
             let _ = &context;
@@ -1941,15 +1941,15 @@ fn destack_debug_trace_start_vm_replay(
 
 #[inline]
 fn destack_debug_trace_stop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         DEBUG_TRACE_STOP,
-        runtime.replay_payload_for(DEBUG_TRACE_STOP)?,
+        binding.replay_payload_for(DEBUG_TRACE_STOP)?,
         context,
-        |context| platform_runtime_vm::destack_debug_trace_stop(runtime, context, handle),
+        |context| platform_runtime_vm::destack_debug_trace_stop(binding, context, handle),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
@@ -1991,10 +1991,10 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             DEBUG_CORE_BREAK_NOW,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
-                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_CORE_BREAK_NOW)?;
-                    destack_debug_core_break_now_vm_replay(runtime, context)
+                    let _binding_hook_guard = binding.on_before_binding(DEBUG_CORE_BREAK_NOW)?;
+                    destack_debug_core_break_now_vm_replay(binding, context)
                 })
                 .map_err(Into::into)
             }
@@ -2002,13 +2002,13 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, DEBUG_CORE_MARK, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (label,) = decode_destack_debug_core_mark_args(context, args)?;
 
                 // execute binding
-                let _binding_hook_guard = runtime.on_before_binding(DEBUG_CORE_MARK)?;
-                destack_debug_core_mark_vm_replay(runtime, context, label)
+                let _binding_hook_guard = binding.on_before_binding(DEBUG_CORE_MARK)?;
+                destack_debug_core_mark_vm_replay(binding, context, label)
             })
             .map_err(Into::into)
         });
@@ -2019,14 +2019,14 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             DEBUG_INSPECTOR_ENDPOINT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_debug_inspector_endpoint_args(context, args)?;
 
                     // execute binding
                     let _binding_hook_guard =
-                        runtime.on_before_binding(DEBUG_INSPECTOR_ENDPOINT)?;
-                    destack_debug_inspector_endpoint_vm_replay(runtime, context, handle)
+                        binding.on_before_binding(DEBUG_INSPECTOR_ENDPOINT)?;
+                    destack_debug_inspector_endpoint_vm_replay(binding, context, handle)
                 })
                 .map_err(Into::into)
             }
@@ -2038,13 +2038,13 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             DEBUG_INSPECTOR_START,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (host, port) = decode_destack_debug_inspector_start_args(context, args)?;
 
                     // execute binding
-                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_INSPECTOR_START)?;
-                    destack_debug_inspector_start_vm_replay(runtime, context, host, port)
+                    let _binding_hook_guard = binding.on_before_binding(DEBUG_INSPECTOR_START)?;
+                    destack_debug_inspector_start_vm_replay(binding, context, host, port)
                 })
                 .map_err(Into::into)
             }
@@ -2056,13 +2056,13 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             DEBUG_INSPECTOR_STOP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_debug_inspector_stop_args(context, args)?;
 
                     // execute binding
-                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_INSPECTOR_STOP)?;
-                    destack_debug_inspector_stop_vm_replay(runtime, context, handle)
+                    let _binding_hook_guard = binding.on_before_binding(DEBUG_INSPECTOR_STOP)?;
+                    destack_debug_inspector_stop_vm_replay(binding, context, handle)
                 })
                 .map_err(Into::into)
             }
@@ -2074,13 +2074,13 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             DEBUG_PROFILE_SNAPSHOT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_debug_profile_snapshot_args(context, args)?;
 
                     // execute binding
-                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_PROFILE_SNAPSHOT)?;
-                    destack_debug_profile_snapshot_vm_replay(runtime, context, handle)
+                    let _binding_hook_guard = binding.on_before_binding(DEBUG_PROFILE_SNAPSHOT)?;
+                    destack_debug_profile_snapshot_vm_replay(binding, context, handle)
                 })
                 .map_err(Into::into)
             }
@@ -2092,13 +2092,13 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             DEBUG_PROFILE_START,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (kind,) = decode_destack_debug_profile_start_args(context, args)?;
 
                     // execute binding
-                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_PROFILE_START)?;
-                    destack_debug_profile_start_vm_replay(runtime, context, kind)
+                    let _binding_hook_guard = binding.on_before_binding(DEBUG_PROFILE_START)?;
+                    destack_debug_profile_start_vm_replay(binding, context, kind)
                 })
                 .map_err(Into::into)
             }
@@ -2110,13 +2110,13 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             DEBUG_PROFILE_STOP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_debug_profile_stop_args(context, args)?;
 
                     // execute binding
-                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_PROFILE_STOP)?;
-                    destack_debug_profile_stop_vm_replay(runtime, context, handle)
+                    let _binding_hook_guard = binding.on_before_binding(DEBUG_PROFILE_STOP)?;
+                    destack_debug_profile_stop_vm_replay(binding, context, handle)
                 })
                 .map_err(Into::into)
             }
@@ -2124,14 +2124,14 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, DEBUG_TRACE_EMIT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (category, name, payloadjson) =
                     decode_destack_debug_trace_emit_args(context, args)?;
 
                 // execute binding
-                let _binding_hook_guard = runtime.on_before_binding(DEBUG_TRACE_EMIT)?;
-                destack_debug_trace_emit_vm_replay(runtime, context, category, name, payloadjson)
+                let _binding_hook_guard = binding.on_before_binding(DEBUG_TRACE_EMIT)?;
+                destack_debug_trace_emit_vm_replay(binding, context, category, name, payloadjson)
             })
             .map_err(Into::into)
         });
@@ -2142,14 +2142,14 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             DEBUG_TRACE_START,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (level, destination) =
                         decode_destack_debug_trace_start_args(context, args)?;
 
                     // execute binding
-                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_TRACE_START)?;
-                    destack_debug_trace_start_vm_replay(runtime, context, level, destination)
+                    let _binding_hook_guard = binding.on_before_binding(DEBUG_TRACE_START)?;
+                    destack_debug_trace_start_vm_replay(binding, context, level, destination)
                 })
                 .map_err(Into::into)
             }
@@ -2157,13 +2157,13 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, DEBUG_TRACE_STOP, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_debug_trace_stop_args(context, args)?;
 
                 // execute binding
-                let _binding_hook_guard = runtime.on_before_binding(DEBUG_TRACE_STOP)?;
-                destack_debug_trace_stop_vm_replay(runtime, context, handle)
+                let _binding_hook_guard = binding.on_before_binding(DEBUG_TRACE_STOP)?;
+                destack_debug_trace_stop_vm_replay(binding, context, handle)
             })
             .map_err(Into::into)
         });

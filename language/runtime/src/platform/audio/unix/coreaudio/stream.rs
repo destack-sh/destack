@@ -87,7 +87,7 @@ fn open_host_stream_macos(
         device_id,
         release_hog_mode_on_drop,
     });
-    let binding = new_stream_binding(device_info, config, share_mode, runtime.clone());
+    let stream_binding = new_stream_binding(device_info, config, share_mode, runtime.clone());
 
     // derive queue requirements from stream direction
     let needs_playback_queue = matches!(
@@ -103,7 +103,7 @@ fn open_host_stream_macos(
 
     // create and attach one playback queue when needed
     if needs_playback_queue {
-        let queue_handle = match create_playback_queue(&binding, device_id) {
+        let queue_handle = match create_playback_queue(&stream_binding, device_id) {
             Ok(queue_handle) => queue_handle,
             Err(error) => {
                 dispose_runtime_handles(&runtime);
@@ -120,7 +120,7 @@ fn open_host_stream_macos(
 
     // create and attach one capture queue when needed
     if needs_capture_queue {
-        match create_capture_queue(&binding, device_id) {
+        match create_capture_queue(&stream_binding, device_id) {
             Ok(queue_handle) => {
                 let mut queue_handles = runtime
                     .queue_handles
@@ -136,13 +136,13 @@ fn open_host_stream_macos(
     }
 
     // launch deferred cleanup worker tied to stream shutdown state
-    let worker = spawn_cleanup_thread(binding.clone(), runtime);
-    *binding
+    let worker = spawn_cleanup_thread(stream_binding.clone(), runtime);
+    *stream_binding
         .null_worker
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 
-    Ok(binding)
+    Ok(stream_binding)
 }
 
 /// Return whether CoreAudio backend support is implemented for this build.

@@ -183,7 +183,7 @@ fn delete_certificate_from_named_store(
 }
 
 pub(crate) fn host_store_supports_certificate_write(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     writable_store_location(kind)
@@ -193,7 +193,7 @@ pub(crate) fn host_store_supports_certificate_write(
 
 /// Import one certificate into one host store lane.
 pub(crate) fn host_store_import_certificate(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     certificate: &X509,
     operation: &'static str,
@@ -246,7 +246,7 @@ pub(crate) fn host_store_import_certificate(
 
 /// Delete one certificate from one host store lane.
 pub(crate) fn host_store_delete_certificate(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     certificate: &X509,
     operation: &'static str,

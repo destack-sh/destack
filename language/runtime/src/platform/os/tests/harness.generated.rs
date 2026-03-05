@@ -63,9 +63,9 @@ use crate::platform::os::{
     PowerState, SystemSnapshot, SystemSnapshotVm, native as os_native, vm as os_vm,
 };
 use crate::platform::{
-    NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
+    VmSlice, fs, resource,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 impl<'call> OsHarnessContext<'call> {

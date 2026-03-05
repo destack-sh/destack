@@ -25,7 +25,7 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
@@ -33,11 +33,11 @@ pub(crate) unsafe fn destack_tty_read(
     // validate the output pointer
     ensure_out(out, "out")?;
 
-    // resolve one tty binding and caller buffer
-    let binding = tty_binding(context, handle, "destack.tty.io.read")?;
-    let host_handle = match binding {
-        Some(binding) => binding.read_handle,
-        None => tty_handle(context, handle, "destack.tty.io.read")?,
+    // resolve one tty resolved_binding and caller buffer
+    let resolved_binding = tty_binding(binding, handle, "destack.tty.io.read")?;
+    let host_handle = match resolved_binding {
+        Some(resolved_binding) => resolved_binding.read_handle,
+        None => tty_handle(binding, handle, "destack.tty.io.read")?,
     };
     let buffer = unsafe { buffer.as_mut_slice()? };
     let length = validate_buffer_length(buffer.len(), "buffer")?;
@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_tty_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
@@ -95,11 +95,11 @@ pub(crate) unsafe fn destack_tty_write(
     // validate the output pointer
     ensure_out(out, "out")?;
 
-    // resolve one tty binding and caller buffer
-    let binding = tty_binding(context, handle, "destack.tty.io.write")?;
-    let host_handle = match binding {
-        Some(binding) => binding.write_handle,
-        None => tty_handle(context, handle, "destack.tty.io.write")?,
+    // resolve one tty resolved_binding and caller buffer
+    let resolved_binding = tty_binding(binding, handle, "destack.tty.io.write")?;
+    let host_handle = match resolved_binding {
+        Some(resolved_binding) => resolved_binding.write_handle,
+        None => tty_handle(binding, handle, "destack.tty.io.write")?,
     };
     let buffer = unsafe { buffer.as_slice()? };
     let length = validate_buffer_length(buffer.len(), "buffer")?;

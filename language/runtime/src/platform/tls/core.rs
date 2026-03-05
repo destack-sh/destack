@@ -183,28 +183,28 @@ pub(crate) struct TlsSessionResource {
 
 /// Insert one TLS context resource.
 pub(crate) fn insert_context_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     value: TlsContextResource,
 ) -> resource::TlsContextHandle {
-    // store the context payload
+    // store the binding payload
     let entry = ResourceEntry::new(TLS_CONTEXT_RESOURCE_KIND)
         .with_label("tls.context")
         .with_payload(Arc::new(Mutex::new(value)));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::TlsContextHandle(resource_id)
 }
 
 /// Resolve one TLS context resource.
 pub(crate) fn resolve_context_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<Arc<Mutex<TlsContextResource>>> {
-    // resolve one context payload
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    // resolve one binding payload
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != TLS_CONTEXT_RESOURCE_KIND {
             return None;
         }
@@ -219,7 +219,7 @@ pub(crate) fn resolve_context_resource(
     resolved.flatten().ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
-            "unknown tls context handle",
+            "unknown tls binding handle",
         ))
         .boxed()
     })
@@ -227,18 +227,18 @@ pub(crate) fn resolve_context_resource(
 
 /// Remove one TLS context resource.
 pub(crate) fn remove_context_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
-    // remove one context payload
-    let Some(entry) = context
+    // remove one binding payload
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
-            "unknown tls context handle",
+            "unknown tls binding handle",
         ))
         .boxed());
     };
@@ -253,7 +253,7 @@ pub(crate) fn remove_context_resource(
     if !is_valid {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
-            "unknown tls context handle",
+            "unknown tls binding handle",
         ))
         .boxed());
     }
@@ -263,7 +263,7 @@ pub(crate) fn remove_context_resource(
 
 /// Insert one TLS session resource.
 pub(crate) fn insert_session_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     socket: resource::SocketHandle,
     connection: HostTlsConnection,
 ) -> resource::TlsSessionHandle {
@@ -275,21 +275,21 @@ pub(crate) fn insert_session_resource(
     let entry = ResourceEntry::new(TLS_SESSION_RESOURCE_KIND)
         .with_label("tls.session")
         .with_payload(Arc::new(resource));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::TlsSessionHandle(resource_id)
 }
 
 /// Resolve one TLS session resource.
 pub(crate) fn resolve_session_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<Arc<TlsSessionResource>> {
     // resolve one session payload
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != TLS_SESSION_RESOURCE_KIND {
             return None;
         }
@@ -312,14 +312,14 @@ pub(crate) fn resolve_session_resource(
 
 /// Remove one TLS session resource.
 pub(crate) fn remove_session_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     // remove one session payload
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -632,12 +632,12 @@ pub(crate) fn decode_native_string(value: NativeStringRef, field: &str) -> Runti
 
 /// Resolve one socket handle and ensure it is socket-backed.
 pub(crate) fn require_socket_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     // ensure one valid socket entry is present
     core_net::require_resource(
-        context,
+        binding,
         handle.0,
         ResourceKind::Socket,
         "socket",

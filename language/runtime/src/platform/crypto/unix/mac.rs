@@ -20,15 +20,15 @@ use crate::platform::crypto::core::{decode_bytes, write_out_bytes, write_out_val
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_compute(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
-    let tag = crypto_core::mac_compute(context, key, parameters, &payload)?;
-    unsafe { write_out_bytes(context, out, tag) }
+    let tag = crypto_core::mac_compute(binding, key, parameters, &payload)?;
+    unsafe { write_out_bytes(binding, out, tag) }
 }
 
 /// Verify one message authentication code in one shot.
@@ -46,7 +46,7 @@ pub(crate) unsafe fn destack_crypto_mac_compute(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
@@ -55,7 +55,7 @@ pub(crate) unsafe fn destack_crypto_mac_verify(
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
     let tag = decode_bytes(tag, "tag")?;
-    let is_valid = crypto_core::mac_verify(context, key, parameters, &payload, &tag)?;
+    let is_valid = crypto_core::mac_verify(binding, key, parameters, &payload, &tag)?;
     unsafe { write_out_value(out, is_valid) }
 }
 
@@ -74,12 +74,12 @@ pub(crate) unsafe fn destack_crypto_mac_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoMacHandle,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
 ) -> RuntimeResult<()> {
-    let handle = crypto_core::mac_open(context, key, parameters)?;
+    let handle = crypto_core::mac_open(binding, key, parameters)?;
     unsafe { write_out_value(out, handle) }
 }
 
@@ -98,12 +98,12 @@ pub(crate) unsafe fn destack_crypto_mac_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
-    crypto_core::mac_update(context, handle, &payload)
+    crypto_core::mac_update(binding, handle, &payload)
 }
 
 /// Finalize one streaming MAC context and return one tag.
@@ -121,12 +121,12 @@ pub(crate) unsafe fn destack_crypto_mac_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_finish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
-    let tag = crypto_core::mac_finish(context, handle)?;
-    unsafe { write_out_bytes(context, out, tag) }
+    let tag = crypto_core::mac_finish(binding, handle)?;
+    unsafe { write_out_bytes(binding, out, tag) }
 }
 
 /// Reset one streaming MAC context to its initial state.
@@ -144,10 +144,10 @@ pub(crate) unsafe fn destack_crypto_mac_finish(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
-    crypto_core::mac_reset(context, handle)
+    crypto_core::mac_reset(binding, handle)
 }
 
 /// Close one streaming MAC context.
@@ -165,8 +165,8 @@ pub(crate) unsafe fn destack_crypto_mac_reset(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_mac_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
-    crypto_core::mac_close(context, handle)
+    crypto_core::mac_close(binding, handle)
 }

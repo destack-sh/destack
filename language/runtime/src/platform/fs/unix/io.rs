@@ -46,12 +46,12 @@ const SPLICE_SUPPORTED_FLAGS: u32 =
 /// Resolve one descriptor endpoint for splice-style operations.
 #[cfg(unix)]
 fn splice_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ResourceId,
     label: &str,
 ) -> RuntimeResult<RawFd> {
     // resolve the resource and enforce splice-compatible kinds
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle, |entry| {
@@ -126,7 +126,7 @@ fn splice_flags_to_native(flags: SpliceFlags, argument: &'static str) -> Runtime
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -140,7 +140,7 @@ pub(crate) unsafe fn destack_fs_read(
     let buffer = unsafe { buffer.as_mut_slice()? };
 
     // read from the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let rc = unsafe { libc::read(fd, buffer.as_mut_ptr() as *mut libc::c_void, buffer.len()) };
     if rc < 0 {
         return Err(core_platform::io_error("read", None));
@@ -171,7 +171,7 @@ pub(crate) unsafe fn destack_fs_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pread(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -186,7 +186,7 @@ pub(crate) unsafe fn destack_fs_pread(
     let buffer = unsafe { buffer.as_mut_slice()? };
 
     // read from the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let offset = offset_to_off_t(offset)?;
     let rc = unsafe {
         libc::pread(
@@ -225,7 +225,7 @@ pub(crate) unsafe fn destack_fs_pread(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readv(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -239,7 +239,7 @@ pub(crate) unsafe fn destack_fs_readv(
     let buffers = unsafe { buffers.as_slice()? };
 
     // read from the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let mut iovecs = Vec::with_capacity(buffers.len());
     for buffer in buffers {
         let slice = unsafe { buffer.as_mut_slice()? };
@@ -278,7 +278,7 @@ pub(crate) unsafe fn destack_fs_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -293,7 +293,7 @@ pub(crate) unsafe fn destack_fs_preadv(
     let buffers = unsafe { buffers.as_slice()? };
 
     // read from the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let offset = offset_to_off_t(offset)?;
     let mut iovecs = Vec::with_capacity(buffers.len());
     for buffer in buffers {
@@ -333,7 +333,7 @@ pub(crate) unsafe fn destack_fs_preadv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -347,7 +347,7 @@ pub(crate) unsafe fn destack_fs_write(
     let buffer = unsafe { buffer.as_slice()? };
 
     // write to the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let rc = unsafe { libc::write(fd, buffer.as_ptr() as *const libc::c_void, buffer.len()) };
     if rc < 0 {
         return Err(core_platform::io_error("write", None));
@@ -378,7 +378,7 @@ pub(crate) unsafe fn destack_fs_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwrite(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
@@ -393,7 +393,7 @@ pub(crate) unsafe fn destack_fs_pwrite(
     let buffer = unsafe { buffer.as_slice()? };
 
     // write to the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let offset = offset_to_off_t(offset)?;
     let rc = unsafe {
         libc::pwrite(
@@ -432,7 +432,7 @@ pub(crate) unsafe fn destack_fs_pwrite(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_writev(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -446,7 +446,7 @@ pub(crate) unsafe fn destack_fs_writev(
     let buffers = unsafe { buffers.as_slice()? };
 
     // write to the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let mut iovecs = Vec::with_capacity(buffers.len());
     for buffer in buffers {
         let slice = unsafe { buffer.as_slice()? };
@@ -485,7 +485,7 @@ pub(crate) unsafe fn destack_fs_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -500,7 +500,7 @@ pub(crate) unsafe fn destack_fs_pwritev(
     let buffers = unsafe { buffers.as_slice()? };
 
     // write to the file on unix platforms
-    let fd = file_descriptor(context, handle)?;
+    let fd = file_descriptor(binding, handle)?;
     let offset = offset_to_off_t(offset)?;
     let mut iovecs = Vec::with_capacity(buffers.len());
     for buffer in buffers {
@@ -540,7 +540,7 @@ pub(crate) unsafe fn destack_fs_pwritev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -559,7 +559,7 @@ pub(crate) unsafe fn destack_fs_preadv2(
         let buffers = unsafe { buffers.as_slice()? };
 
         // read from the file on linux platforms
-        let fd = file_descriptor(context, handle)?;
+        let fd = file_descriptor(binding, handle)?;
         let offset = offset_to_off_t(offset)?;
         let flags = read_write_flags_to_i32(flags, "flags")?;
         let mut iovecs = Vec::with_capacity(buffers.len());
@@ -599,7 +599,7 @@ pub(crate) unsafe fn destack_fs_preadv2(
             );
         }
 
-        unsafe { destack_fs_preadv(context, out, handle, buffers, offset) }
+        unsafe { destack_fs_preadv(binding, out, handle, buffers, offset) }
     }
 }
 
@@ -623,7 +623,7 @@ pub(crate) unsafe fn destack_fs_preadv2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -642,7 +642,7 @@ pub(crate) unsafe fn destack_fs_pwritev2(
         let buffers = unsafe { buffers.as_slice()? };
 
         // write to the file on linux platforms
-        let fd = file_descriptor(context, handle)?;
+        let fd = file_descriptor(binding, handle)?;
         let offset = offset_to_off_t(offset)?;
         let flags = read_write_flags_to_i32(flags, "flags")?;
         let mut iovecs = Vec::with_capacity(buffers.len());
@@ -682,7 +682,7 @@ pub(crate) unsafe fn destack_fs_pwritev2(
             );
         }
 
-        unsafe { destack_fs_pwritev(context, out, handle, buffers, offset) }
+        unsafe { destack_fs_pwritev(binding, out, handle, buffers, offset) }
     }
 }
 
@@ -706,7 +706,7 @@ pub(crate) unsafe fn destack_fs_pwritev2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_splice(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     source: ResourceId,
     sourcecursor: SpliceCursor,
@@ -731,8 +731,8 @@ pub(crate) unsafe fn destack_fs_splice(
         }
 
         // resolve source and target descriptors
-        let source_fd = splice_descriptor(context, source, "source")?;
-        let target_fd = splice_descriptor(context, target, "target")?;
+        let source_fd = splice_descriptor(binding, source, "source")?;
+        let target_fd = splice_descriptor(binding, target, "target")?;
 
         // initialize cursor state and transfer buffer
         let mut source_offset = sourcecursor.offset.map(|value| value.0);
@@ -839,8 +839,8 @@ pub(crate) unsafe fn destack_fs_splice(
     #[cfg(target_os = "linux")]
     {
         // resolve descriptors and syscall flags
-        let source_fd = splice_descriptor(context, source, "source")?;
-        let target_fd = splice_descriptor(context, target, "target")?;
+        let source_fd = splice_descriptor(binding, source, "source")?;
+        let target_fd = splice_descriptor(binding, target, "target")?;
         let native_flags = splice_flags_to_native(flags, "flags")?;
         let transfer_length = usize::try_from(length.0).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
@@ -918,7 +918,7 @@ pub(crate) unsafe fn destack_fs_splice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_tee(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
@@ -933,15 +933,15 @@ pub(crate) unsafe fn destack_fs_tee(
     // reject non-linux targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, sourcepipe, targetpipe, length, flags);
+        let _ = (binding, sourcepipe, targetpipe, length, flags);
         Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.tee")).boxed())
     }
 
     #[cfg(target_os = "linux")]
     {
         // resolve descriptors and syscall flags
-        let source_fd = splice_descriptor(context, sourcepipe.0, "source pipe")?;
-        let target_fd = splice_descriptor(context, targetpipe.0, "target pipe")?;
+        let source_fd = splice_descriptor(binding, sourcepipe.0, "source pipe")?;
+        let target_fd = splice_descriptor(binding, targetpipe.0, "target pipe")?;
         let native_flags = splice_flags_to_native(flags, "flags")?;
         let transfer_length = usize::try_from(length.0).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
@@ -993,7 +993,7 @@ pub(crate) unsafe fn destack_fs_tee(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_vmsplice(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     pipe: PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -1007,7 +1007,7 @@ pub(crate) unsafe fn destack_fs_vmsplice(
     // reject non-linux targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, pipe, buffers, flags);
+        let _ = (binding, pipe, buffers, flags);
         Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.vmsplice")).boxed())
     }
 
@@ -1025,7 +1025,7 @@ pub(crate) unsafe fn destack_fs_vmsplice(
         }
 
         // resolve the pipe descriptor and syscall flags
-        let pipe_fd = splice_descriptor(context, pipe.0, "pipe")?;
+        let pipe_fd = splice_descriptor(binding, pipe.0, "pipe")?;
         let native_flags = splice_flags_to_native(flags, "flags")?;
 
         // run one vmsplice operation

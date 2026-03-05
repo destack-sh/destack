@@ -2,21 +2,23 @@ use super::*;
 
 /// Set one window modal state.
 pub(crate) unsafe fn window_set_modal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     modal: bool,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window binding
-    let binding = display_resource::resolve_window_binding(
-        context,
+    // resolve and validate the target window resolved_binding
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window,
         "destack.display.window.setModal",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setModal")?;
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&resolved_binding, "destack.display.window.setModal")?;
 
     // reject modal transitions without an owner relationship
-    if modal && owner_relationship(&binding).is_none() {
+    if modal && owner_relationship(&resolved_binding).is_none() {
         return Err(core_platform::invalid_argument(
             "modal",
             "modal windows require parent or transientFor relationship",
@@ -24,31 +26,31 @@ pub(crate) unsafe fn window_set_modal(
     }
 
     // snapshot state before mutation, for event and rollback lanes
-    let previous = binding.clone();
-    let previous_owner = owner_relationship(&binding);
-    let previous_modal = binding.modal;
-    binding.modal = modal;
-    let next_owner = owner_relationship(&binding);
+    let previous = resolved_binding.clone();
+    let previous_owner = owner_relationship(&resolved_binding);
+    let previous_modal = resolved_binding.modal;
+    resolved_binding.modal = modal;
+    let next_owner = owner_relationship(&resolved_binding);
 
-    // apply host owner transition and rollback binding state on failure
+    // apply host owner transition and rollback resolved_binding state on failure
     if let Err(error) = apply_modal_owner_transition(
-        context,
+        binding,
         previous_owner,
         previous_modal,
         next_owner,
-        binding.modal,
+        resolved_binding.modal,
         "destack.display.window.setModal",
     ) {
-        binding.modal = previous_modal;
+        resolved_binding.modal = previous_modal;
         return Err(error);
     }
 
     // publish state deltas after host mutation succeeds
-    refresh_window_snapshot(&mut binding);
-    let next = binding.clone();
-    drop(binding);
+    refresh_window_snapshot(&mut resolved_binding);
+    let next = resolved_binding.clone();
+    drop(resolved_binding);
 
-    let event_runtime_state = event::display_event_runtime_state(context);
+    let event_runtime_state = event::display_event_runtime_state(binding);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -56,7 +58,7 @@ pub(crate) unsafe fn window_set_modal(
 
 /// Set one parent-window relationship.
 pub(crate) unsafe fn window_set_parent(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
@@ -68,22 +70,24 @@ pub(crate) unsafe fn window_set_parent(
         ));
     }
 
-    // resolve and validate the target window binding
-    let binding = display_resource::resolve_window_binding(
-        context,
+    // resolve and validate the target window resolved_binding
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window,
         "destack.display.window.setParent",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setParent")?;
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&resolved_binding, "destack.display.window.setParent")?;
     // snapshot state before mutation, for event and rollback lanes
-    let previous = binding.clone();
-    let previous_owner = owner_relationship(&binding);
-    let previous_modal = binding.modal;
-    let next_owner = binding.transient_for.or(parent);
+    let previous = resolved_binding.clone();
+    let previous_owner = owner_relationship(&resolved_binding);
+    let previous_modal = resolved_binding.modal;
+    let next_owner = resolved_binding.transient_for.or(parent);
 
     // reject modal state without an owner relationship
-    if binding.modal && next_owner.is_none() {
+    if resolved_binding.modal && next_owner.is_none() {
         return Err(core_platform::invalid_argument(
             "parent",
             "modal windows require parent or transientFor relationship",
@@ -91,43 +95,45 @@ pub(crate) unsafe fn window_set_parent(
     }
 
     // apply relationship update and rollback host owner lane on failure
-    binding.parent = parent;
+    resolved_binding.parent = parent;
     // evaluate this condition
-    if let Err(error) =
-        apply_owner_relationship(context, &binding, "destack.display.window.setParent")
-    {
-        binding.parent = previous.parent;
+    if let Err(error) = apply_owner_relationship(
+        binding,
+        &resolved_binding,
+        "destack.display.window.setParent",
+    ) {
+        resolved_binding.parent = previous.parent;
         return Err(error);
     }
 
     // evaluate this condition
     if let Err(error) = apply_modal_owner_transition(
-        context,
+        binding,
         previous_owner,
         previous_modal,
         next_owner,
-        binding.modal,
+        resolved_binding.modal,
         "destack.display.window.setParent",
     ) {
         let transition_reversal = apply_modal_owner_transition(
-            context,
+            binding,
             next_owner,
-            binding.modal,
+            resolved_binding.modal,
             previous_owner,
             previous_modal,
             "destack.display.window.setParent.rollback",
         );
 
-        binding.parent = previous.parent;
+        resolved_binding.parent = previous.parent;
         let relationship_reversal = apply_owner_relationship(
-            context,
-            &binding,
+            binding,
+            &resolved_binding,
             "destack.display.window.setParent.rollback",
         );
 
         // keep primary error: rollback is best effort during failure unwind
         if transition_reversal.is_err() || relationship_reversal.is_err() {
-            context.warn(
+            binding.warn(
                 "display",
                 "destack.display.window.setParent.rollback",
                 "rollback failed while unwinding modal transition",
@@ -139,11 +145,11 @@ pub(crate) unsafe fn window_set_parent(
     }
 
     // publish state deltas after host mutation succeeds
-    refresh_window_snapshot(&mut binding);
-    let next = binding.clone();
-    drop(binding);
+    refresh_window_snapshot(&mut resolved_binding);
+    let next = resolved_binding.clone();
+    drop(resolved_binding);
 
-    let event_runtime_state = event::display_event_runtime_state(context);
+    let event_runtime_state = event::display_event_runtime_state(binding);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -151,7 +157,7 @@ pub(crate) unsafe fn window_set_parent(
 
 /// Set one transient-owner relationship.
 pub(crate) unsafe fn window_set_transient_for(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
@@ -163,22 +169,24 @@ pub(crate) unsafe fn window_set_transient_for(
         ));
     }
 
-    // resolve and validate the target window binding
-    let binding = display_resource::resolve_window_binding(
-        context,
+    // resolve and validate the target window resolved_binding
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window,
         "destack.display.window.setTransientFor",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&binding, "destack.display.window.setTransientFor")?;
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&resolved_binding, "destack.display.window.setTransientFor")?;
     // snapshot state before mutation, for event and rollback lanes
-    let previous = binding.clone();
-    let previous_owner = owner_relationship(&binding);
-    let previous_modal = binding.modal;
-    let next_owner = transientfor.or(binding.parent);
+    let previous = resolved_binding.clone();
+    let previous_owner = owner_relationship(&resolved_binding);
+    let previous_modal = resolved_binding.modal;
+    let next_owner = transientfor.or(resolved_binding.parent);
 
     // reject modal state without an owner relationship
-    if binding.modal && next_owner.is_none() {
+    if resolved_binding.modal && next_owner.is_none() {
         return Err(core_platform::invalid_argument(
             "transientFor",
             "modal windows require parent or transientFor relationship",
@@ -186,43 +194,45 @@ pub(crate) unsafe fn window_set_transient_for(
     }
 
     // apply relationship update and rollback host owner lane on failure
-    binding.transient_for = transientfor;
+    resolved_binding.transient_for = transientfor;
     // evaluate this condition
-    if let Err(error) =
-        apply_owner_relationship(context, &binding, "destack.display.window.setTransientFor")
-    {
-        binding.transient_for = previous.transient_for;
+    if let Err(error) = apply_owner_relationship(
+        binding,
+        &resolved_binding,
+        "destack.display.window.setTransientFor",
+    ) {
+        resolved_binding.transient_for = previous.transient_for;
         return Err(error);
     }
 
     // evaluate this condition
     if let Err(error) = apply_modal_owner_transition(
-        context,
+        binding,
         previous_owner,
         previous_modal,
         next_owner,
-        binding.modal,
+        resolved_binding.modal,
         "destack.display.window.setTransientFor",
     ) {
         let transition_reversal = apply_modal_owner_transition(
-            context,
+            binding,
             next_owner,
-            binding.modal,
+            resolved_binding.modal,
             previous_owner,
             previous_modal,
             "destack.display.window.setTransientFor.rollback",
         );
 
-        binding.transient_for = previous.transient_for;
+        resolved_binding.transient_for = previous.transient_for;
         let relationship_reversal = apply_owner_relationship(
-            context,
-            &binding,
+            binding,
+            &resolved_binding,
             "destack.display.window.setTransientFor.rollback",
         );
 
         // keep primary error: rollback is best effort during failure unwind
         if transition_reversal.is_err() || relationship_reversal.is_err() {
-            context.warn(
+            binding.warn(
                 "display",
                 "destack.display.window.setTransientFor.rollback",
                 "rollback failed while unwinding modal transition",
@@ -234,11 +244,11 @@ pub(crate) unsafe fn window_set_transient_for(
     }
 
     // publish state deltas after host mutation succeeds
-    refresh_window_snapshot(&mut binding);
-    let next = binding.clone();
-    drop(binding);
+    refresh_window_snapshot(&mut resolved_binding);
+    let next = resolved_binding.clone();
+    drop(resolved_binding);
 
-    let event_runtime_state = event::display_event_runtime_state(context);
+    let event_runtime_state = event::display_event_runtime_state(binding);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())

@@ -112,12 +112,12 @@ fn monitor_not_found(
 
 /// Validate that one monitor handle points to an input-monitor resource.
 fn validate_monitor_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputMonitorHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // validate monitor resource kind and label
-    let valid = context.agent().resources.with_entry(handle.0, |entry| {
+    let valid = binding.agent().resources.with_entry(handle.0, |entry| {
         entry.kind == ResourceKind::InputMonitor
             && entry.label.as_deref() == Some(INPUT_MONITOR_RESOURCE_LABEL)
             && entry
@@ -146,10 +146,10 @@ struct MonitorDeviceSnapshot {
 }
 
 /// List monitor-visible devices as stable sorted identifiers with kinds.
-fn list_monitor_devices(context: &BindingCallContext) -> RuntimeResult<Vec<MonitorDeviceSnapshot>> {
+fn list_monitor_devices(binding: &BindingCallContext) -> RuntimeResult<Vec<MonitorDeviceSnapshot>> {
     #[cfg(target_os = "linux")]
     {
-        let _ = context;
+        let _ = binding;
 
         // list linux event node paths and classify each visible endpoint
         let entries = match fs::read_dir(INPUT_MONITOR_LINUX_PATH) {
@@ -210,7 +210,7 @@ fn list_monitor_devices(context: &BindingCallContext) -> RuntimeResult<Vec<Monit
 
     #[cfg(not(target_os = "linux"))]
     {
-        let devices = input_core::list_unix_devices(context)?;
+        let devices = input_core::list_unix_devices(binding)?;
         let mut snapshots = Vec::with_capacity(devices.len());
         for device in devices {
             let id = unsafe { device.id.as_str()? };
@@ -510,7 +510,7 @@ fn monitor_kind_from_action(action: InputEventAction) -> InputMonitorEventKind {
 
 /// Build one monitor event payload from one topology delta.
 fn build_unix_monitor_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     timestamp_ns: u64,
     sequence: u64,
     device_id: &str,
@@ -522,7 +522,7 @@ fn build_unix_monitor_event(
     let metadata = InputMonitorEventMetadata {
         timestamp_ns,
         sequence,
-        device_id: context.store_string(device_id),
+        device_id: binding.store_string(device_id),
         device_kind,
         connected,
     };
@@ -530,19 +530,19 @@ fn build_unix_monitor_event(
     match kind {
         InputMonitorEventKind::Connect => {
             InputMonitorEvent::InputMonitorConnectEvent(InputMonitorConnectEvent {
-                kind: context.store_string("connect"),
+                kind: binding.store_string("connect"),
                 metadata,
             })
         }
         InputMonitorEventKind::Disconnect => {
             InputMonitorEvent::InputMonitorDisconnectEvent(InputMonitorDisconnectEvent {
-                kind: context.store_string("disconnect"),
+                kind: binding.store_string("disconnect"),
                 metadata,
             })
         }
         InputMonitorEventKind::Change => {
             InputMonitorEvent::InputMonitorChangeEvent(InputMonitorChangeEvent {
-                kind: context.store_string("change"),
+                kind: binding.store_string("change"),
                 metadata,
             })
         }
@@ -551,7 +551,7 @@ fn build_unix_monitor_event(
 
 /// Convert one monitor packet into one runtime monitor event.
 fn monitor_event_to_output(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     event: MonitorDeltaEvent,
     sequence: u64,
 ) -> InputMonitorEvent {
@@ -559,7 +559,7 @@ fn monitor_event_to_output(
     let timestamp = input_core::monotonic_timestamp_ns();
 
     build_unix_monitor_event(
-        context,
+        binding,
         timestamp,
         sequence,
         &event.device_id,
@@ -570,14 +570,14 @@ fn monitor_event_to_output(
 
 /// Poll monitor state until one event is available or would-block.
 fn poll_monitor_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputMonitorHandle,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputMonitorEvent> {
     loop {
         // drain watcher queues and attempt one queue pop
-        let next = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        let next = binding.agent().resources.with_entry_mut(handle.0, |entry| {
             if entry.kind != ResourceKind::InputMonitor {
                 return None;
             }
@@ -586,32 +586,32 @@ fn poll_monitor_event(
                 return None;
             }
 
-            let binding = entry
+            let resolved_binding = entry
                 .payload
                 .as_mut()
                 .and_then(|payload| payload.downcast_mut::<UnixInputMonitorBinding>())?;
 
             #[cfg(target_os = "linux")]
-            if let Err(error) = drain_linux_monitor_watch(binding) {
+            if let Err(error) = drain_linux_monitor_watch(resolved_binding) {
                 return Some(Err(error));
             }
 
             // request one fallback snapshot only when no watch backend is available
             #[cfg(target_os = "linux")]
-            let requires_snapshot =
-                binding.pending_events.is_empty() && binding.watch_descriptor.is_none();
+            let requires_snapshot = resolved_binding.pending_events.is_empty()
+                && resolved_binding.watch_descriptor.is_none();
             #[cfg(not(target_os = "linux"))]
-            let requires_snapshot = binding.pending_events.is_empty();
+            let requires_snapshot = resolved_binding.pending_events.is_empty();
 
             #[cfg(target_os = "linux")]
-            let watch_descriptor = binding.watch_descriptor;
+            let watch_descriptor = resolved_binding.watch_descriptor;
             #[cfg(not(target_os = "linux"))]
             let watch_descriptor: Option<i32> = None;
 
-            let event = binding.pending_events.pop_front();
+            let event = resolved_binding.pending_events.pop_front();
             let event = event.map(|event| {
-                let sequence = binding.next_sequence;
-                binding.next_sequence = binding.next_sequence.saturating_add(1);
+                let sequence = resolved_binding.next_sequence;
+                resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
                 (event, sequence)
             });
             Some(Ok((event, watch_descriptor, requires_snapshot)))
@@ -620,13 +620,13 @@ fn poll_monitor_event(
         match next {
             // return one queued monitor event
             Some(Some(Ok((Some((event, sequence)), _, _)))) => {
-                return Ok(monitor_event_to_output(context, event, sequence));
+                return Ok(monitor_event_to_output(binding, event, sequence));
             }
 
             // when no watch backend exists, rescan device ids and enqueue topology deltas
             Some(Some(Ok((None, _, true)))) => {
-                let current_devices = list_monitor_devices(context)?;
-                let next = context.agent().resources.with_entry_mut(handle.0, |entry| {
+                let current_devices = list_monitor_devices(binding)?;
+                let next = binding.agent().resources.with_entry_mut(handle.0, |entry| {
                     if entry.kind != ResourceKind::InputMonitor {
                         return None;
                     }
@@ -635,15 +635,16 @@ fn poll_monitor_event(
                         return None;
                     }
 
-                    let binding = entry
+                    let resolved_binding = entry
                         .payload
                         .as_mut()
                         .and_then(|payload| payload.downcast_mut::<UnixInputMonitorBinding>())?;
-                    enqueue_monitor_delta(binding, &current_devices);
-                    let event = binding.pending_events.pop_front();
+                    enqueue_monitor_delta(resolved_binding, &current_devices);
+                    let event = resolved_binding.pending_events.pop_front();
                     let event = event.map(|event| {
-                        let sequence = binding.next_sequence;
-                        binding.next_sequence = binding.next_sequence.saturating_add(1);
+                        let sequence = resolved_binding.next_sequence;
+                        resolved_binding.next_sequence =
+                            resolved_binding.next_sequence.saturating_add(1);
                         (event, sequence)
                     });
                     Some(event)
@@ -651,7 +652,7 @@ fn poll_monitor_event(
 
                 match next {
                     Some(Some(Some((event, sequence)))) => {
-                        return Ok(monitor_event_to_output(context, event, sequence));
+                        return Ok(monitor_event_to_output(binding, event, sequence));
                     }
                     Some(Some(None)) => {
                         if nonblocking {
@@ -733,7 +734,7 @@ fn poll_monitor_event(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -742,11 +743,16 @@ pub(crate) unsafe fn destack_input_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve binding and read one event
-    let binding =
-        input_core::resolve_unix_input_binding(context, handle, "destack.input.event.read")?;
-    let event =
-        input_core::read_unix_event(context, &binding, handle, false, "destack.input.event.read")?;
+    // resolve resolved_binding and read one event
+    let resolved_binding =
+        input_core::resolve_unix_input_binding(binding, handle, "destack.input.event.read")?;
+    let event = input_core::read_unix_event(
+        binding,
+        &resolved_binding,
+        handle,
+        false,
+        "destack.input.event.read",
+    )?;
 
     // write event payload to output
     unsafe {
@@ -774,17 +780,17 @@ pub(crate) unsafe fn destack_input_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate monitor handle shape
-    validate_monitor_handle(context, handle, "destack.input.event.monitorClose")?;
+    validate_monitor_handle(binding, handle, "destack.input.event.monitorClose")?;
 
     // remove and finalize monitor resource
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(monitor_not_found(
             "destack.input.event.monitorClose",
@@ -816,7 +822,7 @@ pub(crate) unsafe fn destack_input_monitor_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -829,7 +835,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
     let watch_descriptor = open_linux_monitor_watch()?;
 
     // create one monitor payload from current device snapshot
-    let known_devices = list_monitor_devices(context)?;
+    let known_devices = list_monitor_devices(binding)?;
     let mut known_device_ids = Vec::with_capacity(known_devices.len());
     let mut known_device_kinds = HashMap::with_capacity(known_devices.len());
     #[cfg(target_os = "linux")]
@@ -844,7 +850,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
         known_device_kinds.insert(device.device_id, device.device_kind);
     }
     #[cfg(target_os = "linux")]
-    let mut binding = UnixInputMonitorBinding {
+    let mut resolved_binding = UnixInputMonitorBinding {
         known_devices: known_device_ids,
         known_device_kinds,
         known_linux_paths,
@@ -854,7 +860,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
     };
 
     #[cfg(not(target_os = "linux"))]
-    let binding = UnixInputMonitorBinding {
+    let resolved_binding = UnixInputMonitorBinding {
         known_devices: known_device_ids,
         known_device_kinds,
         pending_events: VecDeque::new(),
@@ -864,12 +870,12 @@ pub(crate) unsafe fn destack_input_monitor_open(
     // drain watcher-delivered events queued during snapshot creation
     #[cfg(target_os = "linux")]
     if watch_descriptor.is_some() {
-        drain_linux_monitor_watch(&mut binding)?;
+        drain_linux_monitor_watch(&mut resolved_binding)?;
     }
 
     let entry = ResourceEntry::new(ResourceKind::InputMonitor)
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
-        .with_payload(binding);
+        .with_payload(resolved_binding);
     #[cfg(target_os = "linux")]
     let entry = if let Some(descriptor) = watch_descriptor {
         entry.with_finalizer(MonitorWatchFinalizer { fd: descriptor })
@@ -877,10 +883,10 @@ pub(crate) unsafe fn destack_input_monitor_open(
         entry
     };
     let handle = resource::InputMonitorHandle(
-        context
+        binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine())),
+            .insert(entry, Some(binding.engine())),
     );
 
     // write monitor handle to output
@@ -912,7 +918,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
@@ -922,9 +928,9 @@ pub(crate) unsafe fn destack_input_monitor_read(
     }
 
     // validate monitor handle and block for one event
-    validate_monitor_handle(context, handle, "destack.input.event.monitorRead")?;
+    validate_monitor_handle(binding, handle, "destack.input.event.monitorRead")?;
 
-    let event = poll_monitor_event(context, handle, false, "destack.input.event.monitorRead")?;
+    let event = poll_monitor_event(binding, handle, false, "destack.input.event.monitorRead")?;
 
     // write event payload to output
     unsafe {
@@ -955,7 +961,7 @@ pub(crate) unsafe fn destack_input_monitor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
@@ -965,9 +971,9 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
     }
 
     // validate monitor handle and poll once
-    validate_monitor_handle(context, handle, "destack.input.event.monitorTryRead")?;
+    validate_monitor_handle(binding, handle, "destack.input.event.monitorTryRead")?;
 
-    let event = poll_monitor_event(context, handle, true, "destack.input.event.monitorTryRead")?;
+    let event = poll_monitor_event(binding, handle, true, "destack.input.event.monitorTryRead")?;
 
     // write event payload to output
     unsafe {
@@ -998,17 +1004,21 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_exclusive_grab(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
-    // resolve binding and apply backend-specific grab semantics
-    let binding = input_core::resolve_unix_input_binding(
-        context,
+    // resolve resolved_binding and apply backend-specific grab semantics
+    let resolved_binding = input_core::resolve_unix_input_binding(
+        binding,
         handle,
         "destack.input.event.setExclusiveGrab",
     )?;
-    input_core::set_unix_grab(binding.descriptor, binding.backend, enable)
+    input_core::set_unix_grab(
+        resolved_binding.descriptor,
+        resolved_binding.backend,
+        enable,
+    )
 }
 
 /// Read one batch of input events.
@@ -1031,7 +1041,7 @@ pub(crate) unsafe fn destack_input_set_exclusive_grab(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputEvent>,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
@@ -1044,13 +1054,13 @@ pub(crate) unsafe fn destack_input_read_batch(
     // validate max-events contract
     let maxevents = input_validation::validate_read_batch_maxevents(maxevents)?;
 
-    // resolve binding and read the first blocking event
-    let binding =
-        input_core::resolve_unix_input_binding(context, handle, "destack.input.event.readBatch")?;
+    // resolve resolved_binding and read the first blocking event
+    let resolved_binding =
+        input_core::resolve_unix_input_binding(binding, handle, "destack.input.event.readBatch")?;
     let mut events = Vec::with_capacity(maxevents);
     let first = input_core::read_unix_event(
-        context,
-        &binding,
+        binding,
+        &resolved_binding,
         handle,
         false,
         "destack.input.event.readBatch",
@@ -1060,8 +1070,8 @@ pub(crate) unsafe fn destack_input_read_batch(
     // continue with nonblocking reads until drained or full
     while events.len() < maxevents {
         match input_core::read_unix_event(
-            context,
-            &binding,
+            binding,
+            &resolved_binding,
             handle,
             true,
             "destack.input.event.readBatch",
@@ -1079,7 +1089,7 @@ pub(crate) unsafe fn destack_input_read_batch(
 
     // write collected events to output array
     unsafe {
-        *out = context.store_array(events);
+        *out = binding.store_array(events);
     }
 
     Ok(())
@@ -1105,12 +1115,12 @@ pub(crate) unsafe fn destack_input_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_read_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<()> {
     // delegate mode updates to unix core helpers
-    input_core::set_unix_read_mode(context, handle, mode, "destack.input.event.setReadMode")
+    input_core::set_unix_read_mode(binding, handle, mode, "destack.input.event.setReadMode")
 }
 
 /// Poll one input event without blocking.
@@ -1136,7 +1146,7 @@ pub(crate) unsafe fn destack_input_set_read_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -1145,12 +1155,12 @@ pub(crate) unsafe fn destack_input_try_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve binding and poll one nonblocking event
-    let binding =
-        input_core::resolve_unix_input_binding(context, handle, "destack.input.event.tryRead")?;
+    // resolve resolved_binding and poll one nonblocking event
+    let resolved_binding =
+        input_core::resolve_unix_input_binding(binding, handle, "destack.input.event.tryRead")?;
     let event = input_core::read_unix_event(
-        context,
-        &binding,
+        binding,
+        &resolved_binding,
         handle,
         true,
         "destack.input.event.tryRead",
@@ -1185,9 +1195,9 @@ mod tests {
     /// Enqueue connect and disconnect deltas in stable sequence order.
     #[test]
     fn test_enqueue_monitor_delta_collects_connect_and_disconnect() {
-        let mut binding = empty_monitor_binding();
-        binding.known_devices = vec!["device:old".to_string()];
-        binding
+        let mut monitor_binding = empty_monitor_binding();
+        monitor_binding.known_devices = vec!["device:old".to_string()];
+        monitor_binding
             .known_device_kinds
             .insert("device:old".to_string(), InputDeviceKind::Keyboard);
 
@@ -1197,9 +1207,9 @@ mod tests {
             device_path: "/dev/input/event1".to_string(),
             device_kind: InputDeviceKind::Mouse,
         }];
-        enqueue_monitor_delta(&mut binding, &current);
+        enqueue_monitor_delta(&mut monitor_binding, &current);
 
-        let first = binding
+        let first = monitor_binding
             .pending_events
             .pop_front()
             .expect("connect event expected");
@@ -1207,7 +1217,7 @@ mod tests {
         assert_eq!(first.device_id, "device:new");
         assert_eq!(first.device_kind, InputDeviceKind::Mouse);
 
-        let second = binding
+        let second = monitor_binding
             .pending_events
             .pop_front()
             .expect("disconnect event expected");
@@ -1219,33 +1229,33 @@ mod tests {
     /// Ignore duplicate connect and disconnect transitions.
     #[test]
     fn test_enqueue_monitor_action_ignores_duplicate_transitions() {
-        let mut binding = empty_monitor_binding();
+        let mut monitor_binding = empty_monitor_binding();
         enqueue_monitor_action(
-            &mut binding,
+            &mut monitor_binding,
             "device:dup".to_string(),
             InputEventAction::Connect,
             Some(InputDeviceKind::Mouse),
         );
         enqueue_monitor_action(
-            &mut binding,
+            &mut monitor_binding,
             "device:dup".to_string(),
             InputEventAction::Connect,
             Some(InputDeviceKind::Mouse),
         );
-        assert_eq!(binding.pending_events.len(), 1);
+        assert_eq!(monitor_binding.pending_events.len(), 1);
 
         enqueue_monitor_action(
-            &mut binding,
+            &mut monitor_binding,
             "device:dup".to_string(),
             InputEventAction::Disconnect,
             None,
         );
         enqueue_monitor_action(
-            &mut binding,
+            &mut monitor_binding,
             "device:dup".to_string(),
             InputEventAction::Disconnect,
             None,
         );
-        assert_eq!(binding.pending_events.len(), 2);
+        assert_eq!(monitor_binding.pending_events.len(), 2);
     }
 }

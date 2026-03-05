@@ -24,12 +24,12 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_shutdown(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
     // resolve the socket descriptor
-    let socket = socket_descriptor(_context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // map the shutdown mode
     let how = match how {

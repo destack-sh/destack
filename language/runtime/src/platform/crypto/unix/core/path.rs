@@ -6,11 +6,11 @@ use crate::runtime::BindingCallContext;
 
 /// Return configured or default system certificate bundle files.
 pub(crate) fn configured_system_certificate_files(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     default_files: &[&str],
 ) -> Vec<PathBuf> {
     // prefer explicit runtime option overrides
-    let configured_files = &context.agent().options.crypto.system_certificate_files;
+    let configured_files = &binding.agent().options.crypto.system_certificate_files;
     if !configured_files.is_empty() {
         return configured_files.clone();
     }
@@ -21,11 +21,11 @@ pub(crate) fn configured_system_certificate_files(
 
 /// Return configured or default system certificate directories.
 pub(crate) fn configured_system_certificate_directories(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     default_directories: &[&str],
 ) -> Vec<PathBuf> {
     // prefer explicit runtime option overrides
-    let configured_directories = &context
+    let configured_directories = &binding
         .agent()
         .options
         .crypto
@@ -40,12 +40,12 @@ pub(crate) fn configured_system_certificate_directories(
 
 /// Return one configured host-store snapshot path for one lane.
 pub(crate) fn configured_keystore_path(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     match kind {
-        CryptoStoreKind::User => context.agent().options.crypto.host_store_paths.user.clone(),
-        CryptoStoreKind::Machine => context
+        CryptoStoreKind::User => binding.agent().options.crypto.host_store_paths.user.clone(),
+        CryptoStoreKind::Machine => binding
             .agent()
             .options
             .crypto
@@ -58,14 +58,14 @@ pub(crate) fn configured_keystore_path(
 
 /// Return one host key-store snapshot path for one lane when available.
 pub(crate) fn keystore_path(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     user_relative_path: &str,
     machine_absolute_path: &str,
 ) -> Option<PathBuf> {
     // user-lane path can be configured or derived from HOME
     if kind == CryptoStoreKind::User {
-        if let Some(path) = configured_keystore_path(context, CryptoStoreKind::User) {
+        if let Some(path) = configured_keystore_path(binding, CryptoStoreKind::User) {
             return Some(path);
         }
 
@@ -75,7 +75,7 @@ pub(crate) fn keystore_path(
 
     // machine-lane path can be configured or use one default absolute path
     if kind == CryptoStoreKind::Machine {
-        if let Some(path) = configured_keystore_path(context, CryptoStoreKind::Machine) {
+        if let Some(path) = configured_keystore_path(binding, CryptoStoreKind::Machine) {
             return Some(path);
         }
 

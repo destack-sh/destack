@@ -49,7 +49,7 @@ unsafe extern "C" {
 
 /// Read one credential record from the Apple keychain.
 pub(crate) fn read_credentials(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     query: &CredentialQueryOwned,
 ) -> RuntimeResult<CredentialRecordOwned> {
     // build keychain query attributes
@@ -128,7 +128,7 @@ pub(crate) fn read_credentials(
 
 /// Write one credential record to the Apple keychain.
 pub(crate) fn write_credentials(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     options: &CredentialWriteOptionsOwned,
 ) -> RuntimeResult<()> {
     // build keychain attribute objects
@@ -237,7 +237,7 @@ pub(crate) fn write_credentials(
 
 /// Delete one credential record from the Apple keychain.
 pub(crate) fn delete_credentials(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -283,7 +283,7 @@ pub(crate) fn delete_credentials(
 
 /// Return whether one credential record exists in the Apple keychain.
 pub(crate) fn contains_credentials(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -344,7 +344,7 @@ pub(crate) fn contains_credentials(
 
 /// Run one host authentication challenge through Apple keychain APIs.
 pub(crate) fn authenticate_credentials(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<CredentialAuthenticationResult> {
     // build one unique keychain probe identity

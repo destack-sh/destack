@@ -3062,3 +3062,27 @@ pub enum UdsAddressReplayRecord {
     /// UdsUnnamedAddress variant.
     UdsUnnamedAddress(UdsUnnamedAddressReplayRecord),
 }
+
+/// Backend capability flag bit for packet capture operations.
+pub const PACKET_BACKEND_CAP_CAPTURE: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(1u64);
+
+/// Backend capability flag bit for packet fanout operations.
+pub const PACKET_BACKEND_CAP_FANOUT: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(16u64);
+
+/// Backend capability flag bit for packet filter programs.
+pub const PACKET_BACKEND_CAP_FILTER: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(8u64);
+
+/// Backend capability flag bit for packet ring operations.
+pub const PACKET_BACKEND_CAP_RING: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(32u64);
+
+/// Backend capability flag bit for packet send operations.
+pub const PACKET_BACKEND_CAP_SEND: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(2u64);
+
+/// Backend capability flag bit for timestamp configuration.
+pub const PACKET_BACKEND_CAP_TIMESTAMP: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(4u64);

@@ -9,27 +9,29 @@ use crate::runtime::BindingCallContext;
 
 /// Resolve one opened touch-capable unix binding.
 fn resolve_touch_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<input_core::UnixInputBinding> {
-    // resolve one opened unix input binding
-    let binding = input_core::resolve_unix_input_binding(context, handle, operation)?;
+    // resolve one opened unix input resolved_binding
+    let resolved_binding = input_core::resolve_unix_input_binding(binding, handle, operation)?;
 
     // validate one touch-capable device kind
     if !matches!(
-        binding.device_kind,
+        resolved_binding.device_kind,
         InputDeviceKind::Touch | InputDeviceKind::Pen
     ) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     // validate one platform backend with descriptor-backed polling
-    if binding.backend != input_core::UnixInputBackend::Platform || binding.descriptor.is_none() {
+    if resolved_binding.backend != input_core::UnixInputBackend::Platform
+        || resolved_binding.descriptor.is_none()
+    {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
-    Ok(binding)
+    Ok(resolved_binding)
 }
 
 /// Read one touch state snapshot.
@@ -51,7 +53,7 @@ fn resolve_touch_binding(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_touch_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputTouchState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -60,22 +62,22 @@ pub(crate) unsafe fn destack_input_touch_state(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve one touch-capable binding
-    let binding = resolve_touch_binding(context, handle, "destack.input.touch.state")?;
-    let descriptor = binding
+    // resolve one touch-capable resolved_binding
+    let resolved_binding = resolve_touch_binding(binding, handle, "destack.input.touch.state")?;
+    let descriptor = resolved_binding
         .descriptor
         .ok_or_else(|| input_core::input_not_found("destack.input.touch.state", handle))?;
     let sequence =
-        input_core::next_unix_event_sequence(context, handle, "destack.input.touch.state")?;
+        input_core::next_unix_event_sequence(binding, handle, "destack.input.touch.state")?;
 
     // route by host support
     #[cfg(target_os = "linux")]
     {
         let snapshot = input_linux::touch_state_snapshot(
-            context,
+            binding,
             descriptor,
             sequence,
-            &binding.device_id,
+            &resolved_binding.device_id,
             "destack.input.touch.state",
         )?;
 
@@ -89,7 +91,7 @@ pub(crate) unsafe fn destack_input_touch_state(
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, descriptor, sequence);
+        let _ = (binding, descriptor, sequence);
         Err(RuntimeError::from(PlatformError::not_supported("destack.input.touch.state")).boxed())
     }
 }

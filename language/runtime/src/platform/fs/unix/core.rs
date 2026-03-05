@@ -111,11 +111,11 @@ pub(super) fn resolve_name_bytes_cstring(
 
 /// Resolve a resource entry for a file handle.
 pub(super) fn file_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<RawFd> {
     // resolve the file resource
-    core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {
+    core_fs::require_resource(binding, handle.0, ResourceKind::File, "file", |entry| {
         entry.fd().ok_or_else(|| {
             RuntimeError::from(PlatformError::generic(
                 None,
@@ -128,12 +128,12 @@ pub(super) fn file_descriptor(
 
 /// Resolve a directory resource from a handle.
 pub(super) fn directory_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<DirectoryResource> {
     // resolve the directory resource
     core_fs::require_resource(
-        context,
+        binding,
         handle.0,
         ResourceKind::Directory,
         "directory",
@@ -154,10 +154,10 @@ pub(super) fn directory_resource(
 
 /// Resolve a directory handle to its file descriptor.
 pub(super) fn directory_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<RawFd> {
-    Ok(directory_resource(context, handle)?.fd)
+    Ok(directory_resource(binding, handle)?.fd)
 }
 
 /// Resolve a raw byte path into a CString for libc calls.

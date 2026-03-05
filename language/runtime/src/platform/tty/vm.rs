@@ -50,13 +50,13 @@ fn termios_attributes_to_vm(
 
 /// Convert one VM termios payload into one native termios payload.
 fn termios_attributes_from_vm(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     attributes: TtyTermiosAttributesVm,
 ) -> RuntimeResult<TtyTermiosAttributes> {
-    // copy VM control characters into runtime-owned native memory
+    // copy VM control characters into binding-owned native memory
     let control_characters = attributes.control_characters.read_bytes(context)?;
-    let control_characters = runtime.store_slice(control_characters);
+    let control_characters = binding.store_slice(control_characters);
 
     // return one projected native termios payload
     Ok(TtyTermiosAttributes {
@@ -88,11 +88,11 @@ fn termios_attributes_from_vm(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_close(runtime, handle) }
+    unsafe { host_tty::destack_tty_close(binding, handle) }
 }
 
 /// Return whether one file handle is attached to a terminal.
@@ -113,11 +113,11 @@ pub(crate) fn destack_tty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_is_terminal_file(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<bool> {
-    call_out(|out| unsafe { host_tty::destack_tty_is_terminal_file(runtime, out, handle) })
+    call_out(|out| unsafe { host_tty::destack_tty_is_terminal_file(binding, out, handle) })
 }
 
 /// Open one standard error terminal handle.
@@ -139,10 +139,10 @@ pub(crate) fn destack_tty_is_terminal_file(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_stdio_stderr(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::TtyHandle> {
-    call_out(|out| unsafe { host_tty::destack_tty_stdio_stderr(runtime, out) })
+    call_out(|out| unsafe { host_tty::destack_tty_stdio_stderr(binding, out) })
 }
 
 /// Open one standard input terminal handle.
@@ -164,10 +164,10 @@ pub(crate) fn destack_tty_stdio_stderr(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_stdio_stdin(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::TtyHandle> {
-    call_out(|out| unsafe { host_tty::destack_tty_stdio_stdin(runtime, out) })
+    call_out(|out| unsafe { host_tty::destack_tty_stdio_stdin(binding, out) })
 }
 
 /// Open one standard output terminal handle.
@@ -189,10 +189,10 @@ pub(crate) fn destack_tty_stdio_stdin(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_stdio_stdout(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::TtyHandle> {
-    call_out(|out| unsafe { host_tty::destack_tty_stdio_stdout(runtime, out) })
+    call_out(|out| unsafe { host_tty::destack_tty_stdio_stdout(binding, out) })
 }
 
 /// Read bytes from a terminal.
@@ -213,7 +213,7 @@ pub(crate) fn destack_tty_stdio_stdout(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_read(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
@@ -224,7 +224,7 @@ pub(crate) fn destack_tty_read(
     // forward to host implementation and capture written count
     let read = call_out(|out| {
         let native_buffer = native_bytes_from_vec(&mut bytes);
-        unsafe { host_tty::destack_tty_read(runtime, out, handle, native_buffer) }
+        unsafe { host_tty::destack_tty_read(binding, out, handle, native_buffer) }
     })?;
 
     // write host memory back into the vm buffer
@@ -251,7 +251,7 @@ pub(crate) fn destack_tty_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_write(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
@@ -262,7 +262,7 @@ pub(crate) fn destack_tty_write(
     // forward to host implementation
     let written = call_out(|out| {
         let native_buffer = native_bytes_from_vec(&mut bytes);
-        unsafe { host_tty::destack_tty_write(runtime, out, handle, native_buffer) }
+        unsafe { host_tty::destack_tty_write(binding, out, handle, native_buffer) }
     })?;
 
     Ok(written)
@@ -287,11 +287,11 @@ pub(crate) fn destack_tty_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_get_mode(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtyModeVm> {
-    call_out(|out| unsafe { host_tty::destack_tty_get_mode(runtime, out, handle) })
+    call_out(|out| unsafe { host_tty::destack_tty_get_mode(binding, out, handle) })
 }
 
 /// Apply terminal mode flags.
@@ -312,12 +312,12 @@ pub(crate) fn destack_tty_get_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_set_mode(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     mode: TtyModeVm,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_set_mode(runtime, handle, mode) }
+    unsafe { host_tty::destack_tty_set_mode(binding, handle, mode) }
 }
 
 /// Enable or disable raw terminal mode.
@@ -338,12 +338,12 @@ pub(crate) fn destack_tty_set_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_set_raw_mode(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_set_raw_mode(runtime, handle, enabled) }
+    unsafe { host_tty::destack_tty_set_raw_mode(binding, handle, enabled) }
 }
 
 /// Close one pseudo-terminal controller.
@@ -364,11 +364,11 @@ pub(crate) fn destack_tty_set_raw_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_pty_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_pty_close(runtime, handle) }
+    unsafe { host_tty::destack_tty_pty_close(binding, handle) }
 }
 
 /// Open one pseudo-terminal pair.
@@ -389,13 +389,13 @@ pub(crate) fn destack_tty_pty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_pty_open(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     rows: u32,
     columns: u32,
     flags: u32,
 ) -> RuntimeResult<PtyPairVm> {
-    call_out(|out| unsafe { host_tty::destack_tty_pty_open(runtime, out, rows, columns, flags) })
+    call_out(|out| unsafe { host_tty::destack_tty_pty_open(binding, out, rows, columns, flags) })
 }
 
 /// Read terminal size.
@@ -416,11 +416,11 @@ pub(crate) fn destack_tty_pty_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_get_size(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtySizeVm> {
-    call_out(|out| unsafe { host_tty::destack_tty_get_size(runtime, out, handle) })
+    call_out(|out| unsafe { host_tty::destack_tty_get_size(binding, out, handle) })
 }
 
 /// Apply terminal size.
@@ -441,52 +441,52 @@ pub(crate) fn destack_tty_get_size(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_set_size(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     size: TtySizeVm,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_set_size(runtime, handle, size) }
+    unsafe { host_tty::destack_tty_set_size(binding, handle, size) }
 }
 
 /// Wait for pending output to drain on one terminal handle.
 pub(crate) fn destack_tty_termios_drain(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_termios_drain(runtime, handle) }
+    unsafe { host_tty::destack_tty_termios_drain(binding, handle) }
 }
 
 /// Apply terminal flow-control action.
 pub(crate) fn destack_tty_termios_flow(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_termios_flow(runtime, handle, action) }
+    unsafe { host_tty::destack_tty_termios_flow(binding, handle, action) }
 }
 
 /// Flush one terminal queue.
 pub(crate) fn destack_tty_termios_flush(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_termios_flush(runtime, handle, queue) }
+    unsafe { host_tty::destack_tty_termios_flush(binding, handle, queue) }
 }
 
 /// Read full termios attributes for one terminal handle.
 pub(crate) fn destack_tty_termios_get_attributes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtyTermiosAttributesVm> {
-    // query one native termios payload from host runtime
+    // query one native termios payload from host binding
     let attributes = call_out(|out| unsafe {
-        host_tty::destack_tty_termios_get_attributes(runtime, out, handle)
+        host_tty::destack_tty_termios_get_attributes(binding, out, handle)
     })?;
 
     // project one native payload into VM value lanes
@@ -495,44 +495,44 @@ pub(crate) fn destack_tty_termios_get_attributes(
 
 /// Read controlling-terminal process-group id.
 pub(crate) fn destack_tty_termios_get_process_group(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<process::ProcessId> {
-    call_out(|out| unsafe { host_tty::destack_tty_termios_get_process_group(runtime, out, handle) })
+    call_out(|out| unsafe { host_tty::destack_tty_termios_get_process_group(binding, out, handle) })
 }
 
 /// Send one terminal break condition.
 pub(crate) fn destack_tty_termios_send_break(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     duration: u32,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_termios_send_break(runtime, handle, duration) }
+    unsafe { host_tty::destack_tty_termios_send_break(binding, handle, duration) }
 }
 
 /// Apply full termios attributes to one terminal handle.
 pub(crate) fn destack_tty_termios_set_attributes(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     attributes: TtyTermiosAttributesVm,
     action: TtyTermiosSetAction,
 ) -> RuntimeResult<()> {
     // project VM termios payload into native value lanes
-    let attributes = termios_attributes_from_vm(runtime, context, attributes)?;
+    let attributes = termios_attributes_from_vm(binding, context, attributes)?;
 
     // apply one native termios update through the host backend
-    unsafe { host_tty::destack_tty_termios_set_attributes(runtime, handle, attributes, action) }
+    unsafe { host_tty::destack_tty_termios_set_attributes(binding, handle, attributes, action) }
 }
 
 /// Set controlling-terminal process-group id.
 pub(crate) fn destack_tty_termios_set_process_group(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,
 ) -> RuntimeResult<()> {
-    unsafe { host_tty::destack_tty_termios_set_process_group(runtime, handle, processgroupid) }
+    unsafe { host_tty::destack_tty_termios_set_process_group(binding, handle, processgroupid) }
 }

@@ -152,13 +152,13 @@ pub(crate) fn decode_harness_value<T>(value: HarnessValue<T, T>) -> T {
 
 /// Remove one tty worker entry through the resource table.
 pub(crate) fn close_tty_worker_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -173,10 +173,10 @@ pub(crate) fn close_tty_worker_resource(
 /// Resolve one pty handle into one raw unix descriptor.
 #[cfg(unix)]
 pub(crate) fn pty_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<libc::c_int> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -201,10 +201,10 @@ pub(crate) fn pty_descriptor(
 /// Resolve one tty handle into one raw unix descriptor.
 #[cfg(unix)]
 pub(crate) fn tty_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<libc::c_int> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {

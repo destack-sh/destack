@@ -38,7 +38,7 @@ use std::ffi::CString;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_chroot(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
@@ -72,7 +72,7 @@ pub(crate) unsafe fn destack_process_chroot(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_install_syscall_filter(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     program: NativeArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeResult<()> {
@@ -154,7 +154,7 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_host_name(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let name = unsafe { name.as_str()? };
@@ -203,7 +203,7 @@ pub(crate) unsafe fn destack_process_set_host_name(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_network_namespace(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -240,7 +240,7 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_setns(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
 ) -> RuntimeResult<()> {
@@ -281,7 +281,7 @@ pub(crate) unsafe fn destack_process_setns(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
     #[cfg(any(target_os = "linux", target_os = "android"))]

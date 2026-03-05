@@ -47,9 +47,9 @@ pub(crate) struct MacosRouteRuntimeState {
 
 /// Return runtime-owned macOS route state.
 #[cfg(target_os = "macos")]
-fn macos_route_runtime_state(context: &BindingCallContext) -> Arc<MacosRouteRuntimeState> {
-    context
-        .runtime()
+fn macos_route_runtime_state(binding: &BindingCallContext) -> Arc<MacosRouteRuntimeState> {
+    binding
+        .agent()
         .platform_state
         .net
         .macos_route_runtime_state(|| MacosRouteRuntimeState {
@@ -96,8 +96,8 @@ fn macos_prefix_length_from_mask(mask: &[u8]) -> u8 {
 
 /// Build one sequence value for one macOS route message exchange.
 #[cfg(target_os = "macos")]
-fn macos_route_sequence_for_context(context: &BindingCallContext) -> i32 {
-    let runtime_state = macos_route_runtime_state(context);
+fn macos_route_sequence_for_context(binding: &BindingCallContext) -> i32 {
+    let runtime_state = macos_route_runtime_state(binding);
     runtime_state.sequence.fetch_add(1, Ordering::Relaxed)
 }
 
@@ -226,7 +226,7 @@ fn sockaddr_from_ipv4(address: Ipv4Addr) -> libc::sockaddr {
 /// Build one route socket-address payload for one IPv4 address.
 #[cfg(target_os = "linux")]
 fn socket_address_ipv4(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: Ipv4Addr,
 ) -> RuntimeResult<SocketAddress> {
     // encode sockaddr storage bytes for the IPv4 address
@@ -249,7 +249,7 @@ fn socket_address_ipv4(
 
     // map storage bytes into the runtime socket-address ABI
     socket_address_from_storage(
-        context,
+        binding,
         &storage,
         std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t,
     )
@@ -258,7 +258,7 @@ fn socket_address_ipv4(
 /// Build one route socket-address payload for one IPv6 address.
 #[cfg(target_os = "linux")]
 fn socket_address_ipv6(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: Ipv6Addr,
 ) -> RuntimeResult<SocketAddress> {
     // encode sockaddr storage bytes for the IPv6 address
@@ -282,7 +282,7 @@ fn socket_address_ipv6(
 
     // map storage bytes into the runtime socket-address ABI
     socket_address_from_storage(
-        context,
+        binding,
         &storage,
         std::mem::size_of::<libc::sockaddr_in6>() as libc::socklen_t,
     )
@@ -666,20 +666,20 @@ fn macos_route_sockaddrs(message: &[u8], addrs_mask: i32) -> RuntimeResult<[Opti
 
 /// Convert one raw sockaddr payload into one runtime socket address.
 #[cfg(target_os = "macos")]
-fn macos_socket_address(context: &BindingCallContext, raw: &[u8]) -> RuntimeResult<SocketAddress> {
+fn macos_socket_address(binding: &BindingCallContext, raw: &[u8]) -> RuntimeResult<SocketAddress> {
     let mut storage = unsafe { std::mem::zeroed::<libc::sockaddr_storage>() };
     let copy_length = raw.len().min(std::mem::size_of::<libc::sockaddr_storage>());
     unsafe {
         std::ptr::copy_nonoverlapping(raw.as_ptr(), &mut storage as *mut _ as *mut u8, copy_length);
     }
 
-    socket_address_from_storage(context, &storage, copy_length as libc::socklen_t)
+    socket_address_from_storage(binding, &storage, copy_length as libc::socklen_t)
 }
 
 /// Build one unspecified socket-address payload for macOS route rows.
 #[cfg(target_os = "macos")]
 fn macos_unspecified_socket_address(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     family: SocketFamily,
 ) -> RuntimeResult<SocketAddress> {
     if family == SocketFamily::IPv4 {
@@ -696,7 +696,7 @@ fn macos_unspecified_socket_address(
                 std::mem::size_of::<libc::sockaddr_in>(),
             )
         };
-        return macos_socket_address(context, bytes);
+        return macos_socket_address(binding, bytes);
     }
 
     if family == SocketFamily::IPv6 {
@@ -714,7 +714,7 @@ fn macos_unspecified_socket_address(
                 std::mem::size_of::<libc::sockaddr_in6>(),
             )
         };
-        return macos_socket_address(context, bytes);
+        return macos_socket_address(binding, bytes);
     }
 
     Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -727,7 +727,7 @@ fn macos_unspecified_socket_address(
 /// Read one macOS route snapshot through NET_RT_DUMP.
 #[cfg(target_os = "macos")]
 fn list_macos_routes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     family: SocketFamily,
 ) -> RuntimeResult<Vec<RouteEntry>> {
     // map runtime family to one sysctl family selector
@@ -816,11 +816,11 @@ fn list_macos_routes(
         };
 
         // decode destination and gateway socket-address payloads
-        let destination = macos_socket_address(context, destination_raw)?;
+        let destination = macos_socket_address(binding, destination_raw)?;
         let gateway = if let Some(gateway_raw) = sockaddrs[libc::RTAX_GATEWAY as usize].as_ref() {
-            macos_socket_address(context, gateway_raw)?
+            macos_socket_address(binding, gateway_raw)?
         } else {
-            macos_unspecified_socket_address(context, destination_family)?
+            macos_unspecified_socket_address(binding, destination_family)?
         };
 
         // decode destination IP and derive route kind
@@ -857,7 +857,7 @@ fn list_macos_routes(
 
 /// Read one IPv4 route snapshot from procfs.
 #[cfg(target_os = "linux")]
-fn list_ipv4_routes(context: &BindingCallContext) -> RuntimeResult<Vec<RouteEntry>> {
+fn list_ipv4_routes(binding: &BindingCallContext) -> RuntimeResult<Vec<RouteEntry>> {
     // load one procfs IPv4 route table snapshot
     let rows = std::fs::read_to_string(PROC_ROUTE_IPV4_PATH).map_err(|error| {
         RuntimeError::from(PlatformError::io(format!(
@@ -910,8 +910,8 @@ fn list_ipv4_routes(context: &BindingCallContext) -> RuntimeResult<Vec<RouteEntr
         let kind = ipv4_route_kind(destination, flags_raw);
 
         // encode runtime route-entry socket addresses
-        let destination_address = socket_address_ipv4(context, destination)?;
-        let gateway_address = socket_address_ipv4(context, gateway)?;
+        let destination_address = socket_address_ipv4(binding, destination)?;
+        let gateway_address = socket_address_ipv4(binding, gateway)?;
 
         routes.push(RouteEntry {
             family: SocketFamily::IPv4,
@@ -929,7 +929,7 @@ fn list_ipv4_routes(context: &BindingCallContext) -> RuntimeResult<Vec<RouteEntr
 
 /// Read one IPv6 route snapshot from procfs.
 #[cfg(target_os = "linux")]
-fn list_ipv6_routes(context: &BindingCallContext) -> RuntimeResult<Vec<RouteEntry>> {
+fn list_ipv6_routes(binding: &BindingCallContext) -> RuntimeResult<Vec<RouteEntry>> {
     // load one procfs IPv6 route table snapshot
     let rows = std::fs::read_to_string(PROC_ROUTE_IPV6_PATH).map_err(|error| {
         RuntimeError::from(PlatformError::io(format!(
@@ -978,8 +978,8 @@ fn list_ipv6_routes(context: &BindingCallContext) -> RuntimeResult<Vec<RouteEntr
         let kind = ipv6_route_kind(destination, flags_raw);
 
         // encode runtime route-entry socket addresses
-        let destination_address = socket_address_ipv6(context, destination)?;
-        let gateway_address = socket_address_ipv6(context, gateway)?;
+        let destination_address = socket_address_ipv6(binding, destination)?;
+        let gateway_address = socket_address_ipv6(binding, gateway)?;
 
         routes.push(RouteEntry {
             family: SocketFamily::IPv6,
@@ -998,7 +998,7 @@ fn list_ipv6_routes(context: &BindingCallContext) -> RuntimeResult<Vec<RouteEntr
 /// Apply one macOS route-table mutation through route sockets.
 #[cfg(target_os = "macos")]
 fn mutate_macos_route(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     route: RouteEntry,
     message_type: libc::c_int,
     operation: &'static str,
@@ -1083,7 +1083,7 @@ fn mutate_macos_route(
     }
 
     // populate one route header
-    let sequence = macos_route_sequence_for_context(context);
+    let sequence = macos_route_sequence_for_context(binding);
     let message_length = u16::try_from(message.len()).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "route",
@@ -1369,13 +1369,13 @@ fn mutate_ipv6_route(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // reject unix targets without route-mutation support
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, route);
+        let _ = (binding, route);
         route_not_supported("destack.net.routeAdd")
     }
 
@@ -1394,7 +1394,7 @@ pub(crate) unsafe fn destack_net_route_add(
 
     #[cfg(target_os = "macos")]
     {
-        mutate_macos_route(context, route, libc::RTM_ADD, "write(PF_ROUTE:RTM_ADD)")
+        mutate_macos_route(binding, route, libc::RTM_ADD, "write(PF_ROUTE:RTM_ADD)")
     }
 }
 
@@ -1418,13 +1418,13 @@ pub(crate) unsafe fn destack_net_route_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // reject unix targets without route-mutation support
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, route);
+        let _ = (binding, route);
         route_not_supported("destack.net.routeDelete")
     }
 
@@ -1444,7 +1444,7 @@ pub(crate) unsafe fn destack_net_route_delete(
     #[cfg(target_os = "macos")]
     {
         mutate_macos_route(
-            context,
+            binding,
             route,
             libc::RTM_DELETE,
             "write(PF_ROUTE:RTM_DELETE)",
@@ -1472,14 +1472,14 @@ pub(crate) unsafe fn destack_net_route_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<RouteEntry>,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
     // reject unix targets without one implemented route-list backend
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, out, family);
+        let _ = (binding, out, family);
         route_not_supported("destack.net.routeList")
     }
 
@@ -1492,8 +1492,8 @@ pub(crate) unsafe fn destack_net_route_list(
 
         // read one host route-table snapshot for the selected family
         let entries = match family {
-            SocketFamily::IPv4 => list_ipv4_routes(context)?,
-            SocketFamily::IPv6 => list_ipv6_routes(context)?,
+            SocketFamily::IPv4 => list_ipv4_routes(binding)?,
+            SocketFamily::IPv6 => list_ipv6_routes(binding)?,
             SocketFamily::Unspecified => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "family",
@@ -1504,7 +1504,7 @@ pub(crate) unsafe fn destack_net_route_list(
         };
 
         // write one runtime route-entry array output
-        let entries = context.store_array(entries);
+        let entries = binding.store_array(entries);
         unsafe {
             *out = entries;
         }
@@ -1520,10 +1520,10 @@ pub(crate) unsafe fn destack_net_route_list(
         }
 
         // read one host route-table snapshot for the selected family
-        let entries = list_macos_routes(context, family)?;
+        let entries = list_macos_routes(binding, family)?;
 
         // write one runtime route-entry array output
-        let entries = context.store_array(entries);
+        let entries = binding.store_array(entries);
         unsafe {
             *out = entries;
         }

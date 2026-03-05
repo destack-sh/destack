@@ -34,7 +34,7 @@ pub(super) fn open_stream(
     });
 
     // build one stream binding and spawn one transfer worker
-    let binding = Arc::new(audio_core::AudioStreamBinding {
+    let stream_binding = Arc::new(audio_core::AudioStreamBinding {
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
@@ -66,15 +66,15 @@ pub(super) fn open_stream(
     *runtime
         .binding
         .lock()
-        .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&binding);
+        .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&stream_binding);
 
-    let worker = spawn_worker(binding.clone(), runtime);
-    *binding
+    let worker = spawn_worker(stream_binding.clone(), runtime);
+    *stream_binding
         .null_worker
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 
-    Ok(binding)
+    Ok(stream_binding)
 }
 
 /// Open one ALSA runtime payload from one parsed stable id.

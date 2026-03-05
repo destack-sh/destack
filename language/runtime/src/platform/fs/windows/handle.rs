@@ -44,11 +44,11 @@ const WINDOWS_FD_CLOEXEC_FLAG: u32 = 1;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = context.agent().resources.remove(handle.0).ok_or_else(|| {
+    let entry = binding.agent().resources.remove(handle.0).ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown file handle",
@@ -80,7 +80,7 @@ pub(crate) unsafe fn destack_fs_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -90,8 +90,8 @@ pub(crate) unsafe fn destack_fs_dup(
     }
 
     // resolve the source handle and shared state
-    let (source_cursor, source_status_flags) = file_state(context, handle)?;
-    let handle = file_handle(context, handle)?;
+    let (source_cursor, source_status_flags) = file_state(binding, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // duplicate the handle into the current process
     let process = unsafe { GetCurrentProcess() };
@@ -129,10 +129,10 @@ pub(crate) unsafe fn destack_fs_dup(
             status_flags: source_status_flags,
         })
         .with_finalizer(HandleFinalizer::new(duplicated));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -158,7 +158,7 @@ pub(crate) unsafe fn destack_fs_dup(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup2(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
@@ -170,16 +170,16 @@ pub(crate) unsafe fn destack_fs_dup2(
 
     // close the target handle if it exists
     if handle.0 != target.0
-        && let Some(entry) = context
+        && let Some(entry) = binding
             .agent()
             .resources
-            .remove(target.0, Some(context.engine()))
+            .remove(target.0, Some(binding.engine()))
     {
         entry.finalize(target.0);
     }
 
     // duplicate the handle
-    unsafe { destack_fs_dup(context, out, handle) }
+    unsafe { destack_fs_dup(binding, out, handle) }
 }
 
 /// Duplicate a file handle to a specific target with flags.
@@ -200,13 +200,13 @@ pub(crate) unsafe fn destack_fs_dup2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup3(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     handle: FileHandle,
     target: FileHandle,
     _flags: OpenFlags,
 ) -> RuntimeResult<()> {
-    unsafe { destack_fs_dup2(context, out, handle, target) }
+    unsafe { destack_fs_dup2(binding, out, handle, target) }
 }
 
 /// Close a directory handle.
@@ -227,11 +227,11 @@ pub(crate) unsafe fn destack_fs_dup3(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_closedir(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = context.agent().resources.remove(handle.0).ok_or_else(|| {
+    let entry = binding.agent().resources.remove(handle.0).ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown directory handle",
@@ -263,12 +263,12 @@ pub(crate) unsafe fn destack_fs_closedir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmod(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     // resolve the file handle
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // read the current attributes
     let path = final_path_from_handle(handle)?;
@@ -311,14 +311,14 @@ pub(crate) unsafe fn destack_fs_fchmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchown(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
     // resolve inputs
-    let handle = file_handle(context, handle)?;
-    let (owner, group) = posix_sids(context, uid, gid)?;
+    let handle = file_handle(binding, handle)?;
+    let (owner, group) = posix_sids(binding, uid, gid)?;
 
     // update ownership information
     let rc = unsafe {
@@ -357,11 +357,11 @@ pub(crate) unsafe fn destack_fs_fchown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fdatasync(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // resolve the file handle
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // flush buffers
     let rc = unsafe { FlushFileBuffers(handle) };
@@ -390,7 +390,7 @@ pub(crate) unsafe fn destack_fs_fdatasync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstat(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Stat,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -400,7 +400,7 @@ pub(crate) unsafe fn destack_fs_fstat(
     }
 
     // resolve the file handle
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // gather metadata
     let stat = stat_from_handle(handle)?;
@@ -431,7 +431,7 @@ pub(crate) unsafe fn destack_fs_fstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstatfs(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut StatFs,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -441,7 +441,7 @@ pub(crate) unsafe fn destack_fs_fstatfs(
     }
 
     // resolve the file handle
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // gather filesystem metadata
     let path = final_path_from_handle(handle)?;
@@ -473,10 +473,10 @@ pub(crate) unsafe fn destack_fs_fstatfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsync(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    unsafe { destack_fs_fdatasync(context, handle) }
+    unsafe { destack_fs_fdatasync(binding, handle) }
 }
 
 /// Truncate a file by handle.
@@ -497,12 +497,12 @@ pub(crate) unsafe fn destack_fs_fsync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_ftruncate(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     // resolve the file handle and set the file pointer
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
     let distance = size.0;
     let rc = unsafe { SetFilePointerEx(handle, distance, std::ptr::null_mut(), FILE_BEGIN) };
     if rc == 0 {
@@ -536,7 +536,7 @@ pub(crate) unsafe fn destack_fs_ftruncate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_seek(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileOffset,
     handle: FileHandle,
     offset: FileOffset,
@@ -548,7 +548,7 @@ pub(crate) unsafe fn destack_fs_seek(
     }
 
     // resolve the file handle
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
     let distance = offset.0;
     let whence = match whence {
         SeekWhence::Set => FILE_BEGIN,
@@ -588,13 +588,13 @@ pub(crate) unsafe fn destack_fs_seek(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_futimes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     atime_ns: u64,
     mtime_ns: u64,
 ) -> RuntimeResult<()> {
     // update the handle timestamps
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
     set_handle_times(handle, atime_ns, mtime_ns)
 }
 
@@ -616,7 +616,7 @@ pub(crate) unsafe fn destack_fs_futimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dirfd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FileHandle,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
@@ -626,7 +626,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
 
     #[cfg(unix)]
     {
-        let directory_fd = directory_descriptor(context, handle)?;
+        let directory_fd = directory_descriptor(binding, handle)?;
         let file_fd = unsafe { libc::dup(directory_fd) };
         if file_fd < 0 {
             return Err(RuntimeError::from(PlatformError::io("dup failed".to_string())).boxed());
@@ -635,10 +635,10 @@ pub(crate) unsafe fn destack_fs_dirfd(
         let resource = ResourceEntry::new(ResourceKind::File)
             .with_fd(file_fd)
             .with_finalizer(DescriptorFinalizer { fd: file_fd });
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(resource, Some(context.engine()));
+            .insert(resource, Some(binding.engine()));
         unsafe {
             *out = FileHandle(resource_id);
         }
@@ -649,7 +649,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
     #[cfg(not(unix))]
     {
         // resolve and duplicate the directory handle for file-handle lanes
-        let directory = directory_handle(context, handle)?;
+        let directory = directory_handle(binding, handle)?;
         let process = unsafe { GetCurrentProcess() };
         let mut duplicated =
             unsafe { std::mem::zeroed::<windows_sys::Win32::Foundation::HANDLE>() };
@@ -686,10 +686,10 @@ pub(crate) unsafe fn destack_fs_dirfd(
                 status_flags: Arc::new(Mutex::new(0)),
             })
             .with_finalizer(HandleFinalizer::new(duplicated));
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(resource, Some(context.engine()));
+            .insert(resource, Some(binding.engine()));
         unsafe {
             *out = FileHandle(resource_id);
         }
@@ -716,7 +716,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_get_fd_flags(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut FdFlags,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -726,7 +726,7 @@ pub(crate) unsafe fn destack_fs_get_fd_flags(
 
     #[cfg(unix)]
     {
-        let fd = file_descriptor(context, handle)?;
+        let fd = file_descriptor(binding, handle)?;
         let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
         if flags < 0 {
             return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
@@ -741,7 +741,7 @@ pub(crate) unsafe fn destack_fs_get_fd_flags(
     #[cfg(not(unix))]
     {
         // read inheritance metadata from the raw handle
-        let handle = file_handle(context, handle)?;
+        let handle = file_handle(binding, handle)?;
         let mut value = 0u32;
         let rc = unsafe { GetHandleInformation(handle, &mut value) };
         if rc == 0 {
@@ -781,7 +781,7 @@ pub(crate) unsafe fn destack_fs_get_fd_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_get_status_flags(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut StatusFlags,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -791,7 +791,7 @@ pub(crate) unsafe fn destack_fs_get_status_flags(
 
     #[cfg(unix)]
     {
-        let fd = file_descriptor(context, handle)?;
+        let fd = file_descriptor(binding, handle)?;
         let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
         if flags < 0 {
             return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
@@ -806,7 +806,7 @@ pub(crate) unsafe fn destack_fs_get_status_flags(
     #[cfg(not(unix))]
     {
         // read tracked status flags from resource metadata
-        let status_flags = file_status_flags(context, handle)?;
+        let status_flags = file_status_flags(binding, handle)?;
         let status_flags = status_flags.lock();
         unsafe {
             *out = StatusFlags(*status_flags);
@@ -834,13 +834,13 @@ pub(crate) unsafe fn destack_fs_get_status_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_set_fd_flags(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
     #[cfg(unix)]
     {
-        let fd = file_descriptor(context, handle)?;
+        let fd = file_descriptor(binding, handle)?;
         let result = unsafe { libc::fcntl(fd, libc::F_SETFD, flags.0 as libc::c_int) };
         if result < 0 {
             return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
@@ -851,7 +851,7 @@ pub(crate) unsafe fn destack_fs_set_fd_flags(
     #[cfg(not(unix))]
     {
         // resolve the raw handle and map FD_CLOEXEC into inherit state
-        let handle = file_handle(context, handle)?;
+        let handle = file_handle(binding, handle)?;
         let close_on_exec = (flags.0 & WINDOWS_FD_CLOEXEC_FLAG) != 0;
         let inherit = if close_on_exec {
             0
@@ -885,13 +885,13 @@ pub(crate) unsafe fn destack_fs_set_fd_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_set_status_flags(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
     #[cfg(unix)]
     {
-        let fd = file_descriptor(context, handle)?;
+        let fd = file_descriptor(binding, handle)?;
         let result = unsafe { libc::fcntl(fd, libc::F_SETFL, flags.0 as libc::c_int) };
         if result < 0 {
             return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
@@ -902,7 +902,7 @@ pub(crate) unsafe fn destack_fs_set_status_flags(
     #[cfg(not(unix))]
     {
         // write status flags into resource metadata
-        let status_flags = file_status_flags(context, handle)?;
+        let status_flags = file_status_flags(binding, handle)?;
         let mut status_flags = status_flags.lock();
         *status_flags = flags.0;
 
@@ -928,12 +928,12 @@ pub(crate) unsafe fn destack_fs_set_status_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_syncfs(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     #[cfg(unix)]
     {
-        let fd = file_descriptor(context, handle)?;
+        let fd = file_descriptor(binding, handle)?;
         #[cfg(target_os = "linux")]
         {
             let result = unsafe { libc::syncfs(fd) };
@@ -959,7 +959,7 @@ pub(crate) unsafe fn destack_fs_syncfs(
     #[cfg(not(unix))]
     {
         // flush pending writeback for the target handle
-        let handle = file_handle(context, handle)?;
+        let handle = file_handle(binding, handle)?;
         let rc = unsafe { FlushFileBuffers(handle) };
         if rc == 0 {
             return Err(last_os_error("FlushFileBuffers", None));

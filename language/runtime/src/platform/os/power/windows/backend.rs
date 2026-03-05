@@ -6,7 +6,7 @@ use crate::platform::os::PowerState;
 use crate::runtime::BindingCallContext;
 
 /// Read one host power-state value from windows APIs.
-pub(crate) fn read_power_state(_context: &BindingCallContext) -> RuntimeResult<PowerState> {
+pub(crate) fn read_power_state(binding: &BindingCallContext) -> RuntimeResult<PowerState> {
     // query host power-status payload
     let mut status = unsafe { std::mem::zeroed::<SYSTEM_POWER_STATUS>() };
     let result = unsafe { GetSystemPowerStatus(&mut status) };

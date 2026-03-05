@@ -26,7 +26,7 @@ pub(crate) use x11::X11RuntimeState;
 
 /// List unix display backend descriptors for the active host.
 pub(super) fn display_backend_descriptors(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> Vec<DisplayBackendDescriptor> {
-    core::backend_descriptors(context)
+    core::backend_descriptors(binding)
 }

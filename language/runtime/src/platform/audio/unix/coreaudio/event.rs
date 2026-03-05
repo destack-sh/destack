@@ -114,14 +114,14 @@ pub(crate) struct CoreAudioMonitorRuntimeState {
 /// Return runtime-owned monitor state for CoreAudio listeners.
 #[cfg(target_os = "macos")]
 fn coreaudio_monitor_runtime_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> std::sync::Arc<CoreAudioMonitorRuntimeState> {
-    let runtime_state = context
-        .runtime()
+    let runtime_state = binding
+        .agent()
         .platform_state
         .audio
         .coreaudio_monitor_runtime_state(CoreAudioMonitorRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
+    register_runtime_finalizer(binding, &runtime_state);
 
     runtime_state
 }
@@ -129,7 +129,7 @@ fn coreaudio_monitor_runtime_state(
 /// Register one runtime finalizer for CoreAudio monitor teardown.
 #[cfg(target_os = "macos")]
 fn register_runtime_finalizer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &std::sync::Arc<CoreAudioMonitorRuntimeState>,
 ) {
     if runtime_state
@@ -140,8 +140,8 @@ fn register_runtime_finalizer(
     }
 
     let runtime_state = std::sync::Arc::clone(runtime_state);
-    let audio_runtime_state = audio_core::audio_event_runtime_state(context);
-    context.runtime().finalizers.register(move || {
+    let audio_runtime_state = audio_core::audio_event_runtime_state(binding);
+    binding.agent().finalizers.register(move || {
         if !runtime_state.started.swap(false, Ordering::AcqRel) {
             return;
         }
@@ -161,15 +161,15 @@ pub(crate) fn native_device_events_supported() -> bool {
 }
 
 /// Start CoreAudio native device-event monitoring.
-pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) -> RuntimeResult<()> {
+pub(crate) fn start_native_device_event_monitor(binding: &BindingCallContext) -> RuntimeResult<()> {
     #[cfg(target_os = "macos")]
     {
-        let runtime_state = coreaudio_monitor_runtime_state(context);
+        let runtime_state = coreaudio_monitor_runtime_state(binding);
         if runtime_state.started.swap(true, Ordering::AcqRel) {
             return Ok(());
         }
 
-        let audio_runtime_state = audio_core::audio_event_runtime_state(context);
+        let audio_runtime_state = audio_core::audio_event_runtime_state(binding);
         let user_data = std::sync::Arc::as_ptr(&audio_runtime_state) as *mut std::ffi::c_void;
         let selectors = monitor_selectors();
         for (index, selector) in selectors.iter().copied().enumerate() {
@@ -187,7 +187,7 @@ pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) ->
 
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = context;
+        let _ = binding;
 
         Err(backend_not_supported(
             "destack.audio.event.open",
@@ -197,15 +197,15 @@ pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) ->
 }
 
 /// Stop CoreAudio native device-event monitoring.
-pub(crate) fn stop_native_device_event_monitor(context: &BindingCallContext) {
+pub(crate) fn stop_native_device_event_monitor(binding: &BindingCallContext) {
     #[cfg(target_os = "macos")]
     {
-        let runtime_state = coreaudio_monitor_runtime_state(context);
+        let runtime_state = coreaudio_monitor_runtime_state(binding);
         if !runtime_state.started.swap(false, Ordering::AcqRel) {
             return;
         }
 
-        let audio_runtime_state = audio_core::audio_event_runtime_state(context);
+        let audio_runtime_state = audio_core::audio_event_runtime_state(binding);
         let user_data = std::sync::Arc::as_ptr(&audio_runtime_state) as *mut std::ffi::c_void;
         for selector in monitor_selectors() {
             remove_property_listener_with_user_data(selector, user_data);
@@ -214,6 +214,6 @@ pub(crate) fn stop_native_device_event_monitor(context: &BindingCallContext) {
 
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = context;
+        let _ = binding;
     }
 }

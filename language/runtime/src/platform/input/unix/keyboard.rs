@@ -11,45 +11,45 @@ use crate::runtime::BindingCallContext;
 
 /// Read one keyboard snapshot for one opened Unix input handle.
 fn keyboard_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputKeyboardState> {
-    // resolve one opened unix input binding
-    let binding = input_core::resolve_unix_input_binding(context, handle, operation)?;
+    // resolve one opened unix input resolved_binding
+    let resolved_binding = input_core::resolve_unix_input_binding(binding, handle, operation)?;
 
     // allocate one sequence number for this snapshot read
-    let sequence = input_core::next_unix_event_sequence(context, handle, operation)?;
+    let sequence = input_core::next_unix_event_sequence(binding, handle, operation)?;
 
     // route by backend and host support
-    match binding.backend {
+    match resolved_binding.backend {
         input_core::UnixInputBackend::UnixTerminal => {
             Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
         }
         input_core::UnixInputBackend::Platform => {
             #[cfg(target_os = "linux")]
             {
-                let Some(descriptor) = binding.descriptor else {
+                let Some(descriptor) = resolved_binding.descriptor else {
                     return Err(input_core::input_not_found(operation, handle));
                 };
 
                 return input_linux::keyboard_state_snapshot(
-                    context,
+                    binding,
                     descriptor,
                     sequence,
-                    &binding.device_id,
+                    &resolved_binding.device_id,
                     operation,
                 );
             }
 
             #[cfg(target_os = "macos")]
             {
-                input_macos::keyboard_state_snapshot(context, sequence, &binding.device_id)
+                input_macos::keyboard_state_snapshot(binding, sequence, &resolved_binding.device_id)
             }
 
             #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
             {
-                let _ = (context, sequence, binding);
+                let _ = (binding, sequence, resolved_binding);
                 Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
             }
         }
@@ -75,7 +75,7 @@ fn keyboard_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_keyboard_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputKeyboardState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -85,7 +85,7 @@ pub(crate) unsafe fn destack_input_keyboard_state(
     }
 
     // query one keyboard-state snapshot
-    let snapshot = keyboard_state(context, handle, "destack.input.keyboard.state")?;
+    let snapshot = keyboard_state(binding, handle, "destack.input.keyboard.state")?;
 
     // write output payload
     unsafe {

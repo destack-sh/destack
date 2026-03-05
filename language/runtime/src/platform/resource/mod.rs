@@ -5,6 +5,7 @@ mod bindings_generated;
 mod handle;
 mod kind;
 pub mod native;
+#[cfg(any(windows, target_os = "linux"))]
 mod resolve;
 pub(crate) mod runtime;
 mod snapshot;
@@ -16,6 +17,8 @@ pub mod vm;
 pub use bindings_generated::*;
 pub use handle::*;
 pub use kind::*;
+#[cfg(any(windows, target_os = "linux"))]
+pub(crate) use resolve::resolve_payload;
 pub use snapshot::{
     ResourceDescriptor, ResourceSnapshot, ResourceSnapshotAdapter, ResourceSnapshotPolicy,
 };

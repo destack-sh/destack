@@ -280,7 +280,7 @@ impl MacosTapQueues {
 
 /// Shared synchronization state for the macOS event tap service.
 #[derive(Debug)]
-struct MacosTapState {
+pub(crate) struct MacosTapState {
     /// Protected queue payloads and startup metadata.
     queues: Mutex<MacosTapQueues>,
     /// Wake primitive used by blocking readers.
@@ -521,8 +521,8 @@ fn wait_pop_subscription_event(subscription_id: u64) -> RuntimeResult<Option<Mac
 }
 
 /// Convert one queued packet into one runtime input event payload.
-fn packet_to_input_event(context: &BindingCallContext, packet: MacosTapPacket) -> InputEvent {
-    let mut payload = input_core::empty_unix_event_payload(context);
+fn packet_to_input_event(binding: &BindingCallContext, packet: MacosTapPacket) -> InputEvent {
+    let mut payload = input_core::empty_unix_event_payload(binding);
     match packet.kind {
         InputEventKind::Key => {
             payload.key = InputKeyEventPayload {
@@ -565,7 +565,7 @@ fn packet_to_input_event(context: &BindingCallContext, packet: MacosTapPacket) -
     }
 
     input_core::build_unix_input_event(
-        context,
+        binding,
         packet.kind,
         packet.timestamp_ns,
         0,
@@ -602,7 +602,7 @@ fn flags_changed_action_and_value(
 
 /// Return one capability payload for the macOS global-session backend.
 pub(super) fn query_macos_session_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> InputDeviceCapabilities {
     // expose keyboard and pointer lanes from the global event-tap stream
     let kinds = vec![
@@ -671,9 +671,9 @@ pub(super) fn query_macos_session_capabilities(
     ];
 
     InputDeviceCapabilities {
-        kinds: context.store_array(kinds),
-        axes: context.store_array(axes),
-        buttons: context.store_array(buttons),
+        kinds: binding.store_array(kinds),
+        axes: binding.store_array(axes),
+        buttons: binding.store_array(buttons),
         metadata_origin: InputCapabilityMetadataOrigin::Mixed,
         axis_metadata_fidelity: InputCapabilityMetadataFidelity::Partial,
         button_metadata_fidelity: InputCapabilityMetadataFidelity::Partial,
@@ -762,7 +762,7 @@ fn current_pointer_position(operation: &'static str) -> RuntimeResult<(f64, f64)
 
 /// Read one host keyboard snapshot from macOS global event-source state.
 pub(super) fn keyboard_state_snapshot(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     sequence: u64,
     device_id: &str,
 ) -> RuntimeResult<InputKeyboardState> {
@@ -779,10 +779,10 @@ pub(super) fn keyboard_state_snapshot(
     Ok(InputKeyboardState {
         timestamp_ns: input_core::monotonic_timestamp_ns(),
         sequence,
-        device_id: context.store_string(device_id),
+        device_id: binding.store_string(device_id),
         modifiers,
-        pressed_codes: context.store_array(pressed_codes.clone()),
-        pressed_scan_codes: context.store_array(pressed_codes),
+        pressed_codes: binding.store_array(pressed_codes.clone()),
+        pressed_scan_codes: binding.store_array(pressed_codes),
     })
 }
 
@@ -837,11 +837,11 @@ pub(super) fn warp_pointer_position(x: f64, y: f64, operation: &'static str) -> 
 
 /// Resolve or allocate one subscription id for one opened handle.
 fn resolve_subscription_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let subscription = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let subscription = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -850,15 +850,15 @@ fn resolve_subscription_id(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
-        if binding.backend != input_core::UnixInputBackend::Platform {
+        if resolved_binding.backend != input_core::UnixInputBackend::Platform {
             return None;
         }
 
-        let state = binding.macos_state.as_mut()?;
+        let state = resolved_binding.macos_state.as_mut()?;
         if let Some(subscription_id) = state.subscription_id() {
             return Some(Ok(subscription_id));
         }
@@ -881,12 +881,12 @@ fn resolve_subscription_id(
 
 /// Poll one event-tap-backed macOS input event.
 pub(super) fn read_macos_session_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     _read_mode: InputReadMode,
 ) -> RuntimeResult<InputEvent> {
-    let subscription_id = resolve_subscription_id(context, handle, "destack.input.event.read")?;
+    let subscription_id = resolve_subscription_id(binding, handle, "destack.input.event.read")?;
 
     if nonblocking {
         let Some(packet) = try_pop_subscription_event(subscription_id)? else {
@@ -900,7 +900,7 @@ pub(super) fn read_macos_session_event(
             ))
             .boxed());
         };
-        return Ok(packet_to_input_event(context, packet));
+        return Ok(packet_to_input_event(binding, packet));
     }
 
     let Some(packet) = wait_pop_subscription_event(subscription_id)? else {
@@ -909,15 +909,15 @@ pub(super) fn read_macos_session_event(
             handle,
         ));
     };
-    Ok(packet_to_input_event(context, packet))
+    Ok(packet_to_input_event(binding, packet))
 }
 
 /// Release one macOS session subscription for one input handle.
 pub(super) fn release_macos_session_subscription(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) {
-    let subscription = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let subscription = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -926,15 +926,15 @@ pub(super) fn release_macos_session_subscription(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
-        if binding.backend != input_core::UnixInputBackend::Platform {
+        if resolved_binding.backend != input_core::UnixInputBackend::Platform {
             return None;
         }
 
-        let state = binding.macos_state.as_mut()?;
+        let state = resolved_binding.macos_state.as_mut()?;
         Some(state.take_subscription_id())
     });
 

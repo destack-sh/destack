@@ -19,91 +19,100 @@ const X11_CURSOR_FONT_NAME: &[u8] = b"cursor";
 
 /// Set cursor icon for one window.
 pub(crate) unsafe fn window_set_cursor_icon(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: resource::WindowHandle,
     icon: WindowCursorIcon,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and mutate resolved_binding state
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setCursorIcon")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.setCursorIcon",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setCursorIcon")?;
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.setCursorIcon")?;
 
     // release one previously cached native cursor before switching icon kind
-    if let Some(cursor_handle) = binding.cursor_handle.take() {
+    if let Some(cursor_handle) = resolved_binding.cursor_handle.take() {
         free_cursor(
             connection_state.as_ref(),
             cursor_handle,
             "destack.display.window.setCursorIcon",
         )?;
     }
-    binding.cursor_icon = icon;
+    resolved_binding.cursor_icon = icon;
 
     // re-apply cursor mode and visibility lanes after icon mutation
     apply_cursor_state(
         connection_state.as_ref(),
-        &mut binding,
+        &mut resolved_binding,
         "destack.display.window.setCursorIcon",
     )
 }
 
 /// Set cursor interaction mode for one window.
 pub(crate) unsafe fn window_set_cursor_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: resource::WindowHandle,
     mode: WindowCursorMode,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and mutate resolved_binding state
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setCursorMode")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.setCursorMode",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setCursorMode")?;
-    binding.cursor_mode = mode;
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.setCursorMode")?;
+    resolved_binding.cursor_mode = mode;
 
     // apply host cursor behavior for the requested mode
     apply_cursor_state(
         connection_state.as_ref(),
-        &mut binding,
+        &mut resolved_binding,
         "destack.display.window.setCursorMode",
     )
 }
 
 /// Set cursor position for one window.
 pub(crate) unsafe fn window_set_cursor_position(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    // resolve runtime and window binding lanes
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and window resolved_binding lanes
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setCursorPosition")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.setCursorPosition",
     )?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setCursorPosition")?;
+    let resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(
+        &resolved_binding,
+        "destack.display.window.setCursorPosition",
+    )?;
 
     // warp pointer into the target window coordinate space
     connection_state
         .connection
         .warp_pointer(
             0u32,
-            binding.window,
+            resolved_binding.window,
             0,
             0,
             0,
@@ -129,27 +138,29 @@ pub(crate) unsafe fn window_set_cursor_position(
 
 /// Set cursor visibility for one window.
 pub(crate) unsafe fn window_set_cursor_visible(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    // resolve runtime and mutate binding state
-    let runtime_state = core::runtime_state(context);
+    // resolve runtime and mutate resolved_binding state
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.window.setCursorVisible")?;
-    let binding = display_resource::resolve_window_binding(
-        context,
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.setCursorVisible",
     )?;
-    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    super::ensure_window_thread(&binding, "destack.display.window.setCursorVisible")?;
-    binding.cursor_visible = visible;
+    let mut resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    super::ensure_window_thread(&resolved_binding, "destack.display.window.setCursorVisible")?;
+    resolved_binding.cursor_visible = visible;
 
     // apply host cursor visibility and mode lanes
     apply_cursor_state(
         connection_state.as_ref(),
-        &mut binding,
+        &mut resolved_binding,
         "destack.display.window.setCursorVisible",
     )
 }

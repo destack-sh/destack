@@ -24,7 +24,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_break_now(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -51,7 +51,7 @@ pub(crate) fn destack_debug_break_now(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_mark(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     label: vm::StringHandle,
 ) -> RuntimeResult<()> {
@@ -80,7 +80,7 @@ pub(crate) fn destack_debug_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_endpoint(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<InspectorEndpointVm> {
@@ -109,7 +109,7 @@ pub(crate) fn destack_debug_inspector_endpoint(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_start(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     host: vm::StringHandle,
     port: u16,
@@ -139,7 +139,7 @@ pub(crate) fn destack_debug_inspector_start(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_stop(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
@@ -168,7 +168,7 @@ pub(crate) fn destack_debug_inspector_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_profile_snapshot(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<VmArray<u8>> {
@@ -197,7 +197,7 @@ pub(crate) fn destack_debug_profile_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_profile_start(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<resource::ProfileHandle> {
@@ -226,7 +226,7 @@ pub(crate) fn destack_debug_profile_start(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_profile_stop(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
@@ -255,7 +255,7 @@ pub(crate) fn destack_debug_profile_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_trace_emit(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     category: vm::StringHandle,
     name: vm::StringHandle,
@@ -286,7 +286,7 @@ pub(crate) fn destack_debug_trace_emit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_trace_start(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     level: TraceLevel,
     destination: vm::StringHandle,
@@ -316,7 +316,7 @@ pub(crate) fn destack_debug_trace_start(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_debug_trace_stop(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<()> {

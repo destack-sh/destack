@@ -307,15 +307,15 @@ pub const RESOURCE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for resource bindings.
 #[inline]
 fn destack_resource_id_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         RESOURCE_ID_CLOSE,
-        context.replay_payload_for(RESOURCE_ID_CLOSE)?,
-        || unsafe { platform_runtime_native::destack_resource_close(context, id) },
+        binding.replay_payload_for(RESOURCE_ID_CLOSE)?,
+        || unsafe { platform_runtime_native::destack_resource_close(binding, id) },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -404,15 +404,15 @@ pub unsafe extern "C" fn destack_resource_id_transfer(
 /// VM replay implementations for resource bindings.
 #[inline]
 fn destack_resource_id_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         RESOURCE_ID_CLOSE,
-        runtime.replay_payload_for(RESOURCE_ID_CLOSE)?,
+        binding.replay_payload_for(RESOURCE_ID_CLOSE)?,
         context,
-        |context| platform_runtime_vm::destack_resource_close(runtime, context, id),
+        |context| platform_runtime_vm::destack_resource_close(binding, context, id),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
@@ -454,13 +454,13 @@ pub fn register_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             RESOURCE_ID_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_resource_id_close_args(context, args)?;
 
                     // execute binding
-                    let _binding_hook_guard = runtime.on_before_binding(RESOURCE_ID_CLOSE)?;
-                    destack_resource_id_close_vm_replay(runtime, context, id)
+                    let _binding_hook_guard = binding.on_before_binding(RESOURCE_ID_CLOSE)?;
+                    destack_resource_id_close_vm_replay(binding, context, id)
                 })
                 .map_err(Into::into)
             }
@@ -468,14 +468,14 @@ pub fn register_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &m
     }
     {
         binding!(registry, isolate, RESOURCE_ID_KIND, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (id,) = decode_destack_resource_id_kind_args(context, args)?;
 
                 // execute binding
                 let result = {
-                    let _binding_hook_guard = runtime.on_before_binding(RESOURCE_ID_KIND)?;
-                    platform_runtime_vm::destack_resource_kind(runtime, context, id)
+                    let _binding_hook_guard = binding.on_before_binding(RESOURCE_ID_KIND)?;
+                    platform_runtime_vm::destack_resource_kind(binding, context, id)
                 };
                 encode_destack_resource_id_kind_result(context, result)
             })
@@ -488,14 +488,14 @@ pub fn register_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             RESOURCE_ID_REMOVE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_resource_id_remove_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let _binding_hook_guard = runtime.on_before_binding(RESOURCE_ID_REMOVE)?;
-                        platform_runtime_vm::destack_resource_remove(runtime, context, id)
+                        let _binding_hook_guard = binding.on_before_binding(RESOURCE_ID_REMOVE)?;
+                        platform_runtime_vm::destack_resource_remove(binding, context, id)
                     };
                     encode_destack_resource_id_remove_result(context, result)
                 })
@@ -509,16 +509,16 @@ pub fn register_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &m
             isolate,
             RESOURCE_ID_TRANSFER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id, ownership) = decode_destack_resource_id_transfer_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
-                            runtime.on_before_binding(RESOURCE_ID_TRANSFER)?;
+                            binding.on_before_binding(RESOURCE_ID_TRANSFER)?;
                         platform_runtime_vm::destack_resource_transfer(
-                            runtime, context, id, ownership,
+                            binding, context, id, ownership,
                         )
                     };
                     encode_destack_resource_id_transfer_result(context, result)

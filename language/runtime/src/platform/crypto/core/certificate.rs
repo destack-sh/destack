@@ -160,8 +160,8 @@ fn verify_certificate_chain(
 }
 
 /// Load host system trust anchors for certificate verification.
-fn load_system_trust_anchors(context: &BindingCallContext) -> RuntimeResult<Vec<X509>> {
-    crypto_host::open_host_store_certificates(context, CryptoStoreKind::System)
+fn load_system_trust_anchors(binding: &BindingCallContext) -> RuntimeResult<Vec<X509>> {
+    crypto_host::open_host_store_certificates(binding, CryptoStoreKind::System)
 }
 
 /// Push one unique parsed certificate payload.
@@ -181,18 +181,18 @@ pub(crate) fn push_der_certificate_if_unique(
 
 /// Import one certificate object.
 pub(crate) fn certificate_import(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
     certificate: &[u8],
 ) -> RuntimeResult<resource::CryptoCertificateHandle> {
     // validate store handle
     let store_resource =
-        resolve_store_resource(context, store, "destack.crypto.certificate.import")?;
+        resolve_store_resource(binding, store, "destack.crypto.certificate.import")?;
     let store_provenance = {
         let store_resource = store_resource.lock();
         enforce_store_certificate_write_policy(
-            context,
+            binding,
             &store_resource,
             "destack.crypto.certificate.import",
         )?;
@@ -212,7 +212,7 @@ pub(crate) fn certificate_import(
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
     ) {
         crypto_host::host_store_import_certificate(
-            context,
+            binding,
             store_provenance.kind,
             &certificate,
             "destack.crypto.certificate.import",
@@ -224,21 +224,21 @@ pub(crate) fn certificate_import(
         certificate,
         store_provenance,
     };
-    let handle = insert_certificate_resource(context, resource_value);
-    attach_certificate_to_store(context, store, handle)?;
+    let handle = insert_certificate_resource(binding, resource_value);
+    attach_certificate_to_store(binding, store, handle)?;
 
     Ok(handle)
 }
 
 /// Export one certificate object.
 pub(crate) fn certificate_export(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
 ) -> RuntimeResult<Vec<u8>> {
     // resolve certificate resource
     let resource =
-        resolve_certificate_resource(context, handle, "destack.crypto.certificate.export")?;
+        resolve_certificate_resource(binding, handle, "destack.crypto.certificate.export")?;
     let resource = resource.lock();
 
     // serialize certificate by requested format
@@ -256,12 +256,12 @@ pub(crate) fn certificate_export(
 
 /// Return one certificate descriptor.
 pub(crate) fn certificate_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<CryptoCertificateDescriptor> {
     // resolve certificate resource
     let resource =
-        resolve_certificate_resource(context, handle, "destack.crypto.certificate.descriptor")?;
+        resolve_certificate_resource(binding, handle, "destack.crypto.certificate.descriptor")?;
     let resource = resource.lock();
 
     // derive identity and serial metadata
@@ -280,18 +280,18 @@ pub(crate) fn certificate_descriptor(
     if let Some(names) = resource.certificate.subject_alt_names() {
         for name in names {
             if let Some(dns_name) = name.dnsname() {
-                subject_alternative_names.push(context.store_string(dns_name));
+                subject_alternative_names.push(binding.store_string(dns_name));
             }
             if let Some(email) = name.email() {
-                subject_alternative_names.push(context.store_string(email));
+                subject_alternative_names.push(binding.store_string(email));
             }
             if let Some(uri) = name.uri() {
-                subject_alternative_names.push(context.store_string(uri));
+                subject_alternative_names.push(binding.store_string(uri));
             }
             if let Some(ip_address) = name.ipaddress()
                 && let Some(ip_address) = format_ip_subject_alternative_name(ip_address)
             {
-                subject_alternative_names.push(context.store_string(&ip_address));
+                subject_alternative_names.push(binding.store_string(&ip_address));
             }
         }
     }
@@ -305,30 +305,30 @@ pub(crate) fn certificate_descriptor(
     let not_after = x509_time_to_unix_seconds(resource.certificate.not_after());
 
     Ok(CryptoCertificateDescriptor {
-        subject: context.store_string(&subject),
-        issuer: context.store_string(&issuer),
-        serial_number: context.store_string(&serial_number),
-        subject_alternative_names: context.store_array(subject_alternative_names),
-        fingerprint_sha256: context.store_slice(fingerprint.to_vec()),
+        subject: binding.store_string(&subject),
+        issuer: binding.store_string(&issuer),
+        serial_number: binding.store_string(&serial_number),
+        subject_alternative_names: binding.store_array(subject_alternative_names),
+        fingerprint_sha256: binding.store_slice(fingerprint.to_vec()),
         validity: CryptoCertificateValidity {
             not_before_unix_seconds: not_before,
             not_after_unix_seconds: not_after,
         },
         is_certificate_authority: certificate_is_authority(&resource.certificate),
         key_usage_mask: certificate_key_usage_mask(&resource.certificate),
-        store_provenance: store_provenance_to_descriptor(context, &resource.store_provenance),
+        store_provenance: store_provenance_to_descriptor(binding, &resource.store_provenance),
     })
 }
 
 /// Verify one certificate chain.
 pub(crate) fn certificate_verify(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     request: CryptoCertificateVerifyRequest,
 ) -> RuntimeResult<CryptoCertificateVerifyResult> {
     let operation = "destack.crypto.certificate.verify";
 
     // resolve leaf certificate
-    let leaf_resource = resolve_certificate_resource(context, request.leaf, operation)?;
+    let leaf_resource = resolve_certificate_resource(binding, request.leaf, operation)?;
     let leaf = leaf_resource.lock().certificate.clone();
 
     // resolve intermediate certificates
@@ -341,7 +341,7 @@ pub(crate) fn certificate_verify(
         )
     })?;
     for handle in handles {
-        let certificate_resource = resolve_certificate_resource(context, *handle, operation)?;
+        let certificate_resource = resolve_certificate_resource(binding, *handle, operation)?;
         intermediates
             .push(certificate_resource.lock().certificate.clone())
             .map_err(|error| openssl_error(operation, error))?;
@@ -356,7 +356,7 @@ pub(crate) fn certificate_verify(
     })?;
     let mut trust_anchor_certificates = Vec::with_capacity(trust_anchors.len());
     for handle in trust_anchors {
-        let certificate_resource = resolve_certificate_resource(context, *handle, operation)?;
+        let certificate_resource = resolve_certificate_resource(binding, *handle, operation)?;
         trust_anchor_certificates.push(certificate_resource.lock().certificate.clone());
     }
 
@@ -396,7 +396,7 @@ pub(crate) fn certificate_verify(
             error: without_system_error,
             error_code: without_system_error_code,
             failed_certificate_index: without_system_failed_certificate_index,
-            failed_certificate_subject: context
+            failed_certificate_subject: binding
                 .store_string(&without_system_failed_certificate_subject),
             chain_length: without_system_chain_length,
             used_system_trust_anchor: false,
@@ -405,7 +405,7 @@ pub(crate) fn certificate_verify(
 
     // merge host system trust anchors into one second verification pass
     let mut trust_anchor_certificates_with_system = trust_anchor_certificates;
-    let system_trust_anchors = load_system_trust_anchors(context)?;
+    let system_trust_anchors = load_system_trust_anchors(binding)?;
     for certificate in system_trust_anchors {
         trust_anchor_certificates_with_system.push(certificate);
     }
@@ -434,7 +434,7 @@ pub(crate) fn certificate_verify(
         error: with_system_error,
         error_code: with_system_error_code,
         failed_certificate_index: with_system_failed_certificate_index,
-        failed_certificate_subject: context.store_string(&with_system_failed_certificate_subject),
+        failed_certificate_subject: binding.store_string(&with_system_failed_certificate_subject),
         chain_length: with_system_chain_length,
         used_system_trust_anchor: request.use_system_trust_anchors
             && !without_system_valid
@@ -529,16 +529,16 @@ fn parse_uri_identity_host(value: &str) -> RuntimeResult<String> {
 
 /// Delete one certificate handle.
 pub(crate) fn certificate_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
     // resolve certificate handle and enforce store delete policy
     let certificate_resource =
-        resolve_certificate_resource(context, handle, "destack.crypto.certificate.delete")?;
+        resolve_certificate_resource(binding, handle, "destack.crypto.certificate.delete")?;
     let certificate_snapshot = {
         let certificate_resource = certificate_resource.lock();
         enforce_object_delete_policy(
-            context,
+            binding,
             &certificate_resource.store_provenance,
             "destack.crypto.certificate.delete",
         )?;
@@ -555,7 +555,7 @@ pub(crate) fn certificate_delete(
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
     ) {
         crypto_host::host_store_delete_certificate(
-            context,
+            binding,
             certificate_snapshot.0,
             &certificate_snapshot.1,
             "destack.crypto.certificate.delete",
@@ -563,10 +563,10 @@ pub(crate) fn certificate_delete(
     }
 
     // remove certificate resource entry
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.certificate.delete",

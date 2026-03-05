@@ -485,7 +485,7 @@ pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             ERROR_ERROR_TAKE_PLATFORM_ERROR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (errorid,) =
                         decode_destack_error_error_take_platform_error_args(context, args)?;
@@ -493,9 +493,9 @@ pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
-                            runtime.on_before_binding(ERROR_ERROR_TAKE_PLATFORM_ERROR)?;
+                            binding.on_before_binding(ERROR_ERROR_TAKE_PLATFORM_ERROR)?;
                         platform_runtime_vm::destack_error_take_platform_error(
-                            runtime, context, errorid,
+                            binding, context, errorid,
                         )
                     };
                     encode_destack_error_error_take_platform_error_result(context, result)

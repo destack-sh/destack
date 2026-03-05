@@ -86,18 +86,18 @@ fn resolve_xattr_name_bytes(name: NativeSlice<u8>) -> RuntimeResult<Vec<u8>> {
 }
 
 fn xattr_name_slice_from_string(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<NativeSlice<u8>> {
     // decode the string name
     let name = unsafe { name.as_str()? };
 
     // store a stable raw name slice
-    Ok(context.store_slice(name.as_bytes().to_vec()))
+    Ok(binding.store_slice(name.as_bytes().to_vec()))
 }
 
 fn xattr_name_strings_from_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     names: NativeArray<NativeArray<u8>>,
 ) -> RuntimeResult<NativeArray<NativeStringRef>> {
     // decode the raw name arrays
@@ -114,10 +114,10 @@ fn xattr_name_strings_from_bytes(
             ))
             .boxed()
         })?;
-        decoded.push(context.store_string(name));
+        decoded.push(binding.store_string(name));
     }
 
-    Ok(context.store_array(decoded))
+    Ok(binding.store_array(decoded))
 }
 
 fn validate_xattr_flags(flags: XattrFlags) -> RuntimeResult<()> {
@@ -483,7 +483,7 @@ fn remove_ea_entry(handle: HANDLE, name: &[u8]) -> RuntimeResult<()> {
 }
 
 fn decode_xattr_list_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     buffer: Vec<u8>,
 ) -> RuntimeResult<NativeArray<NativeArray<u8>>> {
     // parse the EA entries
@@ -492,10 +492,10 @@ fn decode_xattr_list_bytes(
     // build the name list
     let mut names = Vec::with_capacity(entries.len());
     for (name, _) in entries {
-        names.push(context.store_array(name));
+        names.push(binding.store_array(name));
     }
 
-    Ok(context.store_array(names))
+    Ok(binding.store_array(names))
 }
 
 fn with_handle<F, T>(handle: HANDLE, f: F) -> RuntimeResult<T>
@@ -531,7 +531,7 @@ where
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: PathBytes,
     name: NativeSlice<u8>,
@@ -552,7 +552,7 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 
     // write the output
     unsafe {
-        *out = context.store_array(value);
+        *out = binding.store_array(value);
     }
 
     Ok(())
@@ -576,7 +576,7 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: PathUtf16,
     name: NativeSlice<u8>,
@@ -597,7 +597,7 @@ pub(crate) unsafe fn destack_fs_getxattr_utf16(
 
     // write the output
     unsafe {
-        *out = context.store_array(value);
+        *out = binding.store_array(value);
     }
 
     Ok(())
@@ -621,7 +621,7 @@ pub(crate) unsafe fn destack_fs_getxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: PathBytes,
     name: NativeSlice<u8>,
@@ -642,7 +642,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 
     // write the output
     unsafe {
-        *out = context.store_array(value);
+        *out = binding.store_array(value);
     }
 
     Ok(())
@@ -666,7 +666,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: PathUtf16,
     name: NativeSlice<u8>,
@@ -687,7 +687,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
 
     // write the output
     unsafe {
-        *out = context.store_array(value);
+        *out = binding.store_array(value);
     }
 
     Ok(())
@@ -711,7 +711,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: FileHandle,
     name: NativeSlice<u8>,
@@ -723,14 +723,14 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
 
     // resolve inputs
     let name = resolve_xattr_name_bytes(name)?;
-    let handle = file_handle(context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // query the entry
     let buffer = query_ea_entry(handle, &name)?;
     let value = extract_single_value(&buffer)?;
     // write the output
     unsafe {
-        *out = context.store_array(value);
+        *out = binding.store_array(value);
     }
 
     Ok(())
@@ -754,7 +754,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -809,7 +809,7 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -864,7 +864,7 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -919,7 +919,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -974,7 +974,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
@@ -983,7 +983,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
     // resolve inputs
     let name = resolve_xattr_name_bytes(name)?;
     let value = unsafe { value.as_slice()? };
-    let handle = file_handle(context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // validate flags
     validate_xattr_flags(flags)?;
@@ -1023,7 +1023,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -1041,7 +1041,7 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 
     // write the output
     unsafe {
-        *out = decode_xattr_list_bytes(context, buffer)?;
+        *out = decode_xattr_list_bytes(binding, buffer)?;
     }
 
     Ok(())
@@ -1065,7 +1065,7 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -1083,7 +1083,7 @@ pub(crate) unsafe fn destack_fs_listxattr_utf16(
 
     // write the output
     unsafe {
-        *out = decode_xattr_list_bytes(context, buffer)?;
+        *out = decode_xattr_list_bytes(binding, buffer)?;
     }
 
     Ok(())
@@ -1107,7 +1107,7 @@ pub(crate) unsafe fn destack_fs_listxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
@@ -1125,7 +1125,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 
     // write the output
     unsafe {
-        *out = decode_xattr_list_bytes(context, buffer)?;
+        *out = decode_xattr_list_bytes(binding, buffer)?;
     }
 
     Ok(())
@@ -1149,7 +1149,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -1167,7 +1167,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_utf16(
 
     // write the output
     unsafe {
-        *out = decode_xattr_list_bytes(context, buffer)?;
+        *out = decode_xattr_list_bytes(binding, buffer)?;
     }
 
     Ok(())
@@ -1191,7 +1191,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -1201,13 +1201,13 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
     }
 
     // resolve inputs
-    let handle = file_handle(context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // read the list
     let buffer = query_ea_list(handle)?;
     // write the output
     unsafe {
-        *out = decode_xattr_list_bytes(context, buffer)?;
+        *out = decode_xattr_list_bytes(binding, buffer)?;
     }
 
     Ok(())
@@ -1231,7 +1231,7 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1262,7 +1262,7 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1293,7 +1293,7 @@ pub(crate) unsafe fn destack_fs_removexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1324,7 +1324,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -1355,13 +1355,13 @@ pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // resolve inputs
     let name = resolve_xattr_name_bytes(name)?;
-    let handle = file_handle(context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // remove the entry
     remove_ea_entry(handle, &name)
@@ -1385,21 +1385,21 @@ pub(crate) unsafe fn destack_fs_fremovexattr_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            destack_fs_getxattr_bytes(context, out, path_bytes.bytes, name)
+            destack_fs_getxattr_bytes(binding, out, path_bytes.bytes, name)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            destack_fs_getxattr_utf16(context, out, path_utf16.utf16, name)
+            destack_fs_getxattr_utf16(binding, out, path_utf16.utf16, name)
         },
     }
 }
@@ -1422,21 +1422,21 @@ pub(crate) unsafe fn destack_fs_getxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            destack_fs_lgetxattr_bytes(context, out, path_bytes.bytes, name)
+            destack_fs_lgetxattr_bytes(binding, out, path_bytes.bytes, name)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            destack_fs_lgetxattr_utf16(context, out, path_utf16.utf16, name)
+            destack_fs_lgetxattr_utf16(binding, out, path_utf16.utf16, name)
         },
     }
 }
@@ -1459,16 +1459,16 @@ pub(crate) unsafe fn destack_fs_lgetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch through the raw handle lane
-    unsafe { destack_fs_fgetxattr_handle(context, out, handle, name) }
+    unsafe { destack_fs_fgetxattr_handle(binding, out, handle, name) }
 }
 
 /// Set an extended attribute by path.
@@ -1489,22 +1489,22 @@ pub(crate) unsafe fn destack_fs_fgetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            destack_fs_setxattr_bytes(context, path_bytes.bytes, name, value, flags)
+            destack_fs_setxattr_bytes(binding, path_bytes.bytes, name, value, flags)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            destack_fs_setxattr_utf16(context, path_utf16.utf16, name, value, flags)
+            destack_fs_setxattr_utf16(binding, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -1527,22 +1527,22 @@ pub(crate) unsafe fn destack_fs_setxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            destack_fs_lsetxattr_bytes(context, path_bytes.bytes, name, value, flags)
+            destack_fs_lsetxattr_bytes(binding, path_bytes.bytes, name, value, flags)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            destack_fs_lsetxattr_utf16(context, path_utf16.utf16, name, value, flags)
+            destack_fs_lsetxattr_utf16(binding, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -1565,17 +1565,17 @@ pub(crate) unsafe fn destack_fs_lsetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch through the raw handle lane
-    unsafe { destack_fs_fsetxattr_handle(context, handle, name, value, flags) }
+    unsafe { destack_fs_fsetxattr_handle(binding, handle, name, value, flags) }
 }
 
 /// List extended attribute names by path.
@@ -1596,7 +1596,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1609,14 +1609,14 @@ pub(crate) unsafe fn destack_fs_listxattr(
     let mut names = std::mem::MaybeUninit::<NativeArray<NativeArray<u8>>>::uninit();
     match path {
         OsPath::OsPathBytes(path_bytes) => {
-            unsafe { destack_fs_listxattr_bytes(context, names.as_mut_ptr(), path_bytes.bytes) }?;
+            unsafe { destack_fs_listxattr_bytes(binding, names.as_mut_ptr(), path_bytes.bytes) }?;
         }
         OsPath::OsPathUtf16(path_utf16) => {
-            unsafe { destack_fs_listxattr_utf16(context, names.as_mut_ptr(), path_utf16.utf16) }?;
+            unsafe { destack_fs_listxattr_utf16(binding, names.as_mut_ptr(), path_utf16.utf16) }?;
         }
     }
     let names = unsafe { names.assume_init() };
-    let names = xattr_name_strings_from_bytes(context, names)?;
+    let names = xattr_name_strings_from_bytes(binding, names)?;
 
     // write the decoded output
     unsafe {
@@ -1644,7 +1644,7 @@ pub(crate) unsafe fn destack_fs_listxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -1657,14 +1657,14 @@ pub(crate) unsafe fn destack_fs_llistxattr(
     let mut names = std::mem::MaybeUninit::<NativeArray<NativeArray<u8>>>::uninit();
     match path {
         OsPath::OsPathBytes(path_bytes) => {
-            unsafe { destack_fs_llistxattr_bytes(context, names.as_mut_ptr(), path_bytes.bytes) }?;
+            unsafe { destack_fs_llistxattr_bytes(binding, names.as_mut_ptr(), path_bytes.bytes) }?;
         }
         OsPath::OsPathUtf16(path_utf16) => {
-            unsafe { destack_fs_llistxattr_utf16(context, names.as_mut_ptr(), path_utf16.utf16) }?;
+            unsafe { destack_fs_llistxattr_utf16(binding, names.as_mut_ptr(), path_utf16.utf16) }?;
         }
     }
     let names = unsafe { names.assume_init() };
-    let names = xattr_name_strings_from_bytes(context, names)?;
+    let names = xattr_name_strings_from_bytes(binding, names)?;
 
     // write the decoded output
     unsafe {
@@ -1692,7 +1692,7 @@ pub(crate) unsafe fn destack_fs_llistxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
@@ -1703,9 +1703,9 @@ pub(crate) unsafe fn destack_fs_flistxattr(
 
     // read raw names from the handle lane
     let mut names = std::mem::MaybeUninit::<NativeArray<NativeArray<u8>>>::uninit();
-    unsafe { destack_fs_flistxattr_handle(context, names.as_mut_ptr(), handle) }?;
+    unsafe { destack_fs_flistxattr_handle(binding, names.as_mut_ptr(), handle) }?;
     let names = unsafe { names.assume_init() };
-    let names = xattr_name_strings_from_bytes(context, names)?;
+    let names = xattr_name_strings_from_bytes(binding, names)?;
 
     // write the decoded output
     unsafe {
@@ -1733,20 +1733,20 @@ pub(crate) unsafe fn destack_fs_flistxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            destack_fs_removexattr_bytes(context, path_bytes.bytes, name)
+            destack_fs_removexattr_bytes(binding, path_bytes.bytes, name)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            destack_fs_removexattr_utf16(context, path_utf16.utf16, name)
+            destack_fs_removexattr_utf16(binding, path_utf16.utf16, name)
         },
     }
 }
@@ -1769,20 +1769,20 @@ pub(crate) unsafe fn destack_fs_removexattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch by path encoding
     match path {
         OsPath::OsPathBytes(path_bytes) => unsafe {
-            destack_fs_lremovexattr_bytes(context, path_bytes.bytes, name)
+            destack_fs_lremovexattr_bytes(binding, path_bytes.bytes, name)
         },
         OsPath::OsPathUtf16(path_utf16) => unsafe {
-            destack_fs_lremovexattr_utf16(context, path_utf16.utf16, name)
+            destack_fs_lremovexattr_utf16(binding, path_utf16.utf16, name)
         },
     }
 }
@@ -1805,13 +1805,13 @@ pub(crate) unsafe fn destack_fs_lremovexattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     // resolve the string name as raw bytes
-    let name = xattr_name_slice_from_string(context, name)?;
+    let name = xattr_name_slice_from_string(binding, name)?;
 
     // dispatch through the raw handle lane
-    unsafe { destack_fs_fremovexattr_handle(context, handle, name) }
+    unsafe { destack_fs_fremovexattr_handle(binding, handle, name) }
 }

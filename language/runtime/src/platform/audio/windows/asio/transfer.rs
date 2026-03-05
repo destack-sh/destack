@@ -87,13 +87,13 @@ pub(super) extern "system" fn asio_message(
 
 /// Process one callback transfer cycle for one active ASIO runtime.
 fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usize) {
-    let binding = runtime.binding.get().and_then(std::sync::Weak::upgrade);
-    let Some(binding) = binding else {
+    let stream_binding = runtime.binding.get().and_then(std::sync::Weak::upgrade);
+    let Some(stream_binding) = stream_binding else {
         mark_device_lost(runtime, "ASIO stream binding is no longer available");
         return;
     };
 
-    let mut state = binding
+    let mut state = stream_binding
         .sync
         .state
         .lock()
@@ -156,7 +156,7 @@ fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usi
     }
 
     drop(state);
-    binding.sync.wake.notify_all();
+    stream_binding.sync.wake.notify_all();
 
     // issue one output-ready hint for drivers that use explicit host signaling
     let output_ready_status = unsafe { asio_driver_output_ready(runtime.session.driver.raw) };
@@ -414,12 +414,12 @@ fn encode_asio_sample(encoding: AsioSampleEncoding, sample: f32, output: &mut [u
 
 /// Mark one stream binding as device-lost from callback paths.
 fn mark_device_lost(runtime: &Arc<AsioStreamRuntime>, message: &'static str) {
-    let binding = runtime.binding.get().and_then(std::sync::Weak::upgrade);
-    let Some(binding) = binding else {
+    let stream_binding = runtime.binding.get().and_then(std::sync::Weak::upgrade);
+    let Some(stream_binding) = stream_binding else {
         return;
     };
 
-    let mut state = binding
+    let mut state = stream_binding
         .sync
         .state
         .lock()
@@ -427,7 +427,7 @@ fn mark_device_lost(runtime: &Arc<AsioStreamRuntime>, message: &'static str) {
     mark_runtime_state_device_lost(&mut state, message);
     drop(state);
 
-    binding.sync.wake.notify_all();
+    stream_binding.sync.wake.notify_all();
 }
 
 /// Mark one mutable stream state payload as device-lost.

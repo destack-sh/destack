@@ -194,32 +194,24 @@ pub(super) fn io_error(
 }
 
 /// Return the configured default display event queue capacity.
-pub(super) fn default_event_queue_capacity(context: &BindingCallContext) -> usize {
-    let configured = context
-        .runtime()
-        .module_options
-        .display
-        .default_event_queue_capacity;
+pub(super) fn default_event_queue_capacity(binding: &BindingCallContext) -> usize {
+    let configured = binding.agent().options.display.default_event_queue_capacity;
     core_platform::option_u64_to_usize_or_min(configured, DEFAULT_EVENT_QUEUE_CAPACITY, 1)
 }
 
 /// Resolve queue capacity for one event stream open request.
-pub(super) fn resolved_queue_capacity(context: &BindingCallContext, value: u32) -> usize {
+pub(super) fn resolved_queue_capacity(binding: &BindingCallContext, value: u32) -> usize {
     // evaluate this condition
     if value == 0 {
-        return default_event_queue_capacity(context);
+        return default_event_queue_capacity(binding);
     }
 
     value as usize
 }
 
 /// Return the configured window-event wait slice duration in nanoseconds.
-pub(super) fn window_event_wait_slice_ns(context: &BindingCallContext) -> u64 {
-    let configured = context
-        .runtime()
-        .module_options
-        .display
-        .window_event_wait_slice_ns;
+pub(super) fn window_event_wait_slice_ns(binding: &BindingCallContext) -> u64 {
+    let configured = binding.agent().options.display.window_event_wait_slice_ns;
     core_platform::option_u64_or_min(configured, DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS, 1)
 }
 

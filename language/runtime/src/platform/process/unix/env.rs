@@ -37,7 +37,7 @@ use std::ffi::CStr;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let name = unsafe { name.as_str()? };
@@ -71,7 +71,7 @@ pub(crate) unsafe fn destack_process_env_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let name = unsafe { name.as_slice()? };
@@ -105,7 +105,7 @@ pub(crate) unsafe fn destack_process_env_delete_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_get(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeStringRef,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -129,7 +129,7 @@ pub(crate) unsafe fn destack_process_env_get(
     let value = value.ok_or_else(|| core_process::missing_env_error(name_value.to_string()))?;
 
     unsafe {
-        *out = context.store_string(&value);
+        *out = binding.store_string(&value);
     }
 
     Ok(())
@@ -153,7 +153,7 @@ pub(crate) unsafe fn destack_process_env_get(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_get_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
@@ -179,7 +179,7 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
     })?;
 
     unsafe {
-        *out = context.store_array(value);
+        *out = binding.store_array(value);
     }
 
     Ok(())
@@ -203,7 +203,7 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeStringRef,
     argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -241,7 +241,7 @@ pub(crate) unsafe fn destack_process_env_set(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {

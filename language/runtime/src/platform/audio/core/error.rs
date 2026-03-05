@@ -116,12 +116,12 @@ pub(crate) fn stream_state_is_terminal(state: &AudioStreamStateInner) -> bool {
 
 /// Resolve one typed resource payload by kind and label.
 fn resolve_resource_payload<T: Clone + 'static>(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     resource_id: resource::ResourceId,
     resource_kind: ResourceKind,
     resource_label: &'static str,
 ) -> Option<T> {
-    let resolved = context.agent().resources.with_entry(resource_id, |entry| {
+    let resolved = binding.agent().resources.with_entry(resource_id, |entry| {
         if entry.kind != resource_kind {
             return None;
         }
@@ -142,12 +142,12 @@ fn resolve_resource_payload<T: Clone + 'static>(
 
 /// Resolve one opened device handle.
 pub(crate) fn resolve_device_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::AudioDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<AudioDeviceBinding>> {
     resolve_resource_payload::<Arc<AudioDeviceBinding>>(
-        context,
+        binding,
         handle.0,
         ResourceKind::AudioDevice,
         AUDIO_DEVICE_RESOURCE_LABEL,
@@ -162,12 +162,12 @@ pub(crate) fn resolve_device_binding(
 
 /// Resolve one opened stream handle.
 pub(crate) fn resolve_stream_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<AudioStreamBinding>> {
     resolve_resource_payload::<Arc<AudioStreamBinding>>(
-        context,
+        binding,
         handle.0,
         ResourceKind::AudioStream,
         AUDIO_STREAM_RESOURCE_LABEL,
@@ -182,12 +182,12 @@ pub(crate) fn resolve_stream_binding(
 
 /// Resolve one opened event handle.
 pub(crate) fn resolve_event_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::AudioEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<AudioEventBinding>>> {
     resolve_resource_payload::<Arc<Mutex<AudioEventBinding>>>(
-        context,
+        binding,
         handle.0,
         ResourceKind::AudioEvent,
         AUDIO_EVENT_RESOURCE_LABEL,

@@ -95,9 +95,7 @@ fn architecture_value() -> String {
 }
 
 /// Read one host identity payload from windows APIs.
-pub(crate) fn read_host_identity(
-    _context: &BindingCallContext,
-) -> RuntimeResult<HostIdentityOwned> {
+pub(crate) fn read_host_identity(binding: &BindingCallContext) -> RuntimeResult<HostIdentityOwned> {
     // query host identity fields from windows APIs
     let hostname = hostname_value()?;
     let release = release_value()?;

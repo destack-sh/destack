@@ -3,27 +3,27 @@ use crate::platform::os::{LoadAverage, SystemSnapshot};
 use crate::runtime::BindingCallContext;
 
 /// Read one host system-information snapshot from the active backend.
-pub(super) fn read_system_snapshot(context: &BindingCallContext) -> RuntimeResult<SystemSnapshot> {
+pub(super) fn read_system_snapshot(binding: &BindingCallContext) -> RuntimeResult<SystemSnapshot> {
     // dispatch to the platform backend
-    platform_backend::read_system_snapshot(context)
+    platform_backend::read_system_snapshot(binding)
 }
 
 /// Read one host uptime value from the active backend.
-pub(super) fn read_uptime_ns(context: &BindingCallContext) -> RuntimeResult<u64> {
+pub(super) fn read_uptime_ns(binding: &BindingCallContext) -> RuntimeResult<u64> {
     // dispatch to the platform backend
-    platform_backend::read_uptime_ns(context)
+    platform_backend::read_uptime_ns(binding)
 }
 
 /// Read one host boot-time unix timestamp from the active backend.
-pub(super) fn read_boot_time_unix_ns(context: &BindingCallContext) -> RuntimeResult<u64> {
+pub(super) fn read_boot_time_unix_ns(binding: &BindingCallContext) -> RuntimeResult<u64> {
     // dispatch to the platform backend
-    platform_backend::read_boot_time_unix_ns(context)
+    platform_backend::read_boot_time_unix_ns(binding)
 }
 
 /// Read one host load-average payload from the active backend.
-pub(super) fn read_load_average(context: &BindingCallContext) -> RuntimeResult<LoadAverage> {
+pub(super) fn read_load_average(binding: &BindingCallContext) -> RuntimeResult<LoadAverage> {
     // dispatch to the platform backend
-    platform_backend::read_load_average(context)
+    platform_backend::read_load_average(binding)
 }
 
 #[cfg(unix)]

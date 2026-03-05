@@ -20,9 +20,9 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_error_take_platform_error(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PlatformError,
     error_id: u64,
 ) -> RuntimeResult<()> {
-    unsafe { error_native::destack_error_take_platform_error(context, out, error_id) }
+    unsafe { error_native::destack_error_take_platform_error(binding, out, error_id) }
 }

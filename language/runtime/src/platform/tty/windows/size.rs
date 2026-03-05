@@ -33,7 +33,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_size(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtySize,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -41,9 +41,9 @@ pub(crate) unsafe fn destack_tty_get_size(
     ensure_out(out, "out")?;
 
     // resolve one pty-backed size cache when present
-    let binding = tty_binding(context, handle, "destack.tty.size.getSize")?;
-    if let Some(binding) = binding {
-        let size = *binding.size.read();
+    let resolved_binding = tty_binding(binding, handle, "destack.tty.size.getSize")?;
+    if let Some(resolved_binding) = resolved_binding {
+        let size = *resolved_binding.size.read();
 
         unsafe {
             out.write(size);
@@ -53,7 +53,7 @@ pub(crate) unsafe fn destack_tty_get_size(
     }
 
     // resolve one console tty handle
-    let host_handle = tty_handle(context, handle, "destack.tty.size.getSize")?;
+    let host_handle = tty_handle(binding, handle, "destack.tty.size.getSize")?;
 
     // query one console screen-buffer snapshot
     let mut info = MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFO>::zeroed();
@@ -104,7 +104,7 @@ pub(crate) unsafe fn destack_tty_get_size(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_size(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     size: TtySize,
 ) -> RuntimeResult<()> {
@@ -113,9 +113,9 @@ pub(crate) unsafe fn destack_tty_set_size(
     let columns = validate_console_dimension(size.columns, "size.columns")?;
 
     // resolve one pty-backed size cache when present
-    let binding = tty_binding(context, handle, "destack.tty.size.setSize")?;
-    if let Some(binding) = binding {
-        if let Some(pseudo_console) = binding.pseudo_console {
+    let resolved_binding = tty_binding(binding, handle, "destack.tty.size.setSize")?;
+    if let Some(resolved_binding) = resolved_binding {
+        if let Some(pseudo_console) = resolved_binding.pseudo_console {
             let console_size = COORD {
                 X: columns,
                 Y: rows,
@@ -131,7 +131,7 @@ pub(crate) unsafe fn destack_tty_set_size(
             }
         }
 
-        *binding.size.write() = TtySize {
+        *resolved_binding.size.write() = TtySize {
             rows: size.rows,
             columns: size.columns,
             x_pixels: 0,
@@ -141,7 +141,7 @@ pub(crate) unsafe fn destack_tty_set_size(
     }
 
     // resolve one console tty handle
-    let host_handle = tty_handle(context, handle, "destack.tty.size.setSize")?;
+    let host_handle = tty_handle(binding, handle, "destack.tty.size.setSize")?;
 
     // set one matching screen-buffer geometry
     let buffer_size = COORD {

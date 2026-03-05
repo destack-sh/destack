@@ -33,12 +33,12 @@ const LOCK_UN: u32 = 0x8;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lock(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
     // resolve the file handle
-    let handle = file_handle(_context, handle)?;
+    let handle = file_handle(binding, handle)?;
 
     // build the overlapped structure
     let mut overlapped = OVERLAPPED {

@@ -27,7 +27,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_context_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
@@ -53,7 +53,7 @@ pub(crate) fn destack_tls_context_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_context_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: TlsContextOptionsVm,
 ) -> RuntimeResult<resource::TlsContextHandle> {
@@ -79,7 +79,7 @@ pub(crate) fn destack_tls_context_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_cipher_suites(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     suites: VmSlice<vm::StringHandle>,
@@ -109,7 +109,7 @@ pub(crate) fn destack_tls_context_set_cipher_suites(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_groups(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     groups: VmSlice<vm::StringHandle>,
@@ -139,7 +139,7 @@ pub(crate) fn destack_tls_context_set_groups(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_hostname_verification_mode(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     mode: TlsHostnameVerificationMode,
@@ -169,7 +169,7 @@ pub(crate) fn destack_tls_context_set_hostname_verification_mode(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_identity_pem(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     certificatechainpem: VmSlice<u8>,
@@ -200,7 +200,7 @@ pub(crate) fn destack_tls_context_set_identity_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_keylog_enabled(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     enabled: bool,
@@ -230,7 +230,7 @@ pub(crate) fn destack_tls_context_set_keylog_enabled(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_session_resumption(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     mode: TlsSessionResumptionMode,
@@ -260,7 +260,7 @@ pub(crate) fn destack_tls_context_set_session_resumption(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_signature_algorithms(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     algorithms: VmSlice<vm::StringHandle>,
@@ -290,7 +290,7 @@ pub(crate) fn destack_tls_context_set_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_trust_anchors_pem(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     trustanchorspem: VmSlice<u8>,
@@ -320,7 +320,7 @@ pub(crate) fn destack_tls_context_set_trust_anchors_pem(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -346,7 +346,7 @@ pub(crate) fn destack_tls_session_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_session_export_keying_material(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
     label: vm::StringHandle,
@@ -378,7 +378,7 @@ pub(crate) fn destack_tls_session_export_keying_material(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_handshake(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<TlsHandshakeStatus> {
@@ -407,7 +407,7 @@ pub(crate) fn destack_tls_session_handshake(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_negotiated_alpn(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<VmSlice<u8>> {
@@ -436,7 +436,7 @@ pub(crate) fn destack_tls_session_negotiated_alpn(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
@@ -464,7 +464,7 @@ pub(crate) fn destack_tls_session_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_session_peer_certificates_pem(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<VmSlice<u8>> {
@@ -493,7 +493,7 @@ pub(crate) fn destack_tls_session_peer_certificates_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_session_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
     buffer: VmSlice<u8>,
@@ -520,7 +520,7 @@ pub(crate) fn destack_tls_session_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_resumption_state(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<TlsSessionResumptionState> {
@@ -549,7 +549,7 @@ pub(crate) fn destack_tls_session_resumption_state(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_shutdown(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
@@ -575,7 +575,7 @@ pub(crate) fn destack_tls_session_shutdown(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_session_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
     buffer: VmSlice<u8>,

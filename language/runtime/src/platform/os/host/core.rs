@@ -97,21 +97,21 @@ pub(super) fn decode_utf16_buffer(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_host_identity(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut HostIdentity,
 ) -> RuntimeResult<()> {
     // validate output argument before host calls
     core_platform::ensure_out(out, "out")?;
 
     // read one normalized host identity payload
-    let identity = backend::read_host_identity(context)?;
+    let identity = backend::read_host_identity(binding)?;
 
     // encode output payload in call-local runtime storage
     let output = HostIdentity {
-        hostname: context.store_string(&identity.hostname),
-        kernel: context.store_string(&identity.kernel),
-        release: context.store_string(&identity.release),
-        architecture: context.store_string(&identity.architecture),
+        hostname: binding.store_string(&identity.hostname),
+        kernel: binding.store_string(&identity.kernel),
+        release: binding.store_string(&identity.release),
+        architecture: binding.store_string(&identity.architecture),
     };
 
     // write the output payload

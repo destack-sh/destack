@@ -487,7 +487,7 @@ fn render_native_like_stub(
 
         let function_name = binding.implementation_fn_name.clone();
         let mut params = Vec::new();
-        let mut unused = vec!["context".to_string()];
+        let mut unused = vec!["binding".to_string()];
 
         if entry.return_binding != BindingType::Void {
             let out_type = native_type_for_binding(domain, &entry.return_binding);
@@ -504,7 +504,7 @@ fn render_native_like_stub(
 
         write_stub_docs(&mut output, entry, binding.extern_name, false);
         output.push_str(&format!(
-            "{function_visibility} unsafe fn {function_name}(context: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
+            "{function_visibility} unsafe fn {function_name}(binding: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
             if params.is_empty() {
                 String::new()
             } else {
@@ -593,7 +593,7 @@ pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> St
 
         write_stub_docs(&mut output, entry, binding.extern_name, false);
         output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    _runtime: &BindingCallContext,\n");
+        output.push_str("    _binding: &BindingCallContext,\n");
         output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
         for param in &params {
             output.push_str(&format!("    {param},\n"));
@@ -703,7 +703,7 @@ pub(crate) fn render_simulation_native_stub(
 
         write_stub_docs(&mut output, entry, binding.extern_name, true);
         output.push_str(&format!(
-            "pub(crate) unsafe fn {function_name}(_context: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
+            "pub(crate) unsafe fn {function_name}(_binding: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
             if params.is_empty() {
                 String::new()
             } else {
@@ -785,7 +785,7 @@ pub(crate) fn render_simulation_vm_stub(domain: &str, bindings: &BindingCatalogE
 
         write_stub_docs(&mut output, entry, binding.extern_name, true);
         output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    _runtime: &BindingCallContext,\n");
+        output.push_str("    _binding: &BindingCallContext,\n");
         output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
         for param in &params {
             output.push_str(&format!("    {param},\n"));
@@ -957,7 +957,7 @@ pub(crate) fn render_runtime_native_stub(domain: &str, bindings: &BindingCatalog
 
         let function_name = binding.implementation_fn_name.clone();
         let mut params = Vec::new();
-        let mut call_args = vec!["context".to_string()];
+        let mut call_args = vec!["binding".to_string()];
 
         if entry.return_binding != BindingType::Void {
             let out_type = native_type_for_binding(domain, &entry.return_binding);
@@ -974,7 +974,7 @@ pub(crate) fn render_runtime_native_stub(domain: &str, bindings: &BindingCatalog
 
         write_stub_docs(&mut output, entry, binding.extern_name, false);
         output.push_str(&format!(
-            "pub(crate) unsafe fn {function_name}(context: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
+            "pub(crate) unsafe fn {function_name}(binding: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
             if params.is_empty() {
                 String::new()
             } else {
@@ -1042,14 +1042,14 @@ pub(crate) fn render_runtime_vm_stub(domain: &str, bindings: &BindingCatalogEntr
         let method_name = binding.implementation_fn_name.clone();
         let return_type = render_return_type(domain, entry);
         let params = render_params(domain, entry);
-        let mut call_args = vec!["runtime".to_string(), "context".to_string()];
+        let mut call_args = vec!["binding".to_string(), "context".to_string()];
         for (index, param) in entry.parameters.iter().enumerate() {
             call_args.push(sanitize_param_name(&param.name, index));
         }
 
         write_stub_docs(&mut output, entry, binding.extern_name, false);
         output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    runtime: &BindingCallContext,\n");
+        output.push_str("    binding: &BindingCallContext,\n");
         output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
         for param in &params {
             output.push_str(&format!("    {param},\n"));

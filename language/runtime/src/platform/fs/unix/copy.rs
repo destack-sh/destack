@@ -33,7 +33,7 @@ use std::path::PathBuf;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     from: PathBytes,
     to: PathBytes,
     flags: CopyFlags,
@@ -177,7 +177,7 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
     flags: CopyFlags,
@@ -193,7 +193,7 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
 
     // copy the file by converting utf16 paths to bytes
     core_fs::with_utf16_pair_as_bytes(from, to, "path", |from, to| unsafe {
-        destack_fs_copyfile_bytes(context, from, to, flags)
+        destack_fs_copyfile_bytes(binding, from, to, flags)
     })
 }
 
@@ -215,7 +215,7 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     src: FileHandle,
     src_offset: FileOffset,
@@ -229,8 +229,8 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
     }
 
     // resolve file descriptors
-    let src_fd = file_descriptor(context, src)?;
-    let dst_fd = file_descriptor(context, dst)?;
+    let src_fd = file_descriptor(binding, src)?;
+    let dst_fd = file_descriptor(binding, dst)?;
     let mut src_offset = offset_to_off_t(src_offset)?;
     let mut dst_offset = offset_to_off_t(dst_offset)?;
 
@@ -303,7 +303,7 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sendfile(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     socket: SocketHandle,
     file: FileHandle,
@@ -316,9 +316,9 @@ pub(crate) unsafe fn destack_fs_sendfile(
     }
 
     // resolve file and socket descriptors
-    let fd = file_descriptor(context, file)?;
+    let fd = file_descriptor(binding, file)?;
     let sock_fd = platform_net::core::require_resource(
-        context,
+        binding,
         socket.0,
         ResourceKind::Socket,
         "socket",
@@ -656,7 +656,7 @@ pub(super) unsafe fn fremovexattr_fd(fd: libc::c_int, name: *const libc::c_char)
 }
 
 pub(super) fn decode_xattr_list_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     buffer: Vec<u8>,
 ) -> RuntimeResult<NativeArray<NativeArray<u8>>> {
     // split on nul separators
@@ -665,10 +665,10 @@ pub(super) fn decode_xattr_list_bytes(
         if entry.is_empty() {
             continue;
         }
-        names.push(context.store_array(entry.to_vec()));
+        names.push(binding.store_array(entry.to_vec()));
     }
 
-    Ok(context.store_array(names))
+    Ok(binding.store_array(names))
 }
 
 /// Copy a file.
@@ -689,7 +689,7 @@ pub(super) fn decode_xattr_list_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     from: OsPath,
     to: OsPath,
     flags: CopyFlags,
@@ -698,7 +698,7 @@ pub(crate) unsafe fn destack_fs_copyfile(
         from,
         to,
         "path",
-        |from, to| unsafe { destack_fs_copyfile_bytes(context, from, to, flags) },
-        |from, to| unsafe { destack_fs_copyfile_utf16(context, from, to, flags) },
+        |from, to| unsafe { destack_fs_copyfile_bytes(binding, from, to, flags) },
+        |from, to| unsafe { destack_fs_copyfile_utf16(binding, from, to, flags) },
     )
 }

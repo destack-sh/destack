@@ -224,14 +224,14 @@ pub(super) fn utf16_units(path: PathUtf16, name: &str) -> RuntimeResult<Vec<u16>
 }
 
 /// Build a UTF-16 path payload from units.
-pub(super) fn path_utf16_from_units(context: &BindingCallContext, units: &[u16]) -> PathUtf16 {
-    PathUtf16Abi::<NativeAbi>(context.store_array(units.to_vec()))
+pub(super) fn path_utf16_from_units(binding: &BindingCallContext, units: &[u16]) -> PathUtf16 {
+    PathUtf16Abi::<NativeAbi>(binding.store_array(units.to_vec()))
 }
 
 /// Build a UTF-16 path payload from a PathBuf.
-pub(super) fn path_utf16_from_pathbuf(context: &BindingCallContext, path: &Path) -> PathUtf16 {
+pub(super) fn path_utf16_from_pathbuf(binding: &BindingCallContext, path: &Path) -> PathUtf16 {
     let units: Vec<u16> = path.as_os_str().encode_wide().collect();
-    path_utf16_from_units(context, &units)
+    path_utf16_from_units(binding, &units)
 }
 
 /// Build a UNICODE_STRING for NtCreateFile.
@@ -700,12 +700,12 @@ impl Drop for SidHandle {
 
 /// Resolve a resource entry for a file handle.
 pub(super) fn file_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<HANDLE> {
     // resolve the resource entry
     let handle =
-        core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {
+        core_fs::require_resource(binding, handle.0, ResourceKind::File, "file", |entry| {
             if let Some(resource) = entry.payload_ref::<FileResource>() {
                 return Ok(resource.handle as HANDLE);
             }
@@ -724,12 +724,12 @@ pub(super) fn file_handle(
 
 /// Resolve Windows SIDs for POSIX-style uid and gid values.
 pub(super) fn posix_sids(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<(SidHandle, SidHandle)> {
     // read the domain SID from configuration
-    let domain_sid = context
+    let domain_sid = binding
         .agent()
         .options
         .platform
@@ -766,22 +766,22 @@ pub(super) fn win32_error(syscall: &str, code: u32) -> Box<RuntimeError> {
 
 /// Resolve a resource entry for a file handle with cursor tracking.
 pub(super) fn file_resource(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<Arc<Mutex<i64>>> {
-    let (cursor, _) = file_state(context, handle)?;
+    let (cursor, _) = file_state(binding, handle)?;
 
     Ok(cursor)
 }
 
 /// Resolve a resource entry for file cursor and status-flag state.
 pub(super) fn file_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<FileState> {
     // resolve the resource entry
     let state =
-        core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {
+        core_fs::require_resource(binding, handle.0, ResourceKind::File, "file", |entry| {
             let Some(resource) = entry.payload_ref::<FileResource>() else {
                 return Err(RuntimeError::from(PlatformError::generic(
                     None,
@@ -798,22 +798,22 @@ pub(super) fn file_state(
 
 /// Resolve a resource entry for file status-flag state.
 pub(super) fn file_status_flags(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<Arc<Mutex<u32>>> {
-    let (_, status_flags) = file_state(context, handle)?;
+    let (_, status_flags) = file_state(binding, handle)?;
 
     Ok(status_flags)
 }
 
 /// Resolve a resource entry for a directory handle.
 pub(super) fn directory_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<HANDLE> {
     // resolve the resource entry
     let handle = core_fs::require_resource(
-        context,
+        binding,
         handle.0,
         ResourceKind::Directory,
         "directory",
@@ -834,11 +834,11 @@ pub(super) fn directory_handle(
 
 /// Resolve a resource entry for a socket handle.
 pub(super) fn socket_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<SOCKET> {
     let socket = core_net::require_resource(
-        context,
+        binding,
         handle.0,
         ResourceKind::Socket,
         "socket",
@@ -857,11 +857,11 @@ pub(super) fn socket_handle(
 
 /// Resolve a directory handle into a PathBuf.
 pub(super) fn directory_path(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<PathBuf> {
     // resolve the directory path from the handle
-    let handle = directory_handle(context, handle)?;
+    let handle = directory_handle(binding, handle)?;
     let wide = final_path_from_handle(handle)?;
     Ok(PathBuf::from(OsString::from_wide(&wide)))
 }

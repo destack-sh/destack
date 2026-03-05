@@ -26,11 +26,11 @@ use crate::platform::resource;
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_has(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     capability: PlatformCapability,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_capability_has(context, out, capability) }
+    unsafe { security_native::destack_security_capability_has(binding, out, capability) }
 }
 
 /// List active capabilities.
@@ -51,10 +51,10 @@ pub(crate) unsafe fn destack_security_capability_has(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_capability_list(context, out) }
+    unsafe { security_native::destack_security_capability_list(binding, out) }
 }
 
 /// Read policy capabilities for one named scope.
@@ -75,11 +75,11 @@ pub(crate) unsafe fn destack_security_capability_list(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<PlatformCapability>,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_policy_get(context, out, scope) }
+    unsafe { security_native::destack_security_policy_get(binding, out, scope) }
 }
 
 /// Read structured policy rules for one named scope.
@@ -100,11 +100,11 @@ pub(crate) unsafe fn destack_security_policy_get(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get_rules(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<SecurityPolicyRule>,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_policy_get_rules(context, out, scope) }
+    unsafe { security_native::destack_security_policy_get_rules(binding, out, scope) }
 }
 
 /// Replace policy capabilities for one named scope.
@@ -125,11 +125,11 @@ pub(crate) unsafe fn destack_security_policy_get_rules(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     scope: NativeStringRef,
     capabilities: NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_policy_set(context, scope, capabilities) }
+    unsafe { security_native::destack_security_policy_set(binding, scope, capabilities) }
 }
 
 /// Replace structured policy rules for one named scope.
@@ -150,11 +150,11 @@ pub(crate) unsafe fn destack_security_policy_set(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set_rules(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     scope: NativeStringRef,
     rules: NativeSlice<SecurityPolicyRule>,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_policy_set_rules(context, scope, rules) }
+    unsafe { security_native::destack_security_policy_set_rules(binding, scope, rules) }
 }
 
 /// Enter a sandbox scope.
@@ -175,11 +175,11 @@ pub(crate) unsafe fn destack_security_policy_set_rules(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_enter(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SandboxHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_sandbox_enter(context, out, name) }
+    unsafe { security_native::destack_security_sandbox_enter(binding, out, name) }
 }
 
 /// Leave a sandbox scope.
@@ -200,10 +200,10 @@ pub(crate) unsafe fn destack_security_sandbox_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_exit(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_sandbox_exit(context, handle) }
+    unsafe { security_native::destack_security_sandbox_exit(binding, handle) }
 }
 
 /// Seal one sandbox policy.
@@ -224,10 +224,10 @@ pub(crate) unsafe fn destack_security_sandbox_exit(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_seal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_sandbox_seal(context, handle) }
+    unsafe { security_native::destack_security_sandbox_seal(binding, handle) }
 }
 
 /// Apply an explicit capability set to one sandbox scope.
@@ -248,12 +248,12 @@ pub(crate) unsafe fn destack_security_sandbox_seal(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SandboxHandle,
     capabilities: NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
     unsafe {
-        security_native::destack_security_sandbox_set_capabilities(context, handle, capabilities)
+        security_native::destack_security_sandbox_set_capabilities(binding, handle, capabilities)
     }
 }
 
@@ -275,8 +275,8 @@ pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_set_write_xor_execute(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    unsafe { security_native::destack_security_set_write_xor_execute(context, enabled) }
+    unsafe { security_native::destack_security_set_write_xor_execute(binding, enabled) }
 }

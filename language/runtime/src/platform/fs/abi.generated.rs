@@ -2783,3 +2783,30 @@ pub enum WatchEventReplayRecord {
     /// WatchRenameEvent variant.
     WatchRenameEvent(WatchRenameEventReplayRecord),
 }
+
+/// Request all available fields.
+pub const STATX_ALL: StatxMask = StatxMask(4095u32);
+
+/// Request basic file stats.
+pub const STATX_BASIC_STATS: StatxMask = StatxMask(2047u32);
+
+/// Request file birth time.
+pub const STATX_BTIME: StatxMask = StatxMask(2048u32);
+
+/// Stat without forcing sync.
+pub const STATX_DONT_SYNC: StatxFlags = StatxFlags(16384u32);
+
+/// Allow empty path for statx.
+pub const STATX_EMPTY_PATH: StatxFlags = StatxFlags(16u32);
+
+/// Force attribute sync from server.
+pub const STATX_FORCE_SYNC: StatxFlags = StatxFlags(8192u32);
+
+/// Do not follow symlinks for statx.
+pub const STATX_NOFOLLOW: StatxFlags = StatxFlags(1u32);
+
+/// Create the attribute, fail if it exists.
+pub const XATTR_CREATE: XattrFlags = XattrFlags(1u32);
+
+/// Replace the attribute, fail if it does not exist.
+pub const XATTR_REPLACE: XattrFlags = XattrFlags(2u32);

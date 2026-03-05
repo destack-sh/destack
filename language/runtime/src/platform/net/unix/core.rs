@@ -96,7 +96,7 @@ impl ResourceFinalizer for FileFinalizer {
 
 /// Build a raw socket address from a raw fd query.
 pub(super) fn socket_address_raw_from_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     fd: RawFd,
     syscall: &str,
     query: unsafe extern "C" fn(RawFd, *mut libc::sockaddr, *mut libc::socklen_t) -> libc::c_int,
@@ -113,12 +113,12 @@ pub(super) fn socket_address_raw_from_fd(
 
     // decode the returned storage
     let storage = unsafe { storage.assume_init() };
-    socket_address_raw_from_storage(context, &storage, length)
+    socket_address_raw_from_storage(binding, &storage, length)
 }
 
 /// Decode a raw socket address from raw storage.
 pub(super) fn socket_address_raw_from_storage(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     storage: &libc::sockaddr_storage,
     length: libc::socklen_t,
 ) -> RuntimeResult<SocketAddress> {
@@ -136,7 +136,7 @@ pub(super) fn socket_address_raw_from_storage(
         let pointer = storage as *const _ as *const u8;
         std::slice::from_raw_parts(pointer, length as usize)
     };
-    let bytes = context.store_array(bytes.to_vec());
+    let bytes = binding.store_array(bytes.to_vec());
 
     // write the raw sockaddr payload
     Ok(SocketAddress {
@@ -148,7 +148,7 @@ pub(super) fn socket_address_raw_from_storage(
 
 /// Decode a socket address from raw storage.
 pub(super) fn socket_address_from_storage(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     storage: &libc::sockaddr_storage,
     length: libc::socklen_t,
 ) -> RuntimeResult<SocketAddress> {
@@ -166,7 +166,7 @@ pub(super) fn socket_address_from_storage(
         let pointer = storage as *const _ as *const u8;
         std::slice::from_raw_parts(pointer, length as usize)
     };
-    let bytes = context.store_array(bytes.to_vec());
+    let bytes = binding.store_array(bytes.to_vec());
 
     Ok(SocketAddress {
         family: socket_family_from_storage(storage.ss_family),
@@ -233,11 +233,11 @@ pub(super) fn sockaddr_un_from_path(
 
 /// Resolve a socket descriptor from a handle.
 pub(super) fn socket_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<RawFd> {
     // resolve the socket resource
-    core_net::require_resource(context, handle.0, ResourceKind::Socket, "socket", |entry| {
+    core_net::require_resource(binding, handle.0, ResourceKind::Socket, "socket", |entry| {
         entry.fd().ok_or_else(|| {
             RuntimeError::from(PlatformError::generic(
                 None,
@@ -250,10 +250,10 @@ pub(super) fn socket_descriptor(
 
 /// Resolve a transferable file descriptor from a resource handle.
 pub(super) fn transferable_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: TransferredHandle,
 ) -> RuntimeResult<RawFd> {
-    let descriptor = context
+    let descriptor = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| entry.fd());
@@ -387,12 +387,12 @@ pub(super) fn peer_socket_credentials(fd: RawFd) -> RuntimeResult<SocketCredenti
 
 /// Resolve a listener descriptor from a handle.
 pub(super) fn listener_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<RawFd> {
     // resolve the listener resource
     core_net::require_resource(
-        context,
+        binding,
         handle.0,
         ResourceKind::Listener,
         "listener",

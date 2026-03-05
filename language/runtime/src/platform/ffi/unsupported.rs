@@ -30,7 +30,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_call(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     symbol: resource::SymbolHandle,
     abi: u32,
@@ -64,7 +64,7 @@ pub(crate) unsafe fn destack_ffi_call(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::LibraryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -90,7 +90,7 @@ pub(crate) unsafe fn destack_ffi_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::LibraryHandle,
     path: fs::OsPath,
     flags: u32,
@@ -121,7 +121,7 @@ pub(crate) unsafe fn destack_ffi_open(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_ffi_address(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     pointer: FfiPointer,
 ) -> RuntimeResult<()> {
@@ -151,7 +151,7 @@ pub(crate) unsafe fn destack_ffi_address(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_ffi_from_address(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut FfiPointer,
     address: u64,
 ) -> RuntimeResult<()> {
@@ -184,7 +184,7 @@ pub(crate) unsafe fn destack_ffi_from_address(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_symbol_address(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     symbol: resource::SymbolHandle,
 ) -> RuntimeResult<()> {
@@ -214,7 +214,7 @@ pub(crate) unsafe fn destack_ffi_symbol_address(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_symbol_lookup(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::SymbolHandle,
     library: resource::LibraryHandle,
     name: NativeStringRef,

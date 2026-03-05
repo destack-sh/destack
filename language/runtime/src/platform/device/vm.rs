@@ -23,7 +23,7 @@ use destack_vm as vm;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_device_bluetooth_pair(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
@@ -52,7 +52,7 @@ pub(crate) fn destack_device_bluetooth_pair(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_read_rssi(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
@@ -81,7 +81,7 @@ pub(crate) fn destack_device_bluetooth_read_rssi(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_device_bluetooth_unpair(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
@@ -110,7 +110,7 @@ pub(crate) fn destack_device_bluetooth_unpair(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_stream_config_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<VmSlice<CameraStreamConfigVm>> {
@@ -138,7 +138,7 @@ pub(crate) fn destack_device_camera_device_stream_config_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_stream_capability_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<VmSlice<CameraStreamCapabilityVm>> {
@@ -166,7 +166,7 @@ pub(crate) fn destack_device_camera_device_stream_capability_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_control_range(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
@@ -195,7 +195,7 @@ pub(crate) fn destack_device_camera_stream_control_range(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_get_control(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
@@ -224,7 +224,7 @@ pub(crate) fn destack_device_camera_stream_get_control(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_mode(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraExposureMode> {
@@ -252,7 +252,7 @@ pub(crate) fn destack_device_camera_stream_exposure_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_exposure_mode(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
     mode: CameraExposureMode,
@@ -281,7 +281,7 @@ pub(crate) fn destack_device_camera_stream_set_exposure_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_stabilization_mode(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
     mode: CameraStabilizationMode,
@@ -310,7 +310,7 @@ pub(crate) fn destack_device_camera_stream_set_stabilization_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_torch_mode(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
     mode: CameraTorchMode,
@@ -339,7 +339,7 @@ pub(crate) fn destack_device_camera_stream_set_torch_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_stabilization_mode(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraStabilizationMode> {
@@ -367,7 +367,7 @@ pub(crate) fn destack_device_camera_stream_stabilization_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_torch_mode(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraTorchMode> {
@@ -395,7 +395,7 @@ pub(crate) fn destack_device_camera_stream_torch_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_discard_input(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
@@ -423,7 +423,7 @@ pub(crate) fn destack_device_serial_discard_input(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_discard_output(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
@@ -451,7 +451,7 @@ pub(crate) fn destack_device_serial_discard_output(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_read_event(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
     timeoutns: u64,
@@ -480,7 +480,7 @@ pub(crate) fn destack_device_serial_read_event(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_set_break(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
     enabled: bool,
@@ -509,7 +509,7 @@ pub(crate) fn destack_device_serial_set_break(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_clear_halt(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -538,7 +538,7 @@ pub(crate) fn destack_device_usb_clear_halt(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_kernel_driver_active(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -567,7 +567,7 @@ pub(crate) fn destack_device_usb_kernel_driver_active(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_device_usb_kernel_driver_attach(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -596,7 +596,7 @@ pub(crate) fn destack_device_usb_kernel_driver_attach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_device_usb_kernel_driver_detach(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -625,7 +625,7 @@ pub(crate) fn destack_device_usb_kernel_driver_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_device_usb_reset(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -653,7 +653,7 @@ pub(crate) fn destack_device_usb_reset(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_set_interface_alternate_setting(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -683,7 +683,7 @@ pub(crate) fn destack_device_usb_set_interface_alternate_setting(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_string_descriptor(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     languageid: u16,
@@ -712,7 +712,7 @@ pub(crate) fn destack_device_usb_string_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_string_language_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<VmSlice<u16>> {
@@ -740,7 +740,7 @@ pub(crate) fn destack_device_usb_string_language_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_device_usb_transfer_cancel(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -769,7 +769,7 @@ pub(crate) fn destack_device_usb_transfer_cancel(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_device_usb_transfer_cancel_all(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -797,7 +797,7 @@ pub(crate) fn destack_device_usb_transfer_cancel_all(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_watch_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
@@ -825,7 +825,7 @@ pub(crate) fn destack_device_usb_watch_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_watch_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::UsbWatchHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -851,7 +851,7 @@ pub(crate) fn destack_device_usb_watch_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_watch_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbWatchHandle,
     timeoutns: u64,
@@ -880,7 +880,7 @@ pub(crate) fn destack_device_usb_watch_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_watch_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<UsbHotplugEventVm> {
@@ -908,7 +908,7 @@ pub(crate) fn destack_device_usb_watch_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<BluetoothAdapterDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -934,7 +934,7 @@ pub(crate) fn destack_device_bluetooth_adapter_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
@@ -963,7 +963,7 @@ pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
@@ -993,7 +993,7 @@ pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_mtu(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<u16> {
@@ -1021,7 +1021,7 @@ pub(crate) fn destack_device_bluetooth_gatt_mtu(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
@@ -1052,7 +1052,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
@@ -1090,7 +1090,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read_event(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
     timeoutns: u64,
@@ -1119,7 +1119,7 @@ pub(crate) fn destack_device_bluetooth_gatt_read_event(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_request_mtu(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     mtu: u16,
@@ -1149,7 +1149,7 @@ pub(crate) fn destack_device_bluetooth_gatt_request_mtu(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_service_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattServiceDescriptorVm>> {
@@ -1177,7 +1177,7 @@ pub(crate) fn destack_device_bluetooth_gatt_service_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_subscribe(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
@@ -1207,7 +1207,7 @@ pub(crate) fn destack_device_bluetooth_gatt_subscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<BluetoothGattValueEventVm> {
@@ -1235,7 +1235,7 @@ pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<()> {
@@ -1263,7 +1263,7 @@ pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
@@ -1303,7 +1303,7 @@ pub(crate) fn destack_device_bluetooth_gatt_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
@@ -1343,7 +1343,7 @@ pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<()> {
@@ -1371,7 +1371,7 @@ pub(crate) fn destack_device_bluetooth_scan_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     adapterid: vm::StringHandle,
     filter: BluetoothScanFilterVm,
@@ -1400,7 +1400,7 @@ pub(crate) fn destack_device_bluetooth_scan_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothScanHandle,
     timeoutns: u64,
@@ -1429,7 +1429,7 @@ pub(crate) fn destack_device_bluetooth_scan_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<BluetoothDeviceDescriptorVm> {
@@ -1457,7 +1457,7 @@ pub(crate) fn destack_device_bluetooth_scan_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -1485,7 +1485,7 @@ pub(crate) fn destack_device_bluetooth_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_bluetooth_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
@@ -1514,7 +1514,7 @@ pub(crate) fn destack_device_bluetooth_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -1542,7 +1542,7 @@ pub(crate) fn destack_device_camera_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<CameraDeviceDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1568,7 +1568,7 @@ pub(crate) fn destack_device_camera_device_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_device_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::CameraDeviceHandle> {
@@ -1596,7 +1596,7 @@ pub(crate) fn destack_device_camera_device_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
@@ -1624,7 +1624,7 @@ pub(crate) fn destack_device_camera_stream_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::CameraDeviceHandle,
     config: CameraStreamConfigVm,
@@ -1653,7 +1653,7 @@ pub(crate) fn destack_device_camera_stream_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
@@ -1682,7 +1682,7 @@ pub(crate) fn destack_device_camera_stream_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_control(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
@@ -1712,7 +1712,7 @@ pub(crate) fn destack_device_camera_stream_set_control(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_start(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
@@ -1740,7 +1740,7 @@ pub(crate) fn destack_device_camera_stream_start(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_stop(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
@@ -1768,7 +1768,7 @@ pub(crate) fn destack_device_camera_stream_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_camera_stream_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<CameraFrameVm> {
@@ -1796,7 +1796,7 @@ pub(crate) fn destack_device_camera_stream_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
@@ -1824,7 +1824,7 @@ pub(crate) fn destack_device_serial_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_configure(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
     config: SerialPortConfigVm,
@@ -1853,7 +1853,7 @@ pub(crate) fn destack_device_serial_configure(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_flush(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
@@ -1882,7 +1882,7 @@ pub(crate) fn destack_device_serial_flush(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<SerialPortDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1908,7 +1908,7 @@ pub(crate) fn destack_device_serial_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
     config: SerialPortConfigVm,
@@ -1937,7 +1937,7 @@ pub(crate) fn destack_device_serial_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
     maxbytes: u32,
@@ -1967,7 +1967,7 @@ pub(crate) fn destack_device_serial_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_set_control_lines(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
     dtr: bool,
@@ -1997,7 +1997,7 @@ pub(crate) fn destack_device_serial_set_control_lines(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_signal_bits(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<u32> {
@@ -2025,7 +2025,7 @@ pub(crate) fn destack_device_serial_signal_bits(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_try_event(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<SerialEventVm> {
@@ -2053,7 +2053,7 @@ pub(crate) fn destack_device_serial_try_event(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_try_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
     maxbytes: u32,
@@ -2082,7 +2082,7 @@ pub(crate) fn destack_device_serial_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_serial_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
     data: VmSlice<u8>,
@@ -2112,7 +2112,7 @@ pub(crate) fn destack_device_serial_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_bulk_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2143,7 +2143,7 @@ pub(crate) fn destack_device_usb_bulk_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_bulk_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2174,7 +2174,7 @@ pub(crate) fn destack_device_usb_bulk_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_claim_interface(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -2203,7 +2203,7 @@ pub(crate) fn destack_device_usb_claim_interface(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_close(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -2231,7 +2231,7 @@ pub(crate) fn destack_device_usb_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_configuration_get(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<u8> {
@@ -2259,7 +2259,7 @@ pub(crate) fn destack_device_usb_configuration_get(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_configuration_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<VmSlice<UsbConfigurationDescriptorVm>> {
@@ -2287,7 +2287,7 @@ pub(crate) fn destack_device_usb_configuration_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_configuration_set(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
@@ -2316,7 +2316,7 @@ pub(crate) fn destack_device_usb_configuration_set(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_control_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
@@ -2346,7 +2346,7 @@ pub(crate) fn destack_device_usb_control_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_control_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
@@ -2377,7 +2377,7 @@ pub(crate) fn destack_device_usb_control_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_descriptor(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<UsbDeviceDescriptorVm> {
@@ -2405,7 +2405,7 @@ pub(crate) fn destack_device_usb_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_interrupt_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2436,7 +2436,7 @@ pub(crate) fn destack_device_usb_interrupt_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_interrupt_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2467,7 +2467,7 @@ pub(crate) fn destack_device_usb_interrupt_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_isochronous_read(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2498,7 +2498,7 @@ pub(crate) fn destack_device_usb_isochronous_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_isochronous_write(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -2536,7 +2536,7 @@ pub(crate) fn destack_device_usb_isochronous_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_list(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<UsbDeviceDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2562,7 +2562,7 @@ pub(crate) fn destack_device_usb_list(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_open(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::UsbDeviceHandle> {
@@ -2590,7 +2590,7 @@ pub(crate) fn destack_device_usb_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_device_usb_release_interface(
-    _runtime: &BindingCallContext,
+    _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,

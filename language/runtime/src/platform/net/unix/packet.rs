@@ -368,14 +368,14 @@ fn macos_bpf_buffer_length(descriptor: RawFd) -> RuntimeResult<usize> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     options: PacketCaptureOptions,
 ) -> RuntimeResult<()> {
     // reject unix targets without one packet backend
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, out, options);
+        let _ = (binding, out, options);
         packet_not_supported("destack.net.packetOpen")
     }
 
@@ -484,10 +484,10 @@ pub(crate) unsafe fn destack_net_packet_open(
         let entry = ResourceEntry::new(ResourceKind::Socket)
             .with_socket(fd)
             .with_finalizer(SocketFinalizer { fd });
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
         unsafe {
             *out = SocketHandle(resource_id);
         }
@@ -567,10 +567,10 @@ pub(crate) unsafe fn destack_net_packet_open(
         let entry = ResourceEntry::new(ResourceKind::Socket)
             .with_socket(descriptor)
             .with_finalizer(SocketFinalizer { fd: descriptor });
-        let resource_id = context
+        let resource_id = binding
             .agent()
             .resources
-            .insert(entry, Some(context.engine()));
+            .insert(entry, Some(binding.engine()));
         unsafe {
             *out = SocketHandle(resource_id);
         }
@@ -601,7 +601,7 @@ pub(crate) unsafe fn destack_net_packet_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_receive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PacketCaptureRecord,
     handle: SocketHandle,
     payload: NativeSlice<u8>,
@@ -609,7 +609,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
     // reject unix targets without one packet backend
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, out, handle, payload);
+        let _ = (binding, out, handle, payload);
         packet_not_supported("destack.net.packetReceive")
     }
 
@@ -621,7 +621,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
         }
 
         // resolve the packet descriptor and payload buffer
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let buffer = unsafe { payload.as_mut_slice()? };
 
         // read one packet and capture source interface metadata
@@ -674,7 +674,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
         }
 
         // resolve the packet descriptor and payload buffer
-        let descriptor = socket_descriptor(context, handle)?;
+        let descriptor = socket_descriptor(binding, handle)?;
         let payload = unsafe { payload.as_mut_slice()? };
 
         // read one full BPF packet buffer from the descriptor
@@ -797,7 +797,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_send(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     payload: NativeSlice<u8>,
@@ -805,7 +805,7 @@ pub(crate) unsafe fn destack_net_packet_send(
     // reject unix targets without one packet backend
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, out, handle, payload);
+        let _ = (binding, out, handle, payload);
         packet_not_supported("destack.net.packetSend")
     }
 
@@ -817,7 +817,7 @@ pub(crate) unsafe fn destack_net_packet_send(
         }
 
         // resolve descriptor and payload bytes
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let bytes = unsafe { payload.as_slice()? };
 
         // write one packet frame
@@ -856,7 +856,7 @@ pub(crate) unsafe fn destack_net_packet_send(
         }
 
         // resolve descriptor and payload bytes
-        let descriptor = socket_descriptor(context, handle)?;
+        let descriptor = socket_descriptor(binding, handle)?;
         let bytes = unsafe { payload.as_slice()? };
 
         // write one packet frame to the BPF descriptor
@@ -908,14 +908,14 @@ pub(crate) unsafe fn destack_net_packet_send(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<()> {
     // reject unix targets without one packet backend
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, handle, mode);
+        let _ = (binding, handle, mode);
         packet_not_supported("destack.net.packetSetTimestampMode")
     }
 
@@ -931,7 +931,7 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
         };
 
         // apply timestamp option on the packet socket
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let rc = unsafe {
             libc::setsockopt(
                 fd,
@@ -951,7 +951,7 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
     #[cfg(target_os = "macos")]
     {
         // validate descriptor ownership
-        let _ = socket_descriptor(context, handle)?;
+        let _ = socket_descriptor(binding, handle)?;
 
         // support software timestamps and reject unsupported modes
         if mode == PacketTimestampMode::Software {
@@ -982,20 +982,20 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_fanout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // reject non-linux unix targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         packet_not_supported("destack.net.packetClearFanout")
     }
 
     #[cfg(target_os = "linux")]
     {
         // clear fanout by resetting PACKET_FANOUT to zero
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let value: u32 = 0;
         let rc = unsafe {
             libc::setsockopt(
@@ -1035,20 +1035,20 @@ pub(crate) unsafe fn destack_net_packet_clear_fanout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_filter(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // reject unix targets without one packet backend
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         packet_not_supported("destack.net.packetClearFilter")
     }
 
     #[cfg(target_os = "linux")]
     {
         // detach the current classic BPF filter
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let rc = unsafe {
             libc::setsockopt(
                 fd,
@@ -1068,7 +1068,7 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
     #[cfg(target_os = "macos")]
     {
         // resolve one packet descriptor
-        let descriptor = socket_descriptor(context, handle)?;
+        let descriptor = socket_descriptor(binding, handle)?;
 
         // install one allow-all fallback filter to clear restrictive programs
         let mut instructions = [MacosBpfInstruction {
@@ -1101,20 +1101,20 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_ring(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // reject non-linux unix targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle);
+        let _ = (binding, handle);
         packet_not_supported("destack.net.packetClearRing")
     }
 
     #[cfg(target_os = "linux")]
     {
         // reset both packet ring sockets to zero-sized requests
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let empty = libc::tpacket_req {
             tp_block_size: 0,
             tp_block_nr: 0,
@@ -1172,21 +1172,21 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_fanout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     options: PacketFanoutOptions,
 ) -> RuntimeResult<()> {
     // reject non-linux unix targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, options);
+        let _ = (binding, handle, options);
         packet_not_supported("destack.net.packetSetFanout")
     }
 
     #[cfg(target_os = "linux")]
     {
         // encode fanout options into one host fanout value
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let mode = packet_fanout_mode(options.mode);
         let fanout_value = u32::from(options.group_id)
             | ((mode & 0xffff) << 16)
@@ -1231,21 +1231,21 @@ pub(crate) unsafe fn destack_net_packet_set_fanout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_filter(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     filterprogram: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // reject unix targets without one packet backend
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, handle, filterprogram);
+        let _ = (binding, handle, filterprogram);
         packet_not_supported("destack.net.packetSetFilter")
     }
 
     #[cfg(target_os = "linux")]
     {
         // resolve descriptor and filter bytes
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let bytes = unsafe { filterprogram.as_slice()? };
         let instruction_size = std::mem::size_of::<libc::sock_filter>();
         if bytes.is_empty() || (bytes.len() % instruction_size) != 0 {
@@ -1296,7 +1296,7 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
     #[cfg(target_os = "macos")]
     {
         // resolve descriptor and filter bytes
-        let descriptor = socket_descriptor(context, handle)?;
+        let descriptor = socket_descriptor(binding, handle)?;
         let bytes = unsafe { filterprogram.as_slice()? };
         let instruction_size = std::mem::size_of::<MacosBpfInstruction>();
         if bytes.is_empty() || (bytes.len() % instruction_size) != 0 {
@@ -1345,21 +1345,21 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_rx_ring(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
     // reject non-linux unix targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, options);
+        let _ = (binding, handle, options);
         packet_not_supported("destack.net.packetSetRxRing")
     }
 
     #[cfg(target_os = "linux")]
     {
         // resolve descriptor and build one ring request
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let request = libc::tpacket_req {
             tp_block_size: options.block_size,
             tp_block_nr: options.block_count,
@@ -1405,21 +1405,21 @@ pub(crate) unsafe fn destack_net_packet_set_rx_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_tx_ring(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
     // reject non-linux unix targets explicitly
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (context, handle, options);
+        let _ = (binding, handle, options);
         packet_not_supported("destack.net.packetSetTxRing")
     }
 
     #[cfg(target_os = "linux")]
     {
         // resolve descriptor and build one ring request
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let request = libc::tpacket_req {
             tp_block_size: options.block_size,
             tp_block_nr: options.block_count,
@@ -1466,14 +1466,14 @@ pub(crate) unsafe fn destack_net_packet_set_tx_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_stats(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PacketCaptureStats,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // reject unix targets without one packet backend
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        let _ = (context, out, handle);
+        let _ = (binding, out, handle);
         packet_not_supported("destack.net.packetStats")
     }
 
@@ -1485,7 +1485,7 @@ pub(crate) unsafe fn destack_net_packet_stats(
         }
 
         // resolve descriptor and load host packet statistics
-        let fd = socket_descriptor(context, handle)?;
+        let fd = socket_descriptor(binding, handle)?;
         let mut stats = unsafe { std::mem::zeroed::<libc::tpacket_stats>() };
         let mut stats_length = std::mem::size_of::<libc::tpacket_stats>() as libc::socklen_t;
         let rc = unsafe {
@@ -1521,7 +1521,7 @@ pub(crate) unsafe fn destack_net_packet_stats(
         }
 
         // resolve descriptor and load host packet statistics
-        let descriptor = socket_descriptor(context, handle)?;
+        let descriptor = socket_descriptor(binding, handle)?;
         let mut stats = unsafe { std::mem::zeroed::<MacosBpfStats>() };
         let rc = unsafe { libc::ioctl(descriptor, libc::BIOCGSTATS as _, &mut stats) };
         if rc != 0 {

@@ -50,13 +50,13 @@ pub(crate) struct AlsaMonitorRuntimeState {
 
 /// Return runtime-owned ALSA monitor state.
 #[cfg(target_os = "linux")]
-fn alsa_monitor_runtime_state(context: &BindingCallContext) -> Arc<AlsaMonitorRuntimeState> {
-    let runtime_state = context
-        .runtime()
+fn alsa_monitor_runtime_state(binding: &BindingCallContext) -> Arc<AlsaMonitorRuntimeState> {
+    let runtime_state = binding
+        .agent()
         .platform_state
         .audio
         .alsa_monitor_runtime_state(AlsaMonitorRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
+    register_runtime_finalizer(binding, &runtime_state);
 
     runtime_state
 }
@@ -64,7 +64,7 @@ fn alsa_monitor_runtime_state(context: &BindingCallContext) -> Arc<AlsaMonitorRu
 /// Register one runtime finalizer for ALSA monitor teardown.
 #[cfg(target_os = "linux")]
 fn register_runtime_finalizer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<AlsaMonitorRuntimeState>,
 ) {
     if runtime_state
@@ -75,7 +75,7 @@ fn register_runtime_finalizer(
     }
 
     let runtime_state = Arc::clone(runtime_state);
-    context.runtime().finalizers.register(move || {
+    binding.agent().finalizers.register(move || {
         let monitor = runtime_state
             .monitor
             .lock()
@@ -119,11 +119,11 @@ pub(crate) fn native_device_events_supported() -> bool {
 
 /// Start ALSA native device-event monitoring.
 pub(crate) fn start_native_device_event_monitor(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
-        let runtime_state = alsa_monitor_runtime_state(_context);
+        let runtime_state = alsa_monitor_runtime_state(binding);
         let mut monitor_slot = runtime_state
             .monitor
             .lock()
@@ -134,7 +134,7 @@ pub(crate) fn start_native_device_event_monitor(
         }
 
         let stop = Arc::new(AtomicBool::new(false));
-        let runtime_state = audio_core::audio_event_runtime_state(_context);
+        let runtime_state = audio_core::audio_event_runtime_state(binding);
         let stop_signal = Arc::clone(&stop);
         let callback_runtime_state = Arc::clone(&runtime_state);
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
@@ -167,10 +167,10 @@ pub(crate) fn start_native_device_event_monitor(
 }
 
 /// Stop ALSA native device-event monitoring.
-pub(crate) fn stop_native_device_event_monitor(_context: &BindingCallContext) {
+pub(crate) fn stop_native_device_event_monitor(_binding: &BindingCallContext) {
     #[cfg(target_os = "linux")]
     {
-        let runtime_state = alsa_monitor_runtime_state(_context);
+        let runtime_state = alsa_monitor_runtime_state(binding);
         let monitor = {
             let mut monitor_slot = runtime_state
                 .monitor

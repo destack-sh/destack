@@ -35,14 +35,14 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_limit(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ProcessLimit,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, resource);
+    let _ = (binding, resource);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.limits.getLimit",
     ))
@@ -67,11 +67,11 @@ pub(crate) unsafe fn destack_process_get_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_limit(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
-    let _ = (context, resource, limit);
+    let _ = (binding, resource, limit);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.limits.setLimit",
     ))

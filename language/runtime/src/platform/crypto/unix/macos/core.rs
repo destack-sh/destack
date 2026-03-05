@@ -101,20 +101,20 @@ pub(super) fn security_operation_error(
 }
 
 /// Return whether filesystem override mode is enabled for host store lanes.
-pub(super) fn filesystem_mode_enabled(context: &BindingCallContext) -> bool {
-    configured_store_path(context, CryptoStoreKind::User).is_some()
-        || configured_store_path(context, CryptoStoreKind::Machine).is_some()
+pub(super) fn filesystem_mode_enabled(binding: &BindingCallContext) -> bool {
+    configured_store_path(binding, CryptoStoreKind::User).is_some()
+        || configured_store_path(binding, CryptoStoreKind::Machine).is_some()
 }
 
 /// Return whether one store lane is available in filesystem override mode.
 pub(super) fn filesystem_store_lane_is_available(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
     match kind {
-        CryptoStoreKind::User => configured_store_path(context, CryptoStoreKind::User).is_some(),
+        CryptoStoreKind::User => configured_store_path(binding, CryptoStoreKind::User).is_some(),
         CryptoStoreKind::Machine => {
-            configured_store_path(context, CryptoStoreKind::Machine).is_some()
+            configured_store_path(binding, CryptoStoreKind::Machine).is_some()
         }
         CryptoStoreKind::Ephemeral => true,
         CryptoStoreKind::System | CryptoStoreKind::Provider => false,
@@ -123,12 +123,12 @@ pub(super) fn filesystem_store_lane_is_available(
 
 /// Return one configured host-store snapshot path for one lane.
 pub(super) fn configured_store_path(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     match kind {
-        CryptoStoreKind::User => context.agent().options.crypto.host_store_paths.user.clone(),
-        CryptoStoreKind::Machine => context
+        CryptoStoreKind::User => binding.agent().options.crypto.host_store_paths.user.clone(),
+        CryptoStoreKind::Machine => binding
             .agent()
             .options
             .crypto
@@ -140,8 +140,8 @@ pub(super) fn configured_store_path(
 }
 
 /// Return one configured macOS keychain service for host snapshot bytes.
-pub(super) fn configured_keychain_snapshot_service(context: &BindingCallContext) -> String {
-    context
+pub(super) fn configured_keychain_snapshot_service(binding: &BindingCallContext) -> String {
+    binding
         .agent()
         .options
         .crypto
@@ -151,8 +151,8 @@ pub(super) fn configured_keychain_snapshot_service(context: &BindingCallContext)
 }
 
 /// Return one configured macOS keychain account for host snapshot bytes.
-pub(super) fn configured_keychain_snapshot_account(context: &BindingCallContext) -> String {
-    context
+pub(super) fn configured_keychain_snapshot_account(binding: &BindingCallContext) -> String {
+    binding
         .agent()
         .options
         .crypto

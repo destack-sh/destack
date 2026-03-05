@@ -39,8 +39,8 @@ const UNIX_INPUT_TTY_NAME: &str = "unix terminal input";
 pub(super) const UNIX_INPUT_EMPTY_TEXT: &str = "";
 
 /// Build one zeroed payload shell for event-kind projection.
-pub(super) fn empty_unix_event_payload(context: &BindingCallContext) -> InputEventPayload {
-    let empty_text = context.store_string(UNIX_INPUT_EMPTY_TEXT);
+pub(super) fn empty_unix_event_payload(binding: &BindingCallContext) -> InputEventPayload {
+    let empty_text = binding.store_string(UNIX_INPUT_EMPTY_TEXT);
     InputEventPayload {
         key: InputKeyEventPayload {
             action: InputEventAction::Cancel,
@@ -108,7 +108,7 @@ pub(super) fn empty_unix_event_payload(context: &BindingCallContext) -> InputEve
 
 /// Build one typed input event from one prepared payload.
 pub(super) fn build_unix_input_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: InputEventKind,
     timestamp_ns: u64,
     sequence: u64,
@@ -118,61 +118,61 @@ pub(super) fn build_unix_input_event(
     let metadata = InputEventMetadata {
         timestamp_ns,
         sequence,
-        device_id: context.store_string(device_id),
+        device_id: binding.store_string(device_id),
     };
 
     match kind {
         InputEventKind::Key => InputEvent::InputKeyEvent(InputKeyEvent {
-            kind: context.store_string("key"),
+            kind: binding.store_string("key"),
             metadata,
             payload: payload.key,
         }),
         InputEventKind::PointerMotion => {
             InputEvent::InputPointerMotionEvent(InputPointerMotionEvent {
-                kind: context.store_string("pointerMotion"),
+                kind: binding.store_string("pointerMotion"),
                 metadata,
                 payload: payload.pointer_motion,
             })
         }
         InputEventKind::PointerButton => {
             InputEvent::InputPointerButtonEvent(InputPointerButtonEvent {
-                kind: context.store_string("pointerButton"),
+                kind: binding.store_string("pointerButton"),
                 metadata,
                 payload: payload.pointer_button,
             })
         }
         InputEventKind::Scroll => InputEvent::InputScrollEvent(InputScrollEvent {
-            kind: context.store_string("scroll"),
+            kind: binding.store_string("scroll"),
             metadata,
             payload: payload.scroll,
         }),
         InputEventKind::Touch => InputEvent::InputTouchEvent(InputTouchEvent {
-            kind: context.store_string("touch"),
+            kind: binding.store_string("touch"),
             metadata,
             payload: payload.touch,
         }),
         InputEventKind::Gamepad => InputEvent::InputGamepadEvent(InputGamepadEvent {
-            kind: context.store_string("gamepad"),
+            kind: binding.store_string("gamepad"),
             metadata,
             payload: payload.gamepad,
         }),
         InputEventKind::Text => InputEvent::InputTextEvent(InputTextEvent {
-            kind: context.store_string("text"),
+            kind: binding.store_string("text"),
             metadata,
             payload: payload.text,
         }),
         InputEventKind::Device => InputEvent::InputDeviceEvent(InputDeviceEvent {
-            kind: context.store_string("device"),
+            kind: binding.store_string("device"),
             metadata,
             payload: payload.device,
         }),
         InputEventKind::Sensor => InputEvent::InputSensorEvent(InputSensorEvent {
-            kind: context.store_string("sensor"),
+            kind: binding.store_string("sensor"),
             metadata,
             payload: payload.sensor,
         }),
         InputEventKind::Composition => InputEvent::InputCompositionEvent(InputCompositionEvent {
-            kind: context.store_string("composition"),
+            kind: binding.store_string("composition"),
             metadata,
             payload: payload.composition,
         }),
@@ -308,12 +308,12 @@ pub(super) fn input_not_found(
 
 /// Resolve one Unix input binding from the resource table.
 pub(super) fn resolve_unix_input_binding(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<UnixInputBinding> {
     // resolve resource entry and validate payload shape
-    let binding = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved_binding = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -322,42 +322,42 @@ pub(super) fn resolve_unix_input_binding(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())
-            .map(|binding| UnixInputBinding {
-                descriptor: binding.descriptor,
-                backend: binding.backend,
-                read_mode: binding.read_mode,
-                text_active: binding.text_active,
-                text_input_type: binding.text_input_type,
-                text_area: binding.text_area,
-                gamepad_player_index_override: binding.gamepad_player_index_override,
-                relative_mode_enabled: binding.relative_mode_enabled,
-                last_pointer_x: binding.last_pointer_x,
-                last_pointer_y: binding.last_pointer_y,
-                sensor_enabled_kinds: binding.sensor_enabled_kinds.clone(),
-                sensor_effective_configs: binding.sensor_effective_configs.clone(),
-                device_id: binding.device_id.clone(),
-                device_kind: binding.device_kind,
-                next_sequence: binding.next_sequence,
+            .map(|resolved_binding| UnixInputBinding {
+                descriptor: resolved_binding.descriptor,
+                backend: resolved_binding.backend,
+                read_mode: resolved_binding.read_mode,
+                text_active: resolved_binding.text_active,
+                text_input_type: resolved_binding.text_input_type,
+                text_area: resolved_binding.text_area,
+                gamepad_player_index_override: resolved_binding.gamepad_player_index_override,
+                relative_mode_enabled: resolved_binding.relative_mode_enabled,
+                last_pointer_x: resolved_binding.last_pointer_x,
+                last_pointer_y: resolved_binding.last_pointer_y,
+                sensor_enabled_kinds: resolved_binding.sensor_enabled_kinds.clone(),
+                sensor_effective_configs: resolved_binding.sensor_effective_configs.clone(),
+                device_id: resolved_binding.device_id.clone(),
+                device_kind: resolved_binding.device_kind,
+                next_sequence: resolved_binding.next_sequence,
                 #[cfg(target_os = "linux")]
-                linux_modifiers: binding.linux_modifiers,
+                linux_modifiers: resolved_binding.linux_modifiers,
                 #[cfg(target_os = "linux")]
-                linux_pointer_buttons: binding.linux_pointer_buttons,
+                linux_pointer_buttons: resolved_binding.linux_pointer_buttons,
                 #[cfg(target_os = "linux")]
-                linux_active_rumble_effect_id: binding.linux_active_rumble_effect_id,
-                terminal_original_mode: binding.terminal_original_mode,
+                linux_active_rumble_effect_id: resolved_binding.linux_active_rumble_effect_id,
+                terminal_original_mode: resolved_binding.terminal_original_mode,
                 #[cfg(target_os = "macos")]
                 macos_state: None,
             })?;
 
-        Some(binding)
+        Some(resolved_binding)
     });
 
-    match binding.flatten() {
-        Some(binding) => Ok(binding),
+    match resolved_binding.flatten() {
+        Some(resolved_binding) => Ok(resolved_binding),
         None => Err(input_not_found(operation, handle)),
     }
 }
@@ -399,9 +399,9 @@ pub(super) fn normalize_unix_input_spec(id: &str) -> RuntimeResult<UnixInputOpen
 
 /// Enumerate Unix input devices for the active platform.
 pub(super) fn list_unix_devices(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
-    list_platform_devices(context)
+    list_platform_devices(binding)
 }
 
 /// Open one Unix input descriptor with nonblocking flags.
@@ -508,7 +508,7 @@ pub(super) fn wait_for_readable_descriptor(descriptor: RawFd) -> RuntimeResult<(
 
 /// Read one Unix input event from the selected backend.
 pub(super) fn read_unix_event(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
@@ -516,14 +516,14 @@ pub(super) fn read_unix_event(
 ) -> RuntimeResult<InputEvent> {
     let mut event = match binding.backend {
         UnixInputBackend::Platform => {
-            read_platform_event(context, binding, handle, nonblocking, operation)
+            read_platform_event(binding_2, binding, handle, nonblocking, operation)
         }
         UnixInputBackend::UnixTerminal => {
             let Some(descriptor) = binding.descriptor else {
                 return Err(input_not_found(operation, handle));
             };
             read_terminal_event(
-                context,
+                binding_2,
                 descriptor,
                 &binding.device_id,
                 nonblocking,
@@ -533,7 +533,7 @@ pub(super) fn read_unix_event(
     }?;
 
     // stamp the event with one per-handle sequence number
-    let sequence = next_unix_event_sequence(context, handle, operation)?;
+    let sequence = next_unix_event_sequence(binding_2, handle, operation)?;
     set_unix_event_sequence(&mut event, sequence);
 
     Ok(event)
@@ -556,12 +556,12 @@ pub(super) fn set_unix_grab(
 
 /// Set read mode for one Unix input binding.
 pub(super) fn set_unix_read_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let result = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -569,26 +569,26 @@ pub(super) fn set_unix_read_mode(
             return None;
         }
 
-        // resolve mutable binding payload
-        let binding = entry
+        // resolve mutable resolved_binding payload
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
 
         // apply backend-specific mode transitions
-        let update = match binding.backend {
+        let update = match resolved_binding.backend {
             UnixInputBackend::Platform => set_platform_read_mode(mode),
             UnixInputBackend::UnixTerminal => {
-                let Some(descriptor) = binding.descriptor else {
+                let Some(descriptor) = resolved_binding.descriptor else {
                     return Some(Err(input_not_found(operation, handle)));
                 };
 
                 // capture one baseline terminal mode for later restoration
-                let original_mode = match binding.terminal_original_mode {
+                let original_mode = match resolved_binding.terminal_original_mode {
                     Some(mode) => mode,
                     None => match read_terminal_mode(descriptor) {
                         Ok(mode) => {
-                            binding.terminal_original_mode = Some(mode);
+                            resolved_binding.terminal_original_mode = Some(mode);
                             mode
                         }
                         Err(error) => return Some(Err(error)),
@@ -606,7 +606,7 @@ pub(super) fn set_unix_read_mode(
         };
 
         if update.is_ok() {
-            binding.read_mode = mode;
+            resolved_binding.read_mode = mode;
         }
         Some(update)
     });
@@ -619,13 +619,13 @@ pub(super) fn set_unix_read_mode(
 
 /// Persist one text active flag and type for one Unix input handle.
 pub(super) fn set_text_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     active: bool,
     input_type: InputTextInputType,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -633,12 +633,12 @@ pub(super) fn set_text_state(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        binding.text_active = active;
-        binding.text_input_type = input_type;
+        resolved_binding.text_active = active;
+        resolved_binding.text_input_type = input_type;
         Some(())
     });
 
@@ -650,12 +650,12 @@ pub(super) fn set_text_state(
 
 /// Persist one text-area hint for one Unix input handle.
 pub(super) fn set_text_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     area: InputTextInputArea,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -663,11 +663,11 @@ pub(super) fn set_text_area(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        binding.text_area = area;
+        resolved_binding.text_area = area;
         Some(())
     });
 
@@ -679,11 +679,11 @@ pub(super) fn set_text_area(
 
 /// Return whether text input is active for one Unix input handle.
 pub(super) fn is_text_active(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let active = context.agent().resources.with_entry(handle.0, |entry| {
+    let active = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -691,11 +691,11 @@ pub(super) fn is_text_active(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
-        Some(binding.text_active)
+        Some(resolved_binding.text_active)
     });
 
     match active.flatten() {
@@ -706,11 +706,11 @@ pub(super) fn is_text_active(
 
 /// Return the text-area hint for one Unix input handle.
 pub(super) fn text_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputTextInputArea> {
-    let area = context.agent().resources.with_entry(handle.0, |entry| {
+    let area = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -718,11 +718,11 @@ pub(super) fn text_area(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
-        Some(binding.text_area)
+        Some(resolved_binding.text_area)
     });
 
     match area.flatten() {
@@ -733,7 +733,7 @@ pub(super) fn text_area(
 
 /// Persist one gamepad player-index override for one Unix input handle.
 pub(super) fn set_gamepad_player_index(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     player_index: u8,
     operation: &'static str,
@@ -746,7 +746,7 @@ pub(super) fn set_gamepad_player_index(
         .boxed());
     }
 
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -754,11 +754,11 @@ pub(super) fn set_gamepad_player_index(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        binding.gamepad_player_index_override = Some(player_index);
+        resolved_binding.gamepad_player_index_override = Some(player_index);
         Some(())
     });
 
@@ -770,11 +770,11 @@ pub(super) fn set_gamepad_player_index(
 
 /// Return the effective gamepad player index for one Unix input handle.
 pub(super) fn gamepad_player_index(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u8> {
-    let player_index = context.agent().resources.with_entry(handle.0, |entry| {
+    let player_index = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -782,11 +782,11 @@ pub(super) fn gamepad_player_index(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
-        Some(binding.gamepad_player_index_override.unwrap_or(1))
+        Some(resolved_binding.gamepad_player_index_override.unwrap_or(1))
     });
 
     match player_index.flatten() {
@@ -798,12 +798,12 @@ pub(super) fn gamepad_player_index(
 /// Persist one relative-mode flag for one unix input handle.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub(super) fn set_relative_mode_flag(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -811,11 +811,11 @@ pub(super) fn set_relative_mode_flag(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        binding.relative_mode_enabled = enabled;
+        resolved_binding.relative_mode_enabled = enabled;
         Some(())
     });
 
@@ -828,13 +828,13 @@ pub(super) fn set_relative_mode_flag(
 /// Persist one pointer snapshot baseline for one unix input handle.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub(super) fn set_pointer_snapshot(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     x: f64,
     y: f64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -842,12 +842,12 @@ pub(super) fn set_pointer_snapshot(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        binding.last_pointer_x = x;
-        binding.last_pointer_y = y;
+        resolved_binding.last_pointer_x = x;
+        resolved_binding.last_pointer_y = y;
         Some(())
     });
 
@@ -859,13 +859,13 @@ pub(super) fn set_pointer_snapshot(
 
 /// Persist one effective sensor-stream configuration for one handle and one sensor lane.
 pub(super) fn set_sensor_stream_config(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     config: InputSensorEffectiveConfig,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -873,16 +873,20 @@ pub(super) fn set_sensor_stream_config(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
         if config.enabled {
-            binding.sensor_enabled_kinds.insert(sensor_kind);
-            binding.sensor_effective_configs.insert(sensor_kind, config);
+            resolved_binding.sensor_enabled_kinds.insert(sensor_kind);
+            resolved_binding
+                .sensor_effective_configs
+                .insert(sensor_kind, config);
         } else {
-            binding.sensor_enabled_kinds.remove(&sensor_kind);
-            binding.sensor_effective_configs.remove(&sensor_kind);
+            resolved_binding.sensor_enabled_kinds.remove(&sensor_kind);
+            resolved_binding
+                .sensor_effective_configs
+                .remove(&sensor_kind);
         }
 
         Some(())
@@ -896,12 +900,12 @@ pub(super) fn set_sensor_stream_config(
 
 /// Return whether one sensor stream is currently enabled for one handle and one sensor lane.
 pub(super) fn is_sensor_stream_enabled(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let enabled = context.agent().resources.with_entry(handle.0, |entry| {
+    let enabled = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -909,11 +913,11 @@ pub(super) fn is_sensor_stream_enabled(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
-        Some(binding.sensor_enabled_kinds.contains(&sensor_kind))
+        Some(resolved_binding.sensor_enabled_kinds.contains(&sensor_kind))
     });
 
     match enabled.flatten() {
@@ -925,12 +929,12 @@ pub(super) fn is_sensor_stream_enabled(
 /// Persist the active uploaded rumble effect id for one Linux handle.
 #[cfg(target_os = "linux")]
 pub(super) fn set_linux_active_rumble_effect_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     effect_id: Option<i16>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -938,11 +942,11 @@ pub(super) fn set_linux_active_rumble_effect_id(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        binding.linux_active_rumble_effect_id = effect_id;
+        resolved_binding.linux_active_rumble_effect_id = effect_id;
         Some(())
     });
 
@@ -955,11 +959,11 @@ pub(super) fn set_linux_active_rumble_effect_id(
 /// Return the active uploaded rumble effect id for one Linux handle, when present.
 #[cfg(target_os = "linux")]
 pub(super) fn linux_active_rumble_effect_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Option<i16>> {
-    let effect_id = context.agent().resources.with_entry(handle.0, |entry| {
+    let effect_id = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -967,11 +971,11 @@ pub(super) fn linux_active_rumble_effect_id(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())?;
-        Some(binding.linux_active_rumble_effect_id)
+        Some(resolved_binding.linux_active_rumble_effect_id)
     });
 
     match effect_id.flatten() {
@@ -1000,10 +1004,10 @@ pub(super) fn initial_macos_state(
 /// Release one macOS platform subscription for one handle before close.
 #[cfg(target_os = "macos")]
 pub(super) fn release_macos_subscription(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) {
-    input_macos::release_macos_session_subscription(context, handle);
+    input_macos::release_macos_session_subscription(binding, handle);
 }
 
 /// Normalize one platform-specific identifier into one input open spec on Linux.
@@ -1050,29 +1054,29 @@ fn normalize_platform_input_spec(_id: &str, _id_lower: &str) -> RuntimeResult<Un
 /// Enumerate platform-specific devices on Linux with terminal fallback.
 #[cfg(target_os = "linux")]
 fn list_platform_devices(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
-    let devices = input_linux::list_linux_devices(context)?;
+    let devices = input_linux::list_linux_devices(binding)?;
     if !devices.is_empty() {
         return Ok(devices);
     }
 
-    let tty_device = list_terminal_device(context)?;
+    let tty_device = list_terminal_device(binding)?;
     Ok(tty_device.into_iter().collect())
 }
 
 /// Enumerate platform-specific devices on macOS and include terminal fallback.
 #[cfg(target_os = "macos")]
 fn list_platform_devices(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     let mut devices = Vec::new();
     devices.push(InputDeviceDescriptor {
-        id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
-        instance_id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
-        hardware_id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
-        name: context.store_string(input_macos::MACOS_INPUT_SESSION_NAME),
-        transport: context.store_string("session"),
+        id: binding.store_string(input_macos::MACOS_INPUT_SESSION_ID),
+        instance_id: binding.store_string(input_macos::MACOS_INPUT_SESSION_ID),
+        hardware_id: binding.store_string(input_macos::MACOS_INPUT_SESSION_ID),
+        name: binding.store_string(input_macos::MACOS_INPUT_SESSION_NAME),
+        transport: binding.store_string("session"),
         kind: InputDeviceKind::Raw,
         vendor_id: 0,
         product_id: 0,
@@ -1091,7 +1095,7 @@ fn list_platform_devices(
         is_system: true,
     });
 
-    if let Some(tty_device) = list_terminal_device(context)? {
+    if let Some(tty_device) = list_terminal_device(binding)? {
         devices.push(tty_device);
     }
 
@@ -1101,22 +1105,22 @@ fn list_platform_devices(
 /// Enumerate platform-specific devices on other Unix hosts with terminal-only discovery.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 fn list_platform_devices(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
-    let tty_device = list_terminal_device(context)?;
+    let tty_device = list_terminal_device(binding)?;
     Ok(tty_device.into_iter().collect())
 }
 
 /// Read one platform-specific event from one opened platform backend on Linux.
 #[cfg(target_os = "linux")]
 fn read_platform_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     _binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputEvent> {
-    let result = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let result = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1125,31 +1129,31 @@ fn read_platform_event(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        if binding.backend != UnixInputBackend::Platform {
+        if resolved_binding.backend != UnixInputBackend::Platform {
             return None;
         }
 
-        let Some(descriptor) = binding.descriptor else {
+        let Some(descriptor) = resolved_binding.descriptor else {
             return Some(Err(input_not_found(operation, handle)));
         };
 
         let event = input_linux::read_linux_event(
-            context,
+            binding,
             descriptor,
             nonblocking,
-            &binding.device_id,
-            binding.device_kind,
-            binding.linux_modifiers,
-            binding.linux_pointer_buttons,
+            &resolved_binding.device_id,
+            resolved_binding.device_kind,
+            resolved_binding.linux_modifiers,
+            resolved_binding.linux_pointer_buttons,
         );
         match event {
             Ok((event, modifiers, pointer_buttons)) => {
-                binding.linux_modifiers = modifiers;
-                binding.linux_pointer_buttons = pointer_buttons;
+                resolved_binding.linux_modifiers = modifiers;
+                resolved_binding.linux_pointer_buttons = pointer_buttons;
                 Some(Ok(event))
             }
             Err(error) => Some(Err(error)),
@@ -1166,20 +1170,20 @@ fn read_platform_event(
 /// Read one platform-specific event from one opened platform backend on macOS.
 #[cfg(target_os = "macos")]
 fn read_platform_event(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputEvent> {
     let _ = (binding, operation);
-    input_macos::read_macos_session_event(context, handle, nonblocking, binding.read_mode)
+    input_macos::read_macos_session_event(binding_2, handle, nonblocking, binding.read_mode)
 }
 
 /// Read one platform-specific event from one opened platform backend on other Unix hosts.
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 fn read_platform_event(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     _binding: &UnixInputBinding,
     _handle: resource::InputDeviceHandle,
     _nonblocking: bool,
@@ -1239,7 +1243,7 @@ fn set_platform_read_mode(_mode: InputReadMode) -> RuntimeResult<()> {
 
 /// Build terminal input metadata when `/dev/tty` is available.
 fn list_terminal_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Option<InputDeviceDescriptor>> {
     // encode terminal path for one open probe
     let path = CString::new(UNIX_INPUT_TTY_PATH).map_err(|_| {
@@ -1271,11 +1275,11 @@ fn list_terminal_device(
     }
 
     Ok(Some(InputDeviceDescriptor {
-        id: context.store_string(UNIX_INPUT_TTY_ID),
-        instance_id: context.store_string(UNIX_INPUT_TTY_ID),
-        hardware_id: context.store_string(UNIX_INPUT_TTY_ID),
-        name: context.store_string(UNIX_INPUT_TTY_NAME),
-        transport: context.store_string("tty"),
+        id: binding.store_string(UNIX_INPUT_TTY_ID),
+        instance_id: binding.store_string(UNIX_INPUT_TTY_ID),
+        hardware_id: binding.store_string(UNIX_INPUT_TTY_ID),
+        name: binding.store_string(UNIX_INPUT_TTY_NAME),
+        transport: binding.store_string("tty"),
         kind: InputDeviceKind::Keyboard,
         vendor_id: 0,
         product_id: 0,
@@ -1297,7 +1301,7 @@ fn list_terminal_device(
 
 /// Read one byte-oriented event from terminal input.
 fn read_terminal_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: RawFd,
     device_id: &str,
     nonblocking: bool,
@@ -1396,10 +1400,10 @@ fn read_terminal_event(
         None
     };
 
-    let mut payload = empty_unix_event_payload(context);
+    let mut payload = empty_unix_event_payload(binding);
     if kind == InputEventKind::Text {
         payload.text = InputTextEventPayload {
-            text: context.store_string(text.as_deref().unwrap_or(UNIX_INPUT_EMPTY_TEXT)),
+            text: binding.store_string(text.as_deref().unwrap_or(UNIX_INPUT_EMPTY_TEXT)),
         };
     } else {
         payload.key = InputKeyEventPayload {
@@ -1413,7 +1417,7 @@ fn read_terminal_event(
     }
 
     Ok(build_unix_input_event(
-        context,
+        binding,
         kind,
         monotonic_timestamp_ns(),
         0,
@@ -1443,11 +1447,11 @@ pub(super) fn monotonic_timestamp_ns() -> u64 {
 
 /// Allocate the next sequence number for one Unix input stream.
 pub(super) fn next_unix_event_sequence(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let sequence = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1455,12 +1459,12 @@ pub(super) fn next_unix_event_sequence(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
-        let next = binding.next_sequence;
-        binding.next_sequence = binding.next_sequence.saturating_add(1);
+        let next = resolved_binding.next_sequence;
+        resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
         Some(next)
     });
 

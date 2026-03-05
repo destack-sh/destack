@@ -5741,3 +5741,348 @@ pub enum AudioEventReplayRecord {
     /// AudioStreamXRunEvent variant.
     AudioStreamXRunEvent(AudioStreamXRunEventReplayRecord),
 }
+
+/// Backend supports backend-disconnect notifications.
+pub const AUDIO_BACKEND_CAP_BACKEND_DISCONNECT_EVENTS: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(4u64);
+
+/// Backend supports default-route change notifications.
+pub const AUDIO_BACKEND_CAP_DEFAULT_ROUTE_EVENTS: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(2u64);
+
+/// Backend supports device-clock or hardware timestamp correlation.
+pub const AUDIO_BACKEND_CAP_DEVICE_CLOCK: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(128u64);
+
+/// Backend supports exclusive stream mode.
+pub const AUDIO_BACKEND_CAP_EXCLUSIVE_MODE: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(16u64);
+
+/// Backend supports hotplug notifications.
+pub const AUDIO_BACKEND_CAP_HOTPLUG_EVENTS: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(1u64);
+
+/// Backend supports loopback capture.
+pub const AUDIO_BACKEND_CAP_LOOPBACK: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(32u64);
+
+/// Backend supports native event feed instead of synthesized polling.
+pub const AUDIO_BACKEND_CAP_NATIVE_EVENT_FEED: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(512u64);
+
+/// Backend supports non-interleaved stream buffers.
+pub const AUDIO_BACKEND_CAP_NON_INTERLEAVED: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(64u64);
+
+/// Backend supports scheduled write or presentation-time submission.
+pub const AUDIO_BACKEND_CAP_SCHEDULED_WRITE: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(256u64);
+
+/// Backend supports shared stream mode.
+pub const AUDIO_BACKEND_CAP_SHARED_MODE: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(8u64);
+
+/// Device supports backend disconnect notifications.
+pub const AUDIO_DEVICE_CAP_BACKEND_DISCONNECT_EVENTS: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(1024u64);
+
+/// Device supports bit-exact PCM without backend-side format conversion.
+pub const AUDIO_DEVICE_CAP_BIT_EXACT_PCM: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(2048u64);
+
+/// Device supports device-clock or hardware timestamp correlation.
+pub const AUDIO_DEVICE_CAP_DEVICE_CLOCK: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(128u64);
+
+/// Device supports exclusive stream mode.
+pub const AUDIO_DEVICE_CAP_EXCLUSIVE_MODE: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(2u64);
+
+/// Device supports full-duplex stream lanes.
+pub const AUDIO_DEVICE_CAP_FULL_DUPLEX: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(8u64);
+
+/// Device supports interruption notifications.
+pub const AUDIO_DEVICE_CAP_INTERRUPTION_EVENTS: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(512u64);
+
+/// Device supports loopback capture.
+pub const AUDIO_DEVICE_CAP_LOOPBACK: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(4u64);
+
+/// Device supports backend reroute notifications.
+pub const AUDIO_DEVICE_CAP_REROUTE_EVENTS: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(256u64);
+
+/// Device supports scheduled write submission.
+pub const AUDIO_DEVICE_CAP_SCHEDULED_WRITE: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(64u64);
+
+/// Device supports shared stream mode.
+pub const AUDIO_DEVICE_CAP_SHARED_MODE: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(1u64);
+
+/// Device supports stream mute controls.
+pub const AUDIO_DEVICE_CAP_STREAM_MUTE: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(32u64);
+
+/// Device supports stream gain controls.
+pub const AUDIO_DEVICE_CAP_STREAM_VOLUME: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(16u64);
+
+/// Include disconnected or unavailable endpoints when possible.
+pub const AUDIO_DEVICE_LIST_INCLUDE_DISCONNECTED: AudioDeviceListFlags = AudioDeviceListFlags(1u32);
+
+/// Include duplicate aliases when backend identity is ambiguous.
+pub const AUDIO_DEVICE_LIST_INCLUDE_DUPLICATES: AudioDeviceListFlags = AudioDeviceListFlags(8u32);
+
+/// Include loopback endpoints when the backend exposes loopback rows.
+pub const AUDIO_DEVICE_LIST_INCLUDE_LOOPBACK: AudioDeviceListFlags = AudioDeviceListFlags(4u32);
+
+/// Include raw endpoints when the backend exposes separate raw rows.
+pub const AUDIO_DEVICE_LIST_INCLUDE_RAW: AudioDeviceListFlags = AudioDeviceListFlags(2u32);
+
+/// Default list behavior.
+pub const AUDIO_DEVICE_LIST_NONE: AudioDeviceListFlags = AudioDeviceListFlags(0u32);
+
+/// Follow default-route migrations for default endpoint identifiers.
+pub const AUDIO_DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(1u32);
+
+/// Request low-latency scheduling policy where supported.
+pub const AUDIO_DEVICE_OPEN_LOW_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpenFlags(2u32);
+
+/// Default open behavior.
+pub const AUDIO_DEVICE_OPEN_NONE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0u32);
+
+/// Request raw endpoint mode where available.
+pub const AUDIO_DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(8u32);
+
+/// Request realtime callback thread scheduling where available.
+pub const AUDIO_DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(4u32);
+
+/// Subscribe to backend disconnect and reset events.
+pub const AUDIO_EVENT_SUBSCRIBE_BACKEND: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(32u32);
+
+/// Subscribe to default-route change events.
+pub const AUDIO_EVENT_SUBSCRIBE_DEFAULT_ROUTE: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(2u32);
+
+/// Subscribe to device hotplug add and remove events.
+pub const AUDIO_EVENT_SUBSCRIBE_DEVICE_HOTPLUG: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(1u32);
+
+/// Subscribe to format-change events.
+pub const AUDIO_EVENT_SUBSCRIBE_FORMAT_CHANGE: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(4u32);
+
+/// Subscribe to interruption begin and end events.
+pub const AUDIO_EVENT_SUBSCRIBE_INTERRUPTION: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(16u32);
+
+/// Subscribe to reroute events.
+pub const AUDIO_EVENT_SUBSCRIBE_REROUTE: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(8u32);
+
+/// Subscribe to stream xrun, state, and device-change events.
+pub const AUDIO_EVENT_SUBSCRIBE_STREAM: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(64u32);
+
+/// Request strict sample-format matching with no backend substitution.
+pub const AUDIO_STREAM_EXPLICIT_SAMPLE_FORMAT: AudioStreamFlags = AudioStreamFlags(8u32);
+
+/// Request minimal callback period and latency.
+pub const AUDIO_STREAM_MINIMIZE_LATENCY: AudioStreamFlags = AudioStreamFlags(2u32);
+
+/// Request that input data should not be dropped where backend policy allows.
+pub const AUDIO_STREAM_NEVER_DROP_INPUT: AudioStreamFlags = AudioStreamFlags(64u32);
+
+/// Default stream behavior.
+pub const AUDIO_STREAM_NONE: AudioStreamFlags = AudioStreamFlags(0u32);
+
+/// Request non-interleaved channel buffers.
+pub const AUDIO_STREAM_NON_INTERLEAVED: AudioStreamFlags = AudioStreamFlags(1u32);
+
+/// Disable backend-side automatic sample-rate conversion where possible.
+pub const AUDIO_STREAM_NO_AUTO_CONVERT: AudioStreamFlags = AudioStreamFlags(16u32);
+
+/// Request pre-priming output buffers before start where backend policy allows.
+pub const AUDIO_STREAM_PRIME_OUTPUT_BUFFERS: AudioStreamFlags = AudioStreamFlags(128u32);
+
+/// Request stream status updates for xrun diagnostics.
+pub const AUDIO_STREAM_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(32u32);
+
+/// Require bit-exact PCM with no backend-side conversion.
+pub const AUDIO_STREAM_REQUIRE_BIT_EXACT_PCM: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(16u32);
+
+/// Require hardware timestamp correlation support.
+pub const AUDIO_STREAM_REQUIRE_HARDWARE_TIMESTAMPS: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(8u32);
+
+/// Default stream requirement behavior.
+pub const AUDIO_STREAM_REQUIRE_NONE: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0u32);
+
+/// Require non-interleaved stream buffers.
+pub const AUDIO_STREAM_REQUIRE_NON_INTERLEAVED: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(1u32);
+
+/// Require pause and resume support.
+pub const AUDIO_STREAM_REQUIRE_PAUSE: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(4u32);
+
+/// Require scheduled write submission support.
+pub const AUDIO_STREAM_REQUIRE_SCHEDULED_WRITE: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(2u32);
+
+/// Request realtime callback thread scheduling.
+pub const AUDIO_STREAM_SCHEDULE_REALTIME: AudioStreamFlags = AudioStreamFlags(4u32);
+
+/// Device-changed status bit.
+pub const AUDIO_STREAM_STATUS_DEVICE_CHANGED: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(32u32);
+
+/// Input overflow status bit.
+pub const AUDIO_STREAM_STATUS_INPUT_OVERFLOW: AudioStreamStatusFlags = AudioStreamStatusFlags(2u32);
+
+/// Input underflow status bit.
+pub const AUDIO_STREAM_STATUS_INPUT_UNDERFLOW: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(1u32);
+
+/// Interrupted status bit.
+pub const AUDIO_STREAM_STATUS_INTERRUPTED: AudioStreamStatusFlags = AudioStreamStatusFlags(128u32);
+
+/// Output overflow status bit.
+pub const AUDIO_STREAM_STATUS_OUTPUT_OVERFLOW: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(8u32);
+
+/// Output underflow status bit.
+pub const AUDIO_STREAM_STATUS_OUTPUT_UNDERFLOW: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(4u32);
+
+/// Output priming status bit.
+pub const AUDIO_STREAM_STATUS_PRIMING_OUTPUT: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(16u32);
+
+/// Rerouted status bit.
+pub const AUDIO_STREAM_STATUS_REROUTED: AudioStreamStatusFlags = AudioStreamStatusFlags(64u32);
+
+/// Supported event-subscription flag bit for backend reset and disconnect notifications.
+pub const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_BACKEND: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(32u32);
+
+/// Supported event-subscription flag bit for default-route notifications.
+pub const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_DEFAULT_ROUTE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(2u32);
+
+/// Supported event-subscription flag bit for device hotplug notifications.
+pub const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_DEVICE_HOTPLUG: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(1u32);
+
+/// Supported event-subscription flag bit for format-change notifications.
+pub const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_FORMAT_CHANGE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(4u32);
+
+/// Supported event-subscription flag bit for interruption notifications.
+pub const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_INTERRUPTION: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(16u32);
+
+/// No supported event-subscription flags.
+pub const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_NONE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0u32);
+
+/// Supported event-subscription flag bit for reroute notifications.
+pub const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_REROUTE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(8u32);
+
+/// Supported event-subscription flag bit for stream xrun and state notifications.
+pub const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_STREAM: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(64u32);
+
+/// Supported stream-clock domain bit for callback timestamps.
+pub const AUDIO_SUPPORTED_STREAM_CLOCK_CALLBACK: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(8u32);
+
+/// Supported stream-clock domain bit for one backend device timeline.
+pub const AUDIO_SUPPORTED_STREAM_CLOCK_DEVICE: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(4u32);
+
+/// Supported stream-clock domain bit for input ADC timestamps.
+pub const AUDIO_SUPPORTED_STREAM_CLOCK_INPUT_ADC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(16u32);
+
+/// Supported stream-clock domain bit for monotonic timestamps.
+pub const AUDIO_SUPPORTED_STREAM_CLOCK_MONOTONIC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(1u32);
+
+/// No supported stream-clock domain bits.
+pub const AUDIO_SUPPORTED_STREAM_CLOCK_NONE: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0u32);
+
+/// Supported stream-clock domain bit for output DAC timestamps.
+pub const AUDIO_SUPPORTED_STREAM_CLOCK_OUTPUT_DAC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(32u32);
+
+/// Supported stream-clock domain bit for wall clock timestamps.
+pub const AUDIO_SUPPORTED_STREAM_CLOCK_WALL: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(2u32);
+
+/// Supported stream option flag bit for explicit sample-format matching.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(8u32);
+
+/// Supported stream option flag bit for low-latency callback policy.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_MINIMIZE_LATENCY: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(2u32);
+
+/// Supported stream option flag bit for never-drop-input backend policy.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_NEVER_DROP_INPUT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(64u32);
+
+/// No supported stream option flags.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_NONE: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0u32);
+
+/// Supported stream option flag bit for non-interleaved channel buffers.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_NON_INTERLEAVED: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(1u32);
+
+/// Supported stream option flag bit for disabling backend auto-convert.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_NO_AUTO_CONVERT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(16u32);
+
+/// Supported stream option flag bit for output priming policy.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_PRIME_OUTPUT_BUFFERS: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(128u32);
+
+/// Supported stream option flag bit for xrun status reporting.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_REPORT_XRUN: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(32u32);
+
+/// Supported stream option flag bit for realtime callback scheduling.
+pub const AUDIO_SUPPORTED_STREAM_FLAG_SCHEDULE_REALTIME: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(4u32);
+
+/// Supported stream requirement flag bit for bit-exact PCM.
+pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_BIT_EXACT_PCM: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(16u32);
+
+/// Supported stream requirement flag bit for hardware timestamps.
+pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_HARDWARE_TIMESTAMPS:
+    AudioSupportedStreamRequirementFlags = AudioSupportedStreamRequirementFlags(8u32);
+
+/// No supported stream requirement flags.
+pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_NONE: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0u32);
+
+/// Supported stream requirement flag bit for non-interleaved channel buffers.
+pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_NON_INTERLEAVED: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(1u32);
+
+/// Supported stream requirement flag bit for pause and resume.
+pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_PAUSE: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(4u32);
+
+/// Supported stream requirement flag bit for scheduled writes.
+pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_SCHEDULED_WRITE: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(2u32);

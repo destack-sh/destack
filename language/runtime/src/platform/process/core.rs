@@ -159,10 +159,10 @@ pub(crate) fn process_pid_to_windows_target(pid: u32, field: &str) -> RuntimeRes
 
 /// Resolve a signal subscription handle into its signal set.
 pub(crate) fn resolve_signal_subscription(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<Vec<Signal>> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()

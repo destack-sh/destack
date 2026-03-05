@@ -21,7 +21,7 @@ use super::{cursor, geometry};
 
 /// Apply one exclusive fullscreen monitor mode request and return restore metadata.
 pub(super) fn apply_exclusive_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<core::X11RuntimeState>,
     mode: WindowModeOptions,
     operation: &'static str,
@@ -35,8 +35,8 @@ pub(super) fn apply_exclusive_mode(
     };
 
     // resolve one stable display id and current monitor mode
-    let display_id = display_resource::resolve_display_id(context, display, operation)?;
-    let Some(snapshot) = monitor::monitor_snapshot_by_display_id(context, &display_id)? else {
+    let display_id = display_resource::resolve_display_id(binding, display, operation)?;
+    let Some(snapshot) = monitor::monitor_snapshot_by_display_id(binding, &display_id)? else {
         return Err(core_platform::io_not_found(
             operation,
             format!("display id '{display_id}' is no longer available"),
@@ -50,8 +50,8 @@ pub(super) fn apply_exclusive_mode(
 
     // apply one mode transition and publish monitor mode change
     let current_mode =
-        monitor::apply_monitor_mode_by_display_id(context, &display_id, requested_mode, operation)?;
-    let current_snapshot = monitor::monitor_snapshot_by_display_id(context, &display_id)?;
+        monitor::apply_monitor_mode_by_display_id(binding, &display_id, requested_mode, operation)?;
+    let current_snapshot = monitor::monitor_snapshot_by_display_id(binding, &display_id)?;
     event::publish_monitor_mode_changed(
         runtime_state,
         &display_id,
@@ -68,7 +68,7 @@ pub(super) fn apply_exclusive_mode(
             current_snapshot.descriptor,
         );
     }
-    event::refresh_monitor_topology_cache(context)?;
+    event::refresh_monitor_topology_cache(binding)?;
 
     Ok(Some(ExclusiveModeRestore {
         display_id,
@@ -78,13 +78,13 @@ pub(super) fn apply_exclusive_mode(
 
 /// Restore one monitor mode captured by one exclusive fullscreen transition.
 pub(super) fn restore_exclusive_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<core::X11RuntimeState>,
     restore: &ExclusiveModeRestore,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // capture previous mode when display is still available
-    let previous_snapshot = monitor::monitor_snapshot_by_display_id(context, &restore.display_id)?;
+    let previous_snapshot = monitor::monitor_snapshot_by_display_id(binding, &restore.display_id)?;
     let previous_mode = previous_snapshot
         .as_ref()
         .map(|snapshot| snapshot.current_mode);
@@ -92,12 +92,12 @@ pub(super) fn restore_exclusive_mode(
 
     // apply one restore transition and publish monitor mode delta
     let current_mode = monitor::apply_monitor_mode_by_display_id(
-        context,
+        binding,
         &restore.display_id,
         restore.previous_mode,
         operation,
     )?;
-    let current_snapshot = monitor::monitor_snapshot_by_display_id(context, &restore.display_id)?;
+    let current_snapshot = monitor::monitor_snapshot_by_display_id(binding, &restore.display_id)?;
     // evaluate this condition
     if previous_mode == Some(current_mode) {
         return Ok(());
@@ -119,14 +119,14 @@ pub(super) fn restore_exclusive_mode(
             current_snapshot.descriptor,
         );
     }
-    event::refresh_monitor_topology_cache(context)?;
+    event::refresh_monitor_topology_cache(binding)?;
 
     Ok(())
 }
 
 /// Create one x11 window and register it in runtime resources.
 pub(crate) unsafe fn window_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeResult<()> {
@@ -167,7 +167,7 @@ pub(crate) unsafe fn window_open(
     geometry::validate_size_constraints(options.constraints, "destack.display.window.open")?;
 
     // resolve runtime and connection state
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     let connection_state = core::connection_state(&runtime_state, "destack.display.window.open")?;
     let connection = &connection_state.connection;
     let screen = connection
@@ -181,13 +181,13 @@ pub(crate) unsafe fn window_open(
     let preferred_display = mode_display.or(options.display);
     // evaluate this condition
     if let Some(display) = preferred_display {
-        display_resource::resolve_display_id(context, display, "destack.display.window.open")?;
+        display_resource::resolve_display_id(binding, display, "destack.display.window.open")?;
     }
 
     // resolve optional transient relationship to one x11 window id
     let transient_for_window = if let Some(transient_handle) = options.transient_for {
         let transient_binding = display_resource::resolve_window_binding(
-            context,
+            binding,
             transient_handle,
             "destack.display.window.open",
         )?;
@@ -198,7 +198,7 @@ pub(crate) unsafe fn window_open(
         Some(transient_binding.window)
     } else if let Some(parent_handle) = options.parent {
         let parent_binding = display_resource::resolve_window_binding(
-            context,
+            binding,
             parent_handle,
             "destack.display.window.open",
         )?;
@@ -400,7 +400,7 @@ pub(crate) unsafe fn window_open(
         )
     })?;
     let exclusive_restore = match apply_exclusive_mode(
-        context,
+        binding,
         &runtime_state,
         options.mode,
         "destack.display.window.open",
@@ -411,7 +411,7 @@ pub(crate) unsafe fn window_open(
             if let Ok(cookie) = connection.destroy_window(window) {
                 // evaluate this condition
                 if let Err(cleanup_error) = cookie.check() {
-                    context.warn(
+                    binding.warn(
                         "display",
                         "destack.display.window.open",
                         format!(
@@ -423,7 +423,7 @@ pub(crate) unsafe fn window_open(
             }
             // evaluate this condition
             if let Err(cleanup_error) = connection.flush() {
-                context.warn(
+                binding.warn(
                     "display",
                     "destack.display.window.open",
                     format!("flush cleanup failed after mode apply error: {cleanup_error}"),
@@ -434,7 +434,7 @@ pub(crate) unsafe fn window_open(
         }
     };
 
-    // build runtime binding payload for this window
+    // build runtime resolved_binding payload for this window
     let size_logical = WindowLogicalSize {
         width: width as f64,
         height: height as f64,
@@ -447,7 +447,7 @@ pub(crate) unsafe fn window_open(
         x: i32::from(x),
         y: i32::from(y),
     };
-    let binding = Arc::new(Mutex::new(X11WindowBinding {
+    let resolved_binding = Arc::new(Mutex::new(X11WindowBinding {
         id: format!("x11-window-{window}"),
         window,
         cursor_handle: None,
@@ -495,12 +495,12 @@ pub(crate) unsafe fn window_open(
     }));
 
     // insert resource entry and publish created event
-    let resource_id = context.runtime().resources.insert(
+    let resource_id = binding.agent().resources.insert(
         display_resource::window_resource_entry(
             Arc::clone(&connection_state),
-            Arc::clone(&binding),
+            Arc::clone(&resolved_binding),
         ),
-        Some(context.engine()),
+        Some(binding.engine()),
     );
     let handle = resource::WindowHandle(resource_id);
     event::register_xid(&runtime_state, window, handle);
@@ -515,20 +515,22 @@ pub(crate) unsafe fn window_open(
 
 /// Close one window.
 pub(crate) unsafe fn window_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve runtime and binding lanes
-    let runtime_state = core::runtime_state(context);
-    let binding = display_resource::resolve_window_binding(
-        context,
+    // resolve runtime and resolved_binding lanes
+    let runtime_state = core::runtime_state(binding);
+    let resolved_binding = display_resource::resolve_window_binding(
+        binding,
         window_handle,
         "destack.display.window.close",
     )?;
     let mut binding_snapshot = {
-        let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        super::ensure_window_thread(&binding, "destack.display.window.close")?;
-        binding.clone()
+        let resolved_binding = resolved_binding
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        super::ensure_window_thread(&resolved_binding, "destack.display.window.close")?;
+        resolved_binding.clone()
     };
 
     // request host window destruction and flush
@@ -541,7 +543,7 @@ pub(crate) unsafe fn window_close(
     // evaluate this condition
     if let Some(restore) = binding_snapshot.exclusive_restore.clone() {
         restore_exclusive_mode(
-            context,
+            binding,
             &runtime_state,
             &restore,
             "destack.display.window.close",
@@ -575,10 +577,10 @@ pub(crate) unsafe fn window_close(
 
     // remove mapping and resource entry
     event::unregister_xid(&runtime_state, binding_snapshot.window);
-    let removed = context
-        .runtime()
+    let removed = binding
+        .agent()
         .resources
-        .remove(window_handle.0, Some(context.engine()))
+        .remove(window_handle.0, Some(binding.engine()))
         .is_some();
     // evaluate this condition
     if !removed {

@@ -784,10 +784,10 @@ impl DisplayEventRuntimeState {
 
 /// Return runtime-owned display-event state.
 pub(in super::super) fn display_event_runtime_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> Arc<DisplayEventRuntimeState> {
-    context
-        .runtime()
+    binding
+        .agent()
         .platform_state
         .display
         .display_event_runtime_state(DisplayEventRuntimeState::new)
@@ -933,7 +933,7 @@ mod tests {
         WindowHandle,
     ) {
         let runtime_state = Arc::new(DisplayEventRuntimeState::default());
-        let binding = Arc::new(WindowEventBinding {
+        let window_event_binding = Arc::new(WindowEventBinding {
             state: Mutex::new(WindowEventState {
                 queue_capacity: 32,
                 overflow_policy: DisplayEventOverflowPolicy::DropOldest,
@@ -950,10 +950,10 @@ mod tests {
             .window_event_registry
             .lock()
             .unwrap_or_else(|error| error.into_inner())
-            .push(Arc::downgrade(&binding));
+            .push(Arc::downgrade(&window_event_binding));
         let window = WindowHandle(ResourceId(123));
 
-        (runtime_state, binding, window)
+        (runtime_state, window_event_binding, window)
     }
 
     /// Build one runtime state and one subscribed window-event stream for publication tests.
@@ -970,7 +970,7 @@ mod tests {
         filter: MonitorEventFilterState,
     ) -> (Arc<DisplayEventRuntimeState>, Arc<MonitorEventBinding>) {
         let runtime_state = Arc::new(DisplayEventRuntimeState::default());
-        let binding = Arc::new(MonitorEventBinding {
+        let monitor_event_binding = Arc::new(MonitorEventBinding {
             state: Mutex::new(MonitorEventState {
                 queue_capacity: 32,
                 overflow_policy: DisplayEventOverflowPolicy::DropOldest,
@@ -986,7 +986,7 @@ mod tests {
             .monitor_event_registry
             .lock()
             .unwrap_or_else(|error| error.into_inner())
-            .push(Arc::downgrade(&binding));
+            .push(Arc::downgrade(&window_event_binding));
 
         (runtime_state, binding)
     }
@@ -994,7 +994,7 @@ mod tests {
     /// Drop lifecycle publishers should enqueue one started then completed event sequence.
     #[test]
     fn test_drop_lifecycle_publishers_enqueue_expected_record_kinds() {
-        let (runtime_state, binding, window) = subscribed_window_stream();
+        let (runtime_state, window_event_binding, window) = subscribed_window_stream();
 
         publish_window_drop_started_event(&runtime_state, window);
         publish_window_drop_completed_event(&runtime_state, window);
@@ -1034,7 +1034,7 @@ mod tests {
     /// File-drop publisher should preserve UTF-16 path payload and position metadata.
     #[test]
     fn test_file_drop_publisher_preserves_path_and_position_payloads() {
-        let (runtime_state, binding, window) = subscribed_window_stream();
+        let (runtime_state, window_event_binding, window) = subscribed_window_stream();
         let path_utf16 = "C:\\drop\\asset.txt".encode_utf16().collect::<Vec<_>>();
         let position = Some(WindowPosition { x: 480, y: 320 });
 
@@ -1066,7 +1066,7 @@ mod tests {
     /// Text-drop publisher should preserve text payload and position metadata.
     #[test]
     fn test_text_drop_publisher_preserves_text_and_position_payloads() {
-        let (runtime_state, binding, window) = subscribed_window_stream();
+        let (runtime_state, window_event_binding, window) = subscribed_window_stream();
         let text_payload = String::from("dropped-text");
         let position = Some(WindowPosition { x: 640, y: 480 });
 
@@ -1118,7 +1118,7 @@ mod tests {
     /// Window-event filters should restrict delivery by event-kind mask.
     #[test]
     fn test_window_event_filter_restricts_kind_mask() {
-        let (runtime_state, binding, window) =
+        let (runtime_state, window_event_binding, window) =
             subscribed_window_stream_with_filter(WindowEventFilterState {
                 window: None,
                 kind_mask: Some(super::core::WINDOW_EVENT_KIND_DROP_STARTED),
@@ -1141,7 +1141,7 @@ mod tests {
     /// Window-event kind filters should route only text-dropped records.
     #[test]
     fn test_window_event_filter_accepts_text_dropped_kind() {
-        let (runtime_state, binding, window) =
+        let (runtime_state, window_event_binding, window) =
             subscribed_window_stream_with_filter(WindowEventFilterState {
                 window: None,
                 kind_mask: Some(super::core::WINDOW_EVENT_KIND_TEXT_DROPPED),

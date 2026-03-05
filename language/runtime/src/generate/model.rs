@@ -24,8 +24,8 @@ pub(crate) enum CatalogBindingBlocking {
 /// Replay routing for generated bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CatalogBindingReplayKind {
-    /// Regular binding replay behavior.
-    Regular,
+    /// Binding call replay behavior.
+    BindingCall,
     /// Time read bindings with specialized replay.
     Time(CatalogTimeEventKind),
     /// Randomness bindings with specialized replay.

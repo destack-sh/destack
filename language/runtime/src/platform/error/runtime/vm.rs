@@ -22,9 +22,9 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_error_take_platform_error(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     error_id: u64,
 ) -> RuntimeResult<PlatformErrorVm> {
-    error_vm::destack_error_take_platform_error(runtime, context, error_id)
+    error_vm::destack_error_take_platform_error(binding, context, error_id)
 }

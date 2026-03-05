@@ -17,18 +17,18 @@ use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Enumerate windows input devices and raw-input devices.
 pub(super) fn list_devices(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<InputDeviceDescriptor>> {
     // append console input when available for this process
     let mut devices = Vec::new();
 
     if input_core::get_stdin_console_mode()?.is_some() {
         devices.push(InputDeviceDescriptor {
-            id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
-            instance_id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
-            hardware_id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
-            name: context.store_string(input_core::WINDOWS_INPUT_DEVICE_NAME),
-            transport: context.store_string("console"),
+            id: binding.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
+            instance_id: binding.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
+            hardware_id: binding.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
+            name: binding.store_string(input_core::WINDOWS_INPUT_DEVICE_NAME),
+            transport: binding.store_string("console"),
             kind: InputDeviceKind::Keyboard,
             vendor_id: 0,
             product_id: 0,
@@ -52,11 +52,11 @@ pub(super) fn list_devices(
     let raw_devices = raw_input::list_raw_input_devices("destack.input.device.list")?;
     for raw_device in raw_devices {
         devices.push(InputDeviceDescriptor {
-            id: context.store_string(&raw_device.id),
-            instance_id: context.store_string(&raw_device.instance_id),
-            hardware_id: context.store_string(&raw_device.hardware_id),
-            name: context.store_string(&raw_device.name),
-            transport: context.store_string("rawinput"),
+            id: binding.store_string(&raw_device.id),
+            instance_id: binding.store_string(&raw_device.instance_id),
+            hardware_id: binding.store_string(&raw_device.hardware_id),
+            name: binding.store_string(&raw_device.name),
+            transport: binding.store_string("rawinput"),
             kind: raw_device.kind,
             vendor_id: raw_device.vendor_id,
             product_id: raw_device.product_id,
@@ -77,14 +77,14 @@ pub(super) fn list_devices(
     }
 
     // append connected xinput gamepads
-    devices.extend(xinput_input::list_xinput_devices(context));
+    devices.extend(xinput_input::list_xinput_devices(binding));
 
     Ok(devices)
 }
 
 /// Open one windows input endpoint by identifier.
 pub(super) fn open_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     id: &str,
 ) -> RuntimeResult<resource::InputDeviceHandle> {
     // normalize the input identifier into one backend selector
@@ -94,7 +94,7 @@ pub(super) fn open_device(
         input_core::WindowsInputOpenSpec::Console => {
             // reserve the singleton console stream lane before opening
             let runtime_state =
-                input_core::acquire_console_stream(context, "destack.input.device.open")?;
+                input_core::acquire_console_stream(binding, "destack.input.device.open")?;
 
             // ensure any open failure releases the reserved stream lane
             let open_result = (|| {
@@ -152,10 +152,10 @@ pub(super) fn open_device(
                         release_console_lane: true,
                         runtime_state: Some(Arc::clone(&runtime_state)),
                     });
-                let resource_id = context
+                let resource_id = binding
                     .agent()
                     .resources
-                    .insert(entry, Some(context.engine()));
+                    .insert(entry, Some(binding.engine()));
                 Ok(resource::InputDeviceHandle(resource_id))
             })();
 
@@ -170,7 +170,7 @@ pub(super) fn open_device(
 
             // register this stream so the worker filters queueing per opened device
             let raw_runtime_state = raw_input::register_input_stream(
-                context,
+                binding,
                 &raw_device.id,
                 "destack.input.device.open",
             )?;
@@ -209,10 +209,10 @@ pub(super) fn open_device(
                     device_id: raw_device.id.clone(),
                     runtime_state: raw_runtime_state,
                 });
-            let resource_id = context
+            let resource_id = binding
                 .agent()
                 .resources
-                .insert(entry, Some(context.engine()));
+                .insert(entry, Some(binding.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
         }
         input_core::WindowsInputOpenSpec::XInput(user_index) => {
@@ -251,10 +251,10 @@ pub(super) fn open_device(
                     sensor_enabled_kinds: HashSet::new(),
                     sensor_effective_configs: HashMap::new(),
                 });
-            let resource_id = context
+            let resource_id = binding
                 .agent()
                 .resources
-                .insert(entry, Some(context.engine()));
+                .insert(entry, Some(binding.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
         }
     }
@@ -262,18 +262,18 @@ pub(super) fn open_device(
 
 /// Close one windows input handle and run any finalizer.
 pub(super) fn close_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // validate handle before attempting removal
-    input_core::resolve_input(context, handle, operation)?;
+    input_core::resolve_input(binding, handle, operation)?;
 
     // remove from resource table and run finalizer
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(input_core::input_not_found(operation, handle));
     }
@@ -283,11 +283,11 @@ pub(super) fn close_device(
 
 /// Return capability metadata for one opened windows input handle.
 pub(super) fn device_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputDeviceCapabilities> {
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
 
     let capabilities = match resolved.backend {
         input_core::WindowsInputBackend::Console => {
@@ -339,9 +339,9 @@ pub(super) fn device_capabilities(
             }
 
             InputDeviceCapabilities {
-                kinds: context.store_array(kinds),
-                axes: context.store_array(axes),
-                buttons: context.store_array(buttons),
+                kinds: binding.store_array(kinds),
+                axes: binding.store_array(axes),
+                buttons: binding.store_array(buttons),
                 metadata_origin: InputCapabilityMetadataOrigin::Mixed,
                 axis_metadata_fidelity: InputCapabilityMetadataFidelity::Partial,
                 button_metadata_fidelity: InputCapabilityMetadataFidelity::Partial,
@@ -364,13 +364,13 @@ pub(super) fn device_capabilities(
             let Some(raw_device) = resolved.raw_device.as_ref() else {
                 return Err(input_core::input_not_found(operation, handle));
             };
-            raw_input::capabilities_for_raw_input_device(context, raw_device)
+            raw_input::capabilities_for_raw_input_device(binding, raw_device)
         }
         input_core::WindowsInputBackend::XInput => {
             let Some(user_index) = resolved.xinput_user_index else {
                 return Err(input_core::input_not_found(operation, handle));
             };
-            xinput_input::capabilities_for_xinput_device(context, user_index, operation)?
+            xinput_input::capabilities_for_xinput_device(binding, user_index, operation)?
         }
     };
 
@@ -395,10 +395,10 @@ pub(super) fn device_capabilities(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    close_device(context, handle, "destack.input.device.close")
+    close_device(binding, handle, "destack.input.device.close")
 }
 
 /// List available input devices.
@@ -423,16 +423,16 @@ pub(crate) unsafe fn destack_input_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let devices = list_devices(context)?;
+    let devices = list_devices(binding)?;
     unsafe {
-        *out = context.store_slice(devices);
+        *out = binding.store_slice(devices);
     }
 
     Ok(())
@@ -459,7 +459,7 @@ pub(crate) unsafe fn destack_input_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::InputDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -468,7 +468,7 @@ pub(crate) unsafe fn destack_input_open(
     }
 
     let id = unsafe { id.as_str()? };
-    let handle = open_device(context, id)?;
+    let handle = open_device(binding, id)?;
     unsafe {
         *out = handle;
     }
@@ -497,7 +497,7 @@ pub(crate) unsafe fn destack_input_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputDeviceCapabilities,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -507,7 +507,7 @@ pub(crate) unsafe fn destack_input_capabilities(
     }
 
     // resolve one opened input handle into backend-derived capability metadata
-    let capabilities = device_capabilities(context, handle, "destack.input.device.capabilities")?;
+    let capabilities = device_capabilities(binding, handle, "destack.input.device.capabilities")?;
 
     // write one capabilities payload
     unsafe {

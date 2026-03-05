@@ -11,12 +11,12 @@ use crate::runtime::BindingCallContext;
 
 /// Resolve one opened sensor-capable device descriptor.
 fn resolve_sensor_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<raw_input::RawInputDeviceDescriptor> {
     // resolve one opened raw device descriptor
-    let device = input_core::raw_device(context, handle, operation)?;
+    let device = input_core::raw_device(binding, handle, operation)?;
 
     // reject non-sensor devices for sensor operations
     if !device.supports_sensors {
@@ -66,7 +66,7 @@ fn resolve_sensor_kind(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_configure(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorEffectiveConfig,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -78,7 +78,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
     }
 
     // resolve one sensor-capable opened device
-    let device = resolve_sensor_device(context, handle, "destack.input.sensor.configure")?;
+    let device = resolve_sensor_device(binding, handle, "destack.input.sensor.configure")?;
     let sensor_kind = resolve_sensor_kind(&device, kind, "destack.input.sensor.configure")?;
 
     // clamp invalid requested rates into one explicit invalid-argument error
@@ -102,7 +102,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 
     // persist effective stream configuration for follow-up reads
     input_core::set_sensor_stream_config(
-        context,
+        binding,
         handle,
         sensor_kind,
         effective,
@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -146,7 +146,7 @@ pub(crate) unsafe fn destack_input_sensor_list(
 
     // validate capability support for this handle
     // resolve one sensor-capable opened device
-    let device = resolve_sensor_device(context, handle, "destack.input.sensor.list")?;
+    let device = resolve_sensor_device(binding, handle, "destack.input.sensor.list")?;
     let infos = raw_input::sensor_infos_for_device(&device);
     if infos.is_empty() {
         return Err(
@@ -156,7 +156,7 @@ pub(crate) unsafe fn destack_input_sensor_list(
 
     // publish one backend-probed sensor capability descriptor for this device
     unsafe {
-        *out = context.store_array(infos);
+        *out = binding.store_array(infos);
     }
 
     Ok(())
@@ -180,7 +180,7 @@ pub(crate) unsafe fn destack_input_sensor_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -192,12 +192,12 @@ pub(crate) unsafe fn destack_input_sensor_read(
 
     // validate capability support for this handle
     // resolve one sensor-capable opened device and requested sensor lane
-    let device = resolve_sensor_device(context, handle, "destack.input.sensor.read")?;
+    let device = resolve_sensor_device(binding, handle, "destack.input.sensor.read")?;
     let sensor_kind = resolve_sensor_kind(&device, kind, "destack.input.sensor.read")?;
 
     // require explicit stream enable before blocking sensor reads
     if !input_core::is_sensor_stream_enabled(
-        context,
+        binding,
         handle,
         sensor_kind,
         "destack.input.sensor.read",
@@ -215,7 +215,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
 
     // read one sample from the raw-hid sensor queue
     let sample = raw_input::read_sensor_sample(
-        context,
+        binding,
         &device,
         sensor_kind,
         false,
@@ -245,7 +245,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -257,12 +257,12 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
 
     // validate capability support for this handle
     // resolve one sensor-capable opened device and requested sensor lane
-    let device = resolve_sensor_device(context, handle, "destack.input.sensor.tryRead")?;
+    let device = resolve_sensor_device(binding, handle, "destack.input.sensor.tryRead")?;
     let sensor_kind = resolve_sensor_kind(&device, kind, "destack.input.sensor.tryRead")?;
 
     // require explicit stream enable before nonblocking sensor polls
     if !input_core::is_sensor_stream_enabled(
-        context,
+        binding,
         handle,
         sensor_kind,
         "destack.input.sensor.tryRead",
@@ -280,7 +280,7 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
 
     // poll one sample from the raw-hid sensor queue without blocking
     let sample = raw_input::read_sensor_sample(
-        context,
+        binding,
         &device,
         sensor_kind,
         true,

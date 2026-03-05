@@ -28,7 +28,7 @@ const O_WRONLY: u32 = 0x1;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_bytes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathBytes,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -36,14 +36,14 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
     let mut handle = FileHandle(ResourceId(0));
     unsafe {
         destack_fs_open_bytes(
-            context,
+            binding,
             &mut handle as *mut FileHandle,
             path,
             OpenFlags(O_WRONLY),
             FileMode(0o666),
         )?;
-        destack_fs_ftruncate(context, handle, size)?;
-        destack_fs_close(context, handle)
+        destack_fs_ftruncate(binding, handle, size)?;
+        destack_fs_close(binding, handle)
     }
 }
 
@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: PathUtf16,
     size: FileOffset,
 ) -> RuntimeResult<()> {
@@ -73,14 +73,14 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
     let mut handle = FileHandle(ResourceId(0));
     unsafe {
         destack_fs_open_utf16(
-            context,
+            binding,
             &mut handle as *mut FileHandle,
             path,
             OpenFlags(O_WRONLY),
             FileMode(0o666),
         )?;
-        destack_fs_ftruncate(context, handle, size)?;
-        destack_fs_close(context, handle)
+        destack_fs_ftruncate(binding, handle, size)?;
+        destack_fs_close(binding, handle)
     }
 }
 
@@ -102,14 +102,14 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     path: OsPath,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     core_fs::with_path_ref(
         path,
         "path",
-        |path| unsafe { destack_fs_truncate_bytes(context, path, size) },
-        |path| unsafe { destack_fs_truncate_utf16(context, path, size) },
+        |path| unsafe { destack_fs_truncate_bytes(binding, path, size) },
+        |path| unsafe { destack_fs_truncate_utf16(binding, path, size) },
     )
 }

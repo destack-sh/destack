@@ -85,8 +85,8 @@ const XINPUT_PLAYER_INDEX_MAX: u8 = 4;
 pub(super) static WINDOWS_CONSOLE_STREAMS: AtomicUsize = AtomicUsize::new(0);
 
 /// Build one zeroed payload shell for event-kind projection.
-pub(super) fn empty_event_payload(context: &BindingCallContext) -> InputEventPayload {
-    let empty_text = context.store_string("");
+pub(super) fn empty_event_payload(binding: &BindingCallContext) -> InputEventPayload {
+    let empty_text = binding.store_string("");
     InputEventPayload {
         key: InputKeyEventPayload {
             action: InputEventAction::Cancel,
@@ -154,7 +154,7 @@ pub(super) fn empty_event_payload(context: &BindingCallContext) -> InputEventPay
 
 /// Build one typed input event from one prepared payload.
 pub(super) fn build_input_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: InputEventKind,
     timestamp_ns: u64,
     sequence: u64,
@@ -165,7 +165,7 @@ pub(super) fn build_input_event(
         kind,
         timestamp_ns,
         sequence,
-        device_id: context.store_string(device_id),
+        device_id: binding.store_string(device_id),
         payload,
     }
 }
@@ -636,12 +636,12 @@ pub(super) fn read_mode_from_console_mode(mode: u32) -> InputReadMode {
 
 /// Resolve one windows input handle from the resource table.
 pub(super) fn resolve_input(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<WindowsInputResolved> {
     // resolve and validate resource entry shape
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -650,27 +650,27 @@ pub(super) fn resolve_input(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<WindowsInputBinding>())?;
 
         Some(WindowsInputResolved {
-            backend: binding.backend,
-            read_mode: binding.read_mode,
-            console_button_state: binding.console_button_state,
+            backend: resolved_binding.backend,
+            read_mode: resolved_binding.read_mode,
+            console_button_state: resolved_binding.console_button_state,
             host_handle: entry.handle().map(|handle| handle as HANDLE),
-            original_mode: binding.original_mode,
-            raw_device: binding.raw_device.clone(),
-            xinput_user_index: binding.xinput_user_index,
-            xinput_packet_number: binding.xinput_packet_number,
-            xinput_player_index_override: binding.xinput_player_index_override,
-            last_pointer_x: binding.last_pointer_x,
-            last_pointer_y: binding.last_pointer_y,
-            relative_mode_enabled: binding.relative_mode_enabled,
-            text_active: binding.text_active,
-            text_input_type: binding.text_input_type,
-            text_area: binding.text_area,
+            original_mode: resolved_binding.original_mode,
+            raw_device: resolved_binding.raw_device.clone(),
+            xinput_user_index: resolved_binding.xinput_user_index,
+            xinput_packet_number: resolved_binding.xinput_packet_number,
+            xinput_player_index_override: resolved_binding.xinput_player_index_override,
+            last_pointer_x: resolved_binding.last_pointer_x,
+            last_pointer_y: resolved_binding.last_pointer_y,
+            relative_mode_enabled: resolved_binding.relative_mode_enabled,
+            text_active: resolved_binding.text_active,
+            text_input_type: resolved_binding.text_input_type,
+            text_area: resolved_binding.text_area,
         })
     });
 
@@ -682,11 +682,11 @@ pub(super) fn resolve_input(
 
 /// Resolve one raw-input descriptor for one opened windows input handle.
 pub(super) fn raw_device(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<raw_input::RawInputDeviceDescriptor> {
-    let resolved = resolve_input(context, handle, operation)?;
+    let resolved = resolve_input(binding, handle, operation)?;
     if resolved.backend != WindowsInputBackend::RawDevice {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -700,11 +700,11 @@ pub(super) fn raw_device(
 
 /// Allocate the next sequence number for one windows input stream.
 pub(super) fn next_sequence(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let sequence = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -713,12 +713,12 @@ pub(super) fn next_sequence(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        let next = binding.next_sequence;
-        binding.next_sequence = binding.next_sequence.saturating_add(1);
+        let next = resolved_binding.next_sequence;
+        resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
         Some(next)
     });
 
@@ -760,7 +760,7 @@ pub(super) fn now_timestamp_ns() -> u64 {
 
 /// Persist one xinput player-index override for one input handle.
 pub(super) fn set_xinput_player_index_override(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     player_index: u8,
     operation: &'static str,
@@ -774,7 +774,7 @@ pub(super) fn set_xinput_player_index_override(
         .boxed());
     }
 
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -783,18 +783,18 @@ pub(super) fn set_xinput_player_index_override(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        if binding.backend != WindowsInputBackend::XInput {
+        if resolved_binding.backend != WindowsInputBackend::XInput {
             return Some(Err(RuntimeError::from(PlatformError::not_supported(
                 operation,
             ))
             .boxed()));
         }
 
-        binding.xinput_player_index_override = Some(player_index);
+        resolved_binding.xinput_player_index_override = Some(player_index);
         Some(Ok(()))
     });
 
@@ -827,7 +827,7 @@ fn window_target_not_found(
 
 /// Resolve one optional explicit window target into one host hwnd.
 pub(super) fn resolve_window_target_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     target: InputWindowTarget,
     operation: &'static str,
 ) -> RuntimeResult<Option<HWND>> {
@@ -838,7 +838,7 @@ pub(super) fn resolve_window_target_handle(
 
     // resolve explicit window resources from the shared resource table
     let window_resource_id = target.window.0;
-    let hwnd = context
+    let hwnd = binding
         .agent()
         .resources
         .with_entry(window_resource_id, |entry| {
@@ -957,13 +957,13 @@ pub(super) fn release_cursor_confine(operation: &'static str) -> RuntimeResult<(
 
 /// Persist one text active flag and type for one input handle.
 pub(super) fn set_text_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     active: bool,
     input_type: InputTextInputType,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -972,12 +972,12 @@ pub(super) fn set_text_state(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        binding.text_active = active;
-        binding.text_input_type = input_type;
+        resolved_binding.text_active = active;
+        resolved_binding.text_input_type = input_type;
         Some(())
     });
 
@@ -989,12 +989,12 @@ pub(super) fn set_text_state(
 
 /// Persist one text-area hint for one input handle.
 pub(super) fn set_text_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     area: InputTextInputArea,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1003,11 +1003,11 @@ pub(super) fn set_text_area(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        binding.text_area = area;
+        resolved_binding.text_area = area;
         Some(())
     });
 
@@ -1019,13 +1019,13 @@ pub(super) fn set_text_area(
 
 /// Persist one pointer-position snapshot for one input handle.
 pub(super) fn set_pointer_snapshot(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     x: f64,
     y: f64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1034,12 +1034,12 @@ pub(super) fn set_pointer_snapshot(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        binding.last_pointer_x = x;
-        binding.last_pointer_y = y;
+        resolved_binding.last_pointer_x = x;
+        resolved_binding.last_pointer_y = y;
         Some(())
     });
 
@@ -1051,12 +1051,12 @@ pub(super) fn set_pointer_snapshot(
 
 /// Persist one relative-mode flag for one input handle.
 pub(super) fn set_relative_mode_flag(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1065,11 +1065,11 @@ pub(super) fn set_relative_mode_flag(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
-        binding.relative_mode_enabled = enabled;
+        resolved_binding.relative_mode_enabled = enabled;
         Some(())
     });
 
@@ -1081,13 +1081,13 @@ pub(super) fn set_relative_mode_flag(
 
 /// Persist one sensor-stream enabled flag for one input handle and sensor lane.
 pub(super) fn set_sensor_stream_enabled(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1096,14 +1096,14 @@ pub(super) fn set_sensor_stream_enabled(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         if enabled {
-            binding.sensor_enabled_kinds.insert(sensor_kind);
+            resolved_binding.sensor_enabled_kinds.insert(sensor_kind);
         } else {
-            binding.sensor_enabled_kinds.remove(&sensor_kind);
+            resolved_binding.sensor_enabled_kinds.remove(&sensor_kind);
         }
 
         Some(())
@@ -1117,16 +1117,16 @@ pub(super) fn set_sensor_stream_enabled(
 
 /// Persist one effective sensor-stream configuration for one input handle and sensor lane.
 pub(super) fn set_sensor_stream_config(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     config: InputSensorEffectiveConfig,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // update stream-enabled state before storing effective configuration
-    set_sensor_stream_enabled(context, handle, sensor_kind, config.enabled, operation)?;
+    set_sensor_stream_enabled(binding, handle, sensor_kind, config.enabled, operation)?;
 
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1135,14 +1135,18 @@ pub(super) fn set_sensor_stream_config(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_mut()
             .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         if config.enabled {
-            binding.sensor_effective_configs.insert(sensor_kind, config);
+            resolved_binding
+                .sensor_effective_configs
+                .insert(sensor_kind, config);
         } else {
-            binding.sensor_effective_configs.remove(&sensor_kind);
+            resolved_binding
+                .sensor_effective_configs
+                .remove(&sensor_kind);
         }
 
         Some(())
@@ -1156,12 +1160,12 @@ pub(super) fn set_sensor_stream_config(
 
 /// Return whether one sensor stream is currently enabled for one input handle.
 pub(super) fn is_sensor_stream_enabled(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     sensor_kind: InputSensorKind,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let enabled = context.agent().resources.with_entry(handle.0, |entry| {
+    let enabled = binding.agent().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::InputDevice {
             return None;
         }
@@ -1170,11 +1174,11 @@ pub(super) fn is_sensor_stream_enabled(
             return None;
         }
 
-        let binding = entry
+        let resolved_binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<WindowsInputBinding>())?;
-        Some(binding.sensor_enabled_kinds.contains(&sensor_kind))
+        Some(resolved_binding.sensor_enabled_kinds.contains(&sensor_kind))
     });
 
     match enabled.flatten() {

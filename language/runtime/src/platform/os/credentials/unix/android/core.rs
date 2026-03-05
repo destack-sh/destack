@@ -18,10 +18,10 @@ const AUTHENTICATION_MECHANISM_DEVICE_CREDENTIAL_CODE: u32 = 3;
 
 /// Return one callback runtime identifier for Android host callback routing.
 pub(super) fn callback_runtime_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
-    let Some(runtime_id) = context.host().callback_runtime_id() else {
+    let Some(runtime_id) = binding.host().callback_runtime_id() else {
         return Err(core_platform::not_supported(operation));
     };
 

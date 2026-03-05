@@ -32,7 +32,7 @@ use crate::platform::resource;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_close(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -61,7 +61,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_open(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::MessageQueueHandle,
     name: NativeStringRef,
     flags: u32,
@@ -98,7 +98,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_receive(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut MessageQueueReceive,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
@@ -133,7 +133,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_send(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
@@ -165,7 +165,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_unlink(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = name;
@@ -194,7 +194,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_close(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -220,7 +220,7 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_open(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PipePair,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -250,7 +250,7 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_read(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
@@ -281,7 +281,7 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_write(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
@@ -312,7 +312,7 @@ pub(crate) unsafe fn destack_ipc_pipe_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_close(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -341,7 +341,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_create(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     size: u64,
@@ -376,7 +376,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_map(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SharedMemoryMapping,
     handle: resource::SharedMemoryHandle,
     offset: u64,
@@ -409,7 +409,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_open(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     flags: u32,
@@ -443,7 +443,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -473,7 +473,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wait(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     expected: u32,
@@ -502,7 +502,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wake(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
@@ -534,7 +534,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_create(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SemaphoreHandle,
     name: NativeStringRef,
     initial: u32,
@@ -569,7 +569,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_post(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
@@ -599,7 +599,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_post(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_wait(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -629,7 +629,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_receive(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut UnixReceiveAncillary,
     socket: resource::SocketHandle,
     maxhandles: u32,
@@ -660,7 +660,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_send(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     socket: resource::SocketHandle,
     argument_payload: NativeSlice<u8>,

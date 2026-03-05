@@ -7,7 +7,7 @@ use destack_workspace::{
 
 use super::tests::TestEngine;
 use crate::host::Host;
-use crate::platform::{PlatformContext, ResourceEntry, ResourceKind};
+use crate::platform::{ResourceEntry, ResourceKind};
 use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{
     Effect, Fault, FaultTarget, FaultType, Hook, Policy, Rule, RuleId, Trigger,
@@ -23,9 +23,9 @@ fn test_agent_from_options_in_world_tracks_identity() {
     // create one shared world and two agents
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent_a = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent_a = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
-    let agent_b = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent_b = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
 
     // both agents should keep unique identities in one shared world
@@ -40,9 +40,9 @@ fn test_agent_from_options_in_world_shares_world_commands() {
     // create one shared world with two agents
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent_a = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent_a = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
-    let agent_b = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent_b = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
 
     // install one rule through one world command
@@ -74,7 +74,7 @@ fn test_agent_from_options_in_world_preserves_world_identity() {
     // create one shared world and one agent in that world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
 
     // agent world identity should equal constructor world identity
@@ -87,7 +87,7 @@ fn test_agent_world_control_update_refreshes_policy() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
     let descriptor = BindingDescriptor::pure("destack.test.live.policy", "()");
@@ -137,7 +137,7 @@ fn test_agent_world_control_update_refreshes_hooks() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
     let descriptor = BindingDescriptor::pure("destack.test.live.hooks", "()");
@@ -196,12 +196,10 @@ fn test_agent_world_control_agent_selector() {
     let mut options_b = RuntimeOptions::default();
     options_b.primary_agent.name = Some("agent-b".to_string());
     let world = Arc::new(World::default());
-    let mut agent_a =
-        Agent::new_in_world(PlatformContext::new(Vec::new()), &options_a, world.clone())
-            .expect("agent should construct in world");
-    let mut agent_b =
-        Agent::new_in_world(PlatformContext::new(Vec::new()), &options_b, world.clone())
-            .expect("agent should construct in world");
+    let mut agent_a = Agent::new_in_world(Vec::new(), &options_a, world.clone())
+        .expect("agent should construct in world");
+    let mut agent_b = Agent::new_in_world(Vec::new(), &options_b, world.clone())
+        .expect("agent should construct in world");
     let host_a = Host::from_runtime_options(&options_a);
     let host_b = Host::from_runtime_options(&options_b);
 
@@ -268,7 +266,7 @@ fn test_world_apply_policy_command_updates_rules() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
     let host = Host::from_runtime_options(&options);
     let descriptor = BindingDescriptor::pure("destack.test.program.policy", "()");
@@ -440,7 +438,7 @@ fn test_world_resource_lifecycle_updates_topology() {
     // create one agent and insert one resource
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
     let resource_id = agent.resources.insert(
         ResourceEntry::new(ResourceKind::Timer).with_label("test-timer"),
@@ -479,7 +477,7 @@ fn test_world_agent_drop_cleans_topology() {
     // create one world and one detached agent
     let world = Arc::new(World::default());
     let options = RuntimeOptions::default();
-    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+    let agent = Agent::new_in_world(Vec::new(), &options, world.clone())
         .expect("agent should construct in world");
     let runtime_id = agent.runtime_id;
     let agent_id = agent.id;
@@ -538,9 +536,8 @@ fn test_world_revision_advances_for_runtime_lifecycle_mutations() {
     // create one world and one runtime in that world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let mut runtime =
-        Runtime::from_options_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
-            .expect("runtime should construct in world");
+    let mut runtime = Runtime::from_options_in_world(Vec::new(), &options, world.clone())
+        .expect("runtime should construct in world");
 
     // runtime bootstrap should advance world revision
     let revision_after_runtime = world.revision();
@@ -573,8 +570,7 @@ fn test_world_revision_advances_for_runtime_lifecycle_mutations() {
 fn test_runtime_spawn_agent_aligns_world_scoped_options() {
     // create one runtime with one shared world
     let options = RuntimeOptions::default();
-    let mut runtime =
-        Runtime::from_options(PlatformContext::new(Vec::new()), &options).expect("runtime builds");
+    let mut runtime = Runtime::from_options(Vec::new(), &options).expect("runtime builds");
 
     // request one conflicting option set for spawn
     let mut spawn_options = RuntimeOptions::default();
@@ -605,8 +601,7 @@ fn test_agent_capability_profile_configures_binding_policy() {
     let mut options = RuntimeOptions::default();
     options.security.capability_profile = Some("fs.read,net.connect".to_string());
 
-    let agent =
-        Agent::new(PlatformContext::new(Vec::new()), &options).expect("agent should construct");
+    let agent = Agent::new(Vec::new(), &options).expect("agent should construct");
     let policy = agent.bindings.policy_snapshot();
 
     assert!(policy.is_capability_requirements_enforced());

@@ -847,10 +847,10 @@ fn enumerate_fallback_monitor_snapshots(
 
 /// Enumerate one normalized monitor snapshot list for x11.
 pub(super) fn enumerate_monitor_snapshots(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<Vec<MonitorSnapshot>> {
     // load one connection snapshot for monitor enumeration
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     let connection_state = core::connection_state(&runtime_state, "destack.display.monitor.list")?;
 
     // prefer one real randr output topology when available
@@ -878,13 +878,13 @@ pub(super) fn enumerate_monitor_snapshots(
 
 /// Convert one owned descriptor into one ABI payload.
 pub(super) fn descriptor_from_owned(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     value: &DisplayDescriptorSnapshot,
 ) -> DisplayDescriptor {
     DisplayDescriptor {
         backend: value.backend,
-        id: context.store_string(&value.id),
-        name: context.store_string(&value.name),
+        id: binding.store_string(&value.id),
+        name: binding.store_string(&value.name),
         primary: value.primary,
         x: value.x,
         y: value.y,
@@ -906,14 +906,14 @@ pub(super) fn descriptor_from_owned(
 
 /// Close one display endpoint.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry from the runtime table
-    let removed = context
-        .runtime()
+    let removed = binding
+        .agent()
         .resources
-        .remove(handle.0, Some(context.engine()))
+        .remove(handle.0, Some(binding.engine()))
         .is_some();
     // evaluate this condition
     if !removed {
@@ -928,7 +928,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_close(
 
 /// Resolve one requested mode to the closest supported mode.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_closest_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
     requested: DisplayMode,
@@ -936,13 +936,13 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_closest_mode(
     // validate out pointer and resolve the monitor id from the handle
     core_platform::ensure_out(out, "out")?;
     let display_id = display_resource::resolve_display_id(
-        context,
+        binding,
         handle,
         "destack.display.monitor.closestMode",
     )?;
 
     // resolve the current monitor snapshot for this handle
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
     let snapshot = snapshots
         .iter()
         .find(|snapshot| snapshot.descriptor.id == display_id)
@@ -976,20 +976,20 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_closest_mode(
 
 /// Read the current mode for one opened display.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_current_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer and resolve monitor id
     core_platform::ensure_out(out, "out")?;
     let display_id = display_resource::resolve_display_id(
-        context,
+        binding,
         handle,
         "destack.display.monitor.currentMode",
     )?;
 
     // read the monitor snapshot and write current mode
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
     let snapshot = snapshots
         .iter()
         .find(|snapshot| snapshot.descriptor.id == display_id)
@@ -1003,26 +1003,26 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_current_mode(
 
 /// Read descriptor metadata for one opened display.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_descriptor(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer and resolve monitor id
     core_platform::ensure_out(out, "out")?;
     let display_id = display_resource::resolve_display_id(
-        context,
+        binding,
         handle,
         "destack.display.monitor.descriptor",
     )?;
 
     // read the monitor snapshot and write descriptor payload
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
     let snapshot = snapshots
         .iter()
         .find(|snapshot| snapshot.descriptor.id == display_id)
         .ok_or_else(|| core::display_not_found("destack.display.monitor.descriptor", handle))?;
     unsafe {
-        *out = descriptor_from_owned(context, &snapshot.descriptor);
+        *out = descriptor_from_owned(binding, &snapshot.descriptor);
     }
 
     Ok(())
@@ -1030,20 +1030,20 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_descriptor(
 
 /// Read the desktop-preferred mode for one opened display.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_desktop_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer and resolve monitor id
     core_platform::ensure_out(out, "out")?;
     let display_id = display_resource::resolve_display_id(
-        context,
+        binding,
         handle,
         "destack.display.monitor.desktopMode",
     )?;
 
     // read the monitor snapshot and write desktop mode payload
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
     let snapshot = snapshots
         .iter()
         .find(|snapshot| snapshot.descriptor.id == display_id)
@@ -1057,7 +1057,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_desktop_mode(
 
 /// List available displays.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
     _request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
@@ -1065,14 +1065,14 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_list(
     core_platform::ensure_out(out, "out")?;
 
     // enumerate monitor descriptors and store output slice
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
     let mut values = Vec::with_capacity(snapshots.len());
     // iterate this sequence
     for snapshot in snapshots {
-        values.push(descriptor_from_owned(context, &snapshot.descriptor));
+        values.push(descriptor_from_owned(binding, &snapshot.descriptor));
     }
     unsafe {
-        *out = context.store_slice(values);
+        *out = binding.store_slice(values);
     }
 
     Ok(())
@@ -1080,23 +1080,23 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_list(
 
 /// Read available display modes.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_modes(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer and resolve monitor id
     core_platform::ensure_out(out, "out")?;
     let display_id =
-        display_resource::resolve_display_id(context, handle, "destack.display.monitor.modes")?;
+        display_resource::resolve_display_id(binding, handle, "destack.display.monitor.modes")?;
 
     // read monitor modes and store output slice
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
     let snapshot = snapshots
         .iter()
         .find(|snapshot| snapshot.descriptor.id == display_id)
         .ok_or_else(|| core::display_not_found("destack.display.monitor.modes", handle))?;
     unsafe {
-        *out = context.store_slice(snapshot.modes.clone());
+        *out = binding.store_slice(snapshot.modes.clone());
     }
 
     Ok(())
@@ -1104,7 +1104,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_modes(
 
 /// Open one display endpoint.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
     _options: DisplayMonitorOpenOptions,
@@ -1114,7 +1114,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
     let id = unsafe { id.as_str()? };
 
     // validate that the requested id exists
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
     let snapshot = snapshots
         .iter()
         .find(|snapshot| snapshot.descriptor.id == id)
@@ -1126,7 +1126,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
         })?;
 
     // insert one display handle resource and write output
-    let handle = display_resource::open_display_handle(context, snapshot.descriptor.id.clone());
+    let handle = display_resource::open_display_handle(binding, snapshot.descriptor.id.clone());
     unsafe {
         *out = handle;
     }
@@ -1136,7 +1136,7 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
 
 /// Read the current primary display handle.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_primary(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
     _request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
@@ -1144,12 +1144,12 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_primary(
     core_platform::ensure_out(out, "out")?;
 
     // resolve one primary snapshot and create one resource handle
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
     let primary = snapshots
         .iter()
         .find(|snapshot| snapshot.descriptor.primary);
     let primary_handle = primary.map(|snapshot| {
-        display_resource::open_display_handle(context, snapshot.descriptor.id.clone())
+        display_resource::open_display_handle(binding, snapshot.descriptor.id.clone())
     });
 
     unsafe {
@@ -1161,10 +1161,10 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_primary(
 
 /// Resolve one monitor snapshot by stable display id.
 pub(super) fn monitor_snapshot_by_display_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     display_id: &str,
 ) -> RuntimeResult<Option<MonitorSnapshot>> {
-    let snapshots = enumerate_monitor_snapshots(context)?;
+    let snapshots = enumerate_monitor_snapshots(binding)?;
 
     Ok(snapshots
         .into_iter()
@@ -1173,7 +1173,7 @@ pub(super) fn monitor_snapshot_by_display_id(
 
 /// Apply one display mode by stable display id and return the effective current mode.
 pub(super) fn apply_monitor_mode_by_display_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     display_id: &str,
     mode: DisplayMode,
     operation: &'static str,
@@ -1187,7 +1187,7 @@ pub(super) fn apply_monitor_mode_by_display_id(
     }
 
     // validate that the target display still exists
-    let Some(previous_snapshot) = monitor_snapshot_by_display_id(context, display_id)? else {
+    let Some(previous_snapshot) = monitor_snapshot_by_display_id(binding, display_id)? else {
         return Err(core_platform::io_not_found(
             operation,
             format!("display id '{display_id}' is no longer available"),
@@ -1195,7 +1195,7 @@ pub(super) fn apply_monitor_mode_by_display_id(
     };
 
     // resolve one output state and selected compatible mode id
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     let connection_state = core::connection_state(&runtime_state, operation)?;
     let Some(output_state) =
         resolve_output_state_by_display_id(connection_state.as_ref(), display_id, operation)?
@@ -1306,7 +1306,7 @@ pub(super) fn apply_monitor_mode_by_display_id(
         .map_err(|error| core::io_error(operation, format!("flush failed: {error}")))?;
 
     // read back one post-apply mode snapshot from host state
-    let current_mode = monitor_snapshot_by_display_id(context, display_id)?
+    let current_mode = monitor_snapshot_by_display_id(binding, display_id)?
         .map(|snapshot| snapshot.current_mode)
         .unwrap_or(previous_snapshot.current_mode);
 
@@ -1315,32 +1315,32 @@ pub(super) fn apply_monitor_mode_by_display_id(
 
 /// Apply one display mode.
 pub(in crate::platform::display::host::unix) unsafe fn monitor_set_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayMode,
 ) -> RuntimeResult<()> {
     // resolve one concrete display id and previous mode snapshot
     let display_id =
-        display_resource::resolve_display_id(context, handle, "destack.display.monitor.setMode")?;
-    let previous_snapshot = monitor_snapshot_by_display_id(context, &display_id)?
+        display_resource::resolve_display_id(binding, handle, "destack.display.monitor.setMode")?;
+    let previous_snapshot = monitor_snapshot_by_display_id(binding, &display_id)?
         .ok_or_else(|| core::display_not_found("destack.display.monitor.setMode", handle))?;
     let previous_mode = previous_snapshot.current_mode;
 
     // apply mode and resolve one current snapshot after mutation
     let applied_mode = apply_monitor_mode_by_display_id(
-        context,
+        binding,
         &display_id,
         mode,
         "destack.display.monitor.setMode",
     )?;
-    let current_snapshot = monitor_snapshot_by_display_id(context, &display_id)?;
+    let current_snapshot = monitor_snapshot_by_display_id(binding, &display_id)?;
     let current_mode = current_snapshot
         .as_ref()
         .map(|snapshot| snapshot.current_mode)
         .unwrap_or(applied_mode);
 
     // publish monitor mode and descriptor deltas
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     event::publish_monitor_mode_changed(
         &runtime_state,
         &display_id,
@@ -1357,25 +1357,25 @@ pub(in crate::platform::display::host::unix) unsafe fn monitor_set_mode(
             current_snapshot.descriptor,
         );
     }
-    event::refresh_monitor_topology_cache(context)?;
+    event::refresh_monitor_topology_cache(binding)?;
 
     Ok(())
 }
 
 /// Read display color state.
 pub(crate) unsafe fn monitor_color_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayColorState,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer and display handle
     core_platform::ensure_out(out, "out")?;
     let display_id = display_resource::resolve_display_id(
-        context,
+        binding,
         handle,
         "destack.display.monitor.colorState",
     )?;
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.monitor.colorState")?;
     let crtc = resolve_randr_crtc_for_display(
@@ -1422,13 +1422,13 @@ pub(crate) unsafe fn monitor_color_state(
 
 /// Read display HDR mode.
 pub(crate) unsafe fn monitor_hdr_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayHdrMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer and display handle
     core_platform::ensure_out(out, "out")?;
-    display_resource::resolve_display_id(context, handle, "destack.display.monitor.hdrMode")?;
+    display_resource::resolve_display_id(binding, handle, "destack.display.monitor.hdrMode")?;
 
     unsafe {
         *out = DisplayHdrMode::Unknown;
@@ -1439,12 +1439,12 @@ pub(crate) unsafe fn monitor_hdr_mode(
 
 /// Set display HDR mode.
 pub(crate) unsafe fn monitor_set_hdr_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayHdrMode,
 ) -> RuntimeResult<()> {
     // validate display handle and mode payload
-    display_resource::resolve_display_id(context, handle, "destack.display.monitor.setHdrMode")?;
+    display_resource::resolve_display_id(binding, handle, "destack.display.monitor.setHdrMode")?;
     // evaluate this condition
     if mode == DisplayHdrMode::Unknown {
         return Err(core_platform::invalid_argument(
@@ -1469,15 +1469,15 @@ pub(crate) unsafe fn monitor_set_hdr_mode(
 
 /// Read display gamma ramp.
 pub(crate) unsafe fn monitor_gamma_ramp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DisplayGammaRamp,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer and display handle
     core_platform::ensure_out(out, "out")?;
     let display_id =
-        display_resource::resolve_display_id(context, handle, "destack.display.monitor.gammaRamp")?;
-    let runtime_state = core::runtime_state(context);
+        display_resource::resolve_display_id(binding, handle, "destack.display.monitor.gammaRamp")?;
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.monitor.gammaRamp")?;
     let crtc = resolve_randr_crtc_for_display(
@@ -1495,9 +1495,9 @@ pub(crate) unsafe fn monitor_gamma_ramp(
     )?;
     unsafe {
         *out = DisplayGammaRamp {
-            red: context.store_slice(red),
-            green: context.store_slice(green),
-            blue: context.store_slice(blue),
+            red: binding.store_slice(red),
+            green: binding.store_slice(green),
+            blue: binding.store_slice(blue),
         };
     }
 
@@ -1506,13 +1506,13 @@ pub(crate) unsafe fn monitor_gamma_ramp(
 
 /// Set display gamma ramp.
 pub(crate) unsafe fn monitor_set_gamma_ramp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::DisplayHandle,
     ramp: DisplayGammaRamp,
 ) -> RuntimeResult<()> {
     // validate display handle and decode channel payloads
     let display_id = display_resource::resolve_display_id(
-        context,
+        binding,
         handle,
         "destack.display.monitor.setGammaRamp",
     )?;
@@ -1535,7 +1535,7 @@ pub(crate) unsafe fn monitor_set_gamma_ramp(
     }
 
     // resolve one active CRTC and validate gamma table size
-    let runtime_state = core::runtime_state(context);
+    let runtime_state = core::runtime_state(binding);
     let connection_state =
         core::connection_state(&runtime_state, "destack.display.monitor.setGammaRamp")?;
     let crtc = resolve_randr_crtc_for_display(

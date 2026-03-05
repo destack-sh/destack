@@ -97,7 +97,7 @@ pub(crate) fn probe_key_formats() -> Vec<CryptoKeyFormat> {
 }
 
 /// Return supported key-residency lanes.
-pub(crate) fn probe_key_residencies(context: &BindingCallContext) -> Vec<CryptoKeyResidency> {
+pub(crate) fn probe_key_residencies(binding: &BindingCallContext) -> Vec<CryptoKeyResidency> {
     // include software residencies unconditionally
     let mut residencies = vec![
         CryptoKeyResidency::SoftwareExportable,
@@ -105,7 +105,7 @@ pub(crate) fn probe_key_residencies(context: &BindingCallContext) -> Vec<CryptoK
     ];
 
     // include hardware residency only when at least one active host lane supports it
-    if probe_supports_hardware_residency(context) {
+    if probe_supports_hardware_residency(binding) {
         residencies.push(CryptoKeyResidency::HardwareOpaque);
     }
 
@@ -271,7 +271,7 @@ fn crypto_probe_support() -> &'static CryptoProbeSupport {
 }
 
 /// Return whether any active host lane supports hardware-backed key residency.
-fn probe_supports_hardware_residency(context: &BindingCallContext) -> bool {
+fn probe_supports_hardware_residency(binding: &BindingCallContext) -> bool {
     // probe the standard host store lanes used for persistent/hardware-backed keys
     let host_kinds = [
         CryptoStoreKind::System,
@@ -281,9 +281,9 @@ fn probe_supports_hardware_residency(context: &BindingCallContext) -> bool {
 
     // return true only when a lane is available, writable, and hardware-backed
     host_kinds.into_iter().any(|kind| {
-        crypto_host::host_store_lane_is_available(context, kind)
+        crypto_host::host_store_lane_is_available(binding, kind)
             && host_store_supports_key_persistence(kind)
-            && crypto_host::host_store_persistence_backend_is_available(context, kind)
-            && crypto_host::host_store_supports_hardware_backed_key(context, kind)
+            && crypto_host::host_store_persistence_backend_is_available(binding, kind)
+            && crypto_host::host_store_supports_hardware_backed_key(binding, kind)
     })
 }

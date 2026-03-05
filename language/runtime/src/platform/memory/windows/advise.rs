@@ -44,7 +44,7 @@ fn discard_status_result(status: u32, operation: &'static str) -> RuntimeResult<
 
 /// Apply memory access advice.
 pub(crate) unsafe fn destack_memory_advise(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     advice: MemoryAdvice,
@@ -89,7 +89,7 @@ pub(crate) unsafe fn destack_memory_advise(
 
 /// Discard memory contents.
 pub(crate) unsafe fn destack_memory_discard(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -109,7 +109,7 @@ pub(crate) unsafe fn destack_memory_discard(
 
 /// Toggle huge-page preference for one range.
 pub(crate) unsafe fn destack_memory_huge_page(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     enabled: bool,

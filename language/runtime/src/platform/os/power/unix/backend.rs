@@ -85,6 +85,6 @@ fn read_linux_power_state() -> RuntimeResult<PowerState> {
 }
 
 /// Read one host power-state value from unix APIs.
-pub(crate) fn read_power_state(_context: &BindingCallContext) -> RuntimeResult<PowerState> {
+pub(crate) fn read_power_state(_binding: &BindingCallContext) -> RuntimeResult<PowerState> {
     read_linux_power_state()
 }

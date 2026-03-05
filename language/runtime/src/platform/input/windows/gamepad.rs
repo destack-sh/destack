@@ -7,17 +7,17 @@ use crate::runtime::BindingCallContext;
 
 /// Read one gamepad state snapshot for one opened Windows input handle.
 pub(super) fn gamepad_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<InputGamepadState> {
     // resolve one backend binding and route by gamepad implementation lane
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if resolved.backend == input_core::WindowsInputBackend::RawDevice {
         let Some(raw_device) = resolved.raw_device.as_ref() else {
             return Err(input_core::input_not_found(operation, handle));
         };
-        return raw_input::gamepad_state_for_raw_input_device(context, raw_device, operation);
+        return raw_input::gamepad_state_for_raw_input_device(binding, raw_device, operation);
     }
 
     let Some(user_index) = resolved.xinput_user_index else {
@@ -26,12 +26,12 @@ pub(super) fn gamepad_state(
     let player_index = resolved
         .xinput_player_index_override
         .unwrap_or(user_index.saturating_add(1));
-    xinput_input::gamepad_state_for_xinput(context, user_index, player_index, operation)
+    xinput_input::gamepad_state_for_xinput(binding, user_index, player_index, operation)
 }
 
 /// Set one gamepad light color for one opened Windows input handle.
 pub(super) fn gamepad_set_light(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     red: u8,
     green: u8,
@@ -39,7 +39,7 @@ pub(super) fn gamepad_set_light(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one backend binding and route by gamepad implementation lane
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if resolved.backend == input_core::WindowsInputBackend::RawDevice {
         let Some(raw_device) = resolved.raw_device.as_ref() else {
             return Err(input_core::input_not_found(operation, handle));
@@ -56,7 +56,7 @@ pub(super) fn gamepad_set_light(
     let player_index = resolved
         .xinput_player_index_override
         .unwrap_or(user_index.saturating_add(1));
-    let _ = xinput_input::gamepad_state_for_xinput(context, user_index, player_index, operation)?;
+    let _ = xinput_input::gamepad_state_for_xinput(binding, user_index, player_index, operation)?;
 
     // preserve requested rgb values for future backend light-control routing
     let _requested_color = (red, green, blue);
@@ -66,12 +66,12 @@ pub(super) fn gamepad_set_light(
 
 /// Set one gamepad player-index override for one opened Windows input handle.
 pub(super) fn gamepad_set_player_index(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     player_index: u8,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    input_core::set_xinput_player_index_override(context, handle, player_index, operation)
+    input_core::set_xinput_player_index_override(binding, handle, player_index, operation)
 }
 
 /// Set one gamepad light color.
@@ -91,14 +91,14 @@ pub(super) fn gamepad_set_player_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_light(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     red: u8,
     green: u8,
     blue: u8,
 ) -> RuntimeResult<()> {
     gamepad_set_light(
-        context,
+        binding,
         handle,
         red,
         green,
@@ -124,12 +124,12 @@ pub(crate) unsafe fn destack_input_gamepad_set_light(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_player_index(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeResult<()> {
     gamepad_set_player_index(
-        context,
+        binding,
         handle,
         playerindex,
         "destack.input.gamepad.setPlayerIndex",
@@ -154,7 +154,7 @@ pub(crate) unsafe fn destack_input_gamepad_set_player_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputGamepadState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -164,7 +164,7 @@ pub(crate) unsafe fn destack_input_gamepad_state(
     }
 
     // read one host-backed gamepad state snapshot
-    let state = gamepad_state(context, handle, "destack.input.gamepad.state")?;
+    let state = gamepad_state(binding, handle, "destack.input.gamepad.state")?;
 
     // write snapshot output
     unsafe {

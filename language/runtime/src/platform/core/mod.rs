@@ -31,7 +31,7 @@ pub(crate) use errno::{get_errno, set_errno};
 pub(crate) use error::invalid_state;
 pub(crate) use error::{
     ensure_out, ensure_zero_flags, invalid_argument, io_not_found, io_operation_error,
-    not_supported, unknown_handle, unknown_handle_with_id, unsupported_flags,
+    not_supported, unknown_handle, unsupported_flags,
 };
 #[cfg(any(windows, target_os = "linux"))]
 pub(crate) use error::{io_busy, io_would_block};

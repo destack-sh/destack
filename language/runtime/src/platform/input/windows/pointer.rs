@@ -29,13 +29,13 @@ fn is_pointer_capable_backend(resolved: &input_core::WindowsInputResolved) -> bo
 
 /// Read one pointer state snapshot for one opened Windows input handle.
 pub(super) fn pointer_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     relative: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputPointerState> {
     // resolve one backend binding and validate pointer capability
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_pointer_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -56,7 +56,7 @@ pub(super) fn pointer_state(
     let mut pointer_y = host_pointer_y;
     if resolved.backend == input_core::WindowsInputBackend::RawDevice
         && let Some(raw_device) = resolved.raw_device.as_ref()
-        && let Some(pen_state) = raw_input::read_pen_state(context, raw_device, operation)?
+        && let Some(pen_state) = raw_input::read_pen_state(binding, raw_device, operation)?
     {
         has_pen_data = true;
         pen_pressure = pen_state.pressure;
@@ -76,7 +76,7 @@ pub(super) fn pointer_state(
 
         let delta_x = pointer_x - resolved.last_pointer_x;
         let delta_y = pointer_y - resolved.last_pointer_y;
-        input_core::set_pointer_snapshot(context, handle, pointer_x, pointer_y, operation)?;
+        input_core::set_pointer_snapshot(binding, handle, pointer_x, pointer_y, operation)?;
         (delta_x, delta_y)
     } else {
         (pointer_x, pointer_y)
@@ -107,13 +107,13 @@ pub(super) fn pointer_state(
 
 /// Set relative pointer mode for one opened Windows input handle.
 pub(super) fn pointer_set_relative_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one backend binding and validate pointer capability
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_pointer_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -122,36 +122,36 @@ pub(super) fn pointer_set_relative_mode(
     let (mut pointer_x, mut pointer_y) = input_core::current_pointer_position();
     if resolved.backend == input_core::WindowsInputBackend::RawDevice
         && let Some(raw_device) = resolved.raw_device.as_ref()
-        && let Some(pen_state) = raw_input::read_pen_state(context, raw_device, operation)?
+        && let Some(pen_state) = raw_input::read_pen_state(binding, raw_device, operation)?
     {
         pointer_x = pen_state.x;
         pointer_y = pen_state.y;
     }
 
-    input_core::set_pointer_snapshot(context, handle, pointer_x, pointer_y, operation)?;
-    input_core::set_relative_mode_flag(context, handle, enabled, operation)?;
+    input_core::set_pointer_snapshot(binding, handle, pointer_x, pointer_y, operation)?;
+    input_core::set_relative_mode_flag(binding, handle, enabled, operation)?;
     Ok(())
 }
 
 /// Set one pointer grab mode for one opened Windows input handle.
 pub(super) fn pointer_set_grab_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     mode: InputPointerGrabMode,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one optional explicit target window handle
-    let target_window = input_core::resolve_window_target_handle(context, target, operation)?;
+    let target_window = input_core::resolve_window_target_handle(binding, target, operation)?;
 
     // map locked mode to relative-pointer mode and allow none as explicit release
     if mode == InputPointerGrabMode::Locked {
-        pointer_capture(context, handle, target, true, operation)?;
-        return pointer_set_relative_mode(context, handle, true, operation);
+        pointer_capture(binding, handle, target, true, operation)?;
+        return pointer_set_relative_mode(binding, handle, true, operation);
     }
     if mode == InputPointerGrabMode::None {
-        pointer_set_relative_mode(context, handle, false, operation)?;
-        pointer_capture(context, handle, target, false, operation)?;
+        pointer_set_relative_mode(binding, handle, false, operation)?;
+        pointer_capture(binding, handle, target, false, operation)?;
         return input_core::release_cursor_confine(operation);
     }
 
@@ -160,8 +160,8 @@ pub(super) fn pointer_set_grab_mode(
         let Some(target_window) = target_window else {
             return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
         };
-        pointer_capture(context, handle, target, true, operation)?;
-        pointer_set_relative_mode(context, handle, false, operation)?;
+        pointer_capture(binding, handle, target, true, operation)?;
+        pointer_set_relative_mode(binding, handle, false, operation)?;
         return input_core::confine_cursor_to_window(target_window, operation);
     }
 
@@ -170,17 +170,17 @@ pub(super) fn pointer_set_grab_mode(
 
 /// Toggle pointer capture mode for one opened Windows input handle.
 pub(super) fn pointer_capture(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one optional explicit target window handle
-    let target_window = input_core::resolve_window_target_handle(context, target, operation)?;
+    let target_window = input_core::resolve_window_target_handle(binding, target, operation)?;
 
     // resolve one backend binding and validate pointer capability
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_pointer_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -211,7 +211,7 @@ pub(super) fn pointer_capture(
 
     // console capture maps to exclusive-grab updates
     if resolved.backend == input_core::WindowsInputBackend::Console {
-        return input_event::set_grab(context, handle, enabled, operation);
+        return input_event::set_grab(binding, handle, enabled, operation);
     }
 
     // raw-input streams cannot toggle capture state through this binding contract
@@ -224,7 +224,7 @@ pub(super) fn pointer_capture(
 
 /// Warp pointer position for one opened Windows input handle.
 pub(super) fn pointer_warp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     x: f64,
@@ -232,10 +232,10 @@ pub(super) fn pointer_warp(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve one optional explicit target window handle
-    let target_window = input_core::resolve_window_target_handle(context, target, operation)?;
+    let target_window = input_core::resolve_window_target_handle(binding, target, operation)?;
 
     // resolve one backend binding and validate pointer capability
-    let resolved = input_core::resolve_input(context, handle, operation)?;
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_pointer_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -263,7 +263,7 @@ pub(super) fn pointer_warp(
         ));
     }
 
-    input_core::set_pointer_snapshot(context, handle, target_x, target_y, operation)?;
+    input_core::set_pointer_snapshot(binding, handle, target_x, target_y, operation)?;
     Ok(())
 }
 
@@ -285,13 +285,13 @@ pub(super) fn pointer_warp(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_capture(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     enabled: bool,
 ) -> RuntimeResult<()> {
     pointer_capture(
-        context,
+        binding,
         handle,
         target,
         enabled,
@@ -319,7 +319,7 @@ pub(crate) unsafe fn destack_input_pointer_capture(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_relative_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -329,7 +329,7 @@ pub(crate) unsafe fn destack_input_pointer_relative_state(
     }
 
     // query one relative pointer snapshot
-    let state = pointer_state(context, handle, true, "destack.input.pointer.relativeState")?;
+    let state = pointer_state(binding, handle, true, "destack.input.pointer.relativeState")?;
 
     // write snapshot output
     unsafe {
@@ -357,13 +357,13 @@ pub(crate) unsafe fn destack_input_pointer_relative_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     mode: InputPointerGrabMode,
 ) -> RuntimeResult<()> {
     pointer_set_grab_mode(
-        context,
+        binding,
         handle,
         target,
         mode,
@@ -389,12 +389,12 @@ pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     pointer_set_relative_mode(
-        context,
+        binding,
         handle,
         enabled,
         "destack.input.pointer.setRelativeMode",
@@ -421,7 +421,7 @@ pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -431,7 +431,7 @@ pub(crate) unsafe fn destack_input_pointer_state(
     }
 
     // query one absolute pointer snapshot
-    let state = pointer_state(context, handle, false, "destack.input.pointer.state")?;
+    let state = pointer_state(binding, handle, false, "destack.input.pointer.state")?;
 
     // write snapshot output
     unsafe {
@@ -459,11 +459,11 @@ pub(crate) unsafe fn destack_input_pointer_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_warp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     x: f64,
     y: f64,
 ) -> RuntimeResult<()> {
-    pointer_warp(context, handle, target, x, y, "destack.input.pointer.warp")
+    pointer_warp(binding, handle, target, x, y, "destack.input.pointer.warp")
 }

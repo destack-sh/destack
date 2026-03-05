@@ -36,7 +36,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exit(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     code: u32,
 ) -> RuntimeResult<()> {
     unsafe { libc::_exit(code as i32) }

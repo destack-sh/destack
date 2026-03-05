@@ -71,14 +71,13 @@ use crate::platform::os::{
     PowerState, SystemSnapshot, SystemSnapshotVm,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -7375,21 +7374,21 @@ pub const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for os bindings.
 #[inline]
 fn destack_os_background_event_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_BACKGROUND_EVENT_CLOSE,
-        context.replay_payload_for(OS_BACKGROUND_EVENT_CLOSE)?,
+        binding.replay_payload_for(OS_BACKGROUND_EVENT_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_background_event_close(context, handle)
+                platform_native::destack_os_background_event_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_background_event_close(context, handle)
+                platform_simulation_native::destack_os_background_event_close(binding, handle)
             },
         },
         |result| {
@@ -7423,22 +7422,22 @@ fn destack_os_background_event_close_replay(
 
 #[inline]
 fn destack_os_background_event_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::BackgroundEventHandle,
     options: BackgroundEventOpenOptions,
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_BACKGROUND_EVENT_OPEN,
-        context.replay_payload_for(OS_BACKGROUND_EVENT_OPEN)?,
+        binding.replay_payload_for(OS_BACKGROUND_EVENT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_background_event_open(context, out, options)
+                platform_native::destack_os_background_event_open(binding, out, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_background_event_open(context, out, options)
+                platform_simulation_native::destack_os_background_event_open(binding, out, options)
             },
         },
         |result| {
@@ -7484,7 +7483,7 @@ fn destack_os_background_event_open_replay(
 
 #[inline]
 fn destack_os_background_event_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut BackgroundEvent,
     handle: resource::BackgroundEventHandle,
@@ -7492,12 +7491,12 @@ fn destack_os_background_event_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_BACKGROUND_EVENT_READ,
-        context.replay_payload_for(OS_BACKGROUND_EVENT_READ)?,
+        binding.replay_payload_for(OS_BACKGROUND_EVENT_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_background_event_read(context, out, handle, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_background_event_read(context, out, handle, timeoutns) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_background_event_read(binding, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_background_event_read(binding, out, handle, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
@@ -7571,11 +7570,11 @@ fn destack_os_background_event_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         BackgroundEventReplayRecord::BackgroundTaskExpiredEvent(value) => {
-                            let value_native_background_task_expired_event_kind = context.store_string(&value.kind);
+                            let value_native_background_task_expired_event_kind = binding.store_string(&value.kind);
                             let value_native_background_task_expired_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_background_task_expired_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_background_task_expired_event_metadata_identifier = context.store_string(&value.metadata.identifier);
-                            let value_native_background_task_expired_event_metadata_execution_id = context.store_string(&value.metadata.execution_id);
+                            let value_native_background_task_expired_event_metadata_identifier = binding.store_string(&value.metadata.identifier);
+                            let value_native_background_task_expired_event_metadata_execution_id = binding.store_string(&value.metadata.execution_id);
                             let value_native_background_task_expired_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let value_native_background_task_expired_event_metadata = BackgroundEventMetadata {
                                 timestamp_ns: value_native_background_task_expired_event_metadata_timestamp_ns,
@@ -7591,11 +7590,11 @@ fn destack_os_background_event_read_replay(
                             BackgroundEvent::BackgroundTaskExpiredEvent(value_native_background_task_expired_event)
                         }
                         BackgroundEventReplayRecord::BackgroundTaskReadyEvent(value) => {
-                            let value_native_background_task_ready_event_kind = context.store_string(&value.kind);
+                            let value_native_background_task_ready_event_kind = binding.store_string(&value.kind);
                             let value_native_background_task_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_background_task_ready_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_background_task_ready_event_metadata_identifier = context.store_string(&value.metadata.identifier);
-                            let value_native_background_task_ready_event_metadata_execution_id = context.store_string(&value.metadata.execution_id);
+                            let value_native_background_task_ready_event_metadata_identifier = binding.store_string(&value.metadata.identifier);
+                            let value_native_background_task_ready_event_metadata_execution_id = binding.store_string(&value.metadata.execution_id);
                             let value_native_background_task_ready_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let value_native_background_task_ready_event_metadata = BackgroundEventMetadata {
                                 timestamp_ns: value_native_background_task_ready_event_metadata_timestamp_ns,
@@ -7622,19 +7621,19 @@ fn destack_os_background_event_read_replay(
 
 #[inline]
 fn destack_os_background_event_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut BackgroundEvent,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_BACKGROUND_EVENT_TRY_READ,
-        context.replay_payload_for(OS_BACKGROUND_EVENT_TRY_READ)?,
+        binding.replay_payload_for(OS_BACKGROUND_EVENT_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_background_event_try_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_background_event_try_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_background_event_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_background_event_try_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -7708,11 +7707,11 @@ fn destack_os_background_event_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         BackgroundEventReplayRecord::BackgroundTaskExpiredEvent(value) => {
-                            let value_native_background_task_expired_event_kind = context.store_string(&value.kind);
+                            let value_native_background_task_expired_event_kind = binding.store_string(&value.kind);
                             let value_native_background_task_expired_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_background_task_expired_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_background_task_expired_event_metadata_identifier = context.store_string(&value.metadata.identifier);
-                            let value_native_background_task_expired_event_metadata_execution_id = context.store_string(&value.metadata.execution_id);
+                            let value_native_background_task_expired_event_metadata_identifier = binding.store_string(&value.metadata.identifier);
+                            let value_native_background_task_expired_event_metadata_execution_id = binding.store_string(&value.metadata.execution_id);
                             let value_native_background_task_expired_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let value_native_background_task_expired_event_metadata = BackgroundEventMetadata {
                                 timestamp_ns: value_native_background_task_expired_event_metadata_timestamp_ns,
@@ -7728,11 +7727,11 @@ fn destack_os_background_event_try_read_replay(
                             BackgroundEvent::BackgroundTaskExpiredEvent(value_native_background_task_expired_event)
                         }
                         BackgroundEventReplayRecord::BackgroundTaskReadyEvent(value) => {
-                            let value_native_background_task_ready_event_kind = context.store_string(&value.kind);
+                            let value_native_background_task_ready_event_kind = binding.store_string(&value.kind);
                             let value_native_background_task_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_background_task_ready_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_background_task_ready_event_metadata_identifier = context.store_string(&value.metadata.identifier);
-                            let value_native_background_task_ready_event_metadata_execution_id = context.store_string(&value.metadata.execution_id);
+                            let value_native_background_task_ready_event_metadata_identifier = binding.store_string(&value.metadata.identifier);
+                            let value_native_background_task_ready_event_metadata_execution_id = binding.store_string(&value.metadata.execution_id);
                             let value_native_background_task_ready_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let value_native_background_task_ready_event_metadata = BackgroundEventMetadata {
                                 timestamp_ns: value_native_background_task_ready_event_metadata_timestamp_ns,
@@ -7759,19 +7758,19 @@ fn destack_os_background_event_try_read_replay(
 
 #[inline]
 fn destack_os_background_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<BackgroundTaskDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_BACKGROUND_LIST,
-        context.replay_payload_for(OS_BACKGROUND_LIST)?,
+        binding.replay_payload_for(OS_BACKGROUND_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_background_list(context, out)
+                platform_native::destack_os_background_list(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_background_list(context, out)
+                platform_simulation_native::destack_os_background_list(binding, out)
             },
         },
         |result| {
@@ -7840,7 +7839,7 @@ fn destack_os_background_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_identifier =
-                            context.store_string(&value_native_item.identifier);
+                            binding.store_string(&value_native_item.identifier);
                         let value_native_item_native_trigger = value_native_item.trigger;
                         let value_native_item_native_minimum_interval_ns =
                             value_native_item.minimum_interval_ns;
@@ -7869,7 +7868,7 @@ fn destack_os_background_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -7883,19 +7882,19 @@ fn destack_os_background_list_replay(
 
 #[inline]
 fn destack_os_background_status_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut BackgroundStatus,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_BACKGROUND_STATUS,
-        context.replay_payload_for(OS_BACKGROUND_STATUS)?,
+        binding.replay_payload_for(OS_BACKGROUND_STATUS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_background_status(context, out)
+                platform_native::destack_os_background_status(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_background_status(context, out)
+                platform_simulation_native::destack_os_background_status(binding, out)
             },
         },
         |result| {
@@ -7941,19 +7940,19 @@ fn destack_os_background_status_replay(
 
 #[inline]
 fn destack_os_clipboard_has_text_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_CLIPBOARD_HAS_TEXT,
-        context.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
+        binding.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_clipboard_has_text(context, out)
+                platform_native::destack_os_clipboard_has_text(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_has_text(context, out)
+                platform_simulation_native::destack_os_clipboard_has_text(binding, out)
             },
         },
         |result| {
@@ -7999,22 +7998,22 @@ fn destack_os_clipboard_has_text_replay(
 
 #[inline]
 fn destack_os_clipboard_read_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     format: ClipboardBinaryFormat,
 ) -> RuntimeResult<()> {
     let _ = &format;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_CLIPBOARD_READ_BYTES,
-        context.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
+        binding.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_clipboard_read_bytes(context, out, format)
+                platform_native::destack_os_clipboard_read_bytes(binding, out, format)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_read_bytes(context, out, format)
+                platform_simulation_native::destack_os_clipboard_read_bytes(binding, out, format)
             },
         },
         |result| {
@@ -8057,7 +8056,7 @@ fn destack_os_clipboard_read_bytes_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -8071,19 +8070,19 @@ fn destack_os_clipboard_read_bytes_replay(
 
 #[inline]
 fn destack_os_clipboard_read_text_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_CLIPBOARD_READ_TEXT,
-        context.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
+        binding.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_clipboard_read_text(context, out)
+                platform_native::destack_os_clipboard_read_text(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_read_text(context, out)
+                platform_simulation_native::destack_os_clipboard_read_text(binding, out)
             },
         },
         |result| {
@@ -8115,7 +8114,7 @@ fn destack_os_clipboard_read_text_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let value_native = binding.store_string(&value);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -8129,19 +8128,19 @@ fn destack_os_clipboard_read_text_replay(
 
 #[inline]
 fn destack_os_clipboard_sequence_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_CLIPBOARD_SEQUENCE,
-        context.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
+        binding.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_clipboard_sequence(context, out)
+                platform_native::destack_os_clipboard_sequence(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_sequence(context, out)
+                platform_simulation_native::destack_os_clipboard_sequence(binding, out)
             },
         },
         |result| {
@@ -8187,19 +8186,19 @@ fn destack_os_clipboard_sequence_replay(
 
 #[inline]
 fn destack_os_host_identity_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut HostIdentity,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_HOST_IDENTITY,
-        context.replay_payload_for(OS_HOST_IDENTITY)?,
+        binding.replay_payload_for(OS_HOST_IDENTITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_host_identity(context, out)
+                platform_native::destack_os_host_identity(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_host_identity(context, out)
+                platform_simulation_native::destack_os_host_identity(binding, out)
             },
         },
         |result| {
@@ -8242,10 +8241,10 @@ fn destack_os_host_identity_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_hostname = context.store_string(&value.hostname);
-                    let value_native_kernel = context.store_string(&value.kernel);
-                    let value_native_release = context.store_string(&value.release);
-                    let value_native_architecture = context.store_string(&value.architecture);
+                    let value_native_hostname = binding.store_string(&value.hostname);
+                    let value_native_kernel = binding.store_string(&value.kernel);
+                    let value_native_release = binding.store_string(&value.release);
+                    let value_native_architecture = binding.store_string(&value.architecture);
                     let value_native = HostIdentity {
                         hostname: value_native_hostname,
                         kernel: value_native_kernel,
@@ -8265,19 +8264,19 @@ fn destack_os_host_identity_replay(
 
 #[inline]
 fn destack_os_info_boot_time_unix_ns_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INFO_BOOT_TIME_UNIX_NS,
-        context.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
+        binding.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_boot_time_unix_ns(context, out)
+                platform_native::destack_os_boot_time_unix_ns(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_boot_time_unix_ns(context, out)
+                platform_simulation_native::destack_os_boot_time_unix_ns(binding, out)
             },
         },
         |result| {
@@ -8323,17 +8322,17 @@ fn destack_os_info_boot_time_unix_ns_replay(
 
 #[inline]
 fn destack_os_info_load_average_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut LoadAverage,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INFO_LOAD_AVERAGE,
-        context.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
+        binding.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_load_average(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_load_average(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_load_average(context, out)
+                platform_simulation_native::destack_os_load_average(binding, out)
             },
         },
         |result| {
@@ -8393,19 +8392,19 @@ fn destack_os_info_load_average_replay(
 
 #[inline]
 fn destack_os_info_system_snapshot_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SystemSnapshot,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INFO_SYSTEM_SNAPSHOT,
-        context.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
+        binding.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_system_snapshot(context, out)
+                platform_native::destack_os_system_snapshot(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_system_snapshot(context, out)
+                platform_simulation_native::destack_os_system_snapshot(binding, out)
             },
         },
         |result| {
@@ -8469,17 +8468,17 @@ fn destack_os_info_system_snapshot_replay(
 
 #[inline]
 fn destack_os_info_uptime_ns_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INFO_UPTIME_NS,
-        context.replay_payload_for(OS_INFO_UPTIME_NS)?,
+        binding.replay_payload_for(OS_INFO_UPTIME_NS)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_uptime_ns(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_uptime_ns(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_uptime_ns(context, out)
+                platform_simulation_native::destack_os_uptime_ns(binding, out)
             },
         },
         |result| {
@@ -8525,22 +8524,22 @@ fn destack_os_info_uptime_ns_replay(
 
 #[inline]
 fn destack_os_intent_can_open_url_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     url: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &url;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INTENT_CAN_OPEN_URL,
-        context.replay_payload_for(OS_INTENT_CAN_OPEN_URL)?,
+        binding.replay_payload_for(OS_INTENT_CAN_OPEN_URL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_intent_can_open_url(context, out, url)
+                platform_native::destack_os_intent_can_open_url(binding, out, url)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_intent_can_open_url(context, out, url)
+                platform_simulation_native::destack_os_intent_can_open_url(binding, out, url)
             },
         },
         |result| {
@@ -8586,21 +8585,21 @@ fn destack_os_intent_can_open_url_replay(
 
 #[inline]
 fn destack_os_intent_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INTENT_CLOSE,
-        context.replay_payload_for(OS_INTENT_CLOSE)?,
+        binding.replay_payload_for(OS_INTENT_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_intent_close(context, handle)
+                platform_native::destack_os_intent_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_intent_close(context, handle)
+                platform_simulation_native::destack_os_intent_close(binding, handle)
             },
         },
         |result| {
@@ -8634,22 +8633,22 @@ fn destack_os_intent_close_replay(
 
 #[inline]
 fn destack_os_intent_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::IntentHandle,
     options: IntentOpenOptions,
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INTENT_OPEN,
-        context.replay_payload_for(OS_INTENT_OPEN)?,
+        binding.replay_payload_for(OS_INTENT_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_intent_open(context, out, options)
+                platform_native::destack_os_intent_open(binding, out, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_intent_open(context, out, options)
+                platform_simulation_native::destack_os_intent_open(binding, out, options)
             },
         },
         |result| {
@@ -8695,7 +8694,7 @@ fn destack_os_intent_open_replay(
 
 #[inline]
 fn destack_os_intent_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut IntentEvent,
     handle: resource::IntentHandle,
@@ -8703,12 +8702,12 @@ fn destack_os_intent_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INTENT_READ,
-        context.replay_payload_for(OS_INTENT_READ)?,
+        binding.replay_payload_for(OS_INTENT_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_intent_read(context, out, handle, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_intent_read(context, out, handle, timeoutns) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_intent_read(binding, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_intent_read(binding, out, handle, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
@@ -8996,18 +8995,18 @@ fn destack_os_intent_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         IntentEventReplayRecord::IntentCustomActionEvent(value) => {
-                            let value_native_intent_custom_action_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_custom_action_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_custom_action_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_custom_action_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_custom_action_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_custom_action_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_custom_action_event_metadata_sequence,
                                 source: value_native_intent_custom_action_event_metadata_source,
                             };
-                            let value_native_intent_custom_action_event_payload_action = context.store_string(&value.payload.action);
+                            let value_native_intent_custom_action_event_payload_action = binding.store_string(&value.payload.action);
                             let value_native_intent_custom_action_event_payload_url = if let Some(value) = value.payload.url {
-                                let value_native_intent_custom_action_event_payload_url_inner = context.store_string(&value);
+                                let value_native_intent_custom_action_event_payload_url_inner = binding.store_string(&value);
                                 Some(value_native_intent_custom_action_event_payload_url_inner)
                             } else {
                                 None
@@ -9016,13 +9015,13 @@ fn destack_os_intent_read_replay(
                             for value_native_intent_custom_action_event_payload_paths_item in value.payload.paths {
                                 let value_native_intent_custom_action_event_payload_paths_item_native = match value_native_intent_custom_action_event_payload_paths_item {
                                     fs::OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_item_native = value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_item;
                                             value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_values.push(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner = context.store_array(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_values);
+                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_values);
                                         let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner);
                                         let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes = fs::OsPathBytes {
                                             kind: value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_kind,
@@ -9031,13 +9030,13 @@ fn destack_os_intent_read_replay(
                                         fs::OsPath::OsPathBytes(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes)
                                     }
                                     fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_item_native = value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_item;
                                             value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_values.push(value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner = context.store_array(value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_values);
+                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_values);
                                         let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner);
                                         let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16 = fs::OsPathUtf16 {
                                             kind: value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_kind,
@@ -9048,15 +9047,15 @@ fn destack_os_intent_read_replay(
                                 };
                                 value_native_intent_custom_action_event_payload_paths_values.push(value_native_intent_custom_action_event_payload_paths_item_native);
                             }
-                            let value_native_intent_custom_action_event_payload_paths = context.store_array(value_native_intent_custom_action_event_payload_paths_values);
+                            let value_native_intent_custom_action_event_payload_paths = binding.store_array(value_native_intent_custom_action_event_payload_paths_values);
                             let value_native_intent_custom_action_event_payload_text = if let Some(value) = value.payload.text {
-                                let value_native_intent_custom_action_event_payload_text_inner = context.store_string(&value);
+                                let value_native_intent_custom_action_event_payload_text_inner = binding.store_string(&value);
                                 Some(value_native_intent_custom_action_event_payload_text_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_custom_action_event_payload_mime_type_inner = context.store_string(&value);
+                                let value_native_intent_custom_action_event_payload_mime_type_inner = binding.store_string(&value);
                                 Some(value_native_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -9076,10 +9075,10 @@ fn destack_os_intent_read_replay(
                             IntentEvent::IntentCustomActionEvent(value_native_intent_custom_action_event)
                         }
                         IntentEventReplayRecord::IntentOpenFileEvent(value) => {
-                            let value_native_intent_open_file_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_open_file_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_open_file_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_open_file_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_open_file_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_open_file_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_open_file_event_metadata_sequence,
@@ -9087,13 +9086,13 @@ fn destack_os_intent_read_replay(
                             };
                             let value_native_intent_open_file_event_payload_path = match value.payload.path {
                                 fs::OsPathReplayRecord::OsPathBytes(value) => {
-                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                     let mut value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                     for value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in value.bytes {
                                         let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item_native = value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item;
                                         value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item_native);
                                     }
-                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = context.store_array(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values);
+                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values);
                                     let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner);
                                     let value_native_intent_open_file_event_payload_path_os_path_bytes = fs::OsPathBytes {
                                         kind: value_native_intent_open_file_event_payload_path_os_path_bytes_kind,
@@ -9102,13 +9101,13 @@ fn destack_os_intent_read_replay(
                                     fs::OsPath::OsPathBytes(value_native_intent_open_file_event_payload_path_os_path_bytes)
                                 }
                                 fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                     let mut value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                     for value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_native = value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
                                         value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_native);
                                     }
-                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = context.store_array(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values);
+                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values);
                                     let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner);
                                     let value_native_intent_open_file_event_payload_path_os_path_utf16 = fs::OsPathUtf16 {
                                         kind: value_native_intent_open_file_event_payload_path_os_path_utf16_kind,
@@ -9118,7 +9117,7 @@ fn destack_os_intent_read_replay(
                                 }
                             };
                             let value_native_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_open_file_event_payload_mime_type_inner = context.store_string(&value);
+                                let value_native_intent_open_file_event_payload_mime_type_inner = binding.store_string(&value);
                                 Some(value_native_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -9135,16 +9134,16 @@ fn destack_os_intent_read_replay(
                             IntentEvent::IntentOpenFileEvent(value_native_intent_open_file_event)
                         }
                         IntentEventReplayRecord::IntentOpenUrlEvent(value) => {
-                            let value_native_intent_open_url_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_open_url_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_open_url_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_open_url_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_open_url_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_open_url_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_open_url_event_metadata_sequence,
                                 source: value_native_intent_open_url_event_metadata_source,
                             };
-                            let value_native_intent_open_url_event_payload_url = context.store_string(&value.payload.url);
+                            let value_native_intent_open_url_event_payload_url = binding.store_string(&value.payload.url);
                             let value_native_intent_open_url_event_payload = IntentOpenUrlPayload {
                                 url: value_native_intent_open_url_event_payload_url,
                             };
@@ -9156,10 +9155,10 @@ fn destack_os_intent_read_replay(
                             IntentEvent::IntentOpenUrlEvent(value_native_intent_open_url_event)
                         }
                         IntentEventReplayRecord::IntentShareFilesEvent(value) => {
-                            let value_native_intent_share_files_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_share_files_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_share_files_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_share_files_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_share_files_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_share_files_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_share_files_event_metadata_sequence,
@@ -9169,13 +9168,13 @@ fn destack_os_intent_read_replay(
                             for value_native_intent_share_files_event_payload_paths_item in value.payload.paths {
                                 let value_native_intent_share_files_event_payload_paths_item_native = match value_native_intent_share_files_event_payload_paths_item {
                                     fs::OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_item_native = value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_item;
                                             value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_values.push(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner = context.store_array(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_values);
+                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_values);
                                         let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner);
                                         let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes = fs::OsPathBytes {
                                             kind: value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_kind,
@@ -9184,13 +9183,13 @@ fn destack_os_intent_read_replay(
                                         fs::OsPath::OsPathBytes(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes)
                                     }
                                     fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_item_native = value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_item;
                                             value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_values.push(value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner = context.store_array(value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_values);
+                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_values);
                                         let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner);
                                         let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16 = fs::OsPathUtf16 {
                                             kind: value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_kind,
@@ -9201,9 +9200,9 @@ fn destack_os_intent_read_replay(
                                 };
                                 value_native_intent_share_files_event_payload_paths_values.push(value_native_intent_share_files_event_payload_paths_item_native);
                             }
-                            let value_native_intent_share_files_event_payload_paths = context.store_array(value_native_intent_share_files_event_payload_paths_values);
+                            let value_native_intent_share_files_event_payload_paths = binding.store_array(value_native_intent_share_files_event_payload_paths_values);
                             let value_native_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_share_files_event_payload_mime_type_inner = context.store_string(&value);
+                                let value_native_intent_share_files_event_payload_mime_type_inner = binding.store_string(&value);
                                 Some(value_native_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -9220,18 +9219,18 @@ fn destack_os_intent_read_replay(
                             IntentEvent::IntentShareFilesEvent(value_native_intent_share_files_event)
                         }
                         IntentEventReplayRecord::IntentShareTextEvent(value) => {
-                            let value_native_intent_share_text_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_share_text_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_share_text_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_share_text_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_share_text_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_share_text_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_share_text_event_metadata_sequence,
                                 source: value_native_intent_share_text_event_metadata_source,
                             };
-                            let value_native_intent_share_text_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_intent_share_text_event_payload_text = binding.store_string(&value.payload.text);
                             let value_native_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_share_text_event_payload_mime_type_inner = context.store_string(&value);
+                                let value_native_intent_share_text_event_payload_mime_type_inner = binding.store_string(&value);
                                 Some(value_native_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -9259,19 +9258,19 @@ fn destack_os_intent_read_replay(
 
 #[inline]
 fn destack_os_intent_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut IntentEvent,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_INTENT_TRY_READ,
-        context.replay_payload_for(OS_INTENT_TRY_READ)?,
+        binding.replay_payload_for(OS_INTENT_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_intent_try_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_intent_try_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_intent_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_intent_try_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -9559,18 +9558,18 @@ fn destack_os_intent_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         IntentEventReplayRecord::IntentCustomActionEvent(value) => {
-                            let value_native_intent_custom_action_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_custom_action_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_custom_action_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_custom_action_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_custom_action_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_custom_action_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_custom_action_event_metadata_sequence,
                                 source: value_native_intent_custom_action_event_metadata_source,
                             };
-                            let value_native_intent_custom_action_event_payload_action = context.store_string(&value.payload.action);
+                            let value_native_intent_custom_action_event_payload_action = binding.store_string(&value.payload.action);
                             let value_native_intent_custom_action_event_payload_url = if let Some(value) = value.payload.url {
-                                let value_native_intent_custom_action_event_payload_url_inner = context.store_string(&value);
+                                let value_native_intent_custom_action_event_payload_url_inner = binding.store_string(&value);
                                 Some(value_native_intent_custom_action_event_payload_url_inner)
                             } else {
                                 None
@@ -9579,13 +9578,13 @@ fn destack_os_intent_try_read_replay(
                             for value_native_intent_custom_action_event_payload_paths_item in value.payload.paths {
                                 let value_native_intent_custom_action_event_payload_paths_item_native = match value_native_intent_custom_action_event_payload_paths_item {
                                     fs::OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_item_native = value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_item;
                                             value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_values.push(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner = context.store_array(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_values);
+                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner_values);
                                         let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_bytes_inner);
                                         let value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes = fs::OsPathBytes {
                                             kind: value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes_kind,
@@ -9594,13 +9593,13 @@ fn destack_os_intent_try_read_replay(
                                         fs::OsPath::OsPathBytes(value_native_intent_custom_action_event_payload_paths_item_native_os_path_bytes)
                                     }
                                     fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_item_native = value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_item;
                                             value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_values.push(value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner = context.store_array(value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_values);
+                                        let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner_values);
                                         let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_utf16_inner);
                                         let value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16 = fs::OsPathUtf16 {
                                             kind: value_native_intent_custom_action_event_payload_paths_item_native_os_path_utf16_kind,
@@ -9611,15 +9610,15 @@ fn destack_os_intent_try_read_replay(
                                 };
                                 value_native_intent_custom_action_event_payload_paths_values.push(value_native_intent_custom_action_event_payload_paths_item_native);
                             }
-                            let value_native_intent_custom_action_event_payload_paths = context.store_array(value_native_intent_custom_action_event_payload_paths_values);
+                            let value_native_intent_custom_action_event_payload_paths = binding.store_array(value_native_intent_custom_action_event_payload_paths_values);
                             let value_native_intent_custom_action_event_payload_text = if let Some(value) = value.payload.text {
-                                let value_native_intent_custom_action_event_payload_text_inner = context.store_string(&value);
+                                let value_native_intent_custom_action_event_payload_text_inner = binding.store_string(&value);
                                 Some(value_native_intent_custom_action_event_payload_text_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_custom_action_event_payload_mime_type_inner = context.store_string(&value);
+                                let value_native_intent_custom_action_event_payload_mime_type_inner = binding.store_string(&value);
                                 Some(value_native_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -9639,10 +9638,10 @@ fn destack_os_intent_try_read_replay(
                             IntentEvent::IntentCustomActionEvent(value_native_intent_custom_action_event)
                         }
                         IntentEventReplayRecord::IntentOpenFileEvent(value) => {
-                            let value_native_intent_open_file_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_open_file_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_open_file_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_open_file_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_open_file_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_open_file_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_open_file_event_metadata_sequence,
@@ -9650,13 +9649,13 @@ fn destack_os_intent_try_read_replay(
                             };
                             let value_native_intent_open_file_event_payload_path = match value.payload.path {
                                 fs::OsPathReplayRecord::OsPathBytes(value) => {
-                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                     let mut value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                     for value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in value.bytes {
                                         let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item_native = value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item;
                                         value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item_native);
                                     }
-                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = context.store_array(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values);
+                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values);
                                     let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner);
                                     let value_native_intent_open_file_event_payload_path_os_path_bytes = fs::OsPathBytes {
                                         kind: value_native_intent_open_file_event_payload_path_os_path_bytes_kind,
@@ -9665,13 +9664,13 @@ fn destack_os_intent_try_read_replay(
                                     fs::OsPath::OsPathBytes(value_native_intent_open_file_event_payload_path_os_path_bytes)
                                 }
                                 fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                     let mut value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                     for value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_native = value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
                                         value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_native);
                                     }
-                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = context.store_array(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values);
+                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values);
                                     let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner);
                                     let value_native_intent_open_file_event_payload_path_os_path_utf16 = fs::OsPathUtf16 {
                                         kind: value_native_intent_open_file_event_payload_path_os_path_utf16_kind,
@@ -9681,7 +9680,7 @@ fn destack_os_intent_try_read_replay(
                                 }
                             };
                             let value_native_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_open_file_event_payload_mime_type_inner = context.store_string(&value);
+                                let value_native_intent_open_file_event_payload_mime_type_inner = binding.store_string(&value);
                                 Some(value_native_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -9698,16 +9697,16 @@ fn destack_os_intent_try_read_replay(
                             IntentEvent::IntentOpenFileEvent(value_native_intent_open_file_event)
                         }
                         IntentEventReplayRecord::IntentOpenUrlEvent(value) => {
-                            let value_native_intent_open_url_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_open_url_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_open_url_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_open_url_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_open_url_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_open_url_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_open_url_event_metadata_sequence,
                                 source: value_native_intent_open_url_event_metadata_source,
                             };
-                            let value_native_intent_open_url_event_payload_url = context.store_string(&value.payload.url);
+                            let value_native_intent_open_url_event_payload_url = binding.store_string(&value.payload.url);
                             let value_native_intent_open_url_event_payload = IntentOpenUrlPayload {
                                 url: value_native_intent_open_url_event_payload_url,
                             };
@@ -9719,10 +9718,10 @@ fn destack_os_intent_try_read_replay(
                             IntentEvent::IntentOpenUrlEvent(value_native_intent_open_url_event)
                         }
                         IntentEventReplayRecord::IntentShareFilesEvent(value) => {
-                            let value_native_intent_share_files_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_share_files_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_share_files_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_share_files_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_share_files_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_share_files_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_share_files_event_metadata_sequence,
@@ -9732,13 +9731,13 @@ fn destack_os_intent_try_read_replay(
                             for value_native_intent_share_files_event_payload_paths_item in value.payload.paths {
                                 let value_native_intent_share_files_event_payload_paths_item_native = match value_native_intent_share_files_event_payload_paths_item {
                                     fs::OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_item_native = value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_item;
                                             value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_values.push(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner = context.store_array(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_values);
+                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner_values);
                                         let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_bytes_inner);
                                         let value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes = fs::OsPathBytes {
                                             kind: value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes_kind,
@@ -9747,13 +9746,13 @@ fn destack_os_intent_try_read_replay(
                                         fs::OsPath::OsPathBytes(value_native_intent_share_files_event_payload_paths_item_native_os_path_bytes)
                                     }
                                     fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_item_native = value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_item;
                                             value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_values.push(value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner = context.store_array(value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_values);
+                                        let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner_values);
                                         let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_utf16_inner);
                                         let value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16 = fs::OsPathUtf16 {
                                             kind: value_native_intent_share_files_event_payload_paths_item_native_os_path_utf16_kind,
@@ -9764,9 +9763,9 @@ fn destack_os_intent_try_read_replay(
                                 };
                                 value_native_intent_share_files_event_payload_paths_values.push(value_native_intent_share_files_event_payload_paths_item_native);
                             }
-                            let value_native_intent_share_files_event_payload_paths = context.store_array(value_native_intent_share_files_event_payload_paths_values);
+                            let value_native_intent_share_files_event_payload_paths = binding.store_array(value_native_intent_share_files_event_payload_paths_values);
                             let value_native_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_share_files_event_payload_mime_type_inner = context.store_string(&value);
+                                let value_native_intent_share_files_event_payload_mime_type_inner = binding.store_string(&value);
                                 Some(value_native_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -9783,18 +9782,18 @@ fn destack_os_intent_try_read_replay(
                             IntentEvent::IntentShareFilesEvent(value_native_intent_share_files_event)
                         }
                         IntentEventReplayRecord::IntentShareTextEvent(value) => {
-                            let value_native_intent_share_text_event_kind = context.store_string(&value.kind);
+                            let value_native_intent_share_text_event_kind = binding.store_string(&value.kind);
                             let value_native_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_share_text_event_metadata_source = context.store_string(&value.metadata.source);
+                            let value_native_intent_share_text_event_metadata_source = binding.store_string(&value.metadata.source);
                             let value_native_intent_share_text_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_share_text_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_share_text_event_metadata_sequence,
                                 source: value_native_intent_share_text_event_metadata_source,
                             };
-                            let value_native_intent_share_text_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_intent_share_text_event_payload_text = binding.store_string(&value.payload.text);
                             let value_native_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_share_text_event_payload_mime_type_inner = context.store_string(&value);
+                                let value_native_intent_share_text_event_payload_mime_type_inner = binding.store_string(&value);
                                 Some(value_native_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -9822,21 +9821,21 @@ fn destack_os_intent_try_read_replay(
 
 #[inline]
 fn destack_os_lifecycle_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LIFECYCLE_CLOSE,
-        context.replay_payload_for(OS_LIFECYCLE_CLOSE)?,
+        binding.replay_payload_for(OS_LIFECYCLE_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_lifecycle_close(context, handle)
+                platform_native::destack_os_lifecycle_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_lifecycle_close(context, handle)
+                platform_simulation_native::destack_os_lifecycle_close(binding, handle)
             },
         },
         |result| {
@@ -9870,19 +9869,19 @@ fn destack_os_lifecycle_close_replay(
 
 #[inline]
 fn destack_os_lifecycle_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::LifecycleEventHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LIFECYCLE_OPEN,
-        context.replay_payload_for(OS_LIFECYCLE_OPEN)?,
+        binding.replay_payload_for(OS_LIFECYCLE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_lifecycle_open(context, out)
+                platform_native::destack_os_lifecycle_open(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_lifecycle_open(context, out)
+                platform_simulation_native::destack_os_lifecycle_open(binding, out)
             },
         },
         |result| {
@@ -9928,7 +9927,7 @@ fn destack_os_lifecycle_open_replay(
 
 #[inline]
 fn destack_os_lifecycle_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut LifecycleEvent,
     handle: resource::LifecycleEventHandle,
@@ -9936,12 +9935,12 @@ fn destack_os_lifecycle_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LIFECYCLE_READ,
-        context.replay_payload_for(OS_LIFECYCLE_READ)?,
+        binding.replay_payload_for(OS_LIFECYCLE_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_lifecycle_read(context, out, handle, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_lifecycle_read(context, out, handle, timeoutns) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_lifecycle_read(binding, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_lifecycle_read(binding, out, handle, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
@@ -10097,7 +10096,7 @@ fn destack_os_lifecycle_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         LifecycleEventReplayRecord::LifecycleBackgroundEvent(value) => {
-                            let value_native_lifecycle_background_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_background_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_background_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_background_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_background_event_metadata = LifecycleEventMetadata {
@@ -10111,7 +10110,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleBackgroundEvent(value_native_lifecycle_background_event)
                         }
                         LifecycleEventReplayRecord::LifecycleForegroundEvent(value) => {
-                            let value_native_lifecycle_foreground_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_foreground_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_foreground_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_foreground_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_foreground_event_metadata = LifecycleEventMetadata {
@@ -10125,7 +10124,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleForegroundEvent(value_native_lifecycle_foreground_event)
                         }
                         LifecycleEventReplayRecord::LifecycleLaunchEvent(value) => {
-                            let value_native_lifecycle_launch_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_launch_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_launch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_launch_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_launch_event_metadata = LifecycleEventMetadata {
@@ -10139,7 +10138,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleLaunchEvent(value_native_lifecycle_launch_event)
                         }
                         LifecycleEventReplayRecord::LifecycleLowMemoryEvent(value) => {
-                            let value_native_lifecycle_low_memory_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_low_memory_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_low_memory_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_low_memory_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_low_memory_event_metadata = LifecycleEventMetadata {
@@ -10158,7 +10157,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleLowMemoryEvent(value_native_lifecycle_low_memory_event)
                         }
                         LifecycleEventReplayRecord::LifecycleLowPowerModeChangedEvent(value) => {
-                            let value_native_lifecycle_low_power_mode_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_low_power_mode_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_low_power_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_low_power_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_low_power_mode_changed_event_metadata = LifecycleEventMetadata {
@@ -10177,7 +10176,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleLowPowerModeChangedEvent(value_native_lifecycle_low_power_mode_changed_event)
                         }
                         LifecycleEventReplayRecord::LifecyclePauseEvent(value) => {
-                            let value_native_lifecycle_pause_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_pause_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_pause_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_pause_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_pause_event_metadata = LifecycleEventMetadata {
@@ -10191,7 +10190,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecyclePauseEvent(value_native_lifecycle_pause_event)
                         }
                         LifecycleEventReplayRecord::LifecycleResumeEvent(value) => {
-                            let value_native_lifecycle_resume_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_resume_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_resume_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_resume_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_resume_event_metadata = LifecycleEventMetadata {
@@ -10205,7 +10204,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleResumeEvent(value_native_lifecycle_resume_event)
                         }
                         LifecycleEventReplayRecord::LifecycleTerminateEvent(value) => {
-                            let value_native_lifecycle_terminate_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_terminate_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_terminate_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_terminate_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_terminate_event_metadata = LifecycleEventMetadata {
@@ -10230,19 +10229,19 @@ fn destack_os_lifecycle_read_replay(
 
 #[inline]
 fn destack_os_lifecycle_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut LifecycleState,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LIFECYCLE_STATE,
-        context.replay_payload_for(OS_LIFECYCLE_STATE)?,
+        binding.replay_payload_for(OS_LIFECYCLE_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_lifecycle_state(context, out)
+                platform_native::destack_os_lifecycle_state(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_lifecycle_state(context, out)
+                platform_simulation_native::destack_os_lifecycle_state(binding, out)
             },
         },
         |result| {
@@ -10288,19 +10287,19 @@ fn destack_os_lifecycle_state_replay(
 
 #[inline]
 fn destack_os_lifecycle_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut LifecycleEvent,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LIFECYCLE_TRY_READ,
-        context.replay_payload_for(OS_LIFECYCLE_TRY_READ)?,
+        binding.replay_payload_for(OS_LIFECYCLE_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_lifecycle_try_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_lifecycle_try_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_lifecycle_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_lifecycle_try_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -10456,7 +10455,7 @@ fn destack_os_lifecycle_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         LifecycleEventReplayRecord::LifecycleBackgroundEvent(value) => {
-                            let value_native_lifecycle_background_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_background_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_background_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_background_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_background_event_metadata = LifecycleEventMetadata {
@@ -10470,7 +10469,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleBackgroundEvent(value_native_lifecycle_background_event)
                         }
                         LifecycleEventReplayRecord::LifecycleForegroundEvent(value) => {
-                            let value_native_lifecycle_foreground_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_foreground_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_foreground_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_foreground_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_foreground_event_metadata = LifecycleEventMetadata {
@@ -10484,7 +10483,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleForegroundEvent(value_native_lifecycle_foreground_event)
                         }
                         LifecycleEventReplayRecord::LifecycleLaunchEvent(value) => {
-                            let value_native_lifecycle_launch_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_launch_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_launch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_launch_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_launch_event_metadata = LifecycleEventMetadata {
@@ -10498,7 +10497,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleLaunchEvent(value_native_lifecycle_launch_event)
                         }
                         LifecycleEventReplayRecord::LifecycleLowMemoryEvent(value) => {
-                            let value_native_lifecycle_low_memory_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_low_memory_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_low_memory_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_low_memory_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_low_memory_event_metadata = LifecycleEventMetadata {
@@ -10517,7 +10516,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleLowMemoryEvent(value_native_lifecycle_low_memory_event)
                         }
                         LifecycleEventReplayRecord::LifecycleLowPowerModeChangedEvent(value) => {
-                            let value_native_lifecycle_low_power_mode_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_low_power_mode_changed_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_low_power_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_low_power_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_low_power_mode_changed_event_metadata = LifecycleEventMetadata {
@@ -10536,7 +10535,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleLowPowerModeChangedEvent(value_native_lifecycle_low_power_mode_changed_event)
                         }
                         LifecycleEventReplayRecord::LifecyclePauseEvent(value) => {
-                            let value_native_lifecycle_pause_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_pause_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_pause_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_pause_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_pause_event_metadata = LifecycleEventMetadata {
@@ -10550,7 +10549,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecyclePauseEvent(value_native_lifecycle_pause_event)
                         }
                         LifecycleEventReplayRecord::LifecycleResumeEvent(value) => {
-                            let value_native_lifecycle_resume_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_resume_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_resume_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_resume_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_resume_event_metadata = LifecycleEventMetadata {
@@ -10564,7 +10563,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleResumeEvent(value_native_lifecycle_resume_event)
                         }
                         LifecycleEventReplayRecord::LifecycleTerminateEvent(value) => {
-                            let value_native_lifecycle_terminate_event_kind = context.store_string(&value.kind);
+                            let value_native_lifecycle_terminate_event_kind = binding.store_string(&value.kind);
                             let value_native_lifecycle_terminate_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_terminate_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_terminate_event_metadata = LifecycleEventMetadata {
@@ -10589,19 +10588,19 @@ fn destack_os_lifecycle_try_read_replay(
 
 #[inline]
 fn destack_os_location_last_known_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut LocationSample,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LOCATION_LAST_KNOWN,
-        context.replay_payload_for(OS_LOCATION_LAST_KNOWN)?,
+        binding.replay_payload_for(OS_LOCATION_LAST_KNOWN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_location_last_known(context, out)
+                platform_native::destack_os_location_last_known(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_location_last_known(context, out)
+                platform_simulation_native::destack_os_location_last_known(binding, out)
             },
         },
         |result| {
@@ -10683,19 +10682,19 @@ fn destack_os_location_last_known_replay(
 
 #[inline]
 fn destack_os_location_services_enabled_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LOCATION_SERVICES_ENABLED,
-        context.replay_payload_for(OS_LOCATION_SERVICES_ENABLED)?,
+        binding.replay_payload_for(OS_LOCATION_SERVICES_ENABLED)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_location_services_enabled(context, out)
+                platform_native::destack_os_location_services_enabled(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_location_services_enabled(context, out)
+                platform_simulation_native::destack_os_location_services_enabled(binding, out)
             },
         },
         |result| {
@@ -10741,21 +10740,21 @@ fn destack_os_location_services_enabled_replay(
 
 #[inline]
 fn destack_os_location_watch_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LOCATION_WATCH_CLOSE,
-        context.replay_payload_for(OS_LOCATION_WATCH_CLOSE)?,
+        binding.replay_payload_for(OS_LOCATION_WATCH_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_location_watch_close(context, handle)
+                platform_native::destack_os_location_watch_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_location_watch_close(context, handle)
+                platform_simulation_native::destack_os_location_watch_close(binding, handle)
             },
         },
         |result| {
@@ -10789,22 +10788,22 @@ fn destack_os_location_watch_close_replay(
 
 #[inline]
 fn destack_os_location_watch_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::LocationWatchHandle,
     options: LocationWatchOptions,
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LOCATION_WATCH_OPEN,
-        context.replay_payload_for(OS_LOCATION_WATCH_OPEN)?,
+        binding.replay_payload_for(OS_LOCATION_WATCH_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_location_watch_open(context, out, options)
+                platform_native::destack_os_location_watch_open(binding, out, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_location_watch_open(context, out, options)
+                platform_simulation_native::destack_os_location_watch_open(binding, out, options)
             },
         },
         |result| {
@@ -10850,7 +10849,7 @@ fn destack_os_location_watch_open_replay(
 
 #[inline]
 fn destack_os_location_watch_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut LocationSample,
     handle: resource::LocationWatchHandle,
@@ -10858,16 +10857,16 @@ fn destack_os_location_watch_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LOCATION_WATCH_READ,
-        context.replay_payload_for(OS_LOCATION_WATCH_READ)?,
+        binding.replay_payload_for(OS_LOCATION_WATCH_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_location_watch_read(context, out, handle, timeoutns)
+                platform_native::destack_os_location_watch_read(binding, out, handle, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_location_watch_read(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
         },
@@ -10950,22 +10949,22 @@ fn destack_os_location_watch_read_replay(
 
 #[inline]
 fn destack_os_location_watch_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut LocationSample,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_LOCATION_WATCH_TRY_READ,
-        context.replay_payload_for(OS_LOCATION_WATCH_TRY_READ)?,
+        binding.replay_payload_for(OS_LOCATION_WATCH_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_location_watch_try_read(context, out, handle)
+                platform_native::destack_os_location_watch_try_read(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_location_watch_try_read(context, out, handle)
+                platform_simulation_native::destack_os_location_watch_try_read(binding, out, handle)
             },
         },
         |result| {
@@ -11047,7 +11046,7 @@ fn destack_os_location_watch_try_read_replay(
 
 #[inline]
 fn destack_os_mount_add_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     source: NativeStringRef,
     target: fs::OsPath,
@@ -11057,18 +11056,18 @@ fn destack_os_mount_add_replay(
 ) -> RuntimeResult<()> {
     let _ = (&source, &target, &filesystem, &flags, &data);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_MOUNT_ADD,
-        context.replay_payload_for(OS_MOUNT_ADD)?,
+        binding.replay_payload_for(OS_MOUNT_ADD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_mount_add(
-                    context, source, target, filesystem, flags, data,
+                    binding, source, target, filesystem, flags, data,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_mount_add(
-                    context, source, target, filesystem, flags, data,
+                    binding, source, target, filesystem, flags, data,
                 )
             },
         },
@@ -11103,16 +11102,16 @@ fn destack_os_mount_add_replay(
 
 #[inline]
 fn destack_os_mount_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<MountEntry>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_MOUNT_LIST,
-        context.replay_payload_for(OS_MOUNT_LIST)?,
+        binding.replay_payload_for(OS_MOUNT_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_mount_list(context, out) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_mount_list(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_mount_list(binding, out) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_mount_list(binding, out) },
         },
         |result| {
             if let Ok(()) = result {
@@ -11191,16 +11190,16 @@ fn destack_os_mount_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_source = context.store_string(&value_native_item.source);
+                        let value_native_item_native_source = binding.store_string(&value_native_item.source);
                         let value_native_item_native_target = match value_native_item.target {
                             fs::OsPathReplayRecord::OsPathBytes(value) => {
-                                let value_native_item_native_target_os_path_bytes_kind = context.store_string(&value.kind);
+                                let value_native_item_native_target_os_path_bytes_kind = binding.store_string(&value.kind);
                                 let mut value_native_item_native_target_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                 for value_native_item_native_target_os_path_bytes_bytes_inner_item in value.bytes {
                                     let value_native_item_native_target_os_path_bytes_bytes_inner_item_native = value_native_item_native_target_os_path_bytes_bytes_inner_item;
                                     value_native_item_native_target_os_path_bytes_bytes_inner_values.push(value_native_item_native_target_os_path_bytes_bytes_inner_item_native);
                                 }
-                                let value_native_item_native_target_os_path_bytes_bytes_inner = context.store_array(value_native_item_native_target_os_path_bytes_bytes_inner_values);
+                                let value_native_item_native_target_os_path_bytes_bytes_inner = binding.store_array(value_native_item_native_target_os_path_bytes_bytes_inner_values);
                                 let value_native_item_native_target_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_item_native_target_os_path_bytes_bytes_inner);
                                 let value_native_item_native_target_os_path_bytes = fs::OsPathBytes {
                                     kind: value_native_item_native_target_os_path_bytes_kind,
@@ -11209,13 +11208,13 @@ fn destack_os_mount_list_replay(
                                 fs::OsPath::OsPathBytes(value_native_item_native_target_os_path_bytes)
                             }
                             fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                                let value_native_item_native_target_os_path_utf16_kind = context.store_string(&value.kind);
+                                let value_native_item_native_target_os_path_utf16_kind = binding.store_string(&value.kind);
                                 let mut value_native_item_native_target_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                 for value_native_item_native_target_os_path_utf16_utf16_inner_item in value.utf16 {
                                     let value_native_item_native_target_os_path_utf16_utf16_inner_item_native = value_native_item_native_target_os_path_utf16_utf16_inner_item;
                                     value_native_item_native_target_os_path_utf16_utf16_inner_values.push(value_native_item_native_target_os_path_utf16_utf16_inner_item_native);
                                 }
-                                let value_native_item_native_target_os_path_utf16_utf16_inner = context.store_array(value_native_item_native_target_os_path_utf16_utf16_inner_values);
+                                let value_native_item_native_target_os_path_utf16_utf16_inner = binding.store_array(value_native_item_native_target_os_path_utf16_utf16_inner_values);
                                 let value_native_item_native_target_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_item_native_target_os_path_utf16_utf16_inner);
                                 let value_native_item_native_target_os_path_utf16 = fs::OsPathUtf16 {
                                     kind: value_native_item_native_target_os_path_utf16_kind,
@@ -11224,7 +11223,7 @@ fn destack_os_mount_list_replay(
                                 fs::OsPath::OsPathUtf16(value_native_item_native_target_os_path_utf16)
                             }
                         };
-                        let value_native_item_native_file_system = context.store_string(&value_native_item.file_system);
+                        let value_native_item_native_file_system = binding.store_string(&value_native_item.file_system);
                         let value_native_item_native_flags = value_native_item.flags;
                         let value_native_item_native = MountEntry {
                             source: value_native_item_native_source,
@@ -11234,7 +11233,7 @@ fn destack_os_mount_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -11246,22 +11245,22 @@ fn destack_os_mount_list_replay(
 
 #[inline]
 fn destack_os_mount_remove_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     target: fs::OsPath,
     flags: u64,
 ) -> RuntimeResult<()> {
     let _ = (&target, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_MOUNT_REMOVE,
-        context.replay_payload_for(OS_MOUNT_REMOVE)?,
+        binding.replay_payload_for(OS_MOUNT_REMOVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_mount_remove(context, target, flags)
+                platform_native::destack_os_mount_remove(binding, target, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_mount_remove(context, target, flags)
+                platform_simulation_native::destack_os_mount_remove(binding, target, flags)
             },
         },
         |result| {
@@ -11295,19 +11294,19 @@ fn destack_os_mount_remove_replay(
 
 #[inline]
 fn destack_os_network_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NetworkState,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_NETWORK_STATE,
-        context.replay_payload_for(OS_NETWORK_STATE)?,
+        binding.replay_payload_for(OS_NETWORK_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_network_state(context, out)
+                platform_native::destack_os_network_state(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_network_state(context, out)
+                platform_simulation_native::destack_os_network_state(binding, out)
             },
         },
         |result| {
@@ -11391,21 +11390,21 @@ fn destack_os_network_state_replay(
 
 #[inline]
 fn destack_os_network_watch_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_NETWORK_WATCH_CLOSE,
-        context.replay_payload_for(OS_NETWORK_WATCH_CLOSE)?,
+        binding.replay_payload_for(OS_NETWORK_WATCH_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_network_watch_close(context, handle)
+                platform_native::destack_os_network_watch_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_network_watch_close(context, handle)
+                platform_simulation_native::destack_os_network_watch_close(binding, handle)
             },
         },
         |result| {
@@ -11439,19 +11438,19 @@ fn destack_os_network_watch_close_replay(
 
 #[inline]
 fn destack_os_network_watch_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::NetworkWatchHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_NETWORK_WATCH_OPEN,
-        context.replay_payload_for(OS_NETWORK_WATCH_OPEN)?,
+        binding.replay_payload_for(OS_NETWORK_WATCH_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_network_watch_open(context, out)
+                platform_native::destack_os_network_watch_open(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_network_watch_open(context, out)
+                platform_simulation_native::destack_os_network_watch_open(binding, out)
             },
         },
         |result| {
@@ -11497,7 +11496,7 @@ fn destack_os_network_watch_open_replay(
 
 #[inline]
 fn destack_os_network_watch_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NetworkEvent,
     handle: resource::NetworkWatchHandle,
@@ -11505,16 +11504,16 @@ fn destack_os_network_watch_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_NETWORK_WATCH_READ,
-        context.replay_payload_for(OS_NETWORK_WATCH_READ)?,
+        binding.replay_payload_for(OS_NETWORK_WATCH_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_network_watch_read(context, out, handle, timeoutns)
+                platform_native::destack_os_network_watch_read(binding, out, handle, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_network_watch_read(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
         },
@@ -11615,22 +11614,22 @@ fn destack_os_network_watch_read_replay(
 
 #[inline]
 fn destack_os_network_watch_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NetworkEvent,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_NETWORK_WATCH_TRY_READ,
-        context.replay_payload_for(OS_NETWORK_WATCH_TRY_READ)?,
+        binding.replay_payload_for(OS_NETWORK_WATCH_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_network_watch_try_read(context, out, handle)
+                platform_native::destack_os_network_watch_try_read(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_network_watch_try_read(context, out, handle)
+                platform_simulation_native::destack_os_network_watch_try_read(binding, out, handle)
             },
         },
         |result| {
@@ -11730,16 +11729,16 @@ fn destack_os_network_watch_try_read_replay(
 
 #[inline]
 fn destack_os_notification_category_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NotificationCategory>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_NOTIFICATION_CATEGORY_LIST,
-        context.replay_payload_for(OS_NOTIFICATION_CATEGORY_LIST)?,
+        binding.replay_payload_for(OS_NOTIFICATION_CATEGORY_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_notification_category_list(context, out) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_notification_category_list(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_notification_category_list(binding, out) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_notification_category_list(binding, out) },
         },
         |result| {
             if let Ok(()) = result {
@@ -11804,16 +11803,16 @@ fn destack_os_notification_category_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_id = context.store_string(&value_native_item.id);
+                        let value_native_item_native_id = binding.store_string(&value_native_item.id);
                         let mut value_native_item_native_actions_values = Vec::with_capacity(value_native_item.actions.len());
                         for value_native_item_native_actions_item in value_native_item.actions {
-                            let value_native_item_native_actions_item_native_id = context.store_string(&value_native_item_native_actions_item.id);
-                            let value_native_item_native_actions_item_native_title = context.store_string(&value_native_item_native_actions_item.title);
+                            let value_native_item_native_actions_item_native_id = binding.store_string(&value_native_item_native_actions_item.id);
+                            let value_native_item_native_actions_item_native_title = binding.store_string(&value_native_item_native_actions_item.title);
                             let value_native_item_native_actions_item_native_style = value_native_item_native_actions_item.style;
                             let value_native_item_native_actions_item_native_foreground = value_native_item_native_actions_item.foreground;
                             let value_native_item_native_actions_item_native_authentication_required = value_native_item_native_actions_item.authentication_required;
-                            let value_native_item_native_actions_item_native_text_input_button_title = context.store_string(&value_native_item_native_actions_item.text_input_button_title);
-                            let value_native_item_native_actions_item_native_text_input_placeholder = context.store_string(&value_native_item_native_actions_item.text_input_placeholder);
+                            let value_native_item_native_actions_item_native_text_input_button_title = binding.store_string(&value_native_item_native_actions_item.text_input_button_title);
+                            let value_native_item_native_actions_item_native_text_input_placeholder = binding.store_string(&value_native_item_native_actions_item.text_input_placeholder);
                             let value_native_item_native_actions_item_native = NotificationAction {
                                 id: value_native_item_native_actions_item_native_id,
                                 title: value_native_item_native_actions_item_native_title,
@@ -11825,14 +11824,14 @@ fn destack_os_notification_category_list_replay(
                             };
                             value_native_item_native_actions_values.push(value_native_item_native_actions_item_native);
                         }
-                        let value_native_item_native_actions = context.store_array(value_native_item_native_actions_values);
+                        let value_native_item_native_actions = binding.store_array(value_native_item_native_actions_values);
                         let value_native_item_native = NotificationCategory {
                             id: value_native_item_native_id,
                             actions: value_native_item_native_actions,
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -11844,16 +11843,16 @@ fn destack_os_notification_category_list_replay(
 
 #[inline]
 fn destack_os_notification_pending_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NotificationScheduledDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_NOTIFICATION_PENDING_LIST,
-        context.replay_payload_for(OS_NOTIFICATION_PENDING_LIST)?,
+        binding.replay_payload_for(OS_NOTIFICATION_PENDING_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_notification_pending_list(context, out) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_notification_pending_list(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_notification_pending_list(binding, out) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_notification_pending_list(binding, out) },
         },
         |result| {
             if let Ok(()) = result {
@@ -11969,27 +11968,27 @@ fn destack_os_notification_pending_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_id = context.store_string(&value_native_item.id);
-                        let value_native_item_native_request_title = context.store_string(&value_native_item.request.title);
-                        let value_native_item_native_request_subtitle = context.store_string(&value_native_item.request.subtitle);
-                        let value_native_item_native_request_body = context.store_string(&value_native_item.request.body);
-                        let value_native_item_native_request_tag = context.store_string(&value_native_item.request.tag);
-                        let value_native_item_native_request_channel_id = context.store_string(&value_native_item.request.channel_id);
+                        let value_native_item_native_id = binding.store_string(&value_native_item.id);
+                        let value_native_item_native_request_title = binding.store_string(&value_native_item.request.title);
+                        let value_native_item_native_request_subtitle = binding.store_string(&value_native_item.request.subtitle);
+                        let value_native_item_native_request_body = binding.store_string(&value_native_item.request.body);
+                        let value_native_item_native_request_tag = binding.store_string(&value_native_item.request.tag);
+                        let value_native_item_native_request_channel_id = binding.store_string(&value_native_item.request.channel_id);
                         let value_native_item_native_request_priority = value_native_item.request.priority;
                         let value_native_item_native_request_badge_count = value_native_item.request.badge_count;
-                        let value_native_item_native_request_sound = context.store_string(&value_native_item.request.sound);
-                        let value_native_item_native_request_category_id = context.store_string(&value_native_item.request.category_id);
-                        let value_native_item_native_request_thread_id = context.store_string(&value_native_item.request.thread_id);
+                        let value_native_item_native_request_sound = binding.store_string(&value_native_item.request.sound);
+                        let value_native_item_native_request_category_id = binding.store_string(&value_native_item.request.category_id);
+                        let value_native_item_native_request_thread_id = binding.store_string(&value_native_item.request.thread_id);
                         let value_native_item_native_request_trigger = match value_native_item.request.trigger {
                             NotificationTriggerReplayRecord::NotificationCalendarDateTrigger(value) => {
-                                let value_native_item_native_request_trigger_notification_calendar_date_trigger_kind = context.store_string(&value.kind);
+                                let value_native_item_native_request_trigger_notification_calendar_date_trigger_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_year = value.calendar.year;
                                 let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_month = value.calendar.month;
                                 let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_day = value.calendar.day;
                                 let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_hour = value.calendar.hour;
                                 let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_minute = value.calendar.minute;
                                 let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_second = value.calendar.second;
-                                let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_time_zone = context.store_string(&value.calendar.time_zone);
+                                let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_time_zone = binding.store_string(&value.calendar.time_zone);
                                 let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_repeats = value.calendar.repeats;
                                 let value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar = NotificationCalendarTrigger {
                                     year: value_native_item_native_request_trigger_notification_calendar_date_trigger_calendar_year,
@@ -12008,14 +12007,14 @@ fn destack_os_notification_pending_list_replay(
                                 NotificationTrigger::NotificationCalendarDateTrigger(value_native_item_native_request_trigger_notification_calendar_date_trigger)
                             }
                             NotificationTriggerReplayRecord::NotificationImmediateTrigger(value) => {
-                                let value_native_item_native_request_trigger_notification_immediate_trigger_kind = context.store_string(&value.kind);
+                                let value_native_item_native_request_trigger_notification_immediate_trigger_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_request_trigger_notification_immediate_trigger = NotificationImmediateTrigger {
                                     kind: value_native_item_native_request_trigger_notification_immediate_trigger_kind,
                                 };
                                 NotificationTrigger::NotificationImmediateTrigger(value_native_item_native_request_trigger_notification_immediate_trigger)
                             }
                             NotificationTriggerReplayRecord::NotificationTimeIntervalTrigger(value) => {
-                                let value_native_item_native_request_trigger_notification_time_interval_trigger_kind = context.store_string(&value.kind);
+                                let value_native_item_native_request_trigger_notification_time_interval_trigger_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_request_trigger_notification_time_interval_trigger_interval_ns = value.interval_ns;
                                 let value_native_item_native_request_trigger_notification_time_interval_trigger = NotificationTimeIntervalTrigger {
                                     kind: value_native_item_native_request_trigger_notification_time_interval_trigger_kind,
@@ -12024,8 +12023,8 @@ fn destack_os_notification_pending_list_replay(
                                 NotificationTrigger::NotificationTimeIntervalTrigger(value_native_item_native_request_trigger_notification_time_interval_trigger)
                             }
                         };
-                        let value_native_item_native_request_action_id = context.store_string(&value_native_item.request.action_id);
-                        let value_native_item_native_request_data_json = context.store_string(&value_native_item.request.data_json);
+                        let value_native_item_native_request_action_id = binding.store_string(&value_native_item.request.action_id);
+                        let value_native_item_native_request_data_json = binding.store_string(&value_native_item.request.data_json);
                         let value_native_item_native_request = NotificationRequest {
                             title: value_native_item_native_request_title,
                             subtitle: value_native_item_native_request_subtitle,
@@ -12049,7 +12048,7 @@ fn destack_os_notification_pending_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -12061,19 +12060,19 @@ fn destack_os_notification_pending_list_replay(
 
 #[inline]
 fn destack_os_notification_permission_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NotificationPermissionState,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_NOTIFICATION_PERMISSION_STATE,
-        context.replay_payload_for(OS_NOTIFICATION_PERMISSION_STATE)?,
+        binding.replay_payload_for(OS_NOTIFICATION_PERMISSION_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_notification_permission_state(context, out)
+                platform_native::destack_os_notification_permission_state(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_notification_permission_state(context, out)
+                platform_simulation_native::destack_os_notification_permission_state(binding, out)
             },
         },
         |result| {
@@ -12119,22 +12118,22 @@ fn destack_os_notification_permission_state_replay(
 
 #[inline]
 fn destack_os_permission_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut PermissionState,
     permission: Permission,
 ) -> RuntimeResult<()> {
     let _ = &permission;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_PERMISSION_STATE,
-        context.replay_payload_for(OS_PERMISSION_STATE)?,
+        binding.replay_payload_for(OS_PERMISSION_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_permission_state(context, out, permission)
+                platform_native::destack_os_permission_state(binding, out, permission)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_permission_state(context, out, permission)
+                platform_simulation_native::destack_os_permission_state(binding, out, permission)
             },
         },
         |result| {
@@ -12180,23 +12179,23 @@ fn destack_os_permission_state_replay(
 
 #[inline]
 fn destack_os_permission_state_many_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<PermissionEntry>,
     permissions: NativeArray<Permission>,
 ) -> RuntimeResult<()> {
     let _ = &permissions;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_PERMISSION_STATE_MANY,
-        context.replay_payload_for(OS_PERMISSION_STATE_MANY)?,
+        binding.replay_payload_for(OS_PERMISSION_STATE_MANY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_permission_state_many(context, out, permissions)
+                platform_native::destack_os_permission_state_many(binding, out, permissions)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_os_permission_state_many(
-                    context,
+                    binding,
                     out,
                     permissions,
                 )
@@ -12252,7 +12251,7 @@ fn destack_os_permission_state_many_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -12266,17 +12265,17 @@ fn destack_os_permission_state_many_replay(
 
 #[inline]
 fn destack_os_power_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut PowerState,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         OS_POWER_STATE,
-        context.replay_payload_for(OS_POWER_STATE)?,
+        binding.replay_payload_for(OS_POWER_STATE)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_power_state(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_power_state(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_power_state(context, out)
+                platform_simulation_native::destack_os_power_state(binding, out)
             },
         },
         |result| {
@@ -14407,21 +14406,21 @@ pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
 /// VM replay implementations for os bindings.
 #[inline]
 fn destack_os_background_event_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_BACKGROUND_EVENT_CLOSE,
-        runtime.replay_payload_for(OS_BACKGROUND_EVENT_CLOSE)?,
+        binding.replay_payload_for(OS_BACKGROUND_EVENT_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_background_event_close(runtime, context, handle)
+                platform_vm::destack_os_background_event_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_background_event_close(runtime, context, handle)
+                platform_simulation_vm::destack_os_background_event_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -14459,21 +14458,21 @@ fn destack_os_background_event_close_vm_replay(
 
 #[inline]
 fn destack_os_background_event_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     options: BackgroundEventOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_BACKGROUND_EVENT_OPEN,
-        runtime.replay_payload_for(OS_BACKGROUND_EVENT_OPEN)?,
+        binding.replay_payload_for(OS_BACKGROUND_EVENT_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_background_event_open(runtime, context, options)
+                platform_vm::destack_os_background_event_open(binding, context, options)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_background_event_open(runtime, context, options)
+                platform_simulation_vm::destack_os_background_event_open(binding, context, options)
             }
         },
         |context, result| {
@@ -14515,20 +14514,20 @@ fn destack_os_background_event_open_vm_replay(
 
 #[inline]
 fn destack_os_background_event_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_BACKGROUND_EVENT_READ,
-        runtime.replay_payload_for(OS_BACKGROUND_EVENT_READ)?,
+        binding.replay_payload_for(OS_BACKGROUND_EVENT_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_background_event_read(runtime, context, handle, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_background_event_read(runtime, context, handle, timeoutns),
+                RuntimeWorld::Host => platform_vm::destack_os_background_event_read(binding, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_background_event_read(binding, context, handle, timeoutns),
             }
         },
         |context, result| {
@@ -14678,19 +14677,19 @@ fn destack_os_background_event_read_vm_replay(
 
 #[inline]
 fn destack_os_background_event_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_BACKGROUND_EVENT_TRY_READ,
-        runtime.replay_payload_for(OS_BACKGROUND_EVENT_TRY_READ)?,
+        binding.replay_payload_for(OS_BACKGROUND_EVENT_TRY_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_background_event_try_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_background_event_try_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_os_background_event_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_background_event_try_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -14840,18 +14839,18 @@ fn destack_os_background_event_try_read_vm_replay(
 
 #[inline]
 fn destack_os_background_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_BACKGROUND_LIST,
-        runtime.replay_payload_for(OS_BACKGROUND_LIST)?,
+        binding.replay_payload_for(OS_BACKGROUND_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_background_list(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_background_list(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_background_list(runtime, context)
+                platform_simulation_vm::destack_os_background_list(binding, context)
             }
         },
         |context, result| {
@@ -15073,18 +15072,18 @@ fn destack_os_background_list_vm_replay(
 
 #[inline]
 fn destack_os_background_status_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_BACKGROUND_STATUS,
-        runtime.replay_payload_for(OS_BACKGROUND_STATUS)?,
+        binding.replay_payload_for(OS_BACKGROUND_STATUS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_background_status(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_background_status(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_background_status(runtime, context)
+                platform_simulation_vm::destack_os_background_status(binding, context)
             }
         },
         |context, result| {
@@ -15126,18 +15125,18 @@ fn destack_os_background_status_vm_replay(
 
 #[inline]
 fn destack_os_clipboard_has_text_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_CLIPBOARD_HAS_TEXT,
-        runtime.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
+        binding.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_clipboard_has_text(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_clipboard_has_text(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_clipboard_has_text(runtime, context)
+                platform_simulation_vm::destack_os_clipboard_has_text(binding, context)
             }
         },
         |context, result| {
@@ -15179,21 +15178,21 @@ fn destack_os_clipboard_has_text_vm_replay(
 
 #[inline]
 fn destack_os_clipboard_read_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     format: ClipboardBinaryFormat,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_CLIPBOARD_READ_BYTES,
-        runtime.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
+        binding.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_clipboard_read_bytes(runtime, context, format)
+                platform_vm::destack_os_clipboard_read_bytes(binding, context, format)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_clipboard_read_bytes(runtime, context, format)
+                platform_simulation_vm::destack_os_clipboard_read_bytes(binding, context, format)
             }
         },
         |context, result| {
@@ -15235,18 +15234,18 @@ fn destack_os_clipboard_read_bytes_vm_replay(
 
 #[inline]
 fn destack_os_clipboard_read_text_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_CLIPBOARD_READ_TEXT,
-        runtime.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
+        binding.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_clipboard_read_text(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_clipboard_read_text(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_clipboard_read_text(runtime, context)
+                platform_simulation_vm::destack_os_clipboard_read_text(binding, context)
             }
         },
         |context, result| {
@@ -15294,18 +15293,18 @@ fn destack_os_clipboard_read_text_vm_replay(
 
 #[inline]
 fn destack_os_clipboard_sequence_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_CLIPBOARD_SEQUENCE,
-        runtime.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
+        binding.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_clipboard_sequence(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_clipboard_sequence(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_clipboard_sequence(runtime, context)
+                platform_simulation_vm::destack_os_clipboard_sequence(binding, context)
             }
         },
         |context, result| {
@@ -15347,18 +15346,18 @@ fn destack_os_clipboard_sequence_vm_replay(
 
 #[inline]
 fn destack_os_host_identity_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_HOST_IDENTITY,
-        runtime.replay_payload_for(OS_HOST_IDENTITY)?,
+        binding.replay_payload_for(OS_HOST_IDENTITY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_host_identity(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_host_identity(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_host_identity(runtime, context)
+                platform_simulation_vm::destack_os_host_identity(binding, context)
             }
         },
         |context, result| {
@@ -15444,18 +15443,18 @@ fn destack_os_host_identity_vm_replay(
 
 #[inline]
 fn destack_os_info_boot_time_unix_ns_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INFO_BOOT_TIME_UNIX_NS,
-        runtime.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
+        binding.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_boot_time_unix_ns(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_boot_time_unix_ns(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_boot_time_unix_ns(runtime, context)
+                platform_simulation_vm::destack_os_boot_time_unix_ns(binding, context)
             }
         },
         |context, result| {
@@ -15497,18 +15496,18 @@ fn destack_os_info_boot_time_unix_ns_vm_replay(
 
 #[inline]
 fn destack_os_info_load_average_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INFO_LOAD_AVERAGE,
-        runtime.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
+        binding.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_load_average(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_load_average(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_load_average(runtime, context)
+                platform_simulation_vm::destack_os_load_average(binding, context)
             }
         },
         |context, result| {
@@ -15564,18 +15563,18 @@ fn destack_os_info_load_average_vm_replay(
 
 #[inline]
 fn destack_os_info_system_snapshot_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INFO_SYSTEM_SNAPSHOT,
-        runtime.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
+        binding.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_system_snapshot(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_system_snapshot(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_system_snapshot(runtime, context)
+                platform_simulation_vm::destack_os_system_snapshot(binding, context)
             }
         },
         |context, result| {
@@ -15635,18 +15634,18 @@ fn destack_os_info_system_snapshot_vm_replay(
 
 #[inline]
 fn destack_os_info_uptime_ns_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INFO_UPTIME_NS,
-        runtime.replay_payload_for(OS_INFO_UPTIME_NS)?,
+        binding.replay_payload_for(OS_INFO_UPTIME_NS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_uptime_ns(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_uptime_ns(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_uptime_ns(runtime, context)
+                platform_simulation_vm::destack_os_uptime_ns(binding, context)
             }
         },
         |context, result| {
@@ -15688,21 +15687,21 @@ fn destack_os_info_uptime_ns_vm_replay(
 
 #[inline]
 fn destack_os_intent_can_open_url_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     url: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INTENT_CAN_OPEN_URL,
-        runtime.replay_payload_for(OS_INTENT_CAN_OPEN_URL)?,
+        binding.replay_payload_for(OS_INTENT_CAN_OPEN_URL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_intent_can_open_url(runtime, context, url)
+                platform_vm::destack_os_intent_can_open_url(binding, context, url)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_intent_can_open_url(runtime, context, url)
+                platform_simulation_vm::destack_os_intent_can_open_url(binding, context, url)
             }
         },
         |context, result| {
@@ -15744,19 +15743,19 @@ fn destack_os_intent_can_open_url_vm_replay(
 
 #[inline]
 fn destack_os_intent_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INTENT_CLOSE,
-        runtime.replay_payload_for(OS_INTENT_CLOSE)?,
+        binding.replay_payload_for(OS_INTENT_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_intent_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_os_intent_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_intent_close(runtime, context, handle)
+                platform_simulation_vm::destack_os_intent_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -15794,19 +15793,19 @@ fn destack_os_intent_close_vm_replay(
 
 #[inline]
 fn destack_os_intent_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     options: IntentOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INTENT_OPEN,
-        runtime.replay_payload_for(OS_INTENT_OPEN)?,
+        binding.replay_payload_for(OS_INTENT_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_intent_open(runtime, context, options),
+            RuntimeWorld::Host => platform_vm::destack_os_intent_open(binding, context, options),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_intent_open(runtime, context, options)
+                platform_simulation_vm::destack_os_intent_open(binding, context, options)
             }
         },
         |context, result| {
@@ -15848,20 +15847,20 @@ fn destack_os_intent_open_vm_replay(
 
 #[inline]
 fn destack_os_intent_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::IntentHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INTENT_READ,
-        runtime.replay_payload_for(OS_INTENT_READ)?,
+        binding.replay_payload_for(OS_INTENT_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_intent_read(runtime, context, handle, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_intent_read(runtime, context, handle, timeoutns),
+                RuntimeWorld::Host => platform_vm::destack_os_intent_read(binding, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_intent_read(binding, context, handle, timeoutns),
             }
         },
         |context, result| {
@@ -16495,19 +16494,19 @@ fn destack_os_intent_read_vm_replay(
 
 #[inline]
 fn destack_os_intent_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_INTENT_TRY_READ,
-        runtime.replay_payload_for(OS_INTENT_TRY_READ)?,
+        binding.replay_payload_for(OS_INTENT_TRY_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_intent_try_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_intent_try_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_os_intent_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_intent_try_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -17141,19 +17140,19 @@ fn destack_os_intent_try_read_vm_replay(
 
 #[inline]
 fn destack_os_lifecycle_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LIFECYCLE_CLOSE,
-        runtime.replay_payload_for(OS_LIFECYCLE_CLOSE)?,
+        binding.replay_payload_for(OS_LIFECYCLE_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_lifecycle_close(runtime, context, handle)
+                platform_simulation_vm::destack_os_lifecycle_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -17191,18 +17190,18 @@ fn destack_os_lifecycle_close_vm_replay(
 
 #[inline]
 fn destack_os_lifecycle_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LIFECYCLE_OPEN,
-        runtime.replay_payload_for(OS_LIFECYCLE_OPEN)?,
+        binding.replay_payload_for(OS_LIFECYCLE_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_open(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_open(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_lifecycle_open(runtime, context)
+                platform_simulation_vm::destack_os_lifecycle_open(binding, context)
             }
         },
         |context, result| {
@@ -17244,20 +17243,20 @@ fn destack_os_lifecycle_open_vm_replay(
 
 #[inline]
 fn destack_os_lifecycle_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LIFECYCLE_READ,
-        runtime.replay_payload_for(OS_LIFECYCLE_READ)?,
+        binding.replay_payload_for(OS_LIFECYCLE_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_lifecycle_read(runtime, context, handle, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_lifecycle_read(runtime, context, handle, timeoutns),
+                RuntimeWorld::Host => platform_vm::destack_os_lifecycle_read(binding, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_lifecycle_read(binding, context, handle, timeoutns),
             }
         },
         |context, result| {
@@ -17579,18 +17578,18 @@ fn destack_os_lifecycle_read_vm_replay(
 
 #[inline]
 fn destack_os_lifecycle_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LIFECYCLE_STATE,
-        runtime.replay_payload_for(OS_LIFECYCLE_STATE)?,
+        binding.replay_payload_for(OS_LIFECYCLE_STATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_state(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_state(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_lifecycle_state(runtime, context)
+                platform_simulation_vm::destack_os_lifecycle_state(binding, context)
             }
         },
         |context, result| {
@@ -17632,19 +17631,19 @@ fn destack_os_lifecycle_state_vm_replay(
 
 #[inline]
 fn destack_os_lifecycle_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LIFECYCLE_TRY_READ,
-        runtime.replay_payload_for(OS_LIFECYCLE_TRY_READ)?,
+        binding.replay_payload_for(OS_LIFECYCLE_TRY_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_lifecycle_try_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_lifecycle_try_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_os_lifecycle_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_lifecycle_try_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -17966,18 +17965,18 @@ fn destack_os_lifecycle_try_read_vm_replay(
 
 #[inline]
 fn destack_os_location_last_known_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LOCATION_LAST_KNOWN,
-        runtime.replay_payload_for(OS_LOCATION_LAST_KNOWN)?,
+        binding.replay_payload_for(OS_LOCATION_LAST_KNOWN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_location_last_known(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_location_last_known(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_location_last_known(runtime, context)
+                platform_simulation_vm::destack_os_location_last_known(binding, context)
             }
         },
         |context, result| {
@@ -18055,20 +18054,20 @@ fn destack_os_location_last_known_vm_replay(
 
 #[inline]
 fn destack_os_location_services_enabled_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LOCATION_SERVICES_ENABLED,
-        runtime.replay_payload_for(OS_LOCATION_SERVICES_ENABLED)?,
+        binding.replay_payload_for(OS_LOCATION_SERVICES_ENABLED)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_location_services_enabled(runtime, context)
+                platform_vm::destack_os_location_services_enabled(binding, context)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_location_services_enabled(runtime, context)
+                platform_simulation_vm::destack_os_location_services_enabled(binding, context)
             }
         },
         |context, result| {
@@ -18110,21 +18109,21 @@ fn destack_os_location_services_enabled_vm_replay(
 
 #[inline]
 fn destack_os_location_watch_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LOCATION_WATCH_CLOSE,
-        runtime.replay_payload_for(OS_LOCATION_WATCH_CLOSE)?,
+        binding.replay_payload_for(OS_LOCATION_WATCH_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_location_watch_close(runtime, context, handle)
+                platform_vm::destack_os_location_watch_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_location_watch_close(runtime, context, handle)
+                platform_simulation_vm::destack_os_location_watch_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -18162,21 +18161,21 @@ fn destack_os_location_watch_close_vm_replay(
 
 #[inline]
 fn destack_os_location_watch_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     options: LocationWatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LOCATION_WATCH_OPEN,
-        runtime.replay_payload_for(OS_LOCATION_WATCH_OPEN)?,
+        binding.replay_payload_for(OS_LOCATION_WATCH_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_location_watch_open(runtime, context, options)
+                platform_vm::destack_os_location_watch_open(binding, context, options)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_location_watch_open(runtime, context, options)
+                platform_simulation_vm::destack_os_location_watch_open(binding, context, options)
             }
         },
         |context, result| {
@@ -18218,22 +18217,22 @@ fn destack_os_location_watch_open_vm_replay(
 
 #[inline]
 fn destack_os_location_watch_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LOCATION_WATCH_READ,
-        runtime.replay_payload_for(OS_LOCATION_WATCH_READ)?,
+        binding.replay_payload_for(OS_LOCATION_WATCH_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_location_watch_read(runtime, context, handle, timeoutns)
+                platform_vm::destack_os_location_watch_read(binding, context, handle, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_os_location_watch_read(
-                runtime, context, handle, timeoutns,
+                binding, context, handle, timeoutns,
             ),
         },
         |context, result| {
@@ -18311,21 +18310,21 @@ fn destack_os_location_watch_read_vm_replay(
 
 #[inline]
 fn destack_os_location_watch_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_LOCATION_WATCH_TRY_READ,
-        runtime.replay_payload_for(OS_LOCATION_WATCH_TRY_READ)?,
+        binding.replay_payload_for(OS_LOCATION_WATCH_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_location_watch_try_read(runtime, context, handle)
+                platform_vm::destack_os_location_watch_try_read(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_location_watch_try_read(runtime, context, handle)
+                platform_simulation_vm::destack_os_location_watch_try_read(binding, context, handle)
             }
         },
         |context, result| {
@@ -18403,7 +18402,7 @@ fn destack_os_location_watch_try_read_vm_replay(
 
 #[inline]
 fn destack_os_mount_add_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     source: vm::StringHandle,
@@ -18412,16 +18411,16 @@ fn destack_os_mount_add_vm_replay(
     flags: u64,
     data: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_MOUNT_ADD,
-        runtime.replay_payload_for(OS_MOUNT_ADD)?,
+        binding.replay_payload_for(OS_MOUNT_ADD)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_os_mount_add(
-                runtime, context, source, target, filesystem, flags, data,
+                binding, context, source, target, filesystem, flags, data,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_os_mount_add(
-                runtime, context, source, target, filesystem, flags, data,
+                binding, context, source, target, filesystem, flags, data,
             ),
         },
         |context, result| {
@@ -18459,18 +18458,18 @@ fn destack_os_mount_add_vm_replay(
 
 #[inline]
 fn destack_os_mount_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_MOUNT_LIST,
-        runtime.replay_payload_for(OS_MOUNT_LIST)?,
+        binding.replay_payload_for(OS_MOUNT_LIST)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_mount_list(runtime, context),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_mount_list(runtime, context),
+                RuntimeWorld::Host => platform_vm::destack_os_mount_list(binding, context),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_mount_list(binding, context),
             }
         },
         |context, result| {
@@ -18630,22 +18629,22 @@ fn destack_os_mount_list_vm_replay(
 
 #[inline]
 fn destack_os_mount_remove_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     target: fs::OsPathVm,
     flags: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_MOUNT_REMOVE,
-        runtime.replay_payload_for(OS_MOUNT_REMOVE)?,
+        binding.replay_payload_for(OS_MOUNT_REMOVE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_mount_remove(runtime, context, target, flags)
+                platform_vm::destack_os_mount_remove(binding, context, target, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_mount_remove(runtime, context, target, flags)
+                platform_simulation_vm::destack_os_mount_remove(binding, context, target, flags)
             }
         },
         |context, result| {
@@ -18683,18 +18682,18 @@ fn destack_os_mount_remove_vm_replay(
 
 #[inline]
 fn destack_os_network_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_NETWORK_STATE,
-        runtime.replay_payload_for(OS_NETWORK_STATE)?,
+        binding.replay_payload_for(OS_NETWORK_STATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_network_state(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_network_state(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_network_state(runtime, context)
+                platform_simulation_vm::destack_os_network_state(binding, context)
             }
         },
         |context, result| {
@@ -18774,21 +18773,21 @@ fn destack_os_network_state_vm_replay(
 
 #[inline]
 fn destack_os_network_watch_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_NETWORK_WATCH_CLOSE,
-        runtime.replay_payload_for(OS_NETWORK_WATCH_CLOSE)?,
+        binding.replay_payload_for(OS_NETWORK_WATCH_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_network_watch_close(runtime, context, handle)
+                platform_vm::destack_os_network_watch_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_network_watch_close(runtime, context, handle)
+                platform_simulation_vm::destack_os_network_watch_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -18826,18 +18825,18 @@ fn destack_os_network_watch_close_vm_replay(
 
 #[inline]
 fn destack_os_network_watch_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_NETWORK_WATCH_OPEN,
-        runtime.replay_payload_for(OS_NETWORK_WATCH_OPEN)?,
+        binding.replay_payload_for(OS_NETWORK_WATCH_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_network_watch_open(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_network_watch_open(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_network_watch_open(runtime, context)
+                platform_simulation_vm::destack_os_network_watch_open(binding, context)
             }
         },
         |context, result| {
@@ -18879,22 +18878,22 @@ fn destack_os_network_watch_open_vm_replay(
 
 #[inline]
 fn destack_os_network_watch_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_NETWORK_WATCH_READ,
-        runtime.replay_payload_for(OS_NETWORK_WATCH_READ)?,
+        binding.replay_payload_for(OS_NETWORK_WATCH_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_network_watch_read(runtime, context, handle, timeoutns)
+                platform_vm::destack_os_network_watch_read(binding, context, handle, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_os_network_watch_read(
-                runtime, context, handle, timeoutns,
+                binding, context, handle, timeoutns,
             ),
         },
         |context, result| {
@@ -18990,21 +18989,21 @@ fn destack_os_network_watch_read_vm_replay(
 
 #[inline]
 fn destack_os_network_watch_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_NETWORK_WATCH_TRY_READ,
-        runtime.replay_payload_for(OS_NETWORK_WATCH_TRY_READ)?,
+        binding.replay_payload_for(OS_NETWORK_WATCH_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_network_watch_try_read(runtime, context, handle)
+                platform_vm::destack_os_network_watch_try_read(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_network_watch_try_read(runtime, context, handle)
+                platform_simulation_vm::destack_os_network_watch_try_read(binding, context, handle)
             }
         },
         |context, result| {
@@ -19100,18 +19099,18 @@ fn destack_os_network_watch_try_read_vm_replay(
 
 #[inline]
 fn destack_os_notification_category_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_NOTIFICATION_CATEGORY_LIST,
-        runtime.replay_payload_for(OS_NOTIFICATION_CATEGORY_LIST)?,
+        binding.replay_payload_for(OS_NOTIFICATION_CATEGORY_LIST)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_notification_category_list(runtime, context),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_category_list(runtime, context),
+                RuntimeWorld::Host => platform_vm::destack_os_notification_category_list(binding, context),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_category_list(binding, context),
             }
         },
         |context, result| {
@@ -19274,18 +19273,18 @@ fn destack_os_notification_category_list_vm_replay(
 
 #[inline]
 fn destack_os_notification_pending_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_NOTIFICATION_PENDING_LIST,
-        runtime.replay_payload_for(OS_NOTIFICATION_PENDING_LIST)?,
+        binding.replay_payload_for(OS_NOTIFICATION_PENDING_LIST)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_os_notification_pending_list(runtime, context),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_pending_list(runtime, context),
+                RuntimeWorld::Host => platform_vm::destack_os_notification_pending_list(binding, context),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_pending_list(binding, context),
             }
         },
         |context, result| {
@@ -19602,20 +19601,20 @@ fn destack_os_notification_pending_list_vm_replay(
 
 #[inline]
 fn destack_os_notification_permission_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_NOTIFICATION_PERMISSION_STATE,
-        runtime.replay_payload_for(OS_NOTIFICATION_PERMISSION_STATE)?,
+        binding.replay_payload_for(OS_NOTIFICATION_PERMISSION_STATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_notification_permission_state(runtime, context)
+                platform_vm::destack_os_notification_permission_state(binding, context)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_notification_permission_state(runtime, context)
+                platform_simulation_vm::destack_os_notification_permission_state(binding, context)
             }
         },
         |context, result| {
@@ -19657,21 +19656,21 @@ fn destack_os_notification_permission_state_vm_replay(
 
 #[inline]
 fn destack_os_permission_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     permission: Permission,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_PERMISSION_STATE,
-        runtime.replay_payload_for(OS_PERMISSION_STATE)?,
+        binding.replay_payload_for(OS_PERMISSION_STATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_permission_state(runtime, context, permission)
+                platform_vm::destack_os_permission_state(binding, context, permission)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_permission_state(runtime, context, permission)
+                platform_simulation_vm::destack_os_permission_state(binding, context, permission)
             }
         },
         |context, result| {
@@ -19713,21 +19712,21 @@ fn destack_os_permission_state_vm_replay(
 
 #[inline]
 fn destack_os_permission_state_many_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_PERMISSION_STATE_MANY,
-        runtime.replay_payload_for(OS_PERMISSION_STATE_MANY)?,
+        binding.replay_payload_for(OS_PERMISSION_STATE_MANY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_os_permission_state_many(runtime, context, permissions)
+                platform_vm::destack_os_permission_state_many(binding, context, permissions)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_os_permission_state_many(
-                runtime,
+                binding,
                 context,
                 permissions,
             ),
@@ -19877,18 +19876,18 @@ fn destack_os_permission_state_many_vm_replay(
 
 #[inline]
 fn destack_os_power_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         OS_POWER_STATE,
-        runtime.replay_payload_for(OS_POWER_STATE)?,
+        binding.replay_payload_for(OS_POWER_STATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_power_state(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_power_state(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_power_state(runtime, context)
+                platform_simulation_vm::destack_os_power_state(binding, context)
             }
         },
         |context, result| {
@@ -19936,7 +19935,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_COMPLETE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (executionid, argument_result) =
                         decode_destack_os_background_complete_args(context, args)?;
@@ -19944,17 +19943,17 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_BACKGROUND_COMPLETE)?;
+                            binding.on_before_binding_resolve_world(OS_BACKGROUND_COMPLETE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_background_complete(
-                                runtime,
+                                binding,
                                 context,
                                 executionid,
                                 argument_result,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_background_complete(
-                                    runtime,
+                                    binding,
                                     context,
                                     executionid,
                                     argument_result,
@@ -19974,14 +19973,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_EVENT_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_background_event_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_CLOSE)?;
-                    destack_os_background_event_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_CLOSE)?;
+                    destack_os_background_event_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -19993,14 +19992,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_EVENT_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (options,) = decode_destack_os_background_event_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_OPEN)?;
-                    destack_os_background_event_open_vm_replay(runtime, context, world, options)
+                        binding.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_OPEN)?;
+                    destack_os_background_event_open_vm_replay(binding, context, world, options)
                 })
                 .map_err(Into::into)
             }
@@ -20012,16 +20011,16 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_EVENT_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_os_background_event_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_READ)?;
+                        binding.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_READ)?;
                     destack_os_background_event_read_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -20034,15 +20033,15 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_EVENT_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_os_background_event_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_TRY_READ)?;
-                    destack_os_background_event_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_TRY_READ)?;
+                    destack_os_background_event_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -20054,11 +20053,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_LIST)?;
-                    destack_os_background_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_BACKGROUND_LIST)?;
+                    destack_os_background_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -20070,21 +20069,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_REGISTER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (options,) = decode_destack_os_background_register_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_BACKGROUND_REGISTER)?;
+                            binding.on_before_binding_resolve_world(OS_BACKGROUND_REGISTER)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_background_register(
-                                runtime, context, options,
+                                binding, context, options,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_background_register(
-                                    runtime, context, options,
+                                    binding, context, options,
                                 )
                             }
                         }
@@ -20101,11 +20100,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_STATUS,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_STATUS)?;
-                    destack_os_background_status_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_BACKGROUND_STATUS)?;
+                    destack_os_background_status_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -20117,7 +20116,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_TRIGGER_TEST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (identifier,) =
                         decode_destack_os_background_trigger_test_args(context, args)?;
@@ -20125,14 +20124,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_BACKGROUND_TRIGGER_TEST)?;
+                            binding.on_before_binding_resolve_world(OS_BACKGROUND_TRIGGER_TEST)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_background_trigger_test(
-                                runtime, context, identifier,
+                                binding, context, identifier,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_background_trigger_test(
-                                    runtime, context, identifier,
+                                    binding, context, identifier,
                                 )
                             }
                         }
@@ -20149,7 +20148,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_BACKGROUND_UNREGISTER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (identifier,) =
                         decode_destack_os_background_unregister_args(context, args)?;
@@ -20157,14 +20156,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_BACKGROUND_UNREGISTER)?;
+                            binding.on_before_binding_resolve_world(OS_BACKGROUND_UNREGISTER)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_background_unregister(
-                                runtime, context, identifier,
+                                binding, context, identifier,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_background_unregister(
-                                    runtime, context, identifier,
+                                    binding, context, identifier,
                                 )
                             }
                         }
@@ -20181,21 +20180,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CALENDAR_EVENT_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (event,) = decode_destack_os_calendar_event_create_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_CREATE)?;
+                            binding.on_before_binding_resolve_world(OS_CALENDAR_EVENT_CREATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_calendar_event_create(
-                                runtime, context, event,
+                                binding, context, event,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_calendar_event_create(
-                                    runtime, context, event,
+                                    binding, context, event,
                                 )
                             }
                         }
@@ -20212,21 +20211,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CALENDAR_EVENT_DELETE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_os_calendar_event_delete_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_DELETE)?;
+                            binding.on_before_binding_resolve_world(OS_CALENDAR_EVENT_DELETE)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_calendar_event_delete(runtime, context, id)
+                                platform_vm::destack_os_calendar_event_delete(binding, context, id)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_calendar_event_delete(
-                                    runtime, context, id,
+                                    binding, context, id,
                                 )
                             }
                         }
@@ -20243,21 +20242,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CALENDAR_EVENT_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (query,) = decode_destack_os_calendar_event_list_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_LIST)?;
+                            binding.on_before_binding_resolve_world(OS_CALENDAR_EVENT_LIST)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_calendar_event_list(runtime, context, query)
+                                platform_vm::destack_os_calendar_event_list(binding, context, query)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_calendar_event_list(
-                                    runtime, context, query,
+                                    binding, context, query,
                                 )
                             }
                         }
@@ -20274,21 +20273,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CALENDAR_EVENT_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_os_calendar_event_read_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_READ)?;
+                            binding.on_before_binding_resolve_world(OS_CALENDAR_EVENT_READ)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_calendar_event_read(runtime, context, id)
+                                platform_vm::destack_os_calendar_event_read(binding, context, id)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_calendar_event_read(
-                                    runtime, context, id,
+                                    binding, context, id,
                                 )
                             }
                         }
@@ -20305,21 +20304,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CALENDAR_EVENT_UPDATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id, event) = decode_destack_os_calendar_event_update_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_UPDATE)?;
+                            binding.on_before_binding_resolve_world(OS_CALENDAR_EVENT_UPDATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_calendar_event_update(
-                                runtime, context, id, event,
+                                binding, context, id, event,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_calendar_event_update(
-                                    runtime, context, id, event,
+                                    binding, context, id, event,
                                 )
                             }
                         }
@@ -20336,17 +20335,17 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CALENDAR_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CALENDAR_LIST)?;
+                            binding.on_before_binding_resolve_world(OS_CALENDAR_LIST)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_calendar_list(runtime, context)
+                                platform_vm::destack_os_calendar_list(binding, context)
                             }
                             RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_calendar_list(runtime, context)
+                                platform_simulation_vm::destack_os_calendar_list(binding, context)
                             }
                         }
                     };
@@ -20362,17 +20361,17 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CLIPBOARD_CLEAR,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CLIPBOARD_CLEAR)?;
+                            binding.on_before_binding_resolve_world(OS_CLIPBOARD_CLEAR)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_clipboard_clear(runtime, context)
+                                platform_vm::destack_os_clipboard_clear(binding, context)
                             }
                             RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_clipboard_clear(runtime, context)
+                                platform_simulation_vm::destack_os_clipboard_clear(binding, context)
                             }
                         }
                     };
@@ -20388,11 +20387,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CLIPBOARD_HAS_TEXT,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
-                    destack_os_clipboard_has_text_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
+                    destack_os_clipboard_has_text_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -20404,14 +20403,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CLIPBOARD_READ_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (format,) = decode_destack_os_clipboard_read_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
-                    destack_os_clipboard_read_bytes_vm_replay(runtime, context, world, format)
+                        binding.on_before_binding_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
+                    destack_os_clipboard_read_bytes_vm_replay(binding, context, world, format)
                 })
                 .map_err(Into::into)
             }
@@ -20423,11 +20422,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CLIPBOARD_READ_TEXT,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
-                    destack_os_clipboard_read_text_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
+                    destack_os_clipboard_read_text_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -20439,11 +20438,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CLIPBOARD_SEQUENCE,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
-                    destack_os_clipboard_sequence_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
+                    destack_os_clipboard_sequence_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -20455,7 +20454,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CLIPBOARD_WRITE_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (format, argument_bytes) =
                         decode_destack_os_clipboard_write_bytes_args(context, args)?;
@@ -20463,17 +20462,17 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
+                            binding.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_clipboard_write_bytes(
-                                runtime,
+                                binding,
                                 context,
                                 format,
                                 argument_bytes,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_clipboard_write_bytes(
-                                    runtime,
+                                    binding,
                                     context,
                                     format,
                                     argument_bytes,
@@ -20493,21 +20492,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CLIPBOARD_WRITE_TEXT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (text,) = decode_destack_os_clipboard_write_text_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
+                            binding.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_clipboard_write_text(runtime, context, text)
+                                platform_vm::destack_os_clipboard_write_text(binding, context, text)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_clipboard_write_text(
-                                    runtime, context, text,
+                                    binding, context, text,
                                 )
                             }
                         }
@@ -20524,21 +20523,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CONTACT_CREATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (contact,) = decode_destack_os_contact_create_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CONTACT_CREATE)?;
+                            binding.on_before_binding_resolve_world(OS_CONTACT_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_contact_create(runtime, context, contact)
+                                platform_vm::destack_os_contact_create(binding, context, contact)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_contact_create(
-                                    runtime, context, contact,
+                                    binding, context, contact,
                                 )
                             }
                         }
@@ -20555,21 +20554,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CONTACT_DELETE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_os_contact_delete_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CONTACT_DELETE)?;
+                            binding.on_before_binding_resolve_world(OS_CONTACT_DELETE)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_contact_delete(runtime, context, id)
+                                platform_vm::destack_os_contact_delete(binding, context, id)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_contact_delete(
-                                    runtime, context, id,
+                                    binding, context, id,
                                 )
                             }
                         }
@@ -20582,20 +20581,20 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_CONTACT_LIST, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (query,) = decode_destack_os_contact_list_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_CONTACT_LIST)?;
+                        binding.on_before_binding_resolve_world(OS_CONTACT_LIST)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_os_contact_list(runtime, context, query)
+                            platform_vm::destack_os_contact_list(binding, context, query)
                         }
                         RuntimeWorld::Simulation => {
-                            platform_simulation_vm::destack_os_contact_list(runtime, context, query)
+                            platform_simulation_vm::destack_os_contact_list(binding, context, query)
                         }
                     }
                 };
@@ -20606,20 +20605,20 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_CONTACT_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (id,) = decode_destack_os_contact_read_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_CONTACT_READ)?;
+                        binding.on_before_binding_resolve_world(OS_CONTACT_READ)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_os_contact_read(runtime, context, id)
+                            platform_vm::destack_os_contact_read(binding, context, id)
                         }
                         RuntimeWorld::Simulation => {
-                            platform_simulation_vm::destack_os_contact_read(runtime, context, id)
+                            platform_simulation_vm::destack_os_contact_read(binding, context, id)
                         }
                     }
                 };
@@ -20634,21 +20633,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CONTACT_SEARCH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (querytext, query) = decode_destack_os_contact_search_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CONTACT_SEARCH)?;
+                            binding.on_before_binding_resolve_world(OS_CONTACT_SEARCH)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_contact_search(
-                                runtime, context, querytext, query,
+                                binding, context, querytext, query,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_contact_search(
-                                    runtime, context, querytext, query,
+                                    binding, context, querytext, query,
                                 )
                             }
                         }
@@ -20665,21 +20664,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CONTACT_UPDATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id, contact) = decode_destack_os_contact_update_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CONTACT_UPDATE)?;
+                            binding.on_before_binding_resolve_world(OS_CONTACT_UPDATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_contact_update(
-                                runtime, context, id, contact,
+                                binding, context, id, contact,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_contact_update(
-                                    runtime, context, id, contact,
+                                    binding, context, id, contact,
                                 )
                             }
                         }
@@ -20696,7 +20695,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CREDENTIALS_AUTHENTICATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (options,) =
                         decode_destack_os_credentials_authenticate_args(context, args)?;
@@ -20704,14 +20703,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_AUTHENTICATE)?;
+                            binding.on_before_binding_resolve_world(OS_CREDENTIALS_AUTHENTICATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_credentials_authenticate(
-                                runtime, context, options,
+                                binding, context, options,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_credentials_authenticate(
-                                    runtime, context, options,
+                                    binding, context, options,
                                 )
                             }
                         }
@@ -20728,7 +20727,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CREDENTIALS_CONTAINS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (service, account, accessgroup) =
                         decode_destack_os_credentials_contains_args(context, args)?;
@@ -20736,10 +20735,10 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_CONTAINS)?;
+                            binding.on_before_binding_resolve_world(OS_CREDENTIALS_CONTAINS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_credentials_contains(
-                                runtime,
+                                binding,
                                 context,
                                 service,
                                 account,
@@ -20747,7 +20746,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_credentials_contains(
-                                    runtime,
+                                    binding,
                                     context,
                                     service,
                                     account,
@@ -20768,7 +20767,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CREDENTIALS_DELETE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (service, account, accessgroup) =
                         decode_destack_os_credentials_delete_args(context, args)?;
@@ -20776,10 +20775,10 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_DELETE)?;
+                            binding.on_before_binding_resolve_world(OS_CREDENTIALS_DELETE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_credentials_delete(
-                                runtime,
+                                binding,
                                 context,
                                 service,
                                 account,
@@ -20787,7 +20786,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_credentials_delete(
-                                    runtime,
+                                    binding,
                                     context,
                                     service,
                                     account,
@@ -20808,21 +20807,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CREDENTIALS_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (query,) = decode_destack_os_credentials_read_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_READ)?;
+                            binding.on_before_binding_resolve_world(OS_CREDENTIALS_READ)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_credentials_read(runtime, context, query)
+                                platform_vm::destack_os_credentials_read(binding, context, query)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_credentials_read(
-                                    runtime, context, query,
+                                    binding, context, query,
                                 )
                             }
                         }
@@ -20839,21 +20838,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_CREDENTIALS_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (options,) = decode_destack_os_credentials_write_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_WRITE)?;
+                            binding.on_before_binding_resolve_world(OS_CREDENTIALS_WRITE)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_credentials_write(runtime, context, options)
+                                platform_vm::destack_os_credentials_write(binding, context, options)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_credentials_write(
-                                    runtime, context, options,
+                                    binding, context, options,
                                 )
                             }
                         }
@@ -20870,21 +20869,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_DOCUMENT_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_document_close_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_DOCUMENT_CLOSE)?;
+                            binding.on_before_binding_resolve_world(OS_DOCUMENT_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_document_close(runtime, context, handle)
+                                platform_vm::destack_os_document_close(binding, context, handle)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_document_close(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                         }
@@ -20901,21 +20900,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_DOCUMENT_FLUSH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_document_flush_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_DOCUMENT_FLUSH)?;
+                            binding.on_before_binding_resolve_world(OS_DOCUMENT_FLUSH)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_document_flush(runtime, context, handle)
+                                platform_vm::destack_os_document_flush(binding, context, handle)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_document_flush(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                         }
@@ -20928,21 +20927,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_DOCUMENT_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (uri, access) = decode_destack_os_document_open_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_DOCUMENT_OPEN)?;
+                        binding.on_before_binding_resolve_world(OS_DOCUMENT_OPEN)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_os_document_open(runtime, context, uri, access)
+                            platform_vm::destack_os_document_open(binding, context, uri, access)
                         }
                         RuntimeWorld::Simulation => {
                             platform_simulation_vm::destack_os_document_open(
-                                runtime, context, uri, access,
+                                binding, context, uri, access,
                             )
                         }
                     }
@@ -20954,21 +20953,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_DOCUMENT_PICK, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (options,) = decode_destack_os_document_pick_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_DOCUMENT_PICK)?;
+                        binding.on_before_binding_resolve_world(OS_DOCUMENT_PICK)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_os_document_pick(runtime, context, options)
+                            platform_vm::destack_os_document_pick(binding, context, options)
                         }
                         RuntimeWorld::Simulation => {
                             platform_simulation_vm::destack_os_document_pick(
-                                runtime, context, options,
+                                binding, context, options,
                             )
                         }
                     }
@@ -20980,7 +20979,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_DOCUMENT_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, maxbytes, timeoutns) =
                     decode_destack_os_document_read_args(context, args)?;
@@ -20988,14 +20987,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_DOCUMENT_READ)?;
+                        binding.on_before_binding_resolve_world(OS_DOCUMENT_READ)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_os_document_read(
-                            runtime, context, handle, maxbytes, timeoutns,
+                            binding, context, handle, maxbytes, timeoutns,
                         ),
                         RuntimeWorld::Simulation => {
                             platform_simulation_vm::destack_os_document_read(
-                                runtime, context, handle, maxbytes, timeoutns,
+                                binding, context, handle, maxbytes, timeoutns,
                             )
                         }
                     }
@@ -21011,7 +21010,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_DOCUMENT_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxbytes) =
                         decode_destack_os_document_try_read_args(context, args)?;
@@ -21019,14 +21018,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_DOCUMENT_TRY_READ)?;
+                            binding.on_before_binding_resolve_world(OS_DOCUMENT_TRY_READ)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_document_try_read(
-                                runtime, context, handle, maxbytes,
+                                binding, context, handle, maxbytes,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_document_try_read(
-                                    runtime, context, handle, maxbytes,
+                                    binding, context, handle, maxbytes,
                                 )
                             }
                         }
@@ -21043,7 +21042,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_DOCUMENT_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, argument_bytes, timeoutns) =
                         decode_destack_os_document_write_args(context, args)?;
@@ -21051,10 +21050,10 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_DOCUMENT_WRITE)?;
+                            binding.on_before_binding_resolve_world(OS_DOCUMENT_WRITE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_document_write(
-                                runtime,
+                                binding,
                                 context,
                                 handle,
                                 argument_bytes,
@@ -21062,7 +21061,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_document_write(
-                                    runtime,
+                                    binding,
                                     context,
                                     handle,
                                     argument_bytes,
@@ -21083,11 +21082,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_HOST_IDENTITY,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_HOST_IDENTITY)?;
-                    destack_os_host_identity_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_HOST_IDENTITY)?;
+                    destack_os_host_identity_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21099,11 +21098,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INFO_BOOT_TIME_UNIX_NS,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
-                    destack_os_info_boot_time_unix_ns_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
+                    destack_os_info_boot_time_unix_ns_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21115,11 +21114,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INFO_LOAD_AVERAGE,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_INFO_LOAD_AVERAGE)?;
-                    destack_os_info_load_average_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_INFO_LOAD_AVERAGE)?;
+                    destack_os_info_load_average_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21131,11 +21130,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INFO_SYSTEM_SNAPSHOT,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
-                    destack_os_info_system_snapshot_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
+                    destack_os_info_system_snapshot_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21147,11 +21146,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INFO_UPTIME_NS,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_INFO_UPTIME_NS)?;
-                    destack_os_info_uptime_ns_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_INFO_UPTIME_NS)?;
+                    destack_os_info_uptime_ns_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21163,14 +21162,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INTENT_CAN_OPEN_URL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (url,) = decode_destack_os_intent_can_open_url_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_INTENT_CAN_OPEN_URL)?;
-                    destack_os_intent_can_open_url_vm_replay(runtime, context, world, url)
+                        binding.on_before_binding_resolve_world(OS_INTENT_CAN_OPEN_URL)?;
+                    destack_os_intent_can_open_url_vm_replay(binding, context, world, url)
                 })
                 .map_err(Into::into)
             }
@@ -21178,28 +21177,28 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_INTENT_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_os_intent_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(OS_INTENT_CLOSE)?;
-                destack_os_intent_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(OS_INTENT_CLOSE)?;
+                destack_os_intent_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, OS_INTENT_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (options,) = decode_destack_os_intent_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(OS_INTENT_OPEN)?;
-                destack_os_intent_open_vm_replay(runtime, context, world, options)
+                    binding.on_before_binding_resolve_world(OS_INTENT_OPEN)?;
+                destack_os_intent_open_vm_replay(binding, context, world, options)
             })
             .map_err(Into::into)
         });
@@ -21210,21 +21209,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INTENT_OPEN_PATH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) = decode_destack_os_intent_open_path_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_INTENT_OPEN_PATH)?;
+                            binding.on_before_binding_resolve_world(OS_INTENT_OPEN_PATH)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_intent_open_path(runtime, context, path)
+                                platform_vm::destack_os_intent_open_path(binding, context, path)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_intent_open_path(
-                                    runtime, context, path,
+                                    binding, context, path,
                                 )
                             }
                         }
@@ -21241,21 +21240,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INTENT_OPEN_URL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (url,) = decode_destack_os_intent_open_url_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_INTENT_OPEN_URL)?;
+                            binding.on_before_binding_resolve_world(OS_INTENT_OPEN_URL)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_intent_open_url(runtime, context, url)
+                                platform_vm::destack_os_intent_open_url(binding, context, url)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_intent_open_url(
-                                    runtime, context, url,
+                                    binding, context, url,
                                 )
                             }
                         }
@@ -21268,14 +21267,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_INTENT_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, timeoutns) = decode_destack_os_intent_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(OS_INTENT_READ)?;
-                destack_os_intent_read_vm_replay(runtime, context, world, handle, timeoutns)
+                    binding.on_before_binding_resolve_world(OS_INTENT_READ)?;
+                destack_os_intent_read_vm_replay(binding, context, world, handle, timeoutns)
             })
             .map_err(Into::into)
         });
@@ -21286,7 +21285,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INTENT_SHARE_PATHS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (paths, mimetype) =
                         decode_destack_os_intent_share_paths_args(context, args)?;
@@ -21294,14 +21293,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_INTENT_SHARE_PATHS)?;
+                            binding.on_before_binding_resolve_world(OS_INTENT_SHARE_PATHS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_intent_share_paths(
-                                runtime, context, paths, mimetype,
+                                binding, context, paths, mimetype,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_intent_share_paths(
-                                    runtime, context, paths, mimetype,
+                                    binding, context, paths, mimetype,
                                 )
                             }
                         }
@@ -21318,21 +21317,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INTENT_SHARE_TEXT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (text, mimetype) = decode_destack_os_intent_share_text_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_INTENT_SHARE_TEXT)?;
+                            binding.on_before_binding_resolve_world(OS_INTENT_SHARE_TEXT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_intent_share_text(
-                                runtime, context, text, mimetype,
+                                binding, context, text, mimetype,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_intent_share_text(
-                                    runtime, context, text, mimetype,
+                                    binding, context, text, mimetype,
                                 )
                             }
                         }
@@ -21349,14 +21348,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_INTENT_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_intent_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_INTENT_TRY_READ)?;
-                    destack_os_intent_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_INTENT_TRY_READ)?;
+                    destack_os_intent_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21368,14 +21367,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LIFECYCLE_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_lifecycle_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_CLOSE)?;
-                    destack_os_lifecycle_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_LIFECYCLE_CLOSE)?;
+                    destack_os_lifecycle_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21387,11 +21386,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LIFECYCLE_OPEN,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_OPEN)?;
-                    destack_os_lifecycle_open_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_LIFECYCLE_OPEN)?;
+                    destack_os_lifecycle_open_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21403,14 +21402,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LIFECYCLE_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) = decode_destack_os_lifecycle_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_READ)?;
-                    destack_os_lifecycle_read_vm_replay(runtime, context, world, handle, timeoutns)
+                        binding.on_before_binding_resolve_world(OS_LIFECYCLE_READ)?;
+                    destack_os_lifecycle_read_vm_replay(binding, context, world, handle, timeoutns)
                 })
                 .map_err(Into::into)
             }
@@ -21422,11 +21421,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LIFECYCLE_STATE,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_STATE)?;
-                    destack_os_lifecycle_state_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_LIFECYCLE_STATE)?;
+                    destack_os_lifecycle_state_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21438,14 +21437,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LIFECYCLE_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_lifecycle_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_TRY_READ)?;
-                    destack_os_lifecycle_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_LIFECYCLE_TRY_READ)?;
+                    destack_os_lifecycle_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21457,11 +21456,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LOCATION_LAST_KNOWN,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LOCATION_LAST_KNOWN)?;
-                    destack_os_location_last_known_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_LOCATION_LAST_KNOWN)?;
+                    destack_os_location_last_known_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21473,11 +21472,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LOCATION_SERVICES_ENABLED,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LOCATION_SERVICES_ENABLED)?;
-                    destack_os_location_services_enabled_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_LOCATION_SERVICES_ENABLED)?;
+                    destack_os_location_services_enabled_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21489,14 +21488,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LOCATION_WATCH_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_location_watch_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LOCATION_WATCH_CLOSE)?;
-                    destack_os_location_watch_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_LOCATION_WATCH_CLOSE)?;
+                    destack_os_location_watch_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21508,14 +21507,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LOCATION_WATCH_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (options,) = decode_destack_os_location_watch_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LOCATION_WATCH_OPEN)?;
-                    destack_os_location_watch_open_vm_replay(runtime, context, world, options)
+                        binding.on_before_binding_resolve_world(OS_LOCATION_WATCH_OPEN)?;
+                    destack_os_location_watch_open_vm_replay(binding, context, world, options)
                 })
                 .map_err(Into::into)
             }
@@ -21527,16 +21526,16 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LOCATION_WATCH_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_os_location_watch_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LOCATION_WATCH_READ)?;
+                        binding.on_before_binding_resolve_world(OS_LOCATION_WATCH_READ)?;
                     destack_os_location_watch_read_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -21549,14 +21548,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_LOCATION_WATCH_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_location_watch_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_LOCATION_WATCH_TRY_READ)?;
-                    destack_os_location_watch_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_LOCATION_WATCH_TRY_READ)?;
+                    destack_os_location_watch_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21564,20 +21563,20 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_MEDIA_DELETE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (ids,) = decode_destack_os_media_delete_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_MEDIA_DELETE)?;
+                        binding.on_before_binding_resolve_world(OS_MEDIA_DELETE)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_os_media_delete(runtime, context, ids)
+                            platform_vm::destack_os_media_delete(binding, context, ids)
                         }
                         RuntimeWorld::Simulation => {
-                            platform_simulation_vm::destack_os_media_delete(runtime, context, ids)
+                            platform_simulation_vm::destack_os_media_delete(binding, context, ids)
                         }
                     }
                 };
@@ -21592,21 +21591,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_MEDIA_IMPORT_PATH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, kind) = decode_destack_os_media_import_path_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_MEDIA_IMPORT_PATH)?;
+                            binding.on_before_binding_resolve_world(OS_MEDIA_IMPORT_PATH)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_media_import_path(
-                                runtime, context, path, kind,
+                                binding, context, path, kind,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_media_import_path(
-                                    runtime, context, path, kind,
+                                    binding, context, path, kind,
                                 )
                             }
                         }
@@ -21619,20 +21618,20 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_MEDIA_LIST, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (query,) = decode_destack_os_media_list_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_MEDIA_LIST)?;
+                        binding.on_before_binding_resolve_world(OS_MEDIA_LIST)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_os_media_list(runtime, context, query)
+                            platform_vm::destack_os_media_list(binding, context, query)
                         }
                         RuntimeWorld::Simulation => {
-                            platform_simulation_vm::destack_os_media_list(runtime, context, query)
+                            platform_simulation_vm::destack_os_media_list(binding, context, query)
                         }
                     }
                 };
@@ -21643,20 +21642,20 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_MEDIA_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (id,) = decode_destack_os_media_read_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_MEDIA_READ)?;
+                        binding.on_before_binding_resolve_world(OS_MEDIA_READ)?;
                     match world {
                         RuntimeWorld::Host => {
-                            platform_vm::destack_os_media_read(runtime, context, id)
+                            platform_vm::destack_os_media_read(binding, context, id)
                         }
                         RuntimeWorld::Simulation => {
-                            platform_simulation_vm::destack_os_media_read(runtime, context, id)
+                            platform_simulation_vm::destack_os_media_read(binding, context, id)
                         }
                     }
                 };
@@ -21667,16 +21666,16 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_MOUNT_ADD, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (source, target, filesystem, flags, data) =
                     decode_destack_os_mount_add_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(OS_MOUNT_ADD)?;
+                    binding.on_before_binding_resolve_world(OS_MOUNT_ADD)?;
                 destack_os_mount_add_vm_replay(
-                    runtime, context, world, source, target, filesystem, flags, data,
+                    binding, context, world, source, target, filesystem, flags, data,
                 )
             })
             .map_err(Into::into)
@@ -21684,25 +21683,25 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_MOUNT_LIST, move |context, _args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(OS_MOUNT_LIST)?;
-                destack_os_mount_list_vm_replay(runtime, context, world)
+                    binding.on_before_binding_resolve_world(OS_MOUNT_LIST)?;
+                destack_os_mount_list_vm_replay(binding, context, world)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, OS_MOUNT_REMOVE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (target, flags) = decode_destack_os_mount_remove_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(OS_MOUNT_REMOVE)?;
-                destack_os_mount_remove_vm_replay(runtime, context, world, target, flags)
+                    binding.on_before_binding_resolve_world(OS_MOUNT_REMOVE)?;
+                destack_os_mount_remove_vm_replay(binding, context, world, target, flags)
             })
             .map_err(Into::into)
         });
@@ -21713,11 +21712,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NETWORK_STATE,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_NETWORK_STATE)?;
-                    destack_os_network_state_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_NETWORK_STATE)?;
+                    destack_os_network_state_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21729,14 +21728,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NETWORK_WATCH_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_network_watch_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_NETWORK_WATCH_CLOSE)?;
-                    destack_os_network_watch_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_NETWORK_WATCH_CLOSE)?;
+                    destack_os_network_watch_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21748,11 +21747,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NETWORK_WATCH_OPEN,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_NETWORK_WATCH_OPEN)?;
-                    destack_os_network_watch_open_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_NETWORK_WATCH_OPEN)?;
+                    destack_os_network_watch_open_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21764,16 +21763,16 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NETWORK_WATCH_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_os_network_watch_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_NETWORK_WATCH_READ)?;
+                        binding.on_before_binding_resolve_world(OS_NETWORK_WATCH_READ)?;
                     destack_os_network_watch_read_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -21786,14 +21785,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NETWORK_WATCH_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_network_watch_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_NETWORK_WATCH_TRY_READ)?;
-                    destack_os_network_watch_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(OS_NETWORK_WATCH_TRY_READ)?;
+                    destack_os_network_watch_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -21805,21 +21804,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_CANCEL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_os_notification_cancel_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL)?;
+                            binding.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_notification_cancel(runtime, context, id)
+                                platform_vm::destack_os_notification_cancel(binding, context, id)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_cancel(
-                                    runtime, context, id,
+                                    binding, context, id,
                                 )
                             }
                         }
@@ -21836,18 +21835,18 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_CANCEL_ALL,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
+                            binding.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_notification_cancel_all(runtime, context)
+                                platform_vm::destack_os_notification_cancel_all(binding, context)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_cancel_all(
-                                    runtime, context,
+                                    binding, context,
                                 )
                             }
                         }
@@ -21864,11 +21863,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_CATEGORY_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_NOTIFICATION_CATEGORY_LIST)?;
-                    destack_os_notification_category_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_NOTIFICATION_CATEGORY_LIST)?;
+                    destack_os_notification_category_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -21880,24 +21879,24 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_CATEGORY_SET,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (categories,) =
                         decode_destack_os_notification_category_set_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(OS_NOTIFICATION_CATEGORY_SET)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_category_set(
-                                    runtime, context, categories,
+                                    binding, context, categories,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_category_set(
-                                    runtime, context, categories,
+                                    binding, context, categories,
                                 )
                             }
                         }
@@ -21914,21 +21913,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_EVENT_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_os_notification_event_close_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_CLOSE)?;
+                            binding.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_notification_event_close(
-                                runtime, context, handle,
+                                binding, context, handle,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_event_close(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                         }
@@ -21945,21 +21944,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_EVENT_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (options,) = decode_destack_os_notification_event_open_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_OPEN)?;
+                            binding.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_OPEN)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_notification_event_open(
-                                runtime, context, options,
+                                binding, context, options,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_event_open(
-                                    runtime, context, options,
+                                    binding, context, options,
                                 )
                             }
                         }
@@ -21976,7 +21975,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_EVENT_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_os_notification_event_read_args(context, args)?;
@@ -21984,14 +21983,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_READ)?;
+                            binding.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_READ)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_notification_event_read(
-                                runtime, context, handle, timeoutns,
+                                binding, context, handle, timeoutns,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_event_read(
-                                    runtime, context, handle, timeoutns,
+                                    binding, context, handle, timeoutns,
                                 )
                             }
                         }
@@ -22008,24 +22007,24 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_EVENT_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_os_notification_event_try_read_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_TRY_READ)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_event_try_read(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_event_try_read(
-                                    runtime, context, handle,
+                                    binding, context, handle,
                                 )
                             }
                         }
@@ -22042,23 +22041,23 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_PENDING_CANCEL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_os_notification_pending_cancel_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_CANCEL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_pending_cancel(
-                                    runtime, context, id,
+                                    binding, context, id,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_pending_cancel(
-                                    runtime, context, id,
+                                    binding, context, id,
                                 )
                             }
                         }
@@ -22075,20 +22074,20 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_PENDING_CANCEL_ALL,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_CANCEL_ALL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_pending_cancel_all(
-                                    runtime, context,
+                                    binding, context,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_pending_cancel_all(
-                                    runtime, context,
+                                    binding, context,
                                 )
                             }
                         }
@@ -22105,11 +22104,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_PENDING_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_LIST)?;
-                    destack_os_notification_pending_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_LIST)?;
+                    destack_os_notification_pending_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -22121,11 +22120,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_PERMISSION_STATE,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(OS_NOTIFICATION_PERMISSION_STATE)?;
-                    destack_os_notification_permission_state_vm_replay(runtime, context, world)
+                    destack_os_notification_permission_state_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -22137,21 +22136,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_POST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (request,) = decode_destack_os_notification_post_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_POST)?;
+                            binding.on_before_binding_resolve_world(OS_NOTIFICATION_POST)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_notification_post(runtime, context, request)
+                                platform_vm::destack_os_notification_post(binding, context, request)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_post(
-                                    runtime, context, request,
+                                    binding, context, request,
                                 )
                             }
                         }
@@ -22168,20 +22167,20 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_REQUEST_PERMISSION,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_request_permission(
-                                    runtime, context,
+                                    binding, context,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_request_permission(
-                                    runtime, context,
+                                    binding, context,
                                 )
                             }
                         }
@@ -22198,21 +22197,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_NOTIFICATION_SCHEDULE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (request,) = decode_destack_os_notification_schedule_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_SCHEDULE)?;
+                            binding.on_before_binding_resolve_world(OS_NOTIFICATION_SCHEDULE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_notification_schedule(
-                                runtime, context, request,
+                                binding, context, request,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_notification_schedule(
-                                    runtime, context, request,
+                                    binding, context, request,
                                 )
                             }
                         }
@@ -22229,18 +22228,18 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_PERMISSION_OPEN_SETTINGS,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
+                            binding.on_before_binding_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_os_permission_open_settings(runtime, context)
+                                platform_vm::destack_os_permission_open_settings(binding, context)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_permission_open_settings(
-                                    runtime, context,
+                                    binding, context,
                                 )
                             }
                         }
@@ -22257,21 +22256,21 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_PERMISSION_REQUEST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (permission,) = decode_destack_os_permission_request_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_PERMISSION_REQUEST)?;
+                            binding.on_before_binding_resolve_world(OS_PERMISSION_REQUEST)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_permission_request(
-                                runtime, context, permission,
+                                binding, context, permission,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_permission_request(
-                                    runtime, context, permission,
+                                    binding, context, permission,
                                 )
                             }
                         }
@@ -22288,7 +22287,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_PERMISSION_REQUEST_MANY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (permissions,) =
                         decode_destack_os_permission_request_many_args(context, args)?;
@@ -22296,16 +22295,16 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
+                            binding.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_permission_request_many(
-                                runtime,
+                                binding,
                                 context,
                                 permissions,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_permission_request_many(
-                                    runtime,
+                                    binding,
                                     context,
                                     permissions,
                                 )
@@ -22324,14 +22323,14 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_PERMISSION_STATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (permission,) = decode_destack_os_permission_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_PERMISSION_STATE)?;
-                    destack_os_permission_state_vm_replay(runtime, context, world, permission)
+                        binding.on_before_binding_resolve_world(OS_PERMISSION_STATE)?;
+                    destack_os_permission_state_vm_replay(binding, context, world, permission)
                 })
                 .map_err(Into::into)
             }
@@ -22343,15 +22342,15 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_PERMISSION_STATE_MANY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (permissions,) =
                         decode_destack_os_permission_state_many_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(OS_PERMISSION_STATE_MANY)?;
-                    destack_os_permission_state_many_vm_replay(runtime, context, world, permissions)
+                        binding.on_before_binding_resolve_world(OS_PERMISSION_STATE_MANY)?;
+                    destack_os_permission_state_many_vm_replay(binding, context, world, permissions)
                 })
                 .map_err(Into::into)
             }
@@ -22359,11 +22358,11 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, OS_POWER_STATE, move |context, _args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(OS_POWER_STATE)?;
-                destack_os_power_state_vm_replay(runtime, context, world)
+                    binding.on_before_binding_resolve_world(OS_POWER_STATE)?;
+                destack_os_power_state_vm_replay(binding, context, world)
             })
             .map_err(Into::into)
         });
@@ -22374,15 +22373,15 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             OS_POWER_SUSPEND,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(OS_POWER_SUSPEND)?;
+                            binding.on_before_binding_resolve_world(OS_POWER_SUSPEND)?;
                         match world {
-                            RuntimeWorld::Host => platform_vm::destack_os_suspend(runtime, context),
+                            RuntimeWorld::Host => platform_vm::destack_os_suspend(binding, context),
                             RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_suspend(runtime, context)
+                                platform_simulation_vm::destack_os_suspend(binding, context)
                             }
                         }
                     };

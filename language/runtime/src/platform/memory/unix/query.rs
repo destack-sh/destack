@@ -15,7 +15,7 @@ use super::core::page_size;
 
 /// Read the host allocation granularity.
 pub(crate) unsafe fn destack_memory_allocation_granularity(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output pointer and query page size
@@ -33,7 +33,7 @@ pub(crate) unsafe fn destack_memory_allocation_granularity(
 
 /// Read the host huge-page allocation size when available.
 pub(crate) unsafe fn destack_memory_huge_page_size(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut Option<u64>,
 ) -> RuntimeResult<()> {
     // validate output pointer for optional huge-page size
@@ -63,7 +63,7 @@ pub(crate) unsafe fn destack_memory_huge_page_size(
 
 /// Read the host virtual-memory page size.
 pub(crate) unsafe fn destack_memory_page_size(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
     // validate output pointer and query page size

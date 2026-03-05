@@ -32,7 +32,7 @@ use std::os::unix::io::RawFd;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_connect(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
@@ -64,10 +64,10 @@ pub(crate) unsafe fn destack_net_uds_connect(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(fd)
         .with_finalizer(SocketFinalizer { fd });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -93,7 +93,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_listen(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ListenerHandle,
     path: OsPath,
     backlog: u32,
@@ -153,10 +153,10 @@ pub(crate) unsafe fn destack_net_uds_listen(
     let entry = ResourceEntry::new(ResourceKind::Listener)
         .with_listener(fd)
         .with_finalizer(SocketFinalizer { fd });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -182,7 +182,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_accept(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
 ) -> RuntimeResult<()> {
@@ -192,7 +192,7 @@ pub(crate) unsafe fn destack_net_uds_accept(
     }
 
     // accept via the raw file descriptor
-    let fd = listener_descriptor(context, listener)?;
+    let fd = listener_descriptor(binding, listener)?;
     let fd = unsafe { libc::accept(fd, std::ptr::null_mut(), std::ptr::null_mut()) };
     if fd < 0 {
         return Err(core_platform::net_error("accept"));
@@ -200,10 +200,10 @@ pub(crate) unsafe fn destack_net_uds_accept(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(fd)
         .with_finalizer(SocketFinalizer { fd });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -229,10 +229,10 @@ pub(crate) unsafe fn destack_net_uds_accept(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_uds_close_listener(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    unsafe { super::destack_net_close_listener(context, handle) }
+    unsafe { super::destack_net_close_listener(binding, handle) }
 }
 
 /// Create a connected UDS socket pair.
@@ -254,13 +254,13 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 /// External, recordable.
 #[cfg(unix)]
 pub(crate) unsafe fn destack_net_uds_socket_pair(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketPair,
     socket_type: SocketType,
 ) -> RuntimeResult<()> {
     unsafe {
         super::destack_net_socket_pair(
-            context,
+            binding,
             out,
             SocketFamily::Unspecified,
             socket_type,

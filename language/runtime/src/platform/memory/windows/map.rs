@@ -13,7 +13,7 @@ use super::core::{NUMA_BIND_OPERATION, decode_reserve_flags, page_size, windows_
 
 /// Reserve one virtual memory range.
 pub(crate) unsafe fn destack_memory_reserve(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut MemoryRange,
     length: u64,
     addresshint: u64,
@@ -57,7 +57,7 @@ pub(crate) unsafe fn destack_memory_reserve(
 
 /// Commit one reserved range.
 pub(crate) unsafe fn destack_memory_commit(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     protection: MemoryProtection,
@@ -88,7 +88,7 @@ pub(crate) unsafe fn destack_memory_commit(
 
 /// Decommit one range.
 pub(crate) unsafe fn destack_memory_decommit(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_memory_decommit(
 
 /// Release one reserved range.
 pub(crate) unsafe fn destack_memory_release(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
@@ -132,7 +132,7 @@ pub(crate) unsafe fn destack_memory_release(
 
 /// Bind one range to a NUMA policy.
 pub(crate) unsafe fn destack_memory_numa_bind(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
     policy: MemoryNumaPolicy,

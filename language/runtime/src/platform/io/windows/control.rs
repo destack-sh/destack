@@ -25,7 +25,7 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_control_fcntl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut i64,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
@@ -33,7 +33,7 @@ pub(crate) unsafe fn destack_io_control_fcntl(
     flags: DescriptorControlFlags,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_host::host_control_fcntl(context, handle, command, argument, flags)?;
+    let value = io_host::host_control_fcntl(binding, handle, command, argument, flags)?;
 
     unsafe {
         out.write(value);
@@ -60,13 +60,13 @@ pub(crate) unsafe fn destack_io_control_fcntl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_control_ioctl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut DescriptorResult,
     handle: resource::ResourceId,
     request: DescriptorRequest,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_host::host_control_ioctl(context, handle, request)?;
+    let value = io_host::host_control_ioctl(binding, handle, request)?;
 
     unsafe {
         out.write(value);

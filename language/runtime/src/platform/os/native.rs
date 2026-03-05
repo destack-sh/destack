@@ -36,7 +36,7 @@ pub(crate) use super::unsupported::*;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_os_credentials_authenticate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CredentialAuthenticationResult,
     options: CredentialAuthenticationOptions,
 ) -> RuntimeResult<()> {
@@ -54,7 +54,7 @@ pub(crate) unsafe fn destack_os_credentials_authenticate(
     };
 
     // execute one authentication challenge
-    let result = authenticate_credentials(context, &options)?;
+    let result = authenticate_credentials(binding, &options)?;
 
     // write the output payload
     unsafe {
@@ -83,7 +83,7 @@ pub(crate) unsafe fn destack_os_credentials_authenticate(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_os_credentials_contains(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -101,7 +101,7 @@ pub(crate) unsafe fn destack_os_credentials_contains(
         normalize_optional_string(decode_native_string(access_group, "accessGroup")?);
 
     // execute one contains query
-    let result = contains_credentials(context, &service, &account, access_group.as_deref())?;
+    let result = contains_credentials(binding, &service, &account, access_group.as_deref())?;
 
     // write the output payload
     unsafe {
@@ -130,7 +130,7 @@ pub(crate) unsafe fn destack_os_credentials_contains(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_os_credentials_delete(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     service: NativeStringRef,
     account: NativeStringRef,
     access_group: NativeStringRef,
@@ -142,7 +142,7 @@ pub(crate) unsafe fn destack_os_credentials_delete(
         normalize_optional_string(decode_native_string(access_group, "accessGroup")?);
 
     // execute one delete operation
-    delete_credentials(context, &service, &account, access_group.as_deref())
+    delete_credentials(binding, &service, &account, access_group.as_deref())
 }
 
 /// Read one credential record.
@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_os_credentials_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_os_credentials_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut CredentialRecord,
     query: CredentialQuery,
 ) -> RuntimeResult<()> {
@@ -183,13 +183,13 @@ pub(crate) unsafe fn destack_os_credentials_read(
     };
 
     // execute one read operation
-    let record = read_credentials(context, &query)?;
+    let record = read_credentials(binding, &query)?;
 
     // encode output payload in call-local storage
     let output = CredentialRecord {
-        service: context.store_string(&record.service),
-        account: context.store_string(&record.account),
-        bytes: context.store_slice(record.bytes),
+        service: binding.store_string(&record.service),
+        account: binding.store_string(&record.account),
+        bytes: binding.store_slice(record.bytes),
         created_unix_ns: record.created_unix_ns,
         modified_unix_ns: record.modified_unix_ns,
     };
@@ -220,7 +220,7 @@ pub(crate) unsafe fn destack_os_credentials_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_os_credentials_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     options: CredentialWriteOptions,
 ) -> RuntimeResult<()> {
     // decode native write options into owned values
@@ -238,5 +238,5 @@ pub(crate) unsafe fn destack_os_credentials_write(
     };
 
     // execute one write operation
-    write_credentials(context, &options)
+    write_credentials(binding, &options)
 }

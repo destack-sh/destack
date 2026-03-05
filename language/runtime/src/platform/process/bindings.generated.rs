@@ -22,14 +22,13 @@ use crate::platform::process::{
     Signal, SignalEvent, SignalEventVm, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, RuntimeStatus,
+    VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -5049,17 +5048,17 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for process bindings.
 #[inline]
 fn destack_process_args_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_ARGS_LIST,
-        context.replay_payload_for(PROCESS_ARGS_LIST)?,
+        binding.replay_payload_for(PROCESS_ARGS_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_args(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_args(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_args(context, out)
+                platform_simulation_native::destack_process_args(binding, out)
             },
         },
         |result| {
@@ -5099,10 +5098,10 @@ fn destack_process_args_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for item in value.iter() {
-                        let stored = context.store_string(item);
+                        let stored = binding.store_string(item);
                         value_native_values.push(stored);
                     }
-                    let value_native = context.store_string_slice(value_native_values);
+                    let value_native = binding.store_string_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -5116,19 +5115,19 @@ fn destack_process_args_list_replay(
 
 #[inline]
 fn destack_process_cwd_chdir_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_CWD_CHDIR,
-        context.replay_payload_for(PROCESS_CWD_CHDIR)?,
+        binding.replay_payload_for(PROCESS_CWD_CHDIR)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_chdir(context, path) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_chdir(binding, path) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_chdir(context, path)
+                platform_simulation_native::destack_process_chdir(binding, path)
             },
         },
         |result| {
@@ -5162,17 +5161,17 @@ fn destack_process_cwd_chdir_replay(
 
 #[inline]
 fn destack_process_cwd_get_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_CWD_GET,
-        context.replay_payload_for(PROCESS_CWD_GET)?,
+        binding.replay_payload_for(PROCESS_CWD_GET)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_cwd(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_cwd(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_cwd(context, out)
+                platform_simulation_native::destack_process_cwd(binding, out)
             },
         },
         |result| {
@@ -5253,7 +5252,7 @@ fn destack_process_cwd_get_replay(
                 Ok(value) => {
                     let value_native = match value {
                         fs::OsPathReplayRecord::OsPathBytes(value) => {
-                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let value_native_os_path_bytes_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_bytes_bytes_inner_values =
                                 Vec::with_capacity(value.bytes.len());
                             for value_native_os_path_bytes_bytes_inner_item in value.bytes {
@@ -5263,7 +5262,7 @@ fn destack_process_cwd_get_replay(
                                     .push(value_native_os_path_bytes_bytes_inner_item_native);
                             }
                             let value_native_os_path_bytes_bytes_inner =
-                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                                binding.store_array(value_native_os_path_bytes_bytes_inner_values);
                             let value_native_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
                                     value_native_os_path_bytes_bytes_inner,
@@ -5275,7 +5274,7 @@ fn destack_process_cwd_get_replay(
                             fs::OsPath::OsPathBytes(value_native_os_path_bytes)
                         }
                         fs::OsPathReplayRecord::OsPathUtf16(value) => {
-                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let value_native_os_path_utf16_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
@@ -5285,7 +5284,7 @@ fn destack_process_cwd_get_replay(
                                     .push(value_native_os_path_utf16_utf16_inner_item_native);
                             }
                             let value_native_os_path_utf16_utf16_inner =
-                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                                binding.store_array(value_native_os_path_utf16_utf16_inner_values);
                             let value_native_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
                                     value_native_os_path_utf16_utf16_inner,
@@ -5310,21 +5309,21 @@ fn destack_process_cwd_get_replay(
 
 #[inline]
 fn destack_process_env_delete_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_ENV_DELETE,
-        context.replay_payload_for(PROCESS_ENV_DELETE)?,
+        binding.replay_payload_for(PROCESS_ENV_DELETE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_env_delete(context, name)
+                platform_native::destack_process_env_delete(binding, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_env_delete(context, name)
+                platform_simulation_native::destack_process_env_delete(binding, name)
             },
         },
         |result| {
@@ -5358,21 +5357,21 @@ fn destack_process_env_delete_replay(
 
 #[inline]
 fn destack_process_env_delete_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_ENV_DELETE_BYTES,
-        context.replay_payload_for(PROCESS_ENV_DELETE_BYTES)?,
+        binding.replay_payload_for(PROCESS_ENV_DELETE_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_env_delete_bytes(context, name)
+                platform_native::destack_process_env_delete_bytes(binding, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_env_delete_bytes(context, name)
+                platform_simulation_native::destack_process_env_delete_bytes(binding, name)
             },
         },
         |result| {
@@ -5406,22 +5405,22 @@ fn destack_process_env_delete_bytes_replay(
 
 #[inline]
 fn destack_process_env_get_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeStringRef,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_ENV_GET,
-        context.replay_payload_for(PROCESS_ENV_GET)?,
+        binding.replay_payload_for(PROCESS_ENV_GET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_env_get(context, out, name)
+                platform_native::destack_process_env_get(binding, out, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_env_get(context, out, name)
+                platform_simulation_native::destack_process_env_get(binding, out, name)
             },
         },
         |result| {
@@ -5453,7 +5452,7 @@ fn destack_process_env_get_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let value_native = binding.store_string(&value);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -5467,22 +5466,22 @@ fn destack_process_env_get_replay(
 
 #[inline]
 fn destack_process_env_get_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_ENV_GET_BYTES,
-        context.replay_payload_for(PROCESS_ENV_GET_BYTES)?,
+        binding.replay_payload_for(PROCESS_ENV_GET_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_env_get_bytes(context, out, name)
+                platform_native::destack_process_env_get_bytes(binding, out, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_env_get_bytes(context, out, name)
+                platform_simulation_native::destack_process_env_get_bytes(binding, out, name)
             },
         },
         |result| {
@@ -5525,7 +5524,7 @@ fn destack_process_env_get_bytes_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -5539,22 +5538,22 @@ fn destack_process_env_get_bytes_replay(
 
 #[inline]
 fn destack_process_env_set_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     name: NativeStringRef,
     argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&name, &argument_value);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_ENV_SET,
-        context.replay_payload_for(PROCESS_ENV_SET)?,
+        binding.replay_payload_for(PROCESS_ENV_SET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_env_set(context, name, argument_value)
+                platform_native::destack_process_env_set(binding, name, argument_value)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_env_set(context, name, argument_value)
+                platform_simulation_native::destack_process_env_set(binding, name, argument_value)
             },
         },
         |result| {
@@ -5588,23 +5587,23 @@ fn destack_process_env_set_replay(
 
 #[inline]
 fn destack_process_env_set_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (&name, &argument_value);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_ENV_SET_BYTES,
-        context.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
+        binding.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_env_set_bytes(context, name, argument_value)
+                platform_native::destack_process_env_set_bytes(binding, name, argument_value)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_env_set_bytes(
-                    context,
+                    binding,
                     name,
                     argument_value,
                 )
@@ -5641,7 +5640,7 @@ fn destack_process_env_set_bytes_replay(
 
 #[inline]
 fn destack_process_exec_fexec_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     executable: resource::FileHandle,
     arguments: NativeStringSlice,
@@ -5649,16 +5648,16 @@ fn destack_process_exec_fexec_replay(
 ) -> RuntimeResult<()> {
     let _ = (&executable, &arguments, &environment);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_EXEC_FEXEC,
-        context.replay_payload_for(PROCESS_EXEC_FEXEC)?,
+        binding.replay_payload_for(PROCESS_EXEC_FEXEC)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_fexec(context, executable, arguments, environment)
+                platform_native::destack_process_fexec(binding, executable, arguments, environment)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_fexec(
-                    context,
+                    binding,
                     executable,
                     arguments,
                     environment,
@@ -5696,7 +5695,7 @@ fn destack_process_exec_fexec_replay(
 
 #[inline]
 fn destack_process_exec_path_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -5704,16 +5703,16 @@ fn destack_process_exec_path_replay(
 ) -> RuntimeResult<()> {
     let _ = (&command, &arguments, &environment);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_EXEC_PATH,
-        context.replay_payload_for(PROCESS_EXEC_PATH)?,
+        binding.replay_payload_for(PROCESS_EXEC_PATH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_exec(context, command, arguments, environment)
+                platform_native::destack_process_exec(binding, command, arguments, environment)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_exec(
-                    context,
+                    binding,
                     command,
                     arguments,
                     environment,
@@ -5751,7 +5750,7 @@ fn destack_process_exec_path_replay(
 
 #[inline]
 fn destack_process_exec_pathat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     directory: resource::DirectoryHandle,
     path: fs::OsPath,
@@ -5761,13 +5760,13 @@ fn destack_process_exec_pathat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&directory, &path, &arguments, &environment, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_EXEC_PATHAT,
-        context.replay_payload_for(PROCESS_EXEC_PATHAT)?,
+        binding.replay_payload_for(PROCESS_EXEC_PATHAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_process_execat(
-                    context,
+                    binding,
                     directory,
                     path,
                     arguments,
@@ -5777,7 +5776,7 @@ fn destack_process_exec_pathat_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_execat(
-                    context,
+                    binding,
                     directory,
                     path,
                     arguments,
@@ -5817,19 +5816,19 @@ fn destack_process_exec_pathat_replay(
 
 #[inline]
 fn destack_process_exit_terminate_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     code: u32,
 ) -> RuntimeResult<()> {
     let _ = &code;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_EXIT_TERMINATE,
-        context.replay_payload_for(PROCESS_EXIT_TERMINATE)?,
+        binding.replay_payload_for(PROCESS_EXIT_TERMINATE)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_exit(context, code) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_exit(binding, code) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_exit(context, code)
+                platform_simulation_native::destack_process_exit(binding, code)
             },
         },
         |result| {
@@ -5863,21 +5862,21 @@ fn destack_process_exit_terminate_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_PROCESS_FD_CLOSE,
-        context.replay_payload_for(PROCESS_FD_PROCESS_FD_CLOSE)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_process_fd_close(context, handle)
+                platform_native::destack_process_process_fd_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_process_fd_close(context, handle)
+                platform_simulation_native::destack_process_process_fd_close(binding, handle)
             },
         },
         |result| {
@@ -5911,7 +5910,7 @@ fn destack_process_fd_process_fd_close_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::ProcessFdHandle,
     pid: ProcessId,
@@ -5919,16 +5918,16 @@ fn destack_process_fd_process_fd_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_PROCESS_FD_OPEN,
-        context.replay_payload_for(PROCESS_FD_PROCESS_FD_OPEN)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_process_fd_open(context, out, pid, flags)
+                platform_native::destack_process_process_fd_open(binding, out, pid, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_process_fd_open(
-                    context, out, pid, flags,
+                    binding, out, pid, flags,
                 )
             },
         },
@@ -5975,7 +5974,7 @@ fn destack_process_fd_process_fd_open_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_send_signal_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::ProcessFdHandle,
     signal: Signal,
@@ -5983,18 +5982,18 @@ fn destack_process_fd_process_fd_send_signal_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &signal, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
-        context.replay_payload_for(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_process_process_fd_send_signal(
-                    context, handle, signal, flags,
+                    binding, handle, signal, flags,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_process_fd_send_signal(
-                    context, handle, signal, flags,
+                    binding, handle, signal, flags,
                 )
             },
         },
@@ -6029,23 +6028,23 @@ fn destack_process_fd_process_fd_send_signal_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_try_wait_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_PROCESS_FD_TRY_WAIT,
-        context.replay_payload_for(PROCESS_FD_PROCESS_FD_TRY_WAIT)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_TRY_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_process_fd_try_wait(context, out, handle)
+                platform_native::destack_process_process_fd_try_wait(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_process_fd_try_wait(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -6157,7 +6156,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                     let value_native = match value {
                         ProcessWaitStatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -6170,7 +6169,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -6184,7 +6183,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -6197,7 +6196,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -6216,7 +6215,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -6243,7 +6242,7 @@ fn destack_process_fd_process_fd_try_wait_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_wait_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
@@ -6251,16 +6250,16 @@ fn destack_process_fd_process_fd_wait_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_PROCESS_FD_WAIT,
-        context.replay_payload_for(PROCESS_FD_PROCESS_FD_WAIT)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_process_fd_wait(context, out, handle, timeoutns)
+                platform_native::destack_process_process_fd_wait(binding, out, handle, timeoutns)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_process_fd_wait(
-                    context, out, handle, timeoutns,
+                    binding, out, handle, timeoutns,
                 )
             },
         },
@@ -6372,7 +6371,7 @@ fn destack_process_fd_process_fd_wait_replay(
                     let value_native = match value {
                         ProcessWaitStatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -6385,7 +6384,7 @@ fn destack_process_fd_process_fd_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -6399,7 +6398,7 @@ fn destack_process_fd_process_fd_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -6412,7 +6411,7 @@ fn destack_process_fd_process_fd_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -6431,7 +6430,7 @@ fn destack_process_fd_process_fd_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -6458,21 +6457,21 @@ fn destack_process_fd_process_fd_wait_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_SIGNAL_FD_CLOSE,
-        context.replay_payload_for(PROCESS_FD_SIGNAL_FD_CLOSE)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_fd_close(context, handle)
+                platform_native::destack_process_signal_fd_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_fd_close(context, handle)
+                platform_simulation_native::destack_process_signal_fd_close(binding, handle)
             },
         },
         |result| {
@@ -6506,7 +6505,7 @@ fn destack_process_fd_signal_fd_close_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
@@ -6514,16 +6513,16 @@ fn destack_process_fd_signal_fd_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&signals, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_SIGNAL_FD_OPEN,
-        context.replay_payload_for(PROCESS_FD_SIGNAL_FD_OPEN)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_fd_open(context, out, signals, flags)
+                platform_native::destack_process_signal_fd_open(binding, out, signals, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_signal_fd_open(
-                    context, out, signals, flags,
+                    binding, out, signals, flags,
                 )
             },
         },
@@ -6570,22 +6569,22 @@ fn destack_process_fd_signal_fd_open_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_SIGNAL_FD_READ,
-        context.replay_payload_for(PROCESS_FD_SIGNAL_FD_READ)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_fd_read(context, out, handle)
+                platform_native::destack_process_signal_fd_read(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_fd_read(context, out, handle)
+                platform_simulation_native::destack_process_signal_fd_read(binding, out, handle)
             },
         },
         |result| {
@@ -6641,23 +6640,23 @@ fn destack_process_fd_signal_fd_read_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_set_mask_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &signals);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_SIGNAL_FD_SET_MASK,
-        context.replay_payload_for(PROCESS_FD_SIGNAL_FD_SET_MASK)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_SET_MASK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_fd_set_mask(context, handle, signals)
+                platform_native::destack_process_signal_fd_set_mask(binding, handle, signals)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_signal_fd_set_mask(
-                    context, handle, signals,
+                    binding, handle, signals,
                 )
             },
         },
@@ -6692,22 +6691,22 @@ fn destack_process_fd_signal_fd_set_mask_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_SIGNAL_FD_TRY_READ,
-        context.replay_payload_for(PROCESS_FD_SIGNAL_FD_TRY_READ)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_fd_try_read(context, out, handle)
+                platform_native::destack_process_signal_fd_try_read(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_fd_try_read(context, out, handle)
+                platform_simulation_native::destack_process_signal_fd_try_read(binding, out, handle)
             },
         },
         |result| {
@@ -6763,19 +6762,19 @@ fn destack_process_fd_signal_fd_try_read_replay(
 
 #[inline]
 fn destack_process_fd_stdio_stderr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_STDIO_STDERR,
-        context.replay_payload_for(PROCESS_FD_STDIO_STDERR)?,
+        binding.replay_payload_for(PROCESS_FD_STDIO_STDERR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_stdio_stderr(context, out)
+                platform_native::destack_process_stdio_stderr(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_stdio_stderr(context, out)
+                platform_simulation_native::destack_process_stdio_stderr(binding, out)
             },
         },
         |result| {
@@ -6821,19 +6820,19 @@ fn destack_process_fd_stdio_stderr_replay(
 
 #[inline]
 fn destack_process_fd_stdio_stdin_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_STDIO_STDIN,
-        context.replay_payload_for(PROCESS_FD_STDIO_STDIN)?,
+        binding.replay_payload_for(PROCESS_FD_STDIO_STDIN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_stdio_stdin(context, out)
+                platform_native::destack_process_stdio_stdin(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_stdio_stdin(context, out)
+                platform_simulation_native::destack_process_stdio_stdin(binding, out)
             },
         },
         |result| {
@@ -6879,19 +6878,19 @@ fn destack_process_fd_stdio_stdin_replay(
 
 #[inline]
 fn destack_process_fd_stdio_stdout_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_FD_STDIO_STDOUT,
-        context.replay_payload_for(PROCESS_FD_STDIO_STDOUT)?,
+        binding.replay_payload_for(PROCESS_FD_STDIO_STDOUT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_stdio_stdout(context, out)
+                platform_native::destack_process_stdio_stdout(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_stdio_stdout(context, out)
+                platform_simulation_native::destack_process_stdio_stdout(binding, out)
             },
         },
         |result| {
@@ -6937,17 +6936,17 @@ fn destack_process_fd_stdio_stdout_replay(
 
 #[inline]
 fn destack_process_ids_egid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_EGID,
-        context.replay_payload_for(PROCESS_IDS_EGID)?,
+        binding.replay_payload_for(PROCESS_IDS_EGID)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_egid(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_egid(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_egid(context, out)
+                platform_simulation_native::destack_process_egid(binding, out)
             },
         },
         |result| {
@@ -6993,17 +6992,17 @@ fn destack_process_ids_egid_replay(
 
 #[inline]
 fn destack_process_ids_euid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_EUID,
-        context.replay_payload_for(PROCESS_IDS_EUID)?,
+        binding.replay_payload_for(PROCESS_IDS_EUID)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_euid(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_euid(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_euid(context, out)
+                platform_simulation_native::destack_process_euid(binding, out)
             },
         },
         |result| {
@@ -7049,17 +7048,17 @@ fn destack_process_ids_euid_replay(
 
 #[inline]
 fn destack_process_ids_gid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_GID,
-        context.replay_payload_for(PROCESS_IDS_GID)?,
+        binding.replay_payload_for(PROCESS_IDS_GID)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_gid(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_gid(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_gid(context, out)
+                platform_simulation_native::destack_process_gid(binding, out)
             },
         },
         |result| {
@@ -7105,19 +7104,19 @@ fn destack_process_ids_gid_replay(
 
 #[inline]
 fn destack_process_ids_group_ids_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessGroupIds,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_GROUP_IDS,
-        context.replay_payload_for(PROCESS_IDS_GROUP_IDS)?,
+        binding.replay_payload_for(PROCESS_IDS_GROUP_IDS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_group_ids(context, out)
+                platform_native::destack_process_group_ids(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_group_ids(context, out)
+                platform_simulation_native::destack_process_group_ids(binding, out)
             },
         },
         |result| {
@@ -7177,17 +7176,17 @@ fn destack_process_ids_group_ids_replay(
 
 #[inline]
 fn destack_process_ids_groups_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_GROUPS,
-        context.replay_payload_for(PROCESS_IDS_GROUPS)?,
+        binding.replay_payload_for(PROCESS_IDS_GROUPS)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_groups(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_groups(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_groups(context, out)
+                platform_simulation_native::destack_process_groups(binding, out)
             },
         },
         |result| {
@@ -7230,7 +7229,7 @@ fn destack_process_ids_groups_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -7244,17 +7243,17 @@ fn destack_process_ids_groups_replay(
 
 #[inline]
 fn destack_process_ids_pid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_PID,
-        context.replay_payload_for(PROCESS_IDS_PID)?,
+        binding.replay_payload_for(PROCESS_IDS_PID)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_pid(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_pid(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_pid(context, out)
+                platform_simulation_native::destack_process_pid(binding, out)
             },
         },
         |result| {
@@ -7300,17 +7299,17 @@ fn destack_process_ids_pid_replay(
 
 #[inline]
 fn destack_process_ids_ppid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_PPID,
-        context.replay_payload_for(PROCESS_IDS_PPID)?,
+        binding.replay_payload_for(PROCESS_IDS_PPID)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_ppid(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_ppid(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_ppid(context, out)
+                platform_simulation_native::destack_process_ppid(binding, out)
             },
         },
         |result| {
@@ -7356,21 +7355,21 @@ fn destack_process_ids_ppid_replay(
 
 #[inline]
 fn destack_process_ids_set_egid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let _ = &groupid;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_SET_EGID,
-        context.replay_payload_for(PROCESS_IDS_SET_EGID)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_EGID)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_egid(context, groupid)
+                platform_native::destack_process_set_egid(binding, groupid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_egid(context, groupid)
+                platform_simulation_native::destack_process_set_egid(binding, groupid)
             },
         },
         |result| {
@@ -7404,21 +7403,21 @@ fn destack_process_ids_set_egid_replay(
 
 #[inline]
 fn destack_process_ids_set_euid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     userid: UserId,
 ) -> RuntimeResult<()> {
     let _ = &userid;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_SET_EUID,
-        context.replay_payload_for(PROCESS_IDS_SET_EUID)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_EUID)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_euid(context, userid)
+                platform_native::destack_process_set_euid(binding, userid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_euid(context, userid)
+                platform_simulation_native::destack_process_set_euid(binding, userid)
             },
         },
         |result| {
@@ -7452,21 +7451,21 @@ fn destack_process_ids_set_euid_replay(
 
 #[inline]
 fn destack_process_ids_set_gid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let _ = &groupid;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_SET_GID,
-        context.replay_payload_for(PROCESS_IDS_SET_GID)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_GID)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_gid(context, groupid)
+                platform_native::destack_process_set_gid(binding, groupid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_gid(context, groupid)
+                platform_simulation_native::destack_process_set_gid(binding, groupid)
             },
         },
         |result| {
@@ -7500,21 +7499,21 @@ fn destack_process_ids_set_gid_replay(
 
 #[inline]
 fn destack_process_ids_set_group_ids_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     ids: ProcessGroupIds,
 ) -> RuntimeResult<()> {
     let _ = &ids;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_SET_GROUP_IDS,
-        context.replay_payload_for(PROCESS_IDS_SET_GROUP_IDS)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_GROUP_IDS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_group_ids(context, ids)
+                platform_native::destack_process_set_group_ids(binding, ids)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_group_ids(context, ids)
+                platform_simulation_native::destack_process_set_group_ids(binding, ids)
             },
         },
         |result| {
@@ -7548,21 +7547,21 @@ fn destack_process_ids_set_group_ids_replay(
 
 #[inline]
 fn destack_process_ids_set_groups_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     groups: NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
     let _ = &groups;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_SET_GROUPS,
-        context.replay_payload_for(PROCESS_IDS_SET_GROUPS)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_GROUPS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_groups(context, groups)
+                platform_native::destack_process_set_groups(binding, groups)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_groups(context, groups)
+                platform_simulation_native::destack_process_set_groups(binding, groups)
             },
         },
         |result| {
@@ -7596,21 +7595,21 @@ fn destack_process_ids_set_groups_replay(
 
 #[inline]
 fn destack_process_ids_set_uid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     userid: UserId,
 ) -> RuntimeResult<()> {
     let _ = &userid;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_SET_UID,
-        context.replay_payload_for(PROCESS_IDS_SET_UID)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_UID)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_uid(context, userid)
+                platform_native::destack_process_set_uid(binding, userid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_uid(context, userid)
+                platform_simulation_native::destack_process_set_uid(binding, userid)
             },
         },
         |result| {
@@ -7644,21 +7643,21 @@ fn destack_process_ids_set_uid_replay(
 
 #[inline]
 fn destack_process_ids_set_user_ids_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     ids: ProcessUserIds,
 ) -> RuntimeResult<()> {
     let _ = &ids;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_SET_USER_IDS,
-        context.replay_payload_for(PROCESS_IDS_SET_USER_IDS)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_USER_IDS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_user_ids(context, ids)
+                platform_native::destack_process_set_user_ids(binding, ids)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_user_ids(context, ids)
+                platform_simulation_native::destack_process_set_user_ids(binding, ids)
             },
         },
         |result| {
@@ -7692,17 +7691,17 @@ fn destack_process_ids_set_user_ids_replay(
 
 #[inline]
 fn destack_process_ids_uid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_UID,
-        context.replay_payload_for(PROCESS_IDS_UID)?,
+        binding.replay_payload_for(PROCESS_IDS_UID)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_uid(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_uid(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_uid(context, out)
+                platform_simulation_native::destack_process_uid(binding, out)
             },
         },
         |result| {
@@ -7748,19 +7747,19 @@ fn destack_process_ids_uid_replay(
 
 #[inline]
 fn destack_process_ids_user_ids_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessUserIds,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_IDS_USER_IDS,
-        context.replay_payload_for(PROCESS_IDS_USER_IDS)?,
+        binding.replay_payload_for(PROCESS_IDS_USER_IDS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_user_ids(context, out)
+                platform_native::destack_process_user_ids(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_user_ids(context, out)
+                platform_simulation_native::destack_process_user_ids(binding, out)
             },
         },
         |result| {
@@ -7820,22 +7819,22 @@ fn destack_process_ids_user_ids_replay(
 
 #[inline]
 fn destack_process_limits_get_limit_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessLimit,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
     let _ = &resource;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_LIMITS_GET_LIMIT,
-        context.replay_payload_for(PROCESS_LIMITS_GET_LIMIT)?,
+        binding.replay_payload_for(PROCESS_LIMITS_GET_LIMIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_get_limit(context, out, resource)
+                platform_native::destack_process_get_limit(binding, out, resource)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_get_limit(context, out, resource)
+                platform_simulation_native::destack_process_get_limit(binding, out, resource)
             },
         },
         |result| {
@@ -7891,22 +7890,22 @@ fn destack_process_limits_get_limit_replay(
 
 #[inline]
 fn destack_process_limits_set_limit_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
     let _ = (&resource, &limit);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_LIMITS_SET_LIMIT,
-        context.replay_payload_for(PROCESS_LIMITS_SET_LIMIT)?,
+        binding.replay_payload_for(PROCESS_LIMITS_SET_LIMIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_limit(context, resource, limit)
+                platform_native::destack_process_set_limit(binding, resource, limit)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_limit(context, resource, limit)
+                platform_simulation_native::destack_process_set_limit(binding, resource, limit)
             },
         },
         |result| {
@@ -7940,22 +7939,22 @@ fn destack_process_limits_set_limit_replay(
 
 #[inline]
 fn destack_process_sched_get_affinity_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessCpuSet,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
     let _ = &pid;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SCHED_GET_AFFINITY,
-        context.replay_payload_for(PROCESS_SCHED_GET_AFFINITY)?,
+        binding.replay_payload_for(PROCESS_SCHED_GET_AFFINITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_get_affinity(context, out, pid)
+                platform_native::destack_process_get_affinity(binding, out, pid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_get_affinity(context, out, pid)
+                platform_simulation_native::destack_process_get_affinity(binding, out, pid)
             },
         },
         |result| {
@@ -8001,7 +8000,7 @@ fn destack_process_sched_get_affinity_replay(
                         let value_native_cpus_item_native = value_native_cpus_item;
                         value_native_cpus_values.push(value_native_cpus_item_native);
                     }
-                    let value_native_cpus = context.store_array(value_native_cpus_values);
+                    let value_native_cpus = binding.store_array(value_native_cpus_values);
                     let value_native = ProcessCpuSet {
                         cpus: value_native_cpus,
                     };
@@ -8018,22 +8017,22 @@ fn destack_process_sched_get_affinity_replay(
 
 #[inline]
 fn destack_process_sched_get_priority_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut i32,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
     let _ = &pid;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SCHED_GET_PRIORITY,
-        context.replay_payload_for(PROCESS_SCHED_GET_PRIORITY)?,
+        binding.replay_payload_for(PROCESS_SCHED_GET_PRIORITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_get_priority(context, out, pid)
+                platform_native::destack_process_get_priority(binding, out, pid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_get_priority(context, out, pid)
+                platform_simulation_native::destack_process_get_priority(binding, out, pid)
             },
         },
         |result| {
@@ -8079,22 +8078,22 @@ fn destack_process_sched_get_priority_replay(
 
 #[inline]
 fn destack_process_sched_get_scheduler_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessSchedulerConfig,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
     let _ = &pid;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SCHED_GET_SCHEDULER,
-        context.replay_payload_for(PROCESS_SCHED_GET_SCHEDULER)?,
+        binding.replay_payload_for(PROCESS_SCHED_GET_SCHEDULER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_get_scheduler(context, out, pid)
+                platform_native::destack_process_get_scheduler(binding, out, pid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_get_scheduler(context, out, pid)
+                platform_simulation_native::destack_process_get_scheduler(binding, out, pid)
             },
         },
         |result| {
@@ -8154,22 +8153,22 @@ fn destack_process_sched_get_scheduler_replay(
 
 #[inline]
 fn destack_process_sched_set_affinity_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     pid: ProcessId,
     cpus: ProcessCpuSet,
 ) -> RuntimeResult<()> {
     let _ = (&pid, &cpus);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SCHED_SET_AFFINITY,
-        context.replay_payload_for(PROCESS_SCHED_SET_AFFINITY)?,
+        binding.replay_payload_for(PROCESS_SCHED_SET_AFFINITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_affinity(context, pid, cpus)
+                platform_native::destack_process_set_affinity(binding, pid, cpus)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_affinity(context, pid, cpus)
+                platform_simulation_native::destack_process_set_affinity(binding, pid, cpus)
             },
         },
         |result| {
@@ -8203,22 +8202,22 @@ fn destack_process_sched_set_affinity_replay(
 
 #[inline]
 fn destack_process_sched_set_priority_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<()> {
     let _ = (&pid, &priority);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SCHED_SET_PRIORITY,
-        context.replay_payload_for(PROCESS_SCHED_SET_PRIORITY)?,
+        binding.replay_payload_for(PROCESS_SCHED_SET_PRIORITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_priority(context, pid, priority)
+                platform_native::destack_process_set_priority(binding, pid, priority)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_priority(context, pid, priority)
+                platform_simulation_native::destack_process_set_priority(binding, pid, priority)
             },
         },
         |result| {
@@ -8252,22 +8251,22 @@ fn destack_process_sched_set_priority_replay(
 
 #[inline]
 fn destack_process_sched_set_scheduler_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     pid: ProcessId,
     config: ProcessSchedulerConfig,
 ) -> RuntimeResult<()> {
     let _ = (&pid, &config);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SCHED_SET_SCHEDULER,
-        context.replay_payload_for(PROCESS_SCHED_SET_SCHEDULER)?,
+        binding.replay_payload_for(PROCESS_SCHED_SET_SCHEDULER)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_set_scheduler(context, pid, config)
+                platform_native::destack_process_set_scheduler(binding, pid, config)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_set_scheduler(context, pid, config)
+                platform_simulation_native::destack_process_set_scheduler(binding, pid, config)
             },
         },
         |result| {
@@ -8301,16 +8300,16 @@ fn destack_process_sched_set_scheduler_replay(
 
 #[inline]
 fn destack_process_sched_yield_now_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SCHED_YIELD_NOW,
-        context.replay_payload_for(PROCESS_SCHED_YIELD_NOW)?,
+        binding.replay_payload_for(PROCESS_SCHED_YIELD_NOW)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_yield_now(context) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_yield_now(binding) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_yield_now(context)
+                platform_simulation_native::destack_process_yield_now(binding)
             },
         },
         |result| {
@@ -8344,22 +8343,22 @@ fn destack_process_sched_yield_now_replay(
 
 #[inline]
 fn destack_process_session_getpgid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessId,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
     let _ = &pid;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SESSION_GETPGID,
-        context.replay_payload_for(PROCESS_SESSION_GETPGID)?,
+        binding.replay_payload_for(PROCESS_SESSION_GETPGID)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_getpgid(context, out, pid)
+                platform_native::destack_process_getpgid(binding, out, pid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_getpgid(context, out, pid)
+                platform_simulation_native::destack_process_getpgid(binding, out, pid)
             },
         },
         |result| {
@@ -8405,22 +8404,22 @@ fn destack_process_session_getpgid_replay(
 
 #[inline]
 fn destack_process_session_setpgid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeResult<()> {
     let _ = (&pid, &pgid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SESSION_SETPGID,
-        context.replay_payload_for(PROCESS_SESSION_SETPGID)?,
+        binding.replay_payload_for(PROCESS_SESSION_SETPGID)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_setpgid(context, pid, pgid)
+                platform_native::destack_process_setpgid(binding, pid, pgid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_setpgid(context, pid, pgid)
+                platform_simulation_native::destack_process_setpgid(binding, pid, pgid)
             },
         },
         |result| {
@@ -8454,17 +8453,17 @@ fn destack_process_session_setpgid_replay(
 
 #[inline]
 fn destack_process_session_setsid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SESSION_SETSID,
-        context.replay_payload_for(PROCESS_SESSION_SETSID)?,
+        binding.replay_payload_for(PROCESS_SESSION_SETSID)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_process_setsid(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_process_setsid(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_setsid(context, out)
+                platform_simulation_native::destack_process_setsid(binding, out)
             },
         },
         |result| {
@@ -8510,22 +8509,22 @@ fn destack_process_session_setsid_replay(
 
 #[inline]
 fn destack_process_signals_kill_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<()> {
     let _ = (&pid, &signal);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_KILL,
-        context.replay_payload_for(PROCESS_SIGNALS_KILL)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_KILL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_kill(context, pid, signal)
+                platform_native::destack_process_kill(binding, pid, signal)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_kill(context, pid, signal)
+                platform_simulation_native::destack_process_kill(binding, pid, signal)
             },
         },
         |result| {
@@ -8559,19 +8558,19 @@ fn destack_process_signals_kill_replay(
 
 #[inline]
 fn destack_process_signals_signal_mask_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<Signal>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_SIGNAL_MASK_READ,
-        context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_READ)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_mask_read(context, out)
+                platform_native::destack_process_signal_mask_read(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_mask_read(context, out)
+                platform_simulation_native::destack_process_signal_mask_read(binding, out)
             },
         },
         |result| {
@@ -8614,7 +8613,7 @@ fn destack_process_signals_signal_mask_read_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -8628,23 +8627,23 @@ fn destack_process_signals_signal_mask_read_replay(
 
 #[inline]
 fn destack_process_signals_signal_mask_update_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     how: SignalMaskHow,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
     let _ = (&how, &signals);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
-        context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_mask_update(context, how, signals)
+                platform_native::destack_process_signal_mask_update(binding, how, signals)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_signal_mask_update(
-                    context, how, signals,
+                    binding, how, signals,
                 )
             },
         },
@@ -8679,22 +8678,22 @@ fn destack_process_signals_signal_mask_update_replay(
 
 #[inline]
 fn destack_process_signals_signal_receive_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_SIGNAL_RECEIVE,
-        context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_RECEIVE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_RECEIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_receive(context, out, handle)
+                platform_native::destack_process_signal_receive(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_receive(context, out, handle)
+                platform_simulation_native::destack_process_signal_receive(binding, out, handle)
             },
         },
         |result| {
@@ -8750,22 +8749,22 @@ fn destack_process_signals_signal_receive_replay(
 
 #[inline]
 fn destack_process_signals_signal_subscribe_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::SignalHandle,
     signal: Signal,
 ) -> RuntimeResult<()> {
     let _ = &signal;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
-        context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_subscribe(context, out, signal)
+                platform_native::destack_process_signal_subscribe(binding, out, signal)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_subscribe(context, out, signal)
+                platform_simulation_native::destack_process_signal_subscribe(binding, out, signal)
             },
         },
         |result| {
@@ -8811,22 +8810,22 @@ fn destack_process_signals_signal_subscribe_replay(
 
 #[inline]
 fn destack_process_signals_signal_try_receive_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
-        context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_try_receive(context, out, handle)
+                platform_native::destack_process_signal_try_receive(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_try_receive(context, out, handle)
+                platform_simulation_native::destack_process_signal_try_receive(binding, out, handle)
             },
         },
         |result| {
@@ -8882,22 +8881,22 @@ fn destack_process_signals_signal_try_receive_replay(
 
 #[inline]
 fn destack_process_signals_signal_try_wait_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
     let _ = &signals;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
-        context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_try_wait(context, out, signals)
+                platform_native::destack_process_signal_try_wait(binding, out, signals)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_try_wait(context, out, signals)
+                platform_simulation_native::destack_process_signal_try_wait(binding, out, signals)
             },
         },
         |result| {
@@ -8953,21 +8952,21 @@ fn destack_process_signals_signal_try_wait_replay(
 
 #[inline]
 fn destack_process_signals_signal_unsubscribe_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
-        context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_unsubscribe(context, handle)
+                platform_native::destack_process_signal_unsubscribe(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_unsubscribe(context, handle)
+                platform_simulation_native::destack_process_signal_unsubscribe(binding, handle)
             },
         },
         |result| {
@@ -9001,22 +9000,22 @@ fn destack_process_signals_signal_unsubscribe_replay(
 
 #[inline]
 fn destack_process_signals_signal_wait_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
     let _ = &signals;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SIGNALS_SIGNAL_WAIT,
-        context.replay_payload_for(PROCESS_SIGNALS_SIGNAL_WAIT)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_signal_wait(context, out, signals)
+                platform_native::destack_process_signal_wait(binding, out, signals)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_signal_wait(context, out, signals)
+                platform_simulation_native::destack_process_signal_wait(binding, out, signals)
             },
         },
         |result| {
@@ -9072,7 +9071,7 @@ fn destack_process_signals_signal_wait_replay(
 
 #[inline]
 fn destack_process_spawn_start_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
@@ -9082,13 +9081,13 @@ fn destack_process_spawn_start_replay(
 ) -> RuntimeResult<()> {
     let _ = (&command, &arguments, &environment, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SPAWN_START,
-        context.replay_payload_for(PROCESS_SPAWN_START)?,
+        binding.replay_payload_for(PROCESS_SPAWN_START)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_process_spawn(
-                    context,
+                    binding,
                     out,
                     command,
                     arguments,
@@ -9098,7 +9097,7 @@ fn destack_process_spawn_start_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_spawn(
-                    context,
+                    binding,
                     out,
                     command,
                     arguments,
@@ -9150,7 +9149,7 @@ fn destack_process_spawn_start_replay(
 
 #[inline]
 fn destack_process_spawn_with_actions_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
@@ -9169,13 +9168,13 @@ fn destack_process_spawn_with_actions_replay(
         &actions,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_SPAWN_WITH_ACTIONS,
-        context.replay_payload_for(PROCESS_SPAWN_WITH_ACTIONS)?,
+        binding.replay_payload_for(PROCESS_SPAWN_WITH_ACTIONS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_process_spawn_with_actions(
-                    context,
+                    binding,
                     out,
                     command,
                     arguments,
@@ -9187,7 +9186,7 @@ fn destack_process_spawn_with_actions_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_process_spawn_with_actions(
-                    context,
+                    binding,
                     out,
                     command,
                     arguments,
@@ -9241,22 +9240,22 @@ fn destack_process_spawn_with_actions_replay(
 
 #[inline]
 fn destack_process_umask_set_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     mask: u32,
 ) -> RuntimeResult<()> {
     let _ = &mask;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_UMASK_SET,
-        context.replay_payload_for(PROCESS_UMASK_SET)?,
+        binding.replay_payload_for(PROCESS_UMASK_SET)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_umask(context, out, mask)
+                platform_native::destack_process_umask(binding, out, mask)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_umask(context, out, mask)
+                platform_simulation_native::destack_process_umask(binding, out, mask)
             },
         },
         |result| {
@@ -9302,7 +9301,7 @@ fn destack_process_umask_set_replay(
 
 #[inline]
 fn destack_process_wait_handle_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
@@ -9310,15 +9309,15 @@ fn destack_process_wait_handle_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_WAIT_HANDLE,
-        context.replay_payload_for(PROCESS_WAIT_HANDLE)?,
+        binding.replay_payload_for(PROCESS_WAIT_HANDLE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_wait(context, out, handle, flags)
+                platform_native::destack_process_wait(binding, out, handle, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_wait(context, out, handle, flags)
+                platform_simulation_native::destack_process_wait(binding, out, handle, flags)
             },
         },
         |result| {
@@ -9429,7 +9428,7 @@ fn destack_process_wait_handle_replay(
                     let value_native = match value {
                         ProcessWaitStatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -9442,7 +9441,7 @@ fn destack_process_wait_handle_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -9456,7 +9455,7 @@ fn destack_process_wait_handle_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -9469,7 +9468,7 @@ fn destack_process_wait_handle_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -9488,7 +9487,7 @@ fn destack_process_wait_handle_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -9515,7 +9514,7 @@ fn destack_process_wait_handle_replay(
 
 #[inline]
 fn destack_process_wait_pid_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessWaitStatus,
     pid: ProcessId,
@@ -9523,15 +9522,15 @@ fn destack_process_wait_pid_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pid, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_WAIT_PID,
-        context.replay_payload_for(PROCESS_WAIT_PID)?,
+        binding.replay_payload_for(PROCESS_WAIT_PID)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_wait_pid(context, out, pid, flags)
+                platform_native::destack_process_wait_pid(binding, out, pid, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_wait_pid(context, out, pid, flags)
+                platform_simulation_native::destack_process_wait_pid(binding, out, pid, flags)
             },
         },
         |result| {
@@ -9642,7 +9641,7 @@ fn destack_process_wait_pid_replay(
                     let value_native = match value {
                         ProcessWaitStatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -9655,7 +9654,7 @@ fn destack_process_wait_pid_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -9669,7 +9668,7 @@ fn destack_process_wait_pid_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -9682,7 +9681,7 @@ fn destack_process_wait_pid_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -9701,7 +9700,7 @@ fn destack_process_wait_pid_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -9728,22 +9727,22 @@ fn destack_process_wait_pid_replay(
 
 #[inline]
 fn destack_process_wait_try_wait_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         PROCESS_WAIT_TRY_WAIT,
-        context.replay_payload_for(PROCESS_WAIT_TRY_WAIT)?,
+        binding.replay_payload_for(PROCESS_WAIT_TRY_WAIT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_process_try_wait(context, out, handle)
+                platform_native::destack_process_try_wait(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_process_try_wait(context, out, handle)
+                platform_simulation_native::destack_process_try_wait(binding, out, handle)
             },
         },
         |result| {
@@ -9854,7 +9853,7 @@ fn destack_process_wait_try_wait_replay(
                     let value_native = match value {
                         ProcessWaitStatusReplayRecord::ProcessWaitContinuedStatus(value) => {
                             let value_native_process_wait_continued_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_continued_status_pid = value.pid;
                             let value_native_process_wait_continued_status =
                                 ProcessWaitContinuedStatus {
@@ -9867,7 +9866,7 @@ fn destack_process_wait_try_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitExitedStatus(value) => {
                             let value_native_process_wait_exited_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_exited_status_pid = value.pid;
                             let value_native_process_wait_exited_status_exit_code = value.exit_code;
                             let value_native_process_wait_exited_status = ProcessWaitExitedStatus {
@@ -9881,7 +9880,7 @@ fn destack_process_wait_try_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitRunningStatus(value) => {
                             let value_native_process_wait_running_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_running_status_pid = value.pid;
                             let value_native_process_wait_running_status =
                                 ProcessWaitRunningStatus {
@@ -9894,7 +9893,7 @@ fn destack_process_wait_try_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitSignaledStatus(value) => {
                             let value_native_process_wait_signaled_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_signaled_status_pid = value.pid;
                             let value_native_process_wait_signaled_status_signal = value.signal;
                             let value_native_process_wait_signaled_status_core_dumped =
@@ -9913,7 +9912,7 @@ fn destack_process_wait_try_wait_replay(
                         }
                         ProcessWaitStatusReplayRecord::ProcessWaitStoppedStatus(value) => {
                             let value_native_process_wait_stopped_status_kind =
-                                context.store_string(&value.kind);
+                                binding.store_string(&value.kind);
                             let value_native_process_wait_stopped_status_pid = value.pid;
                             let value_native_process_wait_stopped_status_signal = value.signal;
                             let value_native_process_wait_stopped_status =
@@ -11261,18 +11260,18 @@ pub unsafe extern "C" fn destack_process_wait_try_wait(
 /// VM replay implementations for process bindings.
 #[inline]
 fn destack_process_args_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_ARGS_LIST,
-        runtime.replay_payload_for(PROCESS_ARGS_LIST)?,
+        binding.replay_payload_for(PROCESS_ARGS_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_args(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_args(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_args(runtime, context)
+                platform_simulation_vm::destack_process_args(binding, context)
             }
         },
         |context, result| {
@@ -11334,19 +11333,19 @@ fn destack_process_args_list_vm_replay(
 
 #[inline]
 fn destack_process_cwd_chdir_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: fs::OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_CWD_CHDIR,
-        runtime.replay_payload_for(PROCESS_CWD_CHDIR)?,
+        binding.replay_payload_for(PROCESS_CWD_CHDIR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_chdir(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_process_chdir(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_chdir(runtime, context, path)
+                platform_simulation_vm::destack_process_chdir(binding, context, path)
             }
         },
         |context, result| {
@@ -11384,18 +11383,18 @@ fn destack_process_cwd_chdir_vm_replay(
 
 #[inline]
 fn destack_process_cwd_get_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_CWD_GET,
-        runtime.replay_payload_for(PROCESS_CWD_GET)?,
+        binding.replay_payload_for(PROCESS_CWD_GET)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_cwd(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_cwd(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_cwd(runtime, context)
+                platform_simulation_vm::destack_process_cwd(binding, context)
             }
         },
         |context, result| {
@@ -11534,19 +11533,19 @@ fn destack_process_cwd_get_vm_replay(
 
 #[inline]
 fn destack_process_env_delete_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_ENV_DELETE,
-        runtime.replay_payload_for(PROCESS_ENV_DELETE)?,
+        binding.replay_payload_for(PROCESS_ENV_DELETE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_env_delete(runtime, context, name),
+            RuntimeWorld::Host => platform_vm::destack_process_env_delete(binding, context, name),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_env_delete(runtime, context, name)
+                platform_simulation_vm::destack_process_env_delete(binding, context, name)
             }
         },
         |context, result| {
@@ -11584,21 +11583,21 @@ fn destack_process_env_delete_vm_replay(
 
 #[inline]
 fn destack_process_env_delete_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_ENV_DELETE_BYTES,
-        runtime.replay_payload_for(PROCESS_ENV_DELETE_BYTES)?,
+        binding.replay_payload_for(PROCESS_ENV_DELETE_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_env_delete_bytes(runtime, context, name)
+                platform_vm::destack_process_env_delete_bytes(binding, context, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_env_delete_bytes(runtime, context, name)
+                platform_simulation_vm::destack_process_env_delete_bytes(binding, context, name)
             }
         },
         |context, result| {
@@ -11636,19 +11635,19 @@ fn destack_process_env_delete_bytes_vm_replay(
 
 #[inline]
 fn destack_process_env_get_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_ENV_GET,
-        runtime.replay_payload_for(PROCESS_ENV_GET)?,
+        binding.replay_payload_for(PROCESS_ENV_GET)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_env_get(runtime, context, name),
+            RuntimeWorld::Host => platform_vm::destack_process_env_get(binding, context, name),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_env_get(runtime, context, name)
+                platform_simulation_vm::destack_process_env_get(binding, context, name)
             }
         },
         |context, result| {
@@ -11696,21 +11695,21 @@ fn destack_process_env_get_vm_replay(
 
 #[inline]
 fn destack_process_env_get_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_ENV_GET_BYTES,
-        runtime.replay_payload_for(PROCESS_ENV_GET_BYTES)?,
+        binding.replay_payload_for(PROCESS_ENV_GET_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_env_get_bytes(runtime, context, name)
+                platform_vm::destack_process_env_get_bytes(binding, context, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_env_get_bytes(runtime, context, name)
+                platform_simulation_vm::destack_process_env_get_bytes(binding, context, name)
             }
         },
         |context, result| {
@@ -11752,22 +11751,22 @@ fn destack_process_env_get_bytes_vm_replay(
 
 #[inline]
 fn destack_process_env_set_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: vm::StringHandle,
     argument_value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_ENV_SET,
-        runtime.replay_payload_for(PROCESS_ENV_SET)?,
+        binding.replay_payload_for(PROCESS_ENV_SET)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_env_set(runtime, context, name, argument_value)
+                platform_vm::destack_process_env_set(binding, context, name, argument_value)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_env_set(
-                runtime,
+                binding,
                 context,
                 name,
                 argument_value,
@@ -11808,22 +11807,22 @@ fn destack_process_env_set_vm_replay(
 
 #[inline]
 fn destack_process_env_set_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     name: VmSlice<u8>,
     argument_value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_ENV_SET_BYTES,
-        runtime.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
+        binding.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_env_set_bytes(runtime, context, name, argument_value)
+                platform_vm::destack_process_env_set_bytes(binding, context, name, argument_value)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_env_set_bytes(
-                runtime,
+                binding,
                 context,
                 name,
                 argument_value,
@@ -11864,27 +11863,27 @@ fn destack_process_env_set_bytes_vm_replay(
 
 #[inline]
 fn destack_process_exec_fexec_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     executable: resource::FileHandle,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_EXEC_FEXEC,
-        runtime.replay_payload_for(PROCESS_EXEC_FEXEC)?,
+        binding.replay_payload_for(PROCESS_EXEC_FEXEC)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_process_fexec(
-                runtime,
+                binding,
                 context,
                 executable,
                 arguments,
                 environment,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_fexec(
-                runtime,
+                binding,
                 context,
                 executable,
                 arguments,
@@ -11926,23 +11925,23 @@ fn destack_process_exec_fexec_vm_replay(
 
 #[inline]
 fn destack_process_exec_path_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     command: fs::OsPathVm,
     arguments: VmSlice<vm::StringHandle>,
     environment: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_EXEC_PATH,
-        runtime.replay_payload_for(PROCESS_EXEC_PATH)?,
+        binding.replay_payload_for(PROCESS_EXEC_PATH)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_exec(runtime, context, command, arguments, environment)
+                platform_vm::destack_process_exec(binding, context, command, arguments, environment)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_exec(
-                runtime,
+                binding,
                 context,
                 command,
                 arguments,
@@ -11984,7 +11983,7 @@ fn destack_process_exec_path_vm_replay(
 
 #[inline]
 fn destack_process_exec_pathat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     directory: resource::DirectoryHandle,
@@ -11993,13 +11992,13 @@ fn destack_process_exec_pathat_vm_replay(
     environment: VmSlice<vm::StringHandle>,
     flags: ExecAtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_EXEC_PATHAT,
-        runtime.replay_payload_for(PROCESS_EXEC_PATHAT)?,
+        binding.replay_payload_for(PROCESS_EXEC_PATHAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_process_execat(
-                runtime,
+                binding,
                 context,
                 directory,
                 path,
@@ -12008,7 +12007,7 @@ fn destack_process_exec_pathat_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_execat(
-                runtime,
+                binding,
                 context,
                 directory,
                 path,
@@ -12052,19 +12051,19 @@ fn destack_process_exec_pathat_vm_replay(
 
 #[inline]
 fn destack_process_exit_terminate_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     code: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_EXIT_TERMINATE,
-        runtime.replay_payload_for(PROCESS_EXIT_TERMINATE)?,
+        binding.replay_payload_for(PROCESS_EXIT_TERMINATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_exit(runtime, context, code),
+            RuntimeWorld::Host => platform_vm::destack_process_exit(binding, context, code),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_exit(runtime, context, code)
+                platform_simulation_vm::destack_process_exit(binding, context, code)
             }
         },
         |context, result| {
@@ -12102,21 +12101,21 @@ fn destack_process_exit_terminate_vm_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_PROCESS_FD_CLOSE,
-        runtime.replay_payload_for(PROCESS_FD_PROCESS_FD_CLOSE)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_process_fd_close(runtime, context, handle)
+                platform_vm::destack_process_process_fd_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_process_fd_close(runtime, context, handle)
+                platform_simulation_vm::destack_process_process_fd_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -12154,22 +12153,22 @@ fn destack_process_fd_process_fd_close_vm_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
     flags: ProcessFdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_PROCESS_FD_OPEN,
-        runtime.replay_payload_for(PROCESS_FD_PROCESS_FD_OPEN)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_process_fd_open(runtime, context, pid, flags)
+                platform_vm::destack_process_process_fd_open(binding, context, pid, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_process_fd_open(
-                runtime, context, pid, flags,
+                binding, context, pid, flags,
             ),
         },
         |context, result| {
@@ -12211,24 +12210,24 @@ fn destack_process_fd_process_fd_open_vm_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_send_signal_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ProcessFdHandle,
     signal: Signal,
     flags: ProcessFdSignalFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
-        runtime.replay_payload_for(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_process_process_fd_send_signal(
-                runtime, context, handle, signal, flags,
+                binding, context, handle, signal, flags,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_process_process_fd_send_signal(
-                    runtime, context, handle, signal, flags,
+                    binding, context, handle, signal, flags,
                 )
             }
         },
@@ -12267,22 +12266,22 @@ fn destack_process_fd_process_fd_send_signal_vm_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_try_wait_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_PROCESS_FD_TRY_WAIT,
-        runtime.replay_payload_for(PROCESS_FD_PROCESS_FD_TRY_WAIT)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_TRY_WAIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_process_fd_try_wait(runtime, context, handle)
+                platform_vm::destack_process_process_fd_try_wait(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_process_process_fd_try_wait(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -12521,22 +12520,22 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
 
 #[inline]
 fn destack_process_fd_process_fd_wait_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_PROCESS_FD_WAIT,
-        runtime.replay_payload_for(PROCESS_FD_PROCESS_FD_WAIT)?,
+        binding.replay_payload_for(PROCESS_FD_PROCESS_FD_WAIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_process_fd_wait(runtime, context, handle, timeoutns)
+                platform_vm::destack_process_process_fd_wait(binding, context, handle, timeoutns)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_process_fd_wait(
-                runtime, context, handle, timeoutns,
+                binding, context, handle, timeoutns,
             ),
         },
         |context, result| {
@@ -12774,21 +12773,21 @@ fn destack_process_fd_process_fd_wait_vm_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_SIGNAL_FD_CLOSE,
-        runtime.replay_payload_for(PROCESS_FD_SIGNAL_FD_CLOSE)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_fd_close(runtime, context, handle)
+                platform_vm::destack_process_signal_fd_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_fd_close(runtime, context, handle)
+                platform_simulation_vm::destack_process_signal_fd_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -12826,22 +12825,22 @@ fn destack_process_fd_signal_fd_close_vm_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     signals: VmSlice<Signal>,
     flags: SignalFdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_SIGNAL_FD_OPEN,
-        runtime.replay_payload_for(PROCESS_FD_SIGNAL_FD_OPEN)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_OPEN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_fd_open(runtime, context, signals, flags)
+                platform_vm::destack_process_signal_fd_open(binding, context, signals, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_signal_fd_open(
-                runtime, context, signals, flags,
+                binding, context, signals, flags,
             ),
         },
         |context, result| {
@@ -12883,21 +12882,21 @@ fn destack_process_fd_signal_fd_open_vm_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_SIGNAL_FD_READ,
-        runtime.replay_payload_for(PROCESS_FD_SIGNAL_FD_READ)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_fd_read(runtime, context, handle)
+                platform_vm::destack_process_signal_fd_read(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_fd_read(runtime, context, handle)
+                platform_simulation_vm::destack_process_signal_fd_read(binding, context, handle)
             }
         },
         |context, result| {
@@ -12949,22 +12948,22 @@ fn destack_process_fd_signal_fd_read_vm_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_set_mask_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_SIGNAL_FD_SET_MASK,
-        runtime.replay_payload_for(PROCESS_FD_SIGNAL_FD_SET_MASK)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_SET_MASK)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_fd_set_mask(runtime, context, handle, signals)
+                platform_vm::destack_process_signal_fd_set_mask(binding, context, handle, signals)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_signal_fd_set_mask(
-                runtime, context, handle, signals,
+                binding, context, handle, signals,
             ),
         },
         |context, result| {
@@ -13002,21 +13001,21 @@ fn destack_process_fd_signal_fd_set_mask_vm_replay(
 
 #[inline]
 fn destack_process_fd_signal_fd_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_SIGNAL_FD_TRY_READ,
-        runtime.replay_payload_for(PROCESS_FD_SIGNAL_FD_TRY_READ)?,
+        binding.replay_payload_for(PROCESS_FD_SIGNAL_FD_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_fd_try_read(runtime, context, handle)
+                platform_vm::destack_process_signal_fd_try_read(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_fd_try_read(runtime, context, handle)
+                platform_simulation_vm::destack_process_signal_fd_try_read(binding, context, handle)
             }
         },
         |context, result| {
@@ -13068,18 +13067,18 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
 
 #[inline]
 fn destack_process_fd_stdio_stderr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_STDIO_STDERR,
-        runtime.replay_payload_for(PROCESS_FD_STDIO_STDERR)?,
+        binding.replay_payload_for(PROCESS_FD_STDIO_STDERR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_stdio_stderr(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_stdio_stderr(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_stdio_stderr(runtime, context)
+                platform_simulation_vm::destack_process_stdio_stderr(binding, context)
             }
         },
         |context, result| {
@@ -13121,18 +13120,18 @@ fn destack_process_fd_stdio_stderr_vm_replay(
 
 #[inline]
 fn destack_process_fd_stdio_stdin_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_STDIO_STDIN,
-        runtime.replay_payload_for(PROCESS_FD_STDIO_STDIN)?,
+        binding.replay_payload_for(PROCESS_FD_STDIO_STDIN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_stdio_stdin(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_stdio_stdin(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_stdio_stdin(runtime, context)
+                platform_simulation_vm::destack_process_stdio_stdin(binding, context)
             }
         },
         |context, result| {
@@ -13174,18 +13173,18 @@ fn destack_process_fd_stdio_stdin_vm_replay(
 
 #[inline]
 fn destack_process_fd_stdio_stdout_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_FD_STDIO_STDOUT,
-        runtime.replay_payload_for(PROCESS_FD_STDIO_STDOUT)?,
+        binding.replay_payload_for(PROCESS_FD_STDIO_STDOUT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_stdio_stdout(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_stdio_stdout(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_stdio_stdout(runtime, context)
+                platform_simulation_vm::destack_process_stdio_stdout(binding, context)
             }
         },
         |context, result| {
@@ -13227,18 +13226,18 @@ fn destack_process_fd_stdio_stdout_vm_replay(
 
 #[inline]
 fn destack_process_ids_egid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_EGID,
-        runtime.replay_payload_for(PROCESS_IDS_EGID)?,
+        binding.replay_payload_for(PROCESS_IDS_EGID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_egid(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_egid(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_egid(runtime, context)
+                platform_simulation_vm::destack_process_egid(binding, context)
             }
         },
         |context, result| {
@@ -13280,18 +13279,18 @@ fn destack_process_ids_egid_vm_replay(
 
 #[inline]
 fn destack_process_ids_euid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_EUID,
-        runtime.replay_payload_for(PROCESS_IDS_EUID)?,
+        binding.replay_payload_for(PROCESS_IDS_EUID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_euid(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_euid(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_euid(runtime, context)
+                platform_simulation_vm::destack_process_euid(binding, context)
             }
         },
         |context, result| {
@@ -13333,18 +13332,18 @@ fn destack_process_ids_euid_vm_replay(
 
 #[inline]
 fn destack_process_ids_gid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_GID,
-        runtime.replay_payload_for(PROCESS_IDS_GID)?,
+        binding.replay_payload_for(PROCESS_IDS_GID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_gid(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_gid(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_gid(runtime, context)
+                platform_simulation_vm::destack_process_gid(binding, context)
             }
         },
         |context, result| {
@@ -13386,18 +13385,18 @@ fn destack_process_ids_gid_vm_replay(
 
 #[inline]
 fn destack_process_ids_group_ids_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_GROUP_IDS,
-        runtime.replay_payload_for(PROCESS_IDS_GROUP_IDS)?,
+        binding.replay_payload_for(PROCESS_IDS_GROUP_IDS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_group_ids(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_group_ids(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_group_ids(runtime, context)
+                platform_simulation_vm::destack_process_group_ids(binding, context)
             }
         },
         |context, result| {
@@ -13453,18 +13452,18 @@ fn destack_process_ids_group_ids_vm_replay(
 
 #[inline]
 fn destack_process_ids_groups_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_GROUPS,
-        runtime.replay_payload_for(PROCESS_IDS_GROUPS)?,
+        binding.replay_payload_for(PROCESS_IDS_GROUPS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_groups(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_groups(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_groups(runtime, context)
+                platform_simulation_vm::destack_process_groups(binding, context)
             }
         },
         |context, result| {
@@ -13523,18 +13522,18 @@ fn destack_process_ids_groups_vm_replay(
 
 #[inline]
 fn destack_process_ids_pid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_PID,
-        runtime.replay_payload_for(PROCESS_IDS_PID)?,
+        binding.replay_payload_for(PROCESS_IDS_PID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_pid(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_pid(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_pid(runtime, context)
+                platform_simulation_vm::destack_process_pid(binding, context)
             }
         },
         |context, result| {
@@ -13576,18 +13575,18 @@ fn destack_process_ids_pid_vm_replay(
 
 #[inline]
 fn destack_process_ids_ppid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_PPID,
-        runtime.replay_payload_for(PROCESS_IDS_PPID)?,
+        binding.replay_payload_for(PROCESS_IDS_PPID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_ppid(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_ppid(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_ppid(runtime, context)
+                platform_simulation_vm::destack_process_ppid(binding, context)
             }
         },
         |context, result| {
@@ -13629,19 +13628,19 @@ fn destack_process_ids_ppid_vm_replay(
 
 #[inline]
 fn destack_process_ids_set_egid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     groupid: GroupId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_SET_EGID,
-        runtime.replay_payload_for(PROCESS_IDS_SET_EGID)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_EGID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_set_egid(runtime, context, groupid),
+            RuntimeWorld::Host => platform_vm::destack_process_set_egid(binding, context, groupid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_egid(runtime, context, groupid)
+                platform_simulation_vm::destack_process_set_egid(binding, context, groupid)
             }
         },
         |context, result| {
@@ -13679,19 +13678,19 @@ fn destack_process_ids_set_egid_vm_replay(
 
 #[inline]
 fn destack_process_ids_set_euid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     userid: UserId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_SET_EUID,
-        runtime.replay_payload_for(PROCESS_IDS_SET_EUID)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_EUID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_set_euid(runtime, context, userid),
+            RuntimeWorld::Host => platform_vm::destack_process_set_euid(binding, context, userid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_euid(runtime, context, userid)
+                platform_simulation_vm::destack_process_set_euid(binding, context, userid)
             }
         },
         |context, result| {
@@ -13729,19 +13728,19 @@ fn destack_process_ids_set_euid_vm_replay(
 
 #[inline]
 fn destack_process_ids_set_gid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     groupid: GroupId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_SET_GID,
-        runtime.replay_payload_for(PROCESS_IDS_SET_GID)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_GID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_set_gid(runtime, context, groupid),
+            RuntimeWorld::Host => platform_vm::destack_process_set_gid(binding, context, groupid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_gid(runtime, context, groupid)
+                platform_simulation_vm::destack_process_set_gid(binding, context, groupid)
             }
         },
         |context, result| {
@@ -13779,19 +13778,19 @@ fn destack_process_ids_set_gid_vm_replay(
 
 #[inline]
 fn destack_process_ids_set_group_ids_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     ids: ProcessGroupIdsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_SET_GROUP_IDS,
-        runtime.replay_payload_for(PROCESS_IDS_SET_GROUP_IDS)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_GROUP_IDS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_set_group_ids(runtime, context, ids),
+            RuntimeWorld::Host => platform_vm::destack_process_set_group_ids(binding, context, ids),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_group_ids(runtime, context, ids)
+                platform_simulation_vm::destack_process_set_group_ids(binding, context, ids)
             }
         },
         |context, result| {
@@ -13829,19 +13828,19 @@ fn destack_process_ids_set_group_ids_vm_replay(
 
 #[inline]
 fn destack_process_ids_set_groups_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     groups: VmSlice<GroupId>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_SET_GROUPS,
-        runtime.replay_payload_for(PROCESS_IDS_SET_GROUPS)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_GROUPS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_set_groups(runtime, context, groups),
+            RuntimeWorld::Host => platform_vm::destack_process_set_groups(binding, context, groups),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_groups(runtime, context, groups)
+                platform_simulation_vm::destack_process_set_groups(binding, context, groups)
             }
         },
         |context, result| {
@@ -13879,19 +13878,19 @@ fn destack_process_ids_set_groups_vm_replay(
 
 #[inline]
 fn destack_process_ids_set_uid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     userid: UserId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_SET_UID,
-        runtime.replay_payload_for(PROCESS_IDS_SET_UID)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_UID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_set_uid(runtime, context, userid),
+            RuntimeWorld::Host => platform_vm::destack_process_set_uid(binding, context, userid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_uid(runtime, context, userid)
+                platform_simulation_vm::destack_process_set_uid(binding, context, userid)
             }
         },
         |context, result| {
@@ -13929,19 +13928,19 @@ fn destack_process_ids_set_uid_vm_replay(
 
 #[inline]
 fn destack_process_ids_set_user_ids_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     ids: ProcessUserIdsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_SET_USER_IDS,
-        runtime.replay_payload_for(PROCESS_IDS_SET_USER_IDS)?,
+        binding.replay_payload_for(PROCESS_IDS_SET_USER_IDS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_set_user_ids(runtime, context, ids),
+            RuntimeWorld::Host => platform_vm::destack_process_set_user_ids(binding, context, ids),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_user_ids(runtime, context, ids)
+                platform_simulation_vm::destack_process_set_user_ids(binding, context, ids)
             }
         },
         |context, result| {
@@ -13979,18 +13978,18 @@ fn destack_process_ids_set_user_ids_vm_replay(
 
 #[inline]
 fn destack_process_ids_uid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_UID,
-        runtime.replay_payload_for(PROCESS_IDS_UID)?,
+        binding.replay_payload_for(PROCESS_IDS_UID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_uid(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_uid(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_uid(runtime, context)
+                platform_simulation_vm::destack_process_uid(binding, context)
             }
         },
         |context, result| {
@@ -14032,18 +14031,18 @@ fn destack_process_ids_uid_vm_replay(
 
 #[inline]
 fn destack_process_ids_user_ids_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_IDS_USER_IDS,
-        runtime.replay_payload_for(PROCESS_IDS_USER_IDS)?,
+        binding.replay_payload_for(PROCESS_IDS_USER_IDS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_user_ids(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_user_ids(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_user_ids(runtime, context)
+                platform_simulation_vm::destack_process_user_ids(binding, context)
             }
         },
         |context, result| {
@@ -14099,21 +14098,21 @@ fn destack_process_ids_user_ids_vm_replay(
 
 #[inline]
 fn destack_process_limits_get_limit_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_LIMITS_GET_LIMIT,
-        runtime.replay_payload_for(PROCESS_LIMITS_GET_LIMIT)?,
+        binding.replay_payload_for(PROCESS_LIMITS_GET_LIMIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_get_limit(runtime, context, resource)
+                platform_vm::destack_process_get_limit(binding, context, resource)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_get_limit(runtime, context, resource)
+                platform_simulation_vm::destack_process_get_limit(binding, context, resource)
             }
         },
         |context, result| {
@@ -14165,22 +14164,22 @@ fn destack_process_limits_get_limit_vm_replay(
 
 #[inline]
 fn destack_process_limits_set_limit_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     resource: ProcessLimitResource,
     limit: ProcessLimitVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_LIMITS_SET_LIMIT,
-        runtime.replay_payload_for(PROCESS_LIMITS_SET_LIMIT)?,
+        binding.replay_payload_for(PROCESS_LIMITS_SET_LIMIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_set_limit(runtime, context, resource, limit)
+                platform_vm::destack_process_set_limit(binding, context, resource, limit)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_limit(runtime, context, resource, limit)
+                platform_simulation_vm::destack_process_set_limit(binding, context, resource, limit)
             }
         },
         |context, result| {
@@ -14218,19 +14217,19 @@ fn destack_process_limits_set_limit_vm_replay(
 
 #[inline]
 fn destack_process_sched_get_affinity_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SCHED_GET_AFFINITY,
-        runtime.replay_payload_for(PROCESS_SCHED_GET_AFFINITY)?,
+        binding.replay_payload_for(PROCESS_SCHED_GET_AFFINITY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_get_affinity(runtime, context, pid),
+            RuntimeWorld::Host => platform_vm::destack_process_get_affinity(binding, context, pid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_get_affinity(runtime, context, pid)
+                platform_simulation_vm::destack_process_get_affinity(binding, context, pid)
             }
         },
         |context, result| {
@@ -14294,19 +14293,19 @@ fn destack_process_sched_get_affinity_vm_replay(
 
 #[inline]
 fn destack_process_sched_get_priority_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SCHED_GET_PRIORITY,
-        runtime.replay_payload_for(PROCESS_SCHED_GET_PRIORITY)?,
+        binding.replay_payload_for(PROCESS_SCHED_GET_PRIORITY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_get_priority(runtime, context, pid),
+            RuntimeWorld::Host => platform_vm::destack_process_get_priority(binding, context, pid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_get_priority(runtime, context, pid)
+                platform_simulation_vm::destack_process_get_priority(binding, context, pid)
             }
         },
         |context, result| {
@@ -14348,19 +14347,19 @@ fn destack_process_sched_get_priority_vm_replay(
 
 #[inline]
 fn destack_process_sched_get_scheduler_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SCHED_GET_SCHEDULER,
-        runtime.replay_payload_for(PROCESS_SCHED_GET_SCHEDULER)?,
+        binding.replay_payload_for(PROCESS_SCHED_GET_SCHEDULER)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_get_scheduler(runtime, context, pid),
+            RuntimeWorld::Host => platform_vm::destack_process_get_scheduler(binding, context, pid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_get_scheduler(runtime, context, pid)
+                platform_simulation_vm::destack_process_get_scheduler(binding, context, pid)
             }
         },
         |context, result| {
@@ -14416,22 +14415,22 @@ fn destack_process_sched_get_scheduler_vm_replay(
 
 #[inline]
 fn destack_process_sched_set_affinity_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
     cpus: ProcessCpuSetVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SCHED_SET_AFFINITY,
-        runtime.replay_payload_for(PROCESS_SCHED_SET_AFFINITY)?,
+        binding.replay_payload_for(PROCESS_SCHED_SET_AFFINITY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_set_affinity(runtime, context, pid, cpus)
+                platform_vm::destack_process_set_affinity(binding, context, pid, cpus)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_affinity(runtime, context, pid, cpus)
+                platform_simulation_vm::destack_process_set_affinity(binding, context, pid, cpus)
             }
         },
         |context, result| {
@@ -14469,22 +14468,22 @@ fn destack_process_sched_set_affinity_vm_replay(
 
 #[inline]
 fn destack_process_sched_set_priority_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SCHED_SET_PRIORITY,
-        runtime.replay_payload_for(PROCESS_SCHED_SET_PRIORITY)?,
+        binding.replay_payload_for(PROCESS_SCHED_SET_PRIORITY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_set_priority(runtime, context, pid, priority)
+                platform_vm::destack_process_set_priority(binding, context, pid, priority)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_set_priority(
-                runtime, context, pid, priority,
+                binding, context, pid, priority,
             ),
         },
         |context, result| {
@@ -14522,22 +14521,22 @@ fn destack_process_sched_set_priority_vm_replay(
 
 #[inline]
 fn destack_process_sched_set_scheduler_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
     config: ProcessSchedulerConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SCHED_SET_SCHEDULER,
-        runtime.replay_payload_for(PROCESS_SCHED_SET_SCHEDULER)?,
+        binding.replay_payload_for(PROCESS_SCHED_SET_SCHEDULER)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_set_scheduler(runtime, context, pid, config)
+                platform_vm::destack_process_set_scheduler(binding, context, pid, config)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_set_scheduler(runtime, context, pid, config)
+                platform_simulation_vm::destack_process_set_scheduler(binding, context, pid, config)
             }
         },
         |context, result| {
@@ -14575,18 +14574,18 @@ fn destack_process_sched_set_scheduler_vm_replay(
 
 #[inline]
 fn destack_process_sched_yield_now_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SCHED_YIELD_NOW,
-        runtime.replay_payload_for(PROCESS_SCHED_YIELD_NOW)?,
+        binding.replay_payload_for(PROCESS_SCHED_YIELD_NOW)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_yield_now(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_yield_now(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_yield_now(runtime, context)
+                platform_simulation_vm::destack_process_yield_now(binding, context)
             }
         },
         |context, result| {
@@ -14624,19 +14623,19 @@ fn destack_process_sched_yield_now_vm_replay(
 
 #[inline]
 fn destack_process_session_getpgid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SESSION_GETPGID,
-        runtime.replay_payload_for(PROCESS_SESSION_GETPGID)?,
+        binding.replay_payload_for(PROCESS_SESSION_GETPGID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_getpgid(runtime, context, pid),
+            RuntimeWorld::Host => platform_vm::destack_process_getpgid(binding, context, pid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_getpgid(runtime, context, pid)
+                platform_simulation_vm::destack_process_getpgid(binding, context, pid)
             }
         },
         |context, result| {
@@ -14678,20 +14677,20 @@ fn destack_process_session_getpgid_vm_replay(
 
 #[inline]
 fn destack_process_session_setpgid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SESSION_SETPGID,
-        runtime.replay_payload_for(PROCESS_SESSION_SETPGID)?,
+        binding.replay_payload_for(PROCESS_SESSION_SETPGID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_setpgid(runtime, context, pid, pgid),
+            RuntimeWorld::Host => platform_vm::destack_process_setpgid(binding, context, pid, pgid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_setpgid(runtime, context, pid, pgid)
+                platform_simulation_vm::destack_process_setpgid(binding, context, pid, pgid)
             }
         },
         |context, result| {
@@ -14729,18 +14728,18 @@ fn destack_process_session_setpgid_vm_replay(
 
 #[inline]
 fn destack_process_session_setsid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SESSION_SETSID,
-        runtime.replay_payload_for(PROCESS_SESSION_SETSID)?,
+        binding.replay_payload_for(PROCESS_SESSION_SETSID)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_setsid(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_setsid(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_setsid(runtime, context)
+                platform_simulation_vm::destack_process_setsid(binding, context)
             }
         },
         |context, result| {
@@ -14782,20 +14781,20 @@ fn destack_process_session_setsid_vm_replay(
 
 #[inline]
 fn destack_process_signals_kill_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_KILL,
-        runtime.replay_payload_for(PROCESS_SIGNALS_KILL)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_KILL)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_kill(runtime, context, pid, signal),
+            RuntimeWorld::Host => platform_vm::destack_process_kill(binding, context, pid, signal),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_kill(runtime, context, pid, signal)
+                platform_simulation_vm::destack_process_kill(binding, context, pid, signal)
             }
         },
         |context, result| {
@@ -14833,18 +14832,18 @@ fn destack_process_signals_kill_vm_replay(
 
 #[inline]
 fn destack_process_signals_signal_mask_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_SIGNAL_MASK_READ,
-        runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_READ)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_READ)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_signal_mask_read(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_process_signal_mask_read(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_mask_read(runtime, context)
+                platform_simulation_vm::destack_process_signal_mask_read(binding, context)
             }
         },
         |context, result| {
@@ -14903,22 +14902,22 @@ fn destack_process_signals_signal_mask_read_vm_replay(
 
 #[inline]
 fn destack_process_signals_signal_mask_update_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     how: SignalMaskHow,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
-        runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_mask_update(runtime, context, how, signals)
+                platform_vm::destack_process_signal_mask_update(binding, context, how, signals)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_signal_mask_update(
-                runtime, context, how, signals,
+                binding, context, how, signals,
             ),
         },
         |context, result| {
@@ -14956,21 +14955,21 @@ fn destack_process_signals_signal_mask_update_vm_replay(
 
 #[inline]
 fn destack_process_signals_signal_receive_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_SIGNAL_RECEIVE,
-        runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_RECEIVE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_RECEIVE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_receive(runtime, context, handle)
+                platform_vm::destack_process_signal_receive(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_receive(runtime, context, handle)
+                platform_simulation_vm::destack_process_signal_receive(binding, context, handle)
             }
         },
         |context, result| {
@@ -15022,21 +15021,21 @@ fn destack_process_signals_signal_receive_vm_replay(
 
 #[inline]
 fn destack_process_signals_signal_subscribe_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     signal: Signal,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
-        runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_subscribe(runtime, context, signal)
+                platform_vm::destack_process_signal_subscribe(binding, context, signal)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_subscribe(runtime, context, signal)
+                platform_simulation_vm::destack_process_signal_subscribe(binding, context, signal)
             }
         },
         |context, result| {
@@ -15078,21 +15077,21 @@ fn destack_process_signals_signal_subscribe_vm_replay(
 
 #[inline]
 fn destack_process_signals_signal_try_receive_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
-        runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_try_receive(runtime, context, handle)
+                platform_vm::destack_process_signal_try_receive(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_try_receive(runtime, context, handle)
+                platform_simulation_vm::destack_process_signal_try_receive(binding, context, handle)
             }
         },
         |context, result| {
@@ -15144,21 +15143,21 @@ fn destack_process_signals_signal_try_receive_vm_replay(
 
 #[inline]
 fn destack_process_signals_signal_try_wait_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
-        runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_try_wait(runtime, context, signals)
+                platform_vm::destack_process_signal_try_wait(binding, context, signals)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_try_wait(runtime, context, signals)
+                platform_simulation_vm::destack_process_signal_try_wait(binding, context, signals)
             }
         },
         |context, result| {
@@ -15210,21 +15209,21 @@ fn destack_process_signals_signal_try_wait_vm_replay(
 
 #[inline]
 fn destack_process_signals_signal_unsubscribe_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
-        runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_unsubscribe(runtime, context, handle)
+                platform_vm::destack_process_signal_unsubscribe(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_unsubscribe(runtime, context, handle)
+                platform_simulation_vm::destack_process_signal_unsubscribe(binding, context, handle)
             }
         },
         |context, result| {
@@ -15262,21 +15261,21 @@ fn destack_process_signals_signal_unsubscribe_vm_replay(
 
 #[inline]
 fn destack_process_signals_signal_wait_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SIGNALS_SIGNAL_WAIT,
-        runtime.replay_payload_for(PROCESS_SIGNALS_SIGNAL_WAIT)?,
+        binding.replay_payload_for(PROCESS_SIGNALS_SIGNAL_WAIT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_signal_wait(runtime, context, signals)
+                platform_vm::destack_process_signal_wait(binding, context, signals)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_signal_wait(runtime, context, signals)
+                platform_simulation_vm::destack_process_signal_wait(binding, context, signals)
             }
         },
         |context, result| {
@@ -15328,7 +15327,7 @@ fn destack_process_signals_signal_wait_vm_replay(
 
 #[inline]
 fn destack_process_spawn_start_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     command: fs::OsPathVm,
@@ -15336,13 +15335,13 @@ fn destack_process_spawn_start_vm_replay(
     environment: VmSlice<vm::StringHandle>,
     options: ProcessSpawnOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SPAWN_START,
-        runtime.replay_payload_for(PROCESS_SPAWN_START)?,
+        binding.replay_payload_for(PROCESS_SPAWN_START)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_process_spawn(
-                runtime,
+                binding,
                 context,
                 command,
                 arguments,
@@ -15350,7 +15349,7 @@ fn destack_process_spawn_start_vm_replay(
                 options,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_spawn(
-                runtime,
+                binding,
                 context,
                 command,
                 arguments,
@@ -15397,7 +15396,7 @@ fn destack_process_spawn_start_vm_replay(
 
 #[inline]
 fn destack_process_spawn_with_actions_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     command: fs::OsPathVm,
@@ -15407,13 +15406,13 @@ fn destack_process_spawn_with_actions_vm_replay(
     stdio: VmSlice<ProcessStdioVm>,
     actions: VmSlice<ProcessFdActionVm>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_SPAWN_WITH_ACTIONS,
-        runtime.replay_payload_for(PROCESS_SPAWN_WITH_ACTIONS)?,
+        binding.replay_payload_for(PROCESS_SPAWN_WITH_ACTIONS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_process_spawn_with_actions(
-                runtime,
+                binding,
                 context,
                 command,
                 arguments,
@@ -15423,7 +15422,7 @@ fn destack_process_spawn_with_actions_vm_replay(
                 actions,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_process_spawn_with_actions(
-                runtime,
+                binding,
                 context,
                 command,
                 arguments,
@@ -15472,19 +15471,19 @@ fn destack_process_spawn_with_actions_vm_replay(
 
 #[inline]
 fn destack_process_umask_set_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mask: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_UMASK_SET,
-        runtime.replay_payload_for(PROCESS_UMASK_SET)?,
+        binding.replay_payload_for(PROCESS_UMASK_SET)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_umask(runtime, context, mask),
+            RuntimeWorld::Host => platform_vm::destack_process_umask(binding, context, mask),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_umask(runtime, context, mask)
+                platform_simulation_vm::destack_process_umask(binding, context, mask)
             }
         },
         |context, result| {
@@ -15526,22 +15525,22 @@ fn destack_process_umask_set_vm_replay(
 
 #[inline]
 fn destack_process_wait_handle_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_WAIT_HANDLE,
-        runtime.replay_payload_for(PROCESS_WAIT_HANDLE)?,
+        binding.replay_payload_for(PROCESS_WAIT_HANDLE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_wait(runtime, context, handle, flags)
+                platform_vm::destack_process_wait(binding, context, handle, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_wait(runtime, context, handle, flags)
+                platform_simulation_vm::destack_process_wait(binding, context, handle, flags)
             }
         },
         |context, result| {
@@ -15779,22 +15778,22 @@ fn destack_process_wait_handle_vm_replay(
 
 #[inline]
 fn destack_process_wait_pid_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_WAIT_PID,
-        runtime.replay_payload_for(PROCESS_WAIT_PID)?,
+        binding.replay_payload_for(PROCESS_WAIT_PID)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_process_wait_pid(runtime, context, pid, flags)
+                platform_vm::destack_process_wait_pid(binding, context, pid, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_wait_pid(runtime, context, pid, flags)
+                platform_simulation_vm::destack_process_wait_pid(binding, context, pid, flags)
             }
         },
         |context, result| {
@@ -16032,19 +16031,19 @@ fn destack_process_wait_pid_vm_replay(
 
 #[inline]
 fn destack_process_wait_try_wait_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         PROCESS_WAIT_TRY_WAIT,
-        runtime.replay_payload_for(PROCESS_WAIT_TRY_WAIT)?,
+        binding.replay_payload_for(PROCESS_WAIT_TRY_WAIT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_process_try_wait(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_process_try_wait(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_process_try_wait(runtime, context, handle)
+                platform_simulation_vm::destack_process_try_wait(binding, context, handle)
             }
         },
         |context, result| {
@@ -16288,11 +16287,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ARGS_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_ARGS_LIST)?;
-                    destack_process_args_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_ARGS_LIST)?;
+                    destack_process_args_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -16304,14 +16303,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_CWD_CHDIR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) = decode_destack_process_cwd_chdir_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_CWD_CHDIR)?;
-                    destack_process_cwd_chdir_vm_replay(runtime, context, world, path)
+                        binding.on_before_binding_resolve_world(PROCESS_CWD_CHDIR)?;
+                    destack_process_cwd_chdir_vm_replay(binding, context, world, path)
                 })
                 .map_err(Into::into)
             }
@@ -16319,11 +16318,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     }
     {
         binding!(registry, isolate, PROCESS_CWD_GET, move |context, _args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(PROCESS_CWD_GET)?;
-                destack_process_cwd_get_vm_replay(runtime, context, world)
+                    binding.on_before_binding_resolve_world(PROCESS_CWD_GET)?;
+                destack_process_cwd_get_vm_replay(binding, context, world)
             })
             .map_err(Into::into)
         });
@@ -16334,14 +16333,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ENV_DELETE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (name,) = decode_destack_process_env_delete_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_ENV_DELETE)?;
-                    destack_process_env_delete_vm_replay(runtime, context, world, name)
+                        binding.on_before_binding_resolve_world(PROCESS_ENV_DELETE)?;
+                    destack_process_env_delete_vm_replay(binding, context, world, name)
                 })
                 .map_err(Into::into)
             }
@@ -16353,14 +16352,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ENV_DELETE_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (name,) = decode_destack_process_env_delete_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_ENV_DELETE_BYTES)?;
-                    destack_process_env_delete_bytes_vm_replay(runtime, context, world, name)
+                        binding.on_before_binding_resolve_world(PROCESS_ENV_DELETE_BYTES)?;
+                    destack_process_env_delete_bytes_vm_replay(binding, context, world, name)
                 })
                 .map_err(Into::into)
             }
@@ -16368,14 +16367,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     }
     {
         binding!(registry, isolate, PROCESS_ENV_GET, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (name,) = decode_destack_process_env_get_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(PROCESS_ENV_GET)?;
-                destack_process_env_get_vm_replay(runtime, context, world, name)
+                    binding.on_before_binding_resolve_world(PROCESS_ENV_GET)?;
+                destack_process_env_get_vm_replay(binding, context, world, name)
             })
             .map_err(Into::into)
         });
@@ -16386,14 +16385,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ENV_GET_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (name,) = decode_destack_process_env_get_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_ENV_GET_BYTES)?;
-                    destack_process_env_get_bytes_vm_replay(runtime, context, world, name)
+                        binding.on_before_binding_resolve_world(PROCESS_ENV_GET_BYTES)?;
+                    destack_process_env_get_bytes_vm_replay(binding, context, world, name)
                 })
                 .map_err(Into::into)
             }
@@ -16401,14 +16400,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     }
     {
         binding!(registry, isolate, PROCESS_ENV_SET, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (name, argument_value) = decode_destack_process_env_set_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(PROCESS_ENV_SET)?;
-                destack_process_env_set_vm_replay(runtime, context, world, name, argument_value)
+                    binding.on_before_binding_resolve_world(PROCESS_ENV_SET)?;
+                destack_process_env_set_vm_replay(binding, context, world, name, argument_value)
             })
             .map_err(Into::into)
         });
@@ -16419,16 +16418,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ENV_SET_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (name, argument_value) =
                         decode_destack_process_env_set_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_ENV_SET_BYTES)?;
+                        binding.on_before_binding_resolve_world(PROCESS_ENV_SET_BYTES)?;
                     destack_process_env_set_bytes_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         name,
@@ -16445,16 +16444,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_EXEC_FEXEC,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (executable, arguments, environment) =
                         decode_destack_process_exec_fexec_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_EXEC_FEXEC)?;
+                        binding.on_before_binding_resolve_world(PROCESS_EXEC_FEXEC)?;
                     destack_process_exec_fexec_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         executable,
@@ -16472,16 +16471,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_EXEC_PATH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (command, arguments, environment) =
                         decode_destack_process_exec_path_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_EXEC_PATH)?;
+                        binding.on_before_binding_resolve_world(PROCESS_EXEC_PATH)?;
                     destack_process_exec_path_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         command,
@@ -16499,16 +16498,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_EXEC_PATHAT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (directory, path, arguments, environment, flags) =
                         decode_destack_process_exec_pathat_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_EXEC_PATHAT)?;
+                        binding.on_before_binding_resolve_world(PROCESS_EXEC_PATHAT)?;
                     destack_process_exec_pathat_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         directory,
@@ -16528,14 +16527,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_EXIT_TERMINATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (code,) = decode_destack_process_exit_terminate_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_EXIT_TERMINATE)?;
-                    destack_process_exit_terminate_vm_replay(runtime, context, world, code)
+                        binding.on_before_binding_resolve_world(PROCESS_EXIT_TERMINATE)?;
+                    destack_process_exit_terminate_vm_replay(binding, context, world, code)
                 })
                 .map_err(Into::into)
             }
@@ -16547,14 +16546,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_PROCESS_FD_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_process_fd_process_fd_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_CLOSE)?;
-                    destack_process_fd_process_fd_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_CLOSE)?;
+                    destack_process_fd_process_fd_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16566,16 +16565,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_PROCESS_FD_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid, flags) =
                         decode_destack_process_fd_process_fd_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_OPEN)?;
+                        binding.on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_OPEN)?;
                     destack_process_fd_process_fd_open_vm_replay(
-                        runtime, context, world, pid, flags,
+                        binding, context, world, pid, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -16588,16 +16587,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, signal, flags) =
                         decode_destack_process_fd_process_fd_send_signal_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
                     destack_process_fd_process_fd_send_signal_vm_replay(
-                        runtime, context, world, handle, signal, flags,
+                        binding, context, world, handle, signal, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -16610,16 +16609,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_PROCESS_FD_TRY_WAIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_process_fd_process_fd_try_wait_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
+                        binding.on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
                     destack_process_fd_process_fd_try_wait_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -16632,16 +16631,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_PROCESS_FD_WAIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, timeoutns) =
                         decode_destack_process_fd_process_fd_wait_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_WAIT)?;
+                        binding.on_before_binding_resolve_world(PROCESS_FD_PROCESS_FD_WAIT)?;
                     destack_process_fd_process_fd_wait_vm_replay(
-                        runtime, context, world, handle, timeoutns,
+                        binding, context, world, handle, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -16654,14 +16653,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_SIGNAL_FD_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_process_fd_signal_fd_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_CLOSE)?;
-                    destack_process_fd_signal_fd_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_CLOSE)?;
+                    destack_process_fd_signal_fd_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16673,16 +16672,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_SIGNAL_FD_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (signals, flags) =
                         decode_destack_process_fd_signal_fd_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_OPEN)?;
+                        binding.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_OPEN)?;
                     destack_process_fd_signal_fd_open_vm_replay(
-                        runtime, context, world, signals, flags,
+                        binding, context, world, signals, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -16695,14 +16694,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_SIGNAL_FD_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_process_fd_signal_fd_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_READ)?;
-                    destack_process_fd_signal_fd_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_READ)?;
+                    destack_process_fd_signal_fd_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16714,16 +16713,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_SIGNAL_FD_SET_MASK,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, signals) =
                         decode_destack_process_fd_signal_fd_set_mask_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
+                        binding.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
                     destack_process_fd_signal_fd_set_mask_vm_replay(
-                        runtime, context, world, handle, signals,
+                        binding, context, world, handle, signals,
                     )
                 })
                 .map_err(Into::into)
@@ -16736,15 +16735,15 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_SIGNAL_FD_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_process_fd_signal_fd_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
-                    destack_process_fd_signal_fd_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
+                    destack_process_fd_signal_fd_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16756,11 +16755,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_STDIO_STDERR,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_STDIO_STDERR)?;
-                    destack_process_fd_stdio_stderr_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_FD_STDIO_STDERR)?;
+                    destack_process_fd_stdio_stderr_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -16772,11 +16771,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_STDIO_STDIN,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_STDIO_STDIN)?;
-                    destack_process_fd_stdio_stdin_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_FD_STDIO_STDIN)?;
+                    destack_process_fd_stdio_stdin_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -16788,11 +16787,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_FD_STDIO_STDOUT,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_FD_STDIO_STDOUT)?;
-                    destack_process_fd_stdio_stdout_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_FD_STDIO_STDOUT)?;
+                    destack_process_fd_stdio_stdout_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -16804,22 +16803,22 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_GROUP_CGROUP_GET_LIMIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, resource) =
                         decode_destack_process_group_cgroup_get_limit_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_process_cgroup_get_limit(
-                                runtime, context, path, resource,
+                                binding, context, path, resource,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_cgroup_get_limit(
-                                    runtime, context, path, resource,
+                                    binding, context, path, resource,
                                 )
                             }
                         }
@@ -16836,21 +16835,21 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_GROUP_CGROUP_JOIN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) = decode_destack_process_group_cgroup_join_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(PROCESS_GROUP_CGROUP_JOIN)?;
+                            binding.on_before_binding_resolve_world(PROCESS_GROUP_CGROUP_JOIN)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_process_cgroup_join(runtime, context, path)
+                                platform_vm::destack_process_cgroup_join(binding, context, path)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_cgroup_join(
-                                    runtime, context, path,
+                                    binding, context, path,
                                 )
                             }
                         }
@@ -16867,22 +16866,22 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_GROUP_CGROUP_SET_LIMIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, resource, limit) =
                         decode_destack_process_group_cgroup_set_limit_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_process_cgroup_set_limit(
-                                runtime, context, path, resource, limit,
+                                binding, context, path, resource, limit,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_cgroup_set_limit(
-                                    runtime, context, path, resource, limit,
+                                    binding, context, path, resource, limit,
                                 )
                             }
                         }
@@ -16899,21 +16898,21 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_GROUP_JOB_ASSIGN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (name, pids) = decode_destack_process_group_job_assign_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(PROCESS_GROUP_JOB_ASSIGN)?;
+                            binding.on_before_binding_resolve_world(PROCESS_GROUP_JOB_ASSIGN)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_process_job_assign(
-                                runtime, context, name, pids,
+                                binding, context, name, pids,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_job_assign(
-                                    runtime, context, name, pids,
+                                    binding, context, name, pids,
                                 )
                             }
                         }
@@ -16930,7 +16929,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_GROUP_JOB_SET_LIMIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (name, resource, limit) =
                         decode_destack_process_group_job_set_limit_args(context, args)?;
@@ -16938,14 +16937,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(PROCESS_GROUP_JOB_SET_LIMIT)?;
+                            binding.on_before_binding_resolve_world(PROCESS_GROUP_JOB_SET_LIMIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_process_job_set_limit(
-                                runtime, context, name, resource, limit,
+                                binding, context, name, resource, limit,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_job_set_limit(
-                                    runtime, context, name, resource, limit,
+                                    binding, context, name, resource, limit,
                                 )
                             }
                         }
@@ -16962,11 +16961,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_EGID,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_EGID)?;
-                    destack_process_ids_egid_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_EGID)?;
+                    destack_process_ids_egid_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -16978,11 +16977,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_EUID,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_EUID)?;
-                    destack_process_ids_euid_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_EUID)?;
+                    destack_process_ids_euid_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -16990,11 +16989,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     }
     {
         binding!(registry, isolate, PROCESS_IDS_GID, move |context, _args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(PROCESS_IDS_GID)?;
-                destack_process_ids_gid_vm_replay(runtime, context, world)
+                    binding.on_before_binding_resolve_world(PROCESS_IDS_GID)?;
+                destack_process_ids_gid_vm_replay(binding, context, world)
             })
             .map_err(Into::into)
         });
@@ -17005,11 +17004,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_GROUP_IDS,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_GROUP_IDS)?;
-                    destack_process_ids_group_ids_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_GROUP_IDS)?;
+                    destack_process_ids_group_ids_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -17021,11 +17020,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_GROUPS,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_GROUPS)?;
-                    destack_process_ids_groups_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_GROUPS)?;
+                    destack_process_ids_groups_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -17033,11 +17032,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     }
     {
         binding!(registry, isolate, PROCESS_IDS_PID, move |context, _args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(PROCESS_IDS_PID)?;
-                destack_process_ids_pid_vm_replay(runtime, context, world)
+                    binding.on_before_binding_resolve_world(PROCESS_IDS_PID)?;
+                destack_process_ids_pid_vm_replay(binding, context, world)
             })
             .map_err(Into::into)
         });
@@ -17048,11 +17047,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_PPID,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_PPID)?;
-                    destack_process_ids_ppid_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_PPID)?;
+                    destack_process_ids_ppid_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -17064,14 +17063,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_SET_EGID,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (groupid,) = decode_destack_process_ids_set_egid_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_SET_EGID)?;
-                    destack_process_ids_set_egid_vm_replay(runtime, context, world, groupid)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_SET_EGID)?;
+                    destack_process_ids_set_egid_vm_replay(binding, context, world, groupid)
                 })
                 .map_err(Into::into)
             }
@@ -17083,14 +17082,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_SET_EUID,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (userid,) = decode_destack_process_ids_set_euid_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_SET_EUID)?;
-                    destack_process_ids_set_euid_vm_replay(runtime, context, world, userid)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_SET_EUID)?;
+                    destack_process_ids_set_euid_vm_replay(binding, context, world, userid)
                 })
                 .map_err(Into::into)
             }
@@ -17102,14 +17101,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_SET_GID,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (groupid,) = decode_destack_process_ids_set_gid_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_SET_GID)?;
-                    destack_process_ids_set_gid_vm_replay(runtime, context, world, groupid)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_SET_GID)?;
+                    destack_process_ids_set_gid_vm_replay(binding, context, world, groupid)
                 })
                 .map_err(Into::into)
             }
@@ -17121,14 +17120,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_SET_GROUP_IDS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (ids,) = decode_destack_process_ids_set_group_ids_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_SET_GROUP_IDS)?;
-                    destack_process_ids_set_group_ids_vm_replay(runtime, context, world, ids)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_SET_GROUP_IDS)?;
+                    destack_process_ids_set_group_ids_vm_replay(binding, context, world, ids)
                 })
                 .map_err(Into::into)
             }
@@ -17140,14 +17139,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_SET_GROUPS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (groups,) = decode_destack_process_ids_set_groups_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_SET_GROUPS)?;
-                    destack_process_ids_set_groups_vm_replay(runtime, context, world, groups)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_SET_GROUPS)?;
+                    destack_process_ids_set_groups_vm_replay(binding, context, world, groups)
                 })
                 .map_err(Into::into)
             }
@@ -17159,14 +17158,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_SET_UID,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (userid,) = decode_destack_process_ids_set_uid_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_SET_UID)?;
-                    destack_process_ids_set_uid_vm_replay(runtime, context, world, userid)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_SET_UID)?;
+                    destack_process_ids_set_uid_vm_replay(binding, context, world, userid)
                 })
                 .map_err(Into::into)
             }
@@ -17178,14 +17177,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_SET_USER_IDS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (ids,) = decode_destack_process_ids_set_user_ids_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_SET_USER_IDS)?;
-                    destack_process_ids_set_user_ids_vm_replay(runtime, context, world, ids)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_SET_USER_IDS)?;
+                    destack_process_ids_set_user_ids_vm_replay(binding, context, world, ids)
                 })
                 .map_err(Into::into)
             }
@@ -17193,11 +17192,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     }
     {
         binding!(registry, isolate, PROCESS_IDS_UID, move |context, _args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(PROCESS_IDS_UID)?;
-                destack_process_ids_uid_vm_replay(runtime, context, world)
+                    binding.on_before_binding_resolve_world(PROCESS_IDS_UID)?;
+                destack_process_ids_uid_vm_replay(binding, context, world)
             })
             .map_err(Into::into)
         });
@@ -17208,11 +17207,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_IDS_USER_IDS,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_IDS_USER_IDS)?;
-                    destack_process_ids_user_ids_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_IDS_USER_IDS)?;
+                    destack_process_ids_user_ids_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -17224,21 +17223,21 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ISOLATION_CHROOT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) = decode_destack_process_isolation_chroot_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(PROCESS_ISOLATION_CHROOT)?;
+                            binding.on_before_binding_resolve_world(PROCESS_ISOLATION_CHROOT)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_process_chroot(runtime, context, path)
+                                platform_vm::destack_process_chroot(binding, context, path)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_chroot(
-                                    runtime, context, path,
+                                    binding, context, path,
                                 )
                             }
                         }
@@ -17255,7 +17254,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (program, flags) =
                         decode_destack_process_isolation_install_syscall_filter_args(
@@ -17264,19 +17263,19 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(
                                 PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER,
                             )?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_process_install_syscall_filter(
-                                    runtime, context, program, flags,
+                                    binding, context, program, flags,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_install_syscall_filter(
-                                    runtime, context, program, flags,
+                                    binding, context, program, flags,
                                 )
                             }
                         }
@@ -17293,22 +17292,22 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ISOLATION_SET_HOST_NAME,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (name,) =
                         decode_destack_process_isolation_set_host_name_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(PROCESS_ISOLATION_SET_HOST_NAME)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_process_set_host_name(runtime, context, name)
+                                platform_vm::destack_process_set_host_name(binding, context, name)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_set_host_name(
-                                    runtime, context, name,
+                                    binding, context, name,
                                 )
                             }
                         }
@@ -17325,26 +17324,26 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ISOLATION_SET_NETWORK_NAMESPACE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) =
                         decode_destack_process_isolation_set_network_namespace_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = runtime
+                        let (world, _binding_hook_guard) = binding
                             .on_before_binding_resolve_world(
                                 PROCESS_ISOLATION_SET_NETWORK_NAMESPACE,
                             )?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_process_set_network_namespace(
-                                    runtime, context, path,
+                                    binding, context, path,
                                 )
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_set_network_namespace(
-                                    runtime, context, path,
+                                    binding, context, path,
                                 )
                             }
                         }
@@ -17361,7 +17360,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ISOLATION_SETNS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid, namespace) =
                         decode_destack_process_isolation_setns_args(context, args)?;
@@ -17369,14 +17368,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(PROCESS_ISOLATION_SETNS)?;
+                            binding.on_before_binding_resolve_world(PROCESS_ISOLATION_SETNS)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_process_setns(runtime, context, pid, namespace)
+                                platform_vm::destack_process_setns(binding, context, pid, namespace)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_setns(
-                                    runtime, context, pid, namespace,
+                                    binding, context, pid, namespace,
                                 )
                             }
                         }
@@ -17393,21 +17392,21 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_ISOLATION_UNSHARE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (flags,) = decode_destack_process_isolation_unshare_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            runtime.on_before_binding_resolve_world(PROCESS_ISOLATION_UNSHARE)?;
+                            binding.on_before_binding_resolve_world(PROCESS_ISOLATION_UNSHARE)?;
                         match world {
                             RuntimeWorld::Host => {
-                                platform_vm::destack_process_unshare(runtime, context, flags)
+                                platform_vm::destack_process_unshare(binding, context, flags)
                             }
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_process_unshare(
-                                    runtime, context, flags,
+                                    binding, context, flags,
                                 )
                             }
                         }
@@ -17424,14 +17423,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_LIMITS_GET_LIMIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (resource,) = decode_destack_process_limits_get_limit_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_LIMITS_GET_LIMIT)?;
-                    destack_process_limits_get_limit_vm_replay(runtime, context, world, resource)
+                        binding.on_before_binding_resolve_world(PROCESS_LIMITS_GET_LIMIT)?;
+                    destack_process_limits_get_limit_vm_replay(binding, context, world, resource)
                 })
                 .map_err(Into::into)
             }
@@ -17443,16 +17442,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_LIMITS_SET_LIMIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (resource, limit) =
                         decode_destack_process_limits_set_limit_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_LIMITS_SET_LIMIT)?;
+                        binding.on_before_binding_resolve_world(PROCESS_LIMITS_SET_LIMIT)?;
                     destack_process_limits_set_limit_vm_replay(
-                        runtime, context, world, resource, limit,
+                        binding, context, world, resource, limit,
                     )
                 })
                 .map_err(Into::into)
@@ -17465,14 +17464,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SCHED_GET_AFFINITY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid,) = decode_destack_process_sched_get_affinity_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SCHED_GET_AFFINITY)?;
-                    destack_process_sched_get_affinity_vm_replay(runtime, context, world, pid)
+                        binding.on_before_binding_resolve_world(PROCESS_SCHED_GET_AFFINITY)?;
+                    destack_process_sched_get_affinity_vm_replay(binding, context, world, pid)
                 })
                 .map_err(Into::into)
             }
@@ -17484,14 +17483,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SCHED_GET_PRIORITY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid,) = decode_destack_process_sched_get_priority_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SCHED_GET_PRIORITY)?;
-                    destack_process_sched_get_priority_vm_replay(runtime, context, world, pid)
+                        binding.on_before_binding_resolve_world(PROCESS_SCHED_GET_PRIORITY)?;
+                    destack_process_sched_get_priority_vm_replay(binding, context, world, pid)
                 })
                 .map_err(Into::into)
             }
@@ -17503,14 +17502,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SCHED_GET_SCHEDULER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid,) = decode_destack_process_sched_get_scheduler_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SCHED_GET_SCHEDULER)?;
-                    destack_process_sched_get_scheduler_vm_replay(runtime, context, world, pid)
+                        binding.on_before_binding_resolve_world(PROCESS_SCHED_GET_SCHEDULER)?;
+                    destack_process_sched_get_scheduler_vm_replay(binding, context, world, pid)
                 })
                 .map_err(Into::into)
             }
@@ -17522,15 +17521,15 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SCHED_SET_AFFINITY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid, cpus) =
                         decode_destack_process_sched_set_affinity_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SCHED_SET_AFFINITY)?;
-                    destack_process_sched_set_affinity_vm_replay(runtime, context, world, pid, cpus)
+                        binding.on_before_binding_resolve_world(PROCESS_SCHED_SET_AFFINITY)?;
+                    destack_process_sched_set_affinity_vm_replay(binding, context, world, pid, cpus)
                 })
                 .map_err(Into::into)
             }
@@ -17542,16 +17541,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SCHED_SET_PRIORITY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid, priority) =
                         decode_destack_process_sched_set_priority_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SCHED_SET_PRIORITY)?;
+                        binding.on_before_binding_resolve_world(PROCESS_SCHED_SET_PRIORITY)?;
                     destack_process_sched_set_priority_vm_replay(
-                        runtime, context, world, pid, priority,
+                        binding, context, world, pid, priority,
                     )
                 })
                 .map_err(Into::into)
@@ -17564,16 +17563,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SCHED_SET_SCHEDULER,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid, config) =
                         decode_destack_process_sched_set_scheduler_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SCHED_SET_SCHEDULER)?;
+                        binding.on_before_binding_resolve_world(PROCESS_SCHED_SET_SCHEDULER)?;
                     destack_process_sched_set_scheduler_vm_replay(
-                        runtime, context, world, pid, config,
+                        binding, context, world, pid, config,
                     )
                 })
                 .map_err(Into::into)
@@ -17586,11 +17585,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SCHED_YIELD_NOW,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SCHED_YIELD_NOW)?;
-                    destack_process_sched_yield_now_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_SCHED_YIELD_NOW)?;
+                    destack_process_sched_yield_now_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -17602,14 +17601,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SESSION_GETPGID,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid,) = decode_destack_process_session_getpgid_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SESSION_GETPGID)?;
-                    destack_process_session_getpgid_vm_replay(runtime, context, world, pid)
+                        binding.on_before_binding_resolve_world(PROCESS_SESSION_GETPGID)?;
+                    destack_process_session_getpgid_vm_replay(binding, context, world, pid)
                 })
                 .map_err(Into::into)
             }
@@ -17621,14 +17620,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SESSION_SETPGID,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid, pgid) = decode_destack_process_session_setpgid_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SESSION_SETPGID)?;
-                    destack_process_session_setpgid_vm_replay(runtime, context, world, pid, pgid)
+                        binding.on_before_binding_resolve_world(PROCESS_SESSION_SETPGID)?;
+                    destack_process_session_setpgid_vm_replay(binding, context, world, pid, pgid)
                 })
                 .map_err(Into::into)
             }
@@ -17640,11 +17639,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SESSION_SETSID,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SESSION_SETSID)?;
-                    destack_process_session_setsid_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(PROCESS_SESSION_SETSID)?;
+                    destack_process_session_setsid_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -17656,14 +17655,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_KILL,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (pid, signal) = decode_destack_process_signals_kill_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SIGNALS_KILL)?;
-                    destack_process_signals_kill_vm_replay(runtime, context, world, pid, signal)
+                        binding.on_before_binding_resolve_world(PROCESS_SIGNALS_KILL)?;
+                    destack_process_signals_kill_vm_replay(binding, context, world, pid, signal)
                 })
                 .map_err(Into::into)
             }
@@ -17675,11 +17674,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_SIGNAL_MASK_READ,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_MASK_READ)?;
-                    destack_process_signals_signal_mask_read_vm_replay(runtime, context, world)
+                    destack_process_signals_signal_mask_read_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -17691,16 +17690,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (how, signals) =
                         decode_destack_process_signals_signal_mask_update_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?;
                     destack_process_signals_signal_mask_update_vm_replay(
-                        runtime, context, world, how, signals,
+                        binding, context, world, how, signals,
                     )
                 })
                 .map_err(Into::into)
@@ -17713,16 +17712,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_SIGNAL_RECEIVE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_process_signals_signal_receive_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
+                        binding.on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
                     destack_process_signals_signal_receive_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -17735,16 +17734,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (signal,) =
                         decode_destack_process_signals_signal_subscribe_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?;
                     destack_process_signals_signal_subscribe_vm_replay(
-                        runtime, context, world, signal,
+                        binding, context, world, signal,
                     )
                 })
                 .map_err(Into::into)
@@ -17757,16 +17756,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_process_signals_signal_try_receive_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?;
                     destack_process_signals_signal_try_receive_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -17779,16 +17778,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (signals,) =
                         decode_destack_process_signals_signal_try_wait_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
+                        binding.on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
                     destack_process_signals_signal_try_wait_vm_replay(
-                        runtime, context, world, signals,
+                        binding, context, world, signals,
                     )
                 })
                 .map_err(Into::into)
@@ -17801,16 +17800,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_process_signals_signal_unsubscribe_args(context, args)?;
 
                     // execute binding
-                    let (world, _binding_hook_guard) = runtime
+                    let (world, _binding_hook_guard) = binding
                         .on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?;
                     destack_process_signals_signal_unsubscribe_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -17823,15 +17822,15 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SIGNALS_SIGNAL_WAIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (signals,) =
                         decode_destack_process_signals_signal_wait_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_WAIT)?;
-                    destack_process_signals_signal_wait_vm_replay(runtime, context, world, signals)
+                        binding.on_before_binding_resolve_world(PROCESS_SIGNALS_SIGNAL_WAIT)?;
+                    destack_process_signals_signal_wait_vm_replay(binding, context, world, signals)
                 })
                 .map_err(Into::into)
             }
@@ -17843,16 +17842,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SPAWN_START,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (command, arguments, environment, options) =
                         decode_destack_process_spawn_start_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SPAWN_START)?;
+                        binding.on_before_binding_resolve_world(PROCESS_SPAWN_START)?;
                     destack_process_spawn_start_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         command,
@@ -17871,16 +17870,16 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_SPAWN_WITH_ACTIONS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (command, arguments, environment, options, stdio, actions) =
                         decode_destack_process_spawn_with_actions_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_SPAWN_WITH_ACTIONS)?;
+                        binding.on_before_binding_resolve_world(PROCESS_SPAWN_WITH_ACTIONS)?;
                     destack_process_spawn_with_actions_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         command,
@@ -17901,14 +17900,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_UMASK_SET,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (mask,) = decode_destack_process_umask_set_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_UMASK_SET)?;
-                    destack_process_umask_set_vm_replay(runtime, context, world, mask)
+                        binding.on_before_binding_resolve_world(PROCESS_UMASK_SET)?;
+                    destack_process_umask_set_vm_replay(binding, context, world, mask)
                 })
                 .map_err(Into::into)
             }
@@ -17920,14 +17919,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_WAIT_HANDLE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, flags) = decode_destack_process_wait_handle_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_WAIT_HANDLE)?;
-                    destack_process_wait_handle_vm_replay(runtime, context, world, handle, flags)
+                        binding.on_before_binding_resolve_world(PROCESS_WAIT_HANDLE)?;
+                    destack_process_wait_handle_vm_replay(binding, context, world, handle, flags)
                 })
                 .map_err(Into::into)
             }
@@ -17935,14 +17934,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     }
     {
         binding!(registry, isolate, PROCESS_WAIT_PID, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (pid, flags) = decode_destack_process_wait_pid_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(PROCESS_WAIT_PID)?;
-                destack_process_wait_pid_vm_replay(runtime, context, world, pid, flags)
+                    binding.on_before_binding_resolve_world(PROCESS_WAIT_PID)?;
+                destack_process_wait_pid_vm_replay(binding, context, world, pid, flags)
             })
             .map_err(Into::into)
         });
@@ -17953,14 +17952,14 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             isolate,
             PROCESS_WAIT_TRY_WAIT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_process_wait_try_wait_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(PROCESS_WAIT_TRY_WAIT)?;
-                    destack_process_wait_try_wait_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(PROCESS_WAIT_TRY_WAIT)?;
+                    destack_process_wait_try_wait_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }

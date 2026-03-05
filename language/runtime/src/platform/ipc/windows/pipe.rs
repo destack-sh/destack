@@ -34,13 +34,13 @@ const PIPE_WRITE_OPERATION: &str = "destack.ipc.pipe.write";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(core_platform::invalid_argument(
             "handle",
@@ -69,7 +69,7 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PipePair,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -103,8 +103,8 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
     }
 
     // register both endpoints in the runtime resource table
-    let read = register_pipe_handle(context, read_handle);
-    let write = register_pipe_handle(context, write_handle);
+    let read = register_pipe_handle(binding, read_handle);
+    let write = register_pipe_handle(binding, write_handle);
     let pair = PipePair { read, write };
 
     // write pair output
@@ -133,14 +133,14 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate output argument and resolve pipe handle
     core_platform::ensure_out(out, "out")?;
-    let handle = pipe_handle(context, handle, PIPE_READ_OPERATION)?;
+    let handle = pipe_handle(binding, handle, PIPE_READ_OPERATION)?;
 
     // decode caller buffer and validate host length range
     let bytes = unsafe { buffer.as_mut_slice()? };
@@ -189,14 +189,14 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // validate output argument and resolve pipe handle
     core_platform::ensure_out(out, "out")?;
-    let handle = pipe_handle(context, handle, PIPE_WRITE_OPERATION)?;
+    let handle = pipe_handle(binding, handle, PIPE_WRITE_OPERATION)?;
 
     // decode caller buffer and validate host length range
     let bytes = unsafe { buffer.as_slice()? };

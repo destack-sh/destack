@@ -13,7 +13,7 @@ fn termios_not_supported(operation: &'static str) -> Box<RuntimeError> {
 
 /// Wait for pending output to drain on one terminal handle.
 pub(crate) unsafe fn destack_tty_termios_drain(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -22,7 +22,7 @@ pub(crate) unsafe fn destack_tty_termios_drain(
 
 /// Apply terminal flow-control action.
 pub(crate) unsafe fn destack_tty_termios_flow(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
 ) -> RuntimeResult<()> {
@@ -32,7 +32,7 @@ pub(crate) unsafe fn destack_tty_termios_flow(
 
 /// Flush one terminal queue.
 pub(crate) unsafe fn destack_tty_termios_flush(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
 ) -> RuntimeResult<()> {
@@ -42,7 +42,7 @@ pub(crate) unsafe fn destack_tty_termios_flush(
 
 /// Read full termios attributes for one terminal handle.
 pub(crate) unsafe fn destack_tty_termios_get_attributes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut TtyTermiosAttributes,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -53,7 +53,7 @@ pub(crate) unsafe fn destack_tty_termios_get_attributes(
 
 /// Read controlling-terminal process-group id.
 pub(crate) unsafe fn destack_tty_termios_get_process_group(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut process::ProcessId,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
@@ -64,7 +64,7 @@ pub(crate) unsafe fn destack_tty_termios_get_process_group(
 
 /// Send one terminal break condition.
 pub(crate) unsafe fn destack_tty_termios_send_break(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     duration: u32,
 ) -> RuntimeResult<()> {
@@ -74,7 +74,7 @@ pub(crate) unsafe fn destack_tty_termios_send_break(
 
 /// Apply full termios attributes to one terminal handle.
 pub(crate) unsafe fn destack_tty_termios_set_attributes(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     attributes: TtyTermiosAttributes,
     action: TtyTermiosSetAction,
@@ -85,7 +85,7 @@ pub(crate) unsafe fn destack_tty_termios_set_attributes(
 
 /// Set controlling-terminal process-group id.
 pub(crate) unsafe fn destack_tty_termios_set_process_group(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,
 ) -> RuntimeResult<()> {

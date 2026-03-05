@@ -173,7 +173,7 @@ fn supported_stream_clock_domains(
 }
 
 /// Build backend descriptors for the current host family.
-pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<AudioBackendDescriptor> {
+pub(crate) fn backend_descriptors(binding: &BindingCallContext) -> Vec<AudioBackendDescriptor> {
     let active_backend = active_host_backend();
     let ordered = [
         AudioBackend::Auto,
@@ -204,7 +204,7 @@ pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<AudioBack
 
         rows.push(AudioBackendDescriptor {
             backend: *backend,
-            name: context.store_string(backend_name(*backend)),
+            name: binding.store_string(backend_name(*backend)),
             available,
             priority: index as u16,
             capability_flags: backend_capability_flags(capability_backend, available),
@@ -267,18 +267,18 @@ pub(crate) fn backend_native_device_events_supported(backend: AudioBackend) -> b
 
 /// Start one backend native device-event monitor.
 pub(crate) fn start_backend_native_device_events(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: AudioBackend,
 ) -> RuntimeResult<()> {
-    start_backend_native_device_events_impl(context, backend)
+    start_backend_native_device_events_impl(binding, backend)
 }
 
 /// Stop one backend native device-event monitor.
 pub(crate) fn stop_backend_native_device_events(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: AudioBackend,
 ) {
-    stop_backend_native_device_events_impl(context, backend)
+    stop_backend_native_device_events_impl(binding, backend)
 }
 
 /// Return one standardized unsupported error for host MIDI lanes.
@@ -303,7 +303,7 @@ fn unsupported(operation: &'static str) -> Box<RuntimeError> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_flush(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -328,7 +328,7 @@ pub(crate) unsafe fn destack_audio_midi_flush(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -354,7 +354,7 @@ pub(crate) unsafe fn destack_audio_midi_port_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_list(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<MidiPortDescriptor>,
     direction: MidiPortDirection,
 ) -> RuntimeResult<()> {
@@ -381,7 +381,7 @@ pub(crate) unsafe fn destack_audio_midi_port_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::MidiPortHandle,
     id: NativeStringRef,
     direction: MidiPortDirection,
@@ -408,7 +408,7 @@ pub(crate) unsafe fn destack_audio_midi_port_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeArray<MidiMessage>,
     handle: resource::MidiPortHandle,
     maxmessages: u32,
@@ -436,7 +436,7 @@ pub(crate) unsafe fn destack_audio_midi_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_try_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeArray<MidiMessage>,
     handle: resource::MidiPortHandle,
     maxmessages: u32,
@@ -463,7 +463,7 @@ pub(crate) unsafe fn destack_audio_midi_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_write(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::MidiPortHandle,
     messages: NativeArray<MidiMessage>,

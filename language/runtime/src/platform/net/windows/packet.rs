@@ -179,8 +179,8 @@ static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, WindowsPacketSta
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Return configured packet backend mode for Windows packet lanes.
-fn windows_packet_backend_mode(context: &BindingCallContext) -> PlatformWindowsPacketBackend {
-    context.agent().options.windows.net_packet_backend
+fn windows_packet_backend_mode(binding: &BindingCallContext) -> PlatformWindowsPacketBackend {
+    binding.agent().options.windows.net_packet_backend
 }
 
 /// Return one `notSupported` error for unsupported Windows packet lanes.
@@ -190,10 +190,10 @@ fn windows_packet_not_supported(operation: &'static str) -> RuntimeResult<()> {
 
 /// Require that the Windows packet backend is enabled in runtime options.
 fn require_windows_packet_backend(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    match windows_packet_backend_mode(context) {
+    match windows_packet_backend_mode(binding) {
         PlatformWindowsPacketBackend::RawSocket => Ok(()),
         PlatformWindowsPacketBackend::HostBackend => windows_packet_not_supported(operation),
         PlatformWindowsPacketBackend::Disabled => windows_packet_not_supported(operation),
@@ -356,11 +356,11 @@ fn configure_packet_promiscuous_mode(socket: SOCKET, promiscuous: bool) -> Runti
 
 /// Resolve one packet socket descriptor and packet metadata row.
 fn packet_socket_metadata(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<(SOCKET, WindowsPacketState)> {
     // resolve one socket descriptor from the resource table
-    let socket = socket_descriptor(context, handle)?;
+    let socket = socket_descriptor(binding, handle)?;
 
     // resolve one packet metadata row for packet-only lanes
     let state = PACKET_SOCKET_STATES
@@ -779,12 +779,12 @@ fn update_packet_socket_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SocketHandle,
     options: PacketCaptureOptions,
 ) -> RuntimeResult<()> {
     // require backend enablement for Windows packet lanes
-    require_windows_packet_backend(context, "destack.net.packetOpen")?;
+    require_windows_packet_backend(binding, "destack.net.packetOpen")?;
 
     // validate output pointer before creating resources
     if out.is_null() {
@@ -843,10 +843,10 @@ pub(crate) unsafe fn destack_net_packet_open(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(WindowsPacketFinalizer::new(socket));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
     let snap_length = usize::try_from(options.snap_length).unwrap_or(WINDOWS_PACKET_MAX_LENGTH);
     let snap_length = snap_length.clamp(1, WINDOWS_PACKET_MAX_LENGTH);
     PACKET_SOCKET_STATES.lock().insert(
@@ -892,13 +892,13 @@ pub(crate) unsafe fn destack_net_packet_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_receive(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PacketCaptureRecord,
     handle: SocketHandle,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // require backend enablement for Windows packet lanes
-    require_windows_packet_backend(context, "destack.net.packetReceive")?;
+    require_windows_packet_backend(binding, "destack.net.packetReceive")?;
 
     // validate output pointer before receiving data
     if out.is_null() {
@@ -906,7 +906,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
     }
 
     // resolve one packet socket and one packet metadata row
-    let (socket, state) = packet_socket_metadata(context, handle)?;
+    let (socket, state) = packet_socket_metadata(binding, handle)?;
     let payload = unsafe { payload.as_mut_slice()? };
 
     // allocate one bounded receive buffer from snap-length configuration
@@ -962,7 +962,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
     let timestamp_ns = if state.timestamp_mode == PacketTimestampMode::Disabled {
         0
     } else {
-        context.world().clock().mono_nanos()
+        binding.world().clock().mono_nanos()
     };
     let record = PacketCaptureRecord {
         bytes: written as u64,
@@ -1009,13 +1009,13 @@ pub(crate) unsafe fn destack_net_packet_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_send(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // require backend enablement for Windows packet lanes
-    require_windows_packet_backend(context, "destack.net.packetSend")?;
+    require_windows_packet_backend(binding, "destack.net.packetSend")?;
 
     // validate output pointer before sending bytes
     if out.is_null() {
@@ -1023,7 +1023,7 @@ pub(crate) unsafe fn destack_net_packet_send(
     }
 
     // resolve one packet socket descriptor and payload bytes
-    let (socket, _) = packet_socket_metadata(context, handle)?;
+    let (socket, _) = packet_socket_metadata(binding, handle)?;
     let payload = unsafe { payload.as_slice()? };
 
     // validate payload length against WinSock send argument limits
@@ -1070,12 +1070,12 @@ pub(crate) unsafe fn destack_net_packet_send(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<()> {
     // require backend enablement for Windows packet lanes
-    require_windows_packet_backend(context, "destack.net.packetSetTimestampMode")?;
+    require_windows_packet_backend(binding, "destack.net.packetSetTimestampMode")?;
 
     // reject unsupported hardware timestamp mode on WinSock raw sockets
     if mode == PacketTimestampMode::Hardware {
@@ -1083,7 +1083,7 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
     }
 
     // ensure one packet endpoint exists and store the timestamp mode
-    let _ = packet_socket_metadata(context, handle)?;
+    let _ = packet_socket_metadata(binding, handle)?;
     update_packet_socket_state(handle, |state| {
         state.timestamp_mode = mode;
     })?;
@@ -1111,10 +1111,10 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_fanout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     windows_packet_not_supported("destack.net.packetClearFanout")
 }
 
@@ -1139,14 +1139,14 @@ pub(crate) unsafe fn destack_net_packet_clear_fanout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_filter(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // require backend enablement for Windows packet lanes
-    require_windows_packet_backend(context, "destack.net.packetClearFilter")?;
+    require_windows_packet_backend(binding, "destack.net.packetClearFilter")?;
 
     // ensure one packet endpoint exists and clear the active filter
-    let _ = packet_socket_metadata(context, handle)?;
+    let _ = packet_socket_metadata(binding, handle)?;
     update_packet_socket_state(handle, |state| {
         state.filter_program = None;
     })?;
@@ -1174,10 +1174,10 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_ring(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
     windows_packet_not_supported("destack.net.packetClearRing")
 }
 
@@ -1201,11 +1201,11 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_fanout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     options: PacketFanoutOptions,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, options);
+    let _ = (binding, handle, options);
     windows_packet_not_supported("destack.net.packetSetFanout")
 }
 
@@ -1230,15 +1230,15 @@ pub(crate) unsafe fn destack_net_packet_set_fanout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_filter(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     filterprogram: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // require backend enablement for Windows packet lanes
-    require_windows_packet_backend(context, "destack.net.packetSetFilter")?;
+    require_windows_packet_backend(binding, "destack.net.packetSetFilter")?;
 
     // ensure one packet endpoint exists before decoding the filter
-    let _ = packet_socket_metadata(context, handle)?;
+    let _ = packet_socket_metadata(binding, handle)?;
     let bytes = unsafe { filterprogram.as_slice()? };
 
     // decode and validate one classic-BPF filter payload
@@ -1274,11 +1274,11 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_rx_ring(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, options);
+    let _ = (binding, handle, options);
     windows_packet_not_supported("destack.net.packetSetRxRing")
 }
 
@@ -1302,11 +1302,11 @@ pub(crate) unsafe fn destack_net_packet_set_rx_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_tx_ring(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, options);
+    let _ = (binding, handle, options);
     windows_packet_not_supported("destack.net.packetSetTxRing")
 }
 
@@ -1331,12 +1331,12 @@ pub(crate) unsafe fn destack_net_packet_set_tx_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_stats(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut PacketCaptureStats,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
     // require backend enablement for Windows packet lanes
-    require_windows_packet_backend(context, "destack.net.packetStats")?;
+    require_windows_packet_backend(binding, "destack.net.packetStats")?;
 
     // validate output pointer before loading stats
     if out.is_null() {
@@ -1344,7 +1344,7 @@ pub(crate) unsafe fn destack_net_packet_stats(
     }
 
     // resolve one packet endpoint state row
-    let (_, state) = packet_socket_metadata(context, handle)?;
+    let (_, state) = packet_socket_metadata(binding, handle)?;
 
     // write one packet-stats snapshot to the output pointer
     unsafe {

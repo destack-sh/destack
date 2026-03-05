@@ -19,11 +19,11 @@ use crate::runtime::BindingCallContext;
 
 /// Resolve one file handle into one raw windows handle.
 fn file_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::FileHandle,
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -64,7 +64,7 @@ fn is_console_handle(handle: HANDLE, operation: &'static str) -> RuntimeResult<b
 
 /// Register one duplicated standard stream as a tty handle.
 fn register_stdio_tty(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
     std_handle: u32,
     operation: &'static str,
@@ -121,10 +121,10 @@ fn register_stdio_tty(
         .with_label(label)
         .with_handle(duplicated as _)
         .with_finalizer(WindowsHandleFinalizer { handle: duplicated });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::TtyHandle(resource_id));
@@ -151,10 +151,10 @@ fn register_stdio_tty(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    close_tty_resource(context, handle, "destack.tty.handle.close")
+    close_tty_resource(binding, handle, "destack.tty.handle.close")
 }
 
 /// Return whether one file handle is attached to a terminal.
@@ -175,7 +175,7 @@ pub(crate) unsafe fn destack_tty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_is_terminal_file(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
@@ -183,7 +183,7 @@ pub(crate) unsafe fn destack_tty_is_terminal_file(
     ensure_out(out, "out")?;
 
     // resolve one file handle and query console-mode support
-    let handle = file_handle(context, handle, "destack.tty.handle.isTerminalFile")?;
+    let handle = file_handle(binding, handle, "destack.tty.handle.isTerminalFile")?;
     let is_console = is_console_handle(handle, "destack.tty.handle.isTerminalFile")?;
 
     unsafe {
@@ -212,11 +212,11 @@ pub(crate) unsafe fn destack_tty_is_terminal_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stdin(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
     register_stdio_tty(
-        context,
+        binding,
         out,
         STD_INPUT_HANDLE,
         "destack.tty.handle.stdioStdin",
@@ -243,11 +243,11 @@ pub(crate) unsafe fn destack_tty_stdio_stdin(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stdout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
     register_stdio_tty(
-        context,
+        binding,
         out,
         STD_OUTPUT_HANDLE,
         "destack.tty.handle.stdioStdout",
@@ -274,11 +274,11 @@ pub(crate) unsafe fn destack_tty_stdio_stdout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stderr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
 ) -> RuntimeResult<()> {
     register_stdio_tty(
-        context,
+        binding,
         out,
         STD_ERROR_HANDLE,
         "destack.tty.handle.stdioStderr",

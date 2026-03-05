@@ -53,19 +53,15 @@ fn relative_timespec(timeout: Duration) -> RuntimeResult<libc::timespec> {
 }
 
 /// Return the configured timed-semaphore poll interval for this runtime.
-fn semaphore_poll_interval(context: &BindingCallContext) -> Duration {
-    let configured = context
-        .runtime()
-        .module_options
-        .ipc
-        .unix_semaphore_poll_interval_ns;
+fn semaphore_poll_interval(binding: &BindingCallContext) -> Duration {
+    let configured = binding.agent().options.ipc.unix_semaphore_poll_interval_ns;
     core_platform::duration_from_option_ns(configured, DEFAULT_SEMAPHORE_POLL_INTERVAL_NS, 1)
 }
 
 /// Map one futex word from one shared-memory object and offset.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn map_futex_word(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     operation: &'static str,
@@ -79,7 +75,7 @@ fn map_futex_word(
     }
 
     // resolve one shared-memory descriptor
-    let descriptor = shared_memory_descriptor(context, sharedmemory, operation)?;
+    let descriptor = shared_memory_descriptor(binding, sharedmemory, operation)?;
 
     // validate shared-memory size against the requested offset
     let mut metadata = std::mem::MaybeUninit::<libc::stat>::uninit();
@@ -193,7 +189,7 @@ fn unmap_futex_word(mapping: &FutexWordMapping) {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     expected: u32,
@@ -202,7 +198,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // map one futex word view from shared-memory state
-        let mapping = map_futex_word(context, sharedmemory, offset, FUTEX_WAIT_OPERATION)?;
+        let mapping = map_futex_word(binding, sharedmemory, offset, FUTEX_WAIT_OPERATION)?;
 
         // execute one futex wait loop with timeout and signal handling
         let result = if timeoutns == u64::MAX {
@@ -317,7 +313,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    let _ = (context, sharedmemory, offset, expected, timeoutns);
+    let _ = (binding, sharedmemory, offset, expected, timeoutns);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     Err(core_platform::not_supported(FUTEX_WAIT_OPERATION))
@@ -341,7 +337,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wake(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
@@ -357,7 +353,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
         })?;
 
         // map one futex word view from shared-memory state
-        let mapping = map_futex_word(context, sharedmemory, offset, FUTEX_WAKE_OPERATION)?;
+        let mapping = map_futex_word(binding, sharedmemory, offset, FUTEX_WAKE_OPERATION)?;
 
         // wake one or more waiters blocked on the futex word
         let woken = unsafe {
@@ -393,7 +389,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    let _ = (context, sharedmemory, offset, count);
+    let _ = (binding, sharedmemory, offset, count);
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     Err(core_platform::not_supported(FUTEX_WAKE_OPERATION))
@@ -417,7 +413,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SemaphoreHandle,
     name: NativeStringRef,
     initial: u32,
@@ -442,7 +438,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
     }
 
     // register semaphore state and write handle output
-    let handle = register_semaphore(context, semaphore);
+    let handle = register_semaphore(binding, semaphore);
     unsafe {
         out.write(handle);
     }
@@ -468,12 +464,12 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_post(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
     // resolve one semaphore pointer
-    let semaphore = semaphore_pointer(context, handle, SEMAPHORE_POST_OPERATION)?;
+    let semaphore = semaphore_pointer(binding, handle, SEMAPHORE_POST_OPERATION)?;
 
     // post one permit for each requested count
     for _ in 0..count {
@@ -510,12 +506,12 @@ pub(crate) unsafe fn destack_ipc_semaphore_post(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // resolve one semaphore pointer
-    let semaphore = semaphore_pointer(context, handle, SEMAPHORE_WAIT_OPERATION)?;
+    let semaphore = semaphore_pointer(binding, handle, SEMAPHORE_WAIT_OPERATION)?;
 
     // handle immediate try-wait mode
     if timeoutns == 0 {
@@ -560,7 +556,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
         }
     }
 
-    // handle timed wait mode using polling for broad unix compatibility
+    // handle timed wait mode using polling for broad unix portability
     let timeout = Duration::from_nanos(timeoutns);
     let start = Instant::now();
     loop {
@@ -581,7 +577,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
                 ));
             }
 
-            std::thread::sleep(semaphore_poll_interval(context));
+            std::thread::sleep(semaphore_poll_interval(binding));
             continue;
         }
         if errno == libc::ETIMEDOUT {

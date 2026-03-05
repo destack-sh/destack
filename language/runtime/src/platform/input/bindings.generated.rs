@@ -48,14 +48,13 @@ use crate::platform::input::{
     InputWindowTarget, InputWindowTargetVm,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -3606,22 +3605,22 @@ pub const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for input bindings.
 #[inline]
 fn destack_input_device_capabilities_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputDeviceCapabilities,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_DEVICE_CAPABILITIES,
-        context.replay_payload_for(INPUT_DEVICE_CAPABILITIES)?,
+        binding.replay_payload_for(INPUT_DEVICE_CAPABILITIES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_capabilities(context, out, handle)
+                platform_native::destack_input_capabilities(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_capabilities(context, out, handle)
+                platform_simulation_native::destack_input_capabilities(binding, out, handle)
             },
         },
         |result| {
@@ -3742,7 +3741,7 @@ fn destack_input_device_capabilities_replay(
                         let value_native_kinds_item_native = value_native_kinds_item;
                         value_native_kinds_values.push(value_native_kinds_item_native);
                     }
-                    let value_native_kinds = context.store_array(value_native_kinds_values);
+                    let value_native_kinds = binding.store_array(value_native_kinds_values);
                     let mut value_native_axes_values = Vec::with_capacity(value.axes.len());
                     for value_native_axes_item in value.axes {
                         let value_native_axes_item_native_code = value_native_axes_item.code;
@@ -3762,7 +3761,7 @@ fn destack_input_device_capabilities_replay(
                         };
                         value_native_axes_values.push(value_native_axes_item_native);
                     }
-                    let value_native_axes = context.store_array(value_native_axes_values);
+                    let value_native_axes = binding.store_array(value_native_axes_values);
                     let mut value_native_buttons_values = Vec::with_capacity(value.buttons.len());
                     for value_native_buttons_item in value.buttons {
                         let value_native_buttons_item_native_code = value_native_buttons_item.code;
@@ -3774,7 +3773,7 @@ fn destack_input_device_capabilities_replay(
                         };
                         value_native_buttons_values.push(value_native_buttons_item_native);
                     }
-                    let value_native_buttons = context.store_array(value_native_buttons_values);
+                    let value_native_buttons = binding.store_array(value_native_buttons_values);
                     let value_native_metadata_origin = value.metadata_origin;
                     let value_native_axis_metadata_fidelity = value.axis_metadata_fidelity;
                     let value_native_button_metadata_fidelity = value.button_metadata_fidelity;
@@ -3825,19 +3824,19 @@ fn destack_input_device_capabilities_replay(
 
 #[inline]
 fn destack_input_device_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_DEVICE_CLOSE,
-        context.replay_payload_for(INPUT_DEVICE_CLOSE)?,
+        binding.replay_payload_for(INPUT_DEVICE_CLOSE)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_close(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_close(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_close(context, handle)
+                platform_simulation_native::destack_input_close(binding, handle)
             },
         },
         |result| {
@@ -3871,17 +3870,17 @@ fn destack_input_device_close_replay(
 
 #[inline]
 fn destack_input_device_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_DEVICE_LIST,
-        context.replay_payload_for(INPUT_DEVICE_LIST)?,
+        binding.replay_payload_for(INPUT_DEVICE_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_list(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_list(binding, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_list(context, out)
+                platform_simulation_native::destack_input_list(binding, out)
             },
         },
         |result| {
@@ -3979,15 +3978,15 @@ fn destack_input_device_list_replay(
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
                         let value_native_item_native_id =
-                            context.store_string(&value_native_item.id);
+                            binding.store_string(&value_native_item.id);
                         let value_native_item_native_instance_id =
-                            context.store_string(&value_native_item.instance_id);
+                            binding.store_string(&value_native_item.instance_id);
                         let value_native_item_native_hardware_id =
-                            context.store_string(&value_native_item.hardware_id);
+                            binding.store_string(&value_native_item.hardware_id);
                         let value_native_item_native_name =
-                            context.store_string(&value_native_item.name);
+                            binding.store_string(&value_native_item.name);
                         let value_native_item_native_transport =
-                            context.store_string(&value_native_item.transport);
+                            binding.store_string(&value_native_item.transport);
                         let value_native_item_native_kind = value_native_item.kind;
                         let value_native_item_native_vendor_id = value_native_item.vendor_id;
                         let value_native_item_native_product_id = value_native_item.product_id;
@@ -4036,7 +4035,7 @@ fn destack_input_device_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -4050,20 +4049,20 @@ fn destack_input_device_list_replay(
 
 #[inline]
 fn destack_input_device_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::InputDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_DEVICE_OPEN,
-        context.replay_payload_for(INPUT_DEVICE_OPEN)?,
+        binding.replay_payload_for(INPUT_DEVICE_OPEN)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_open(context, out, id) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_open(binding, out, id) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_open(context, out, id)
+                platform_simulation_native::destack_input_open(binding, out, id)
             },
         },
         |result| {
@@ -4109,21 +4108,21 @@ fn destack_input_device_open_replay(
 
 #[inline]
 fn destack_input_event_monitor_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_MONITOR_CLOSE,
-        context.replay_payload_for(INPUT_EVENT_MONITOR_CLOSE)?,
+        binding.replay_payload_for(INPUT_EVENT_MONITOR_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_monitor_close(context, handle)
+                platform_native::destack_input_monitor_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_monitor_close(context, handle)
+                platform_simulation_native::destack_input_monitor_close(binding, handle)
             },
         },
         |result| {
@@ -4157,19 +4156,19 @@ fn destack_input_event_monitor_close_replay(
 
 #[inline]
 fn destack_input_event_monitor_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_MONITOR_OPEN,
-        context.replay_payload_for(INPUT_EVENT_MONITOR_OPEN)?,
+        binding.replay_payload_for(INPUT_EVENT_MONITOR_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_monitor_open(context, out)
+                platform_native::destack_input_monitor_open(binding, out)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_monitor_open(context, out)
+                platform_simulation_native::destack_input_monitor_open(binding, out)
             },
         },
         |result| {
@@ -4215,19 +4214,19 @@ fn destack_input_event_monitor_open_replay(
 
 #[inline]
 fn destack_input_event_monitor_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_MONITOR_READ,
-        context.replay_payload_for(INPUT_EVENT_MONITOR_READ)?,
+        binding.replay_payload_for(INPUT_EVENT_MONITOR_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_monitor_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_monitor_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_monitor_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_monitor_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -4321,10 +4320,10 @@ fn destack_input_event_monitor_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         InputMonitorEventReplayRecord::InputMonitorChangeEvent(value) => {
-                            let value_native_input_monitor_change_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_change_event_kind = binding.store_string(&value.kind);
                             let value_native_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_monitor_change_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_change_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
                             let value_native_input_monitor_change_event_metadata_connected = value.metadata.connected;
                             let value_native_input_monitor_change_event_metadata = InputMonitorEventMetadata {
@@ -4341,10 +4340,10 @@ fn destack_input_event_monitor_read_replay(
                             InputMonitorEvent::InputMonitorChangeEvent(value_native_input_monitor_change_event)
                         }
                         InputMonitorEventReplayRecord::InputMonitorConnectEvent(value) => {
-                            let value_native_input_monitor_connect_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_connect_event_kind = binding.store_string(&value.kind);
                             let value_native_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_monitor_connect_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_connect_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
                             let value_native_input_monitor_connect_event_metadata_connected = value.metadata.connected;
                             let value_native_input_monitor_connect_event_metadata = InputMonitorEventMetadata {
@@ -4361,10 +4360,10 @@ fn destack_input_event_monitor_read_replay(
                             InputMonitorEvent::InputMonitorConnectEvent(value_native_input_monitor_connect_event)
                         }
                         InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(value) => {
-                            let value_native_input_monitor_disconnect_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_disconnect_event_kind = binding.store_string(&value.kind);
                             let value_native_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_monitor_disconnect_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_disconnect_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
                             let value_native_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
                             let value_native_input_monitor_disconnect_event_metadata = InputMonitorEventMetadata {
@@ -4392,19 +4391,19 @@ fn destack_input_event_monitor_read_replay(
 
 #[inline]
 fn destack_input_event_monitor_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_MONITOR_TRY_READ,
-        context.replay_payload_for(INPUT_EVENT_MONITOR_TRY_READ)?,
+        binding.replay_payload_for(INPUT_EVENT_MONITOR_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_monitor_try_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_monitor_try_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_monitor_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_monitor_try_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -4498,10 +4497,10 @@ fn destack_input_event_monitor_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         InputMonitorEventReplayRecord::InputMonitorChangeEvent(value) => {
-                            let value_native_input_monitor_change_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_change_event_kind = binding.store_string(&value.kind);
                             let value_native_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_monitor_change_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_change_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
                             let value_native_input_monitor_change_event_metadata_connected = value.metadata.connected;
                             let value_native_input_monitor_change_event_metadata = InputMonitorEventMetadata {
@@ -4518,10 +4517,10 @@ fn destack_input_event_monitor_try_read_replay(
                             InputMonitorEvent::InputMonitorChangeEvent(value_native_input_monitor_change_event)
                         }
                         InputMonitorEventReplayRecord::InputMonitorConnectEvent(value) => {
-                            let value_native_input_monitor_connect_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_connect_event_kind = binding.store_string(&value.kind);
                             let value_native_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_monitor_connect_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_connect_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
                             let value_native_input_monitor_connect_event_metadata_connected = value.metadata.connected;
                             let value_native_input_monitor_connect_event_metadata = InputMonitorEventMetadata {
@@ -4538,10 +4537,10 @@ fn destack_input_event_monitor_try_read_replay(
                             InputMonitorEvent::InputMonitorConnectEvent(value_native_input_monitor_connect_event)
                         }
                         InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(value) => {
-                            let value_native_input_monitor_disconnect_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_disconnect_event_kind = binding.store_string(&value.kind);
                             let value_native_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_monitor_disconnect_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_disconnect_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
                             let value_native_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
                             let value_native_input_monitor_disconnect_event_metadata = InputMonitorEventMetadata {
@@ -4569,19 +4568,19 @@ fn destack_input_event_monitor_try_read_replay(
 
 #[inline]
 fn destack_input_event_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_READ,
-        context.replay_payload_for(INPUT_EVENT_READ)?,
+        binding.replay_payload_for(INPUT_EVENT_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -4891,17 +4890,17 @@ fn destack_input_event_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         InputEventReplayRecord::InputCompositionEvent(value) => {
-                            let value_native_input_composition_event_kind = context.store_string(&value.kind);
+                            let value_native_input_composition_event_kind = binding.store_string(&value.kind);
                             let value_native_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_composition_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_composition_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_composition_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_composition_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_composition_event_metadata_timestamp_ns,
                                 sequence: value_native_input_composition_event_metadata_sequence,
                                 device_id: value_native_input_composition_event_metadata_device_id,
                             };
                             let value_native_input_composition_event_payload_action = value.payload.action;
-                            let value_native_input_composition_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_input_composition_event_payload_text = binding.store_string(&value.payload.text);
                             let value_native_input_composition_event_payload_selection_start = value.payload.selection_start;
                             let value_native_input_composition_event_payload_selection_end = value.payload.selection_end;
                             let value_native_input_composition_event_payload = InputCompositionEventPayload {
@@ -4918,10 +4917,10 @@ fn destack_input_event_read_replay(
                             InputEvent::InputCompositionEvent(value_native_input_composition_event)
                         }
                         InputEventReplayRecord::InputDeviceEvent(value) => {
-                            let value_native_input_device_event_kind = context.store_string(&value.kind);
+                            let value_native_input_device_event_kind = binding.store_string(&value.kind);
                             let value_native_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_device_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_device_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_device_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_device_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_device_event_metadata_timestamp_ns,
                                 sequence: value_native_input_device_event_metadata_sequence,
@@ -4943,10 +4942,10 @@ fn destack_input_event_read_replay(
                             InputEvent::InputDeviceEvent(value_native_input_device_event)
                         }
                         InputEventReplayRecord::InputGamepadEvent(value) => {
-                            let value_native_input_gamepad_event_kind = context.store_string(&value.kind);
+                            let value_native_input_gamepad_event_kind = binding.store_string(&value.kind);
                             let value_native_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_gamepad_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_gamepad_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_gamepad_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_gamepad_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_gamepad_event_metadata_timestamp_ns,
                                 sequence: value_native_input_gamepad_event_metadata_sequence,
@@ -4968,10 +4967,10 @@ fn destack_input_event_read_replay(
                             InputEvent::InputGamepadEvent(value_native_input_gamepad_event)
                         }
                         InputEventReplayRecord::InputKeyEvent(value) => {
-                            let value_native_input_key_event_kind = context.store_string(&value.kind);
+                            let value_native_input_key_event_kind = binding.store_string(&value.kind);
                             let value_native_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_key_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_key_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_key_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_key_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_key_event_metadata_timestamp_ns,
                                 sequence: value_native_input_key_event_metadata_sequence,
@@ -4999,10 +4998,10 @@ fn destack_input_event_read_replay(
                             InputEvent::InputKeyEvent(value_native_input_key_event)
                         }
                         InputEventReplayRecord::InputPointerButtonEvent(value) => {
-                            let value_native_input_pointer_button_event_kind = context.store_string(&value.kind);
+                            let value_native_input_pointer_button_event_kind = binding.store_string(&value.kind);
                             let value_native_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_pointer_button_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_pointer_button_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_pointer_button_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_pointer_button_event_metadata_timestamp_ns,
                                 sequence: value_native_input_pointer_button_event_metadata_sequence,
@@ -5030,10 +5029,10 @@ fn destack_input_event_read_replay(
                             InputEvent::InputPointerButtonEvent(value_native_input_pointer_button_event)
                         }
                         InputEventReplayRecord::InputPointerMotionEvent(value) => {
-                            let value_native_input_pointer_motion_event_kind = context.store_string(&value.kind);
+                            let value_native_input_pointer_motion_event_kind = binding.store_string(&value.kind);
                             let value_native_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_pointer_motion_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_pointer_motion_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_pointer_motion_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_pointer_motion_event_metadata_timestamp_ns,
                                 sequence: value_native_input_pointer_motion_event_metadata_sequence,
@@ -5057,10 +5056,10 @@ fn destack_input_event_read_replay(
                             InputEvent::InputPointerMotionEvent(value_native_input_pointer_motion_event)
                         }
                         InputEventReplayRecord::InputScrollEvent(value) => {
-                            let value_native_input_scroll_event_kind = context.store_string(&value.kind);
+                            let value_native_input_scroll_event_kind = binding.store_string(&value.kind);
                             let value_native_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_scroll_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_scroll_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_scroll_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_scroll_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_scroll_event_metadata_timestamp_ns,
                                 sequence: value_native_input_scroll_event_metadata_sequence,
@@ -5086,10 +5085,10 @@ fn destack_input_event_read_replay(
                             InputEvent::InputScrollEvent(value_native_input_scroll_event)
                         }
                         InputEventReplayRecord::InputSensorEvent(value) => {
-                            let value_native_input_sensor_event_kind = context.store_string(&value.kind);
+                            let value_native_input_sensor_event_kind = binding.store_string(&value.kind);
                             let value_native_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_sensor_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_sensor_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_sensor_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_sensor_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_sensor_event_metadata_timestamp_ns,
                                 sequence: value_native_input_sensor_event_metadata_sequence,
@@ -5117,16 +5116,16 @@ fn destack_input_event_read_replay(
                             InputEvent::InputSensorEvent(value_native_input_sensor_event)
                         }
                         InputEventReplayRecord::InputTextEvent(value) => {
-                            let value_native_input_text_event_kind = context.store_string(&value.kind);
+                            let value_native_input_text_event_kind = binding.store_string(&value.kind);
                             let value_native_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_text_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_text_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_text_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_text_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_text_event_metadata_timestamp_ns,
                                 sequence: value_native_input_text_event_metadata_sequence,
                                 device_id: value_native_input_text_event_metadata_device_id,
                             };
-                            let value_native_input_text_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_input_text_event_payload_text = binding.store_string(&value.payload.text);
                             let value_native_input_text_event_payload = InputTextEventPayload {
                                 text: value_native_input_text_event_payload_text,
                             };
@@ -5138,10 +5137,10 @@ fn destack_input_event_read_replay(
                             InputEvent::InputTextEvent(value_native_input_text_event)
                         }
                         InputEventReplayRecord::InputTouchEvent(value) => {
-                            let value_native_input_touch_event_kind = context.store_string(&value.kind);
+                            let value_native_input_touch_event_kind = binding.store_string(&value.kind);
                             let value_native_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_touch_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_touch_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_touch_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_touch_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_touch_event_metadata_timestamp_ns,
                                 sequence: value_native_input_touch_event_metadata_sequence,
@@ -5178,7 +5177,7 @@ fn destack_input_event_read_replay(
 
 #[inline]
 fn destack_input_event_read_batch_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<InputEvent>,
     handle: resource::InputDeviceHandle,
@@ -5186,12 +5185,12 @@ fn destack_input_event_read_batch_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxevents);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_READ_BATCH,
-        context.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
+        binding.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_read_batch(context, out, handle, maxevents) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_read_batch(context, out, handle, maxevents) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_read_batch(binding, out, handle, maxevents) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_read_batch(binding, out, handle, maxevents) },
         },
         |result| {
             if let Ok(()) = result {
@@ -5509,17 +5508,17 @@ fn destack_input_event_read_batch_replay(
                     for value_native_item in value {
                         let value_native_item_native = match value_native_item {
                             InputEventReplayRecord::InputCompositionEvent(value) => {
-                                let value_native_item_native_input_composition_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_composition_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_composition_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_composition_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_composition_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_composition_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_composition_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_composition_event_metadata_sequence,
                                     device_id: value_native_item_native_input_composition_event_metadata_device_id,
                                 };
                                 let value_native_item_native_input_composition_event_payload_action = value.payload.action;
-                                let value_native_item_native_input_composition_event_payload_text = context.store_string(&value.payload.text);
+                                let value_native_item_native_input_composition_event_payload_text = binding.store_string(&value.payload.text);
                                 let value_native_item_native_input_composition_event_payload_selection_start = value.payload.selection_start;
                                 let value_native_item_native_input_composition_event_payload_selection_end = value.payload.selection_end;
                                 let value_native_item_native_input_composition_event_payload = InputCompositionEventPayload {
@@ -5536,10 +5535,10 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputCompositionEvent(value_native_item_native_input_composition_event)
                             }
                             InputEventReplayRecord::InputDeviceEvent(value) => {
-                                let value_native_item_native_input_device_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_device_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_device_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_device_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_device_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_device_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_device_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_device_event_metadata_sequence,
@@ -5561,10 +5560,10 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputDeviceEvent(value_native_item_native_input_device_event)
                             }
                             InputEventReplayRecord::InputGamepadEvent(value) => {
-                                let value_native_item_native_input_gamepad_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_gamepad_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_gamepad_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_gamepad_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_gamepad_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_gamepad_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_gamepad_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_gamepad_event_metadata_sequence,
@@ -5586,10 +5585,10 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputGamepadEvent(value_native_item_native_input_gamepad_event)
                             }
                             InputEventReplayRecord::InputKeyEvent(value) => {
-                                let value_native_item_native_input_key_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_key_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_key_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_key_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_key_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_key_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_key_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_key_event_metadata_sequence,
@@ -5617,10 +5616,10 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputKeyEvent(value_native_item_native_input_key_event)
                             }
                             InputEventReplayRecord::InputPointerButtonEvent(value) => {
-                                let value_native_item_native_input_pointer_button_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_pointer_button_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_pointer_button_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_pointer_button_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_pointer_button_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_pointer_button_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_pointer_button_event_metadata_sequence,
@@ -5648,10 +5647,10 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputPointerButtonEvent(value_native_item_native_input_pointer_button_event)
                             }
                             InputEventReplayRecord::InputPointerMotionEvent(value) => {
-                                let value_native_item_native_input_pointer_motion_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_pointer_motion_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_pointer_motion_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_pointer_motion_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_pointer_motion_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_pointer_motion_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_pointer_motion_event_metadata_sequence,
@@ -5675,10 +5674,10 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputPointerMotionEvent(value_native_item_native_input_pointer_motion_event)
                             }
                             InputEventReplayRecord::InputScrollEvent(value) => {
-                                let value_native_item_native_input_scroll_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_scroll_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_scroll_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_scroll_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_scroll_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_scroll_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_scroll_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_scroll_event_metadata_sequence,
@@ -5704,10 +5703,10 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputScrollEvent(value_native_item_native_input_scroll_event)
                             }
                             InputEventReplayRecord::InputSensorEvent(value) => {
-                                let value_native_item_native_input_sensor_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_sensor_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_sensor_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_sensor_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_sensor_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_sensor_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_sensor_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_sensor_event_metadata_sequence,
@@ -5735,16 +5734,16 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputSensorEvent(value_native_item_native_input_sensor_event)
                             }
                             InputEventReplayRecord::InputTextEvent(value) => {
-                                let value_native_item_native_input_text_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_text_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_text_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_text_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_text_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_text_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_text_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_text_event_metadata_sequence,
                                     device_id: value_native_item_native_input_text_event_metadata_device_id,
                                 };
-                                let value_native_item_native_input_text_event_payload_text = context.store_string(&value.payload.text);
+                                let value_native_item_native_input_text_event_payload_text = binding.store_string(&value.payload.text);
                                 let value_native_item_native_input_text_event_payload = InputTextEventPayload {
                                     text: value_native_item_native_input_text_event_payload_text,
                                 };
@@ -5756,10 +5755,10 @@ fn destack_input_event_read_batch_replay(
                                 InputEvent::InputTextEvent(value_native_item_native_input_text_event)
                             }
                             InputEventReplayRecord::InputTouchEvent(value) => {
-                                let value_native_item_native_input_touch_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_touch_event_kind = binding.store_string(&value.kind);
                                 let value_native_item_native_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_input_touch_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_item_native_input_touch_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_touch_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                                 let value_native_item_native_input_touch_event_metadata = InputEventMetadata {
                                     timestamp_ns: value_native_item_native_input_touch_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_input_touch_event_metadata_sequence,
@@ -5787,7 +5786,7 @@ fn destack_input_event_read_batch_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -5799,23 +5798,23 @@ fn destack_input_event_read_batch_replay(
 
 #[inline]
 fn destack_input_event_set_exclusive_grab_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enable);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_SET_EXCLUSIVE_GRAB,
-        context.replay_payload_for(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?,
+        binding.replay_payload_for(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_set_exclusive_grab(context, handle, enable)
+                platform_native::destack_input_set_exclusive_grab(binding, handle, enable)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_set_exclusive_grab(
-                    context, handle, enable,
+                    binding, handle, enable,
                 )
             },
         },
@@ -5850,22 +5849,22 @@ fn destack_input_event_set_exclusive_grab_replay(
 
 #[inline]
 fn destack_input_event_set_read_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_SET_READ_MODE,
-        context.replay_payload_for(INPUT_EVENT_SET_READ_MODE)?,
+        binding.replay_payload_for(INPUT_EVENT_SET_READ_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_set_read_mode(context, handle, mode)
+                platform_native::destack_input_set_read_mode(binding, handle, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_set_read_mode(context, handle, mode)
+                platform_simulation_native::destack_input_set_read_mode(binding, handle, mode)
             },
         },
         |result| {
@@ -5899,19 +5898,19 @@ fn destack_input_event_set_read_mode_replay(
 
 #[inline]
 fn destack_input_event_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_EVENT_TRY_READ,
-        context.replay_payload_for(INPUT_EVENT_TRY_READ)?,
+        binding.replay_payload_for(INPUT_EVENT_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_input_try_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_try_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_try_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -6221,17 +6220,17 @@ fn destack_input_event_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         InputEventReplayRecord::InputCompositionEvent(value) => {
-                            let value_native_input_composition_event_kind = context.store_string(&value.kind);
+                            let value_native_input_composition_event_kind = binding.store_string(&value.kind);
                             let value_native_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_composition_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_composition_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_composition_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_composition_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_composition_event_metadata_timestamp_ns,
                                 sequence: value_native_input_composition_event_metadata_sequence,
                                 device_id: value_native_input_composition_event_metadata_device_id,
                             };
                             let value_native_input_composition_event_payload_action = value.payload.action;
-                            let value_native_input_composition_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_input_composition_event_payload_text = binding.store_string(&value.payload.text);
                             let value_native_input_composition_event_payload_selection_start = value.payload.selection_start;
                             let value_native_input_composition_event_payload_selection_end = value.payload.selection_end;
                             let value_native_input_composition_event_payload = InputCompositionEventPayload {
@@ -6248,10 +6247,10 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputCompositionEvent(value_native_input_composition_event)
                         }
                         InputEventReplayRecord::InputDeviceEvent(value) => {
-                            let value_native_input_device_event_kind = context.store_string(&value.kind);
+                            let value_native_input_device_event_kind = binding.store_string(&value.kind);
                             let value_native_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_device_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_device_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_device_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_device_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_device_event_metadata_timestamp_ns,
                                 sequence: value_native_input_device_event_metadata_sequence,
@@ -6273,10 +6272,10 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputDeviceEvent(value_native_input_device_event)
                         }
                         InputEventReplayRecord::InputGamepadEvent(value) => {
-                            let value_native_input_gamepad_event_kind = context.store_string(&value.kind);
+                            let value_native_input_gamepad_event_kind = binding.store_string(&value.kind);
                             let value_native_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_gamepad_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_gamepad_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_gamepad_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_gamepad_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_gamepad_event_metadata_timestamp_ns,
                                 sequence: value_native_input_gamepad_event_metadata_sequence,
@@ -6298,10 +6297,10 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputGamepadEvent(value_native_input_gamepad_event)
                         }
                         InputEventReplayRecord::InputKeyEvent(value) => {
-                            let value_native_input_key_event_kind = context.store_string(&value.kind);
+                            let value_native_input_key_event_kind = binding.store_string(&value.kind);
                             let value_native_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_key_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_key_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_key_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_key_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_key_event_metadata_timestamp_ns,
                                 sequence: value_native_input_key_event_metadata_sequence,
@@ -6329,10 +6328,10 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputKeyEvent(value_native_input_key_event)
                         }
                         InputEventReplayRecord::InputPointerButtonEvent(value) => {
-                            let value_native_input_pointer_button_event_kind = context.store_string(&value.kind);
+                            let value_native_input_pointer_button_event_kind = binding.store_string(&value.kind);
                             let value_native_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_pointer_button_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_pointer_button_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_pointer_button_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_pointer_button_event_metadata_timestamp_ns,
                                 sequence: value_native_input_pointer_button_event_metadata_sequence,
@@ -6360,10 +6359,10 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputPointerButtonEvent(value_native_input_pointer_button_event)
                         }
                         InputEventReplayRecord::InputPointerMotionEvent(value) => {
-                            let value_native_input_pointer_motion_event_kind = context.store_string(&value.kind);
+                            let value_native_input_pointer_motion_event_kind = binding.store_string(&value.kind);
                             let value_native_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_pointer_motion_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_pointer_motion_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_pointer_motion_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_pointer_motion_event_metadata_timestamp_ns,
                                 sequence: value_native_input_pointer_motion_event_metadata_sequence,
@@ -6387,10 +6386,10 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputPointerMotionEvent(value_native_input_pointer_motion_event)
                         }
                         InputEventReplayRecord::InputScrollEvent(value) => {
-                            let value_native_input_scroll_event_kind = context.store_string(&value.kind);
+                            let value_native_input_scroll_event_kind = binding.store_string(&value.kind);
                             let value_native_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_scroll_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_scroll_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_scroll_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_scroll_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_scroll_event_metadata_timestamp_ns,
                                 sequence: value_native_input_scroll_event_metadata_sequence,
@@ -6416,10 +6415,10 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputScrollEvent(value_native_input_scroll_event)
                         }
                         InputEventReplayRecord::InputSensorEvent(value) => {
-                            let value_native_input_sensor_event_kind = context.store_string(&value.kind);
+                            let value_native_input_sensor_event_kind = binding.store_string(&value.kind);
                             let value_native_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_sensor_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_sensor_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_sensor_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_sensor_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_sensor_event_metadata_timestamp_ns,
                                 sequence: value_native_input_sensor_event_metadata_sequence,
@@ -6447,16 +6446,16 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputSensorEvent(value_native_input_sensor_event)
                         }
                         InputEventReplayRecord::InputTextEvent(value) => {
-                            let value_native_input_text_event_kind = context.store_string(&value.kind);
+                            let value_native_input_text_event_kind = binding.store_string(&value.kind);
                             let value_native_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_text_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_text_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_text_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_text_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_text_event_metadata_timestamp_ns,
                                 sequence: value_native_input_text_event_metadata_sequence,
                                 device_id: value_native_input_text_event_metadata_device_id,
                             };
-                            let value_native_input_text_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_input_text_event_payload_text = binding.store_string(&value.payload.text);
                             let value_native_input_text_event_payload = InputTextEventPayload {
                                 text: value_native_input_text_event_payload_text,
                             };
@@ -6468,10 +6467,10 @@ fn destack_input_event_try_read_replay(
                             InputEvent::InputTextEvent(value_native_input_text_event)
                         }
                         InputEventReplayRecord::InputTouchEvent(value) => {
-                            let value_native_input_touch_event_kind = context.store_string(&value.kind);
+                            let value_native_input_touch_event_kind = binding.store_string(&value.kind);
                             let value_native_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_input_touch_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_input_touch_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_touch_event_metadata_device_id = binding.store_string(&value.metadata.device_id);
                             let value_native_input_touch_event_metadata = InputEventMetadata {
                                 timestamp_ns: value_native_input_touch_event_metadata_timestamp_ns,
                                 sequence: value_native_input_touch_event_metadata_sequence,
@@ -6508,7 +6507,7 @@ fn destack_input_event_try_read_replay(
 
 #[inline]
 fn destack_input_gamepad_set_light_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     red: u8,
@@ -6517,16 +6516,16 @@ fn destack_input_gamepad_set_light_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &red, &green, &blue);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_GAMEPAD_SET_LIGHT,
-        context.replay_payload_for(INPUT_GAMEPAD_SET_LIGHT)?,
+        binding.replay_payload_for(INPUT_GAMEPAD_SET_LIGHT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_gamepad_set_light(context, handle, red, green, blue)
+                platform_native::destack_input_gamepad_set_light(binding, handle, red, green, blue)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_gamepad_set_light(
-                    context, handle, red, green, blue,
+                    binding, handle, red, green, blue,
                 )
             },
         },
@@ -6561,27 +6560,27 @@ fn destack_input_gamepad_set_light_replay(
 
 #[inline]
 fn destack_input_gamepad_set_player_index_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &playerindex);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_GAMEPAD_SET_PLAYER_INDEX,
-        context.replay_payload_for(INPUT_GAMEPAD_SET_PLAYER_INDEX)?,
+        binding.replay_payload_for(INPUT_GAMEPAD_SET_PLAYER_INDEX)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_input_gamepad_set_player_index(
-                    context,
+                    binding,
                     handle,
                     playerindex,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_gamepad_set_player_index(
-                    context,
+                    binding,
                     handle,
                     playerindex,
                 )
@@ -6618,22 +6617,22 @@ fn destack_input_gamepad_set_player_index_replay(
 
 #[inline]
 fn destack_input_gamepad_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputGamepadState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_GAMEPAD_STATE,
-        context.replay_payload_for(INPUT_GAMEPAD_STATE)?,
+        binding.replay_payload_for(INPUT_GAMEPAD_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_gamepad_state(context, out, handle)
+                platform_native::destack_input_gamepad_state(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_gamepad_state(context, out, handle)
+                platform_simulation_native::destack_input_gamepad_state(binding, out, handle)
             },
         },
         |result| {
@@ -6755,7 +6754,7 @@ fn destack_input_gamepad_state_replay(
                         let value_native_axes_item_native = value_native_axes_item;
                         value_native_axes_values.push(value_native_axes_item_native);
                     }
-                    let value_native_axes = context.store_array(value_native_axes_values);
+                    let value_native_axes = binding.store_array(value_native_axes_values);
                     let mut value_native_buttons_values = Vec::with_capacity(value.buttons.len());
                     for value_native_buttons_item in value.buttons {
                         let value_native_buttons_item_native_pressed =
@@ -6771,7 +6770,7 @@ fn destack_input_gamepad_state_replay(
                         };
                         value_native_buttons_values.push(value_native_buttons_item_native);
                     }
-                    let value_native_buttons = context.store_array(value_native_buttons_values);
+                    let value_native_buttons = binding.store_array(value_native_buttons_values);
                     let mut value_native_touches_values = Vec::with_capacity(value.touches.len());
                     for value_native_touches_item in value.touches {
                         let value_native_touches_item_native_touch_id =
@@ -6791,7 +6790,7 @@ fn destack_input_gamepad_state_replay(
                         };
                         value_native_touches_values.push(value_native_touches_item_native);
                     }
-                    let value_native_touches = context.store_array(value_native_touches_values);
+                    let value_native_touches = binding.store_array(value_native_touches_values);
                     let value_native = InputGamepadState {
                         timestamp_ns: value_native_timestamp_ns,
                         connected: value_native_connected,
@@ -6818,22 +6817,22 @@ fn destack_input_gamepad_state_replay(
 
 #[inline]
 fn destack_input_haptics_effects_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<InputHapticEffectType>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_HAPTICS_EFFECTS,
-        context.replay_payload_for(INPUT_HAPTICS_EFFECTS)?,
+        binding.replay_payload_for(INPUT_HAPTICS_EFFECTS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_haptics_effects(context, out, handle)
+                platform_native::destack_input_haptics_effects(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_haptics_effects(context, out, handle)
+                platform_simulation_native::destack_input_haptics_effects(binding, out, handle)
             },
         },
         |result| {
@@ -6876,7 +6875,7 @@ fn destack_input_haptics_effects_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -6890,7 +6889,7 @@ fn destack_input_haptics_effects_replay(
 
 #[inline]
 fn destack_input_haptics_play_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
@@ -6899,18 +6898,18 @@ fn destack_input_haptics_play_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &effect, &parameters);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_HAPTICS_PLAY,
-        context.replay_payload_for(INPUT_HAPTICS_PLAY)?,
+        binding.replay_payload_for(INPUT_HAPTICS_PLAY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_input_haptics_play(
-                    context, out, handle, effect, parameters,
+                    binding, out, handle, effect, parameters,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_haptics_play(
-                    context, out, handle, effect, parameters,
+                    binding, out, handle, effect, parameters,
                 )
             },
         },
@@ -6957,21 +6956,21 @@ fn destack_input_haptics_play_replay(
 
 #[inline]
 fn destack_input_haptics_stop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_HAPTICS_STOP,
-        context.replay_payload_for(INPUT_HAPTICS_STOP)?,
+        binding.replay_payload_for(INPUT_HAPTICS_STOP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_haptics_stop(context, handle)
+                platform_native::destack_input_haptics_stop(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_haptics_stop(context, handle)
+                platform_simulation_native::destack_input_haptics_stop(binding, handle)
             },
         },
         |result| {
@@ -7005,22 +7004,22 @@ fn destack_input_haptics_stop_replay(
 
 #[inline]
 fn destack_input_keyboard_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputKeyboardState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_KEYBOARD_STATE,
-        context.replay_payload_for(INPUT_KEYBOARD_STATE)?,
+        binding.replay_payload_for(INPUT_KEYBOARD_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_keyboard_state(context, out, handle)
+                platform_native::destack_input_keyboard_state(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_keyboard_state(context, out, handle)
+                platform_simulation_native::destack_input_keyboard_state(binding, out, handle)
             },
         },
         |result| {
@@ -7091,7 +7090,7 @@ fn destack_input_keyboard_state_replay(
                 Ok(value) => {
                     let value_native_timestamp_ns = value.timestamp_ns;
                     let value_native_sequence = value.sequence;
-                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_device_id = binding.store_string(&value.device_id);
                     let value_native_modifiers = value.modifiers;
                     let mut value_native_pressed_codes_values =
                         Vec::with_capacity(value.pressed_codes.len());
@@ -7102,7 +7101,7 @@ fn destack_input_keyboard_state_replay(
                             .push(value_native_pressed_codes_item_native);
                     }
                     let value_native_pressed_codes =
-                        context.store_array(value_native_pressed_codes_values);
+                        binding.store_array(value_native_pressed_codes_values);
                     let mut value_native_pressed_scan_codes_values =
                         Vec::with_capacity(value.pressed_scan_codes.len());
                     for value_native_pressed_scan_codes_item in value.pressed_scan_codes {
@@ -7112,7 +7111,7 @@ fn destack_input_keyboard_state_replay(
                             .push(value_native_pressed_scan_codes_item_native);
                     }
                     let value_native_pressed_scan_codes =
-                        context.store_array(value_native_pressed_scan_codes_values);
+                        binding.store_array(value_native_pressed_scan_codes_values);
                     let value_native = InputKeyboardState {
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
@@ -7134,7 +7133,7 @@ fn destack_input_keyboard_state_replay(
 
 #[inline]
 fn destack_input_pointer_capture_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -7142,16 +7141,16 @@ fn destack_input_pointer_capture_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_POINTER_CAPTURE,
-        context.replay_payload_for(INPUT_POINTER_CAPTURE)?,
+        binding.replay_payload_for(INPUT_POINTER_CAPTURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_pointer_capture(context, handle, target, enabled)
+                platform_native::destack_input_pointer_capture(binding, handle, target, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_pointer_capture(
-                    context, handle, target, enabled,
+                    binding, handle, target, enabled,
                 )
             },
         },
@@ -7186,23 +7185,23 @@ fn destack_input_pointer_capture_replay(
 
 #[inline]
 fn destack_input_pointer_relative_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_POINTER_RELATIVE_STATE,
-        context.replay_payload_for(INPUT_POINTER_RELATIVE_STATE)?,
+        binding.replay_payload_for(INPUT_POINTER_RELATIVE_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_pointer_relative_state(context, out, handle)
+                platform_native::destack_input_pointer_relative_state(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_pointer_relative_state(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -7311,7 +7310,7 @@ fn destack_input_pointer_relative_state_replay(
 
 #[inline]
 fn destack_input_pointer_set_grab_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -7319,16 +7318,16 @@ fn destack_input_pointer_set_grab_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_POINTER_SET_GRAB_MODE,
-        context.replay_payload_for(INPUT_POINTER_SET_GRAB_MODE)?,
+        binding.replay_payload_for(INPUT_POINTER_SET_GRAB_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_pointer_set_grab_mode(context, handle, target, mode)
+                platform_native::destack_input_pointer_set_grab_mode(binding, handle, target, mode)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_pointer_set_grab_mode(
-                    context, handle, target, mode,
+                    binding, handle, target, mode,
                 )
             },
         },
@@ -7363,23 +7362,23 @@ fn destack_input_pointer_set_grab_mode_replay(
 
 #[inline]
 fn destack_input_pointer_set_relative_mode_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_POINTER_SET_RELATIVE_MODE,
-        context.replay_payload_for(INPUT_POINTER_SET_RELATIVE_MODE)?,
+        binding.replay_payload_for(INPUT_POINTER_SET_RELATIVE_MODE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_pointer_set_relative_mode(context, handle, enabled)
+                platform_native::destack_input_pointer_set_relative_mode(binding, handle, enabled)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_pointer_set_relative_mode(
-                    context, handle, enabled,
+                    binding, handle, enabled,
                 )
             },
         },
@@ -7414,22 +7413,22 @@ fn destack_input_pointer_set_relative_mode_replay(
 
 #[inline]
 fn destack_input_pointer_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_POINTER_STATE,
-        context.replay_payload_for(INPUT_POINTER_STATE)?,
+        binding.replay_payload_for(INPUT_POINTER_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_pointer_state(context, out, handle)
+                platform_native::destack_input_pointer_state(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_pointer_state(context, out, handle)
+                platform_simulation_native::destack_input_pointer_state(binding, out, handle)
             },
         },
         |result| {
@@ -7537,7 +7536,7 @@ fn destack_input_pointer_state_replay(
 
 #[inline]
 fn destack_input_pointer_warp_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -7546,16 +7545,16 @@ fn destack_input_pointer_warp_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &x, &y);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_POINTER_WARP,
-        context.replay_payload_for(INPUT_POINTER_WARP)?,
+        binding.replay_payload_for(INPUT_POINTER_WARP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_pointer_warp(context, handle, target, x, y)
+                platform_native::destack_input_pointer_warp(binding, handle, target, x, y)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_pointer_warp(
-                    context, handle, target, x, y,
+                    binding, handle, target, x, y,
                 )
             },
         },
@@ -7590,7 +7589,7 @@ fn destack_input_pointer_warp_replay(
 
 #[inline]
 fn destack_input_rawhid_get_feature_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::InputDeviceHandle,
@@ -7599,18 +7598,18 @@ fn destack_input_rawhid_get_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reportid, &maxbytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_RAWHID_GET_FEATURE,
-        context.replay_payload_for(INPUT_RAWHID_GET_FEATURE)?,
+        binding.replay_payload_for(INPUT_RAWHID_GET_FEATURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_input_raw_hid_get_feature(
-                    context, out, handle, reportid, maxbytes,
+                    binding, out, handle, reportid, maxbytes,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_raw_hid_get_feature(
-                    context, out, handle, reportid, maxbytes,
+                    binding, out, handle, reportid, maxbytes,
                 )
             },
         },
@@ -7654,7 +7653,7 @@ fn destack_input_rawhid_get_feature_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -7668,7 +7667,7 @@ fn destack_input_rawhid_get_feature_replay(
 
 #[inline]
 fn destack_input_rawhid_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
@@ -7677,18 +7676,18 @@ fn destack_input_rawhid_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes, &timeoutns);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_RAWHID_READ,
-        context.replay_payload_for(INPUT_RAWHID_READ)?,
+        binding.replay_payload_for(INPUT_RAWHID_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_input_raw_hid_read(
-                    context, out, handle, maxbytes, timeoutns,
+                    binding, out, handle, maxbytes, timeoutns,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_raw_hid_read(
-                    context, out, handle, maxbytes, timeoutns,
+                    binding, out, handle, maxbytes, timeoutns,
                 )
             },
         },
@@ -7744,7 +7743,7 @@ fn destack_input_rawhid_read_replay(
                         let value_native_data_item_native = value_native_data_item;
                         value_native_data_values.push(value_native_data_item_native);
                     }
-                    let value_native_data = context.store_slice(value_native_data_values);
+                    let value_native_data = binding.store_slice(value_native_data_values);
                     let value_native = InputRawHidReport {
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
@@ -7764,7 +7763,7 @@ fn destack_input_rawhid_read_replay(
 
 #[inline]
 fn destack_input_rawhid_set_feature_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -7772,16 +7771,16 @@ fn destack_input_rawhid_set_feature_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reportid, &data);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_RAWHID_SET_FEATURE,
-        context.replay_payload_for(INPUT_RAWHID_SET_FEATURE)?,
+        binding.replay_payload_for(INPUT_RAWHID_SET_FEATURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_raw_hid_set_feature(context, handle, reportid, data)
+                platform_native::destack_input_raw_hid_set_feature(binding, handle, reportid, data)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_raw_hid_set_feature(
-                    context, handle, reportid, data,
+                    binding, handle, reportid, data,
                 )
             },
         },
@@ -7816,7 +7815,7 @@ fn destack_input_rawhid_set_feature_replay(
 
 #[inline]
 fn destack_input_rawhid_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
@@ -7824,16 +7823,16 @@ fn destack_input_rawhid_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_RAWHID_TRY_READ,
-        context.replay_payload_for(INPUT_RAWHID_TRY_READ)?,
+        binding.replay_payload_for(INPUT_RAWHID_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_raw_hid_try_read(context, out, handle, maxbytes)
+                platform_native::destack_input_raw_hid_try_read(binding, out, handle, maxbytes)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_raw_hid_try_read(
-                    context, out, handle, maxbytes,
+                    binding, out, handle, maxbytes,
                 )
             },
         },
@@ -7889,7 +7888,7 @@ fn destack_input_rawhid_try_read_replay(
                         let value_native_data_item_native = value_native_data_item;
                         value_native_data_values.push(value_native_data_item_native);
                     }
-                    let value_native_data = context.store_slice(value_native_data_values);
+                    let value_native_data = binding.store_slice(value_native_data_values);
                     let value_native = InputRawHidReport {
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
@@ -7909,7 +7908,7 @@ fn destack_input_rawhid_try_read_replay(
 
 #[inline]
 fn destack_input_rawhid_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u32,
     handle: resource::InputDeviceHandle,
@@ -7918,16 +7917,16 @@ fn destack_input_rawhid_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &reportid, &data);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_RAWHID_WRITE,
-        context.replay_payload_for(INPUT_RAWHID_WRITE)?,
+        binding.replay_payload_for(INPUT_RAWHID_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_raw_hid_write(context, out, handle, reportid, data)
+                platform_native::destack_input_raw_hid_write(binding, out, handle, reportid, data)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_raw_hid_write(
-                    context, out, handle, reportid, data,
+                    binding, out, handle, reportid, data,
                 )
             },
         },
@@ -7974,7 +7973,7 @@ fn destack_input_rawhid_write_replay(
 
 #[inline]
 fn destack_input_sensor_configure_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputSensorEffectiveConfig,
     handle: resource::InputDeviceHandle,
@@ -7983,16 +7982,16 @@ fn destack_input_sensor_configure_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &kind, &config);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_SENSOR_CONFIGURE,
-        context.replay_payload_for(INPUT_SENSOR_CONFIGURE)?,
+        binding.replay_payload_for(INPUT_SENSOR_CONFIGURE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_sensor_configure(context, out, handle, kind, config)
+                platform_native::destack_input_sensor_configure(binding, out, handle, kind, config)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_sensor_configure(
-                    context, out, handle, kind, config,
+                    binding, out, handle, kind, config,
                 )
             },
         },
@@ -8057,22 +8056,22 @@ fn destack_input_sensor_configure_replay(
 
 #[inline]
 fn destack_input_sensor_list_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_SENSOR_LIST,
-        context.replay_payload_for(INPUT_SENSOR_LIST)?,
+        binding.replay_payload_for(INPUT_SENSOR_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_sensor_list(context, out, handle)
+                platform_native::destack_input_sensor_list(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_sensor_list(context, out, handle)
+                platform_simulation_native::destack_input_sensor_list(binding, out, handle)
             },
         },
         |result| {
@@ -8143,7 +8142,7 @@ fn destack_input_sensor_list_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -8157,7 +8156,7 @@ fn destack_input_sensor_list_replay(
 
 #[inline]
 fn destack_input_sensor_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
@@ -8165,15 +8164,15 @@ fn destack_input_sensor_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &kind);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_SENSOR_READ,
-        context.replay_payload_for(INPUT_SENSOR_READ)?,
+        binding.replay_payload_for(INPUT_SENSOR_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_sensor_read(context, out, handle, kind)
+                platform_native::destack_input_sensor_read(binding, out, handle, kind)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_sensor_read(context, out, handle, kind)
+                platform_simulation_native::destack_input_sensor_read(binding, out, handle, kind)
             },
         },
         |result| {
@@ -8249,7 +8248,7 @@ fn destack_input_sensor_read_replay(
 
 #[inline]
 fn destack_input_sensor_try_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
@@ -8257,16 +8256,16 @@ fn destack_input_sensor_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &kind);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_SENSOR_TRY_READ,
-        context.replay_payload_for(INPUT_SENSOR_TRY_READ)?,
+        binding.replay_payload_for(INPUT_SENSOR_TRY_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_sensor_try_read(context, out, handle, kind)
+                platform_native::destack_input_sensor_try_read(binding, out, handle, kind)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_sensor_try_read(
-                    context, out, handle, kind,
+                    binding, out, handle, kind,
                 )
             },
         },
@@ -8343,7 +8342,7 @@ fn destack_input_sensor_try_read_replay(
 
 #[inline]
 fn destack_input_text_get_area_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputTextInputArea,
     handle: resource::InputDeviceHandle,
@@ -8351,16 +8350,16 @@ fn destack_input_text_get_area_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_TEXT_GET_AREA,
-        context.replay_payload_for(INPUT_TEXT_GET_AREA)?,
+        binding.replay_payload_for(INPUT_TEXT_GET_AREA)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_get_area(context, out, handle, target)
+                platform_native::destack_input_text_get_area(binding, out, handle, target)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_text_get_area(
-                    context, out, handle, target,
+                    binding, out, handle, target,
                 )
             },
         },
@@ -8429,22 +8428,22 @@ fn destack_input_text_get_area_replay(
 
 #[inline]
 fn destack_input_text_is_active_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut bool,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_TEXT_IS_ACTIVE,
-        context.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
+        binding.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_is_active(context, out, handle)
+                platform_native::destack_input_text_is_active(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_is_active(context, out, handle)
+                platform_simulation_native::destack_input_text_is_active(binding, out, handle)
             },
         },
         |result| {
@@ -8490,23 +8489,23 @@ fn destack_input_text_is_active_replay(
 
 #[inline]
 fn destack_input_text_read_composition_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_TEXT_READ_COMPOSITION,
-        context.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
+        binding.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_read_composition(context, out, handle)
+                platform_native::destack_input_text_read_composition(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_text_read_composition(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -8564,18 +8563,18 @@ fn destack_input_text_read_composition_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = context.store_string(&value.kind);
+                    let value_native_kind = binding.store_string(&value.kind);
                     let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
                     let value_native_metadata_sequence = value.metadata.sequence;
                     let value_native_metadata_device_id =
-                        context.store_string(&value.metadata.device_id);
+                        binding.store_string(&value.metadata.device_id);
                     let value_native_metadata = InputEventMetadata {
                         timestamp_ns: value_native_metadata_timestamp_ns,
                         sequence: value_native_metadata_sequence,
                         device_id: value_native_metadata_device_id,
                     };
                     let value_native_payload_action = value.payload.action;
-                    let value_native_payload_text = context.store_string(&value.payload.text);
+                    let value_native_payload_text = binding.store_string(&value.payload.text);
                     let value_native_payload_selection_start = value.payload.selection_start;
                     let value_native_payload_selection_end = value.payload.selection_end;
                     let value_native_payload = InputCompositionEventPayload {
@@ -8602,7 +8601,7 @@ fn destack_input_text_read_composition_replay(
 
 #[inline]
 fn destack_input_text_set_area_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -8610,16 +8609,16 @@ fn destack_input_text_set_area_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &area);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_TEXT_SET_AREA,
-        context.replay_payload_for(INPUT_TEXT_SET_AREA)?,
+        binding.replay_payload_for(INPUT_TEXT_SET_AREA)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_set_area(context, handle, target, area)
+                platform_native::destack_input_text_set_area(binding, handle, target, area)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_text_set_area(
-                    context, handle, target, area,
+                    binding, handle, target, area,
                 )
             },
         },
@@ -8654,7 +8653,7 @@ fn destack_input_text_set_area_replay(
 
 #[inline]
 fn destack_input_text_start_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -8662,16 +8661,16 @@ fn destack_input_text_start_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &inputtype);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_TEXT_START,
-        context.replay_payload_for(INPUT_TEXT_START)?,
+        binding.replay_payload_for(INPUT_TEXT_START)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_start(context, handle, target, inputtype)
+                platform_native::destack_input_text_start(binding, handle, target, inputtype)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_text_start(
-                    context, handle, target, inputtype,
+                    binding, handle, target, inputtype,
                 )
             },
         },
@@ -8706,22 +8705,22 @@ fn destack_input_text_start_replay(
 
 #[inline]
 fn destack_input_text_stop_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_TEXT_STOP,
-        context.replay_payload_for(INPUT_TEXT_STOP)?,
+        binding.replay_payload_for(INPUT_TEXT_STOP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_stop(context, handle, target)
+                platform_native::destack_input_text_stop(binding, handle, target)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_text_stop(context, handle, target)
+                platform_simulation_native::destack_input_text_stop(binding, handle, target)
             },
         },
         |result| {
@@ -8755,23 +8754,23 @@ fn destack_input_text_stop_replay(
 
 #[inline]
 fn destack_input_text_try_read_composition_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_TEXT_TRY_READ_COMPOSITION,
-        context.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
+        binding.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_text_try_read_composition(context, out, handle)
+                platform_native::destack_input_text_try_read_composition(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_text_try_read_composition(
-                    context, out, handle,
+                    binding, out, handle,
                 )
             },
         },
@@ -8829,18 +8828,18 @@ fn destack_input_text_try_read_composition_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = context.store_string(&value.kind);
+                    let value_native_kind = binding.store_string(&value.kind);
                     let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
                     let value_native_metadata_sequence = value.metadata.sequence;
                     let value_native_metadata_device_id =
-                        context.store_string(&value.metadata.device_id);
+                        binding.store_string(&value.metadata.device_id);
                     let value_native_metadata = InputEventMetadata {
                         timestamp_ns: value_native_metadata_timestamp_ns,
                         sequence: value_native_metadata_sequence,
                         device_id: value_native_metadata_device_id,
                     };
                     let value_native_payload_action = value.payload.action;
-                    let value_native_payload_text = context.store_string(&value.payload.text);
+                    let value_native_payload_text = binding.store_string(&value.payload.text);
                     let value_native_payload_selection_start = value.payload.selection_start;
                     let value_native_payload_selection_end = value.payload.selection_end;
                     let value_native_payload = InputCompositionEventPayload {
@@ -8867,22 +8866,22 @@ fn destack_input_text_try_read_composition_replay(
 
 #[inline]
 fn destack_input_touch_state_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut InputTouchState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         INPUT_TOUCH_STATE,
-        context.replay_payload_for(INPUT_TOUCH_STATE)?,
+        binding.replay_payload_for(INPUT_TOUCH_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_touch_state(context, out, handle)
+                platform_native::destack_input_touch_state(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_touch_state(context, out, handle)
+                platform_simulation_native::destack_input_touch_state(binding, out, handle)
             },
         },
         |result| {
@@ -8959,7 +8958,7 @@ fn destack_input_touch_state_replay(
                 Ok(value) => {
                     let value_native_timestamp_ns = value.timestamp_ns;
                     let value_native_sequence = value.sequence;
-                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_device_id = binding.store_string(&value.device_id);
                     let mut value_native_contacts_values = Vec::with_capacity(value.contacts.len());
                     for value_native_contacts_item in value.contacts {
                         let value_native_contacts_item_native_contact_id =
@@ -8991,7 +8990,7 @@ fn destack_input_touch_state_replay(
                         };
                         value_native_contacts_values.push(value_native_contacts_item_native);
                     }
-                    let value_native_contacts = context.store_array(value_native_contacts_values);
+                    let value_native_contacts = binding.store_array(value_native_contacts_values);
                     let value_native = InputTouchState {
                         timestamp_ns: value_native_timestamp_ns,
                         sequence: value_native_sequence,
@@ -9718,19 +9717,19 @@ pub unsafe extern "C" fn destack_input_touch_state(
 /// VM replay implementations for input bindings.
 #[inline]
 fn destack_input_device_capabilities_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_DEVICE_CAPABILITIES,
-        runtime.replay_payload_for(INPUT_DEVICE_CAPABILITIES)?,
+        binding.replay_payload_for(INPUT_DEVICE_CAPABILITIES)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_capabilities(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_input_capabilities(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_capabilities(runtime, context, handle)
+                platform_simulation_vm::destack_input_capabilities(binding, context, handle)
             }
         },
         |context, result| {
@@ -10056,19 +10055,19 @@ fn destack_input_device_capabilities_vm_replay(
 
 #[inline]
 fn destack_input_device_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_DEVICE_CLOSE,
-        runtime.replay_payload_for(INPUT_DEVICE_CLOSE)?,
+        binding.replay_payload_for(INPUT_DEVICE_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_input_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_close(runtime, context, handle)
+                platform_simulation_vm::destack_input_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -10106,18 +10105,18 @@ fn destack_input_device_close_vm_replay(
 
 #[inline]
 fn destack_input_device_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_DEVICE_LIST,
-        runtime.replay_payload_for(INPUT_DEVICE_LIST)?,
+        binding.replay_payload_for(INPUT_DEVICE_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_list(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_input_list(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_list(runtime, context)
+                platform_simulation_vm::destack_input_list(binding, context)
             }
         },
         |context, result| {
@@ -10490,19 +10489,19 @@ fn destack_input_device_list_vm_replay(
 
 #[inline]
 fn destack_input_device_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_DEVICE_OPEN,
-        runtime.replay_payload_for(INPUT_DEVICE_OPEN)?,
+        binding.replay_payload_for(INPUT_DEVICE_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_open(runtime, context, id),
+            RuntimeWorld::Host => platform_vm::destack_input_open(binding, context, id),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_open(runtime, context, id)
+                platform_simulation_vm::destack_input_open(binding, context, id)
             }
         },
         |context, result| {
@@ -10544,21 +10543,21 @@ fn destack_input_device_open_vm_replay(
 
 #[inline]
 fn destack_input_event_monitor_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_MONITOR_CLOSE,
-        runtime.replay_payload_for(INPUT_EVENT_MONITOR_CLOSE)?,
+        binding.replay_payload_for(INPUT_EVENT_MONITOR_CLOSE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_monitor_close(runtime, context, handle)
+                platform_vm::destack_input_monitor_close(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_monitor_close(runtime, context, handle)
+                platform_simulation_vm::destack_input_monitor_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -10596,18 +10595,18 @@ fn destack_input_event_monitor_close_vm_replay(
 
 #[inline]
 fn destack_input_event_monitor_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_MONITOR_OPEN,
-        runtime.replay_payload_for(INPUT_EVENT_MONITOR_OPEN)?,
+        binding.replay_payload_for(INPUT_EVENT_MONITOR_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_monitor_open(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_input_monitor_open(binding, context),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_monitor_open(runtime, context)
+                platform_simulation_vm::destack_input_monitor_open(binding, context)
             }
         },
         |context, result| {
@@ -10649,19 +10648,19 @@ fn destack_input_event_monitor_open_vm_replay(
 
 #[inline]
 fn destack_input_event_monitor_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_MONITOR_READ,
-        runtime.replay_payload_for(INPUT_EVENT_MONITOR_READ)?,
+        binding.replay_payload_for(INPUT_EVENT_MONITOR_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_input_monitor_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_monitor_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_input_monitor_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_monitor_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -10851,19 +10850,19 @@ fn destack_input_event_monitor_read_vm_replay(
 
 #[inline]
 fn destack_input_event_monitor_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_MONITOR_TRY_READ,
-        runtime.replay_payload_for(INPUT_EVENT_MONITOR_TRY_READ)?,
+        binding.replay_payload_for(INPUT_EVENT_MONITOR_TRY_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_input_monitor_try_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_monitor_try_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_input_monitor_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_monitor_try_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -11053,19 +11052,19 @@ fn destack_input_event_monitor_try_read_vm_replay(
 
 #[inline]
 fn destack_input_event_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_READ,
-        runtime.replay_payload_for(INPUT_EVENT_READ)?,
+        binding.replay_payload_for(INPUT_EVENT_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_input_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_input_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -11751,20 +11750,20 @@ fn destack_input_event_read_vm_replay(
 
 #[inline]
 fn destack_input_event_read_batch_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_READ_BATCH,
-        runtime.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
+        binding.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_input_read_batch(runtime, context, handle, maxevents),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_read_batch(runtime, context, handle, maxevents),
+                RuntimeWorld::Host => platform_vm::destack_input_read_batch(binding, context, handle, maxevents),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_read_batch(binding, context, handle, maxevents),
             }
         },
         |context, result| {
@@ -12464,22 +12463,22 @@ fn destack_input_event_read_batch_vm_replay(
 
 #[inline]
 fn destack_input_event_set_exclusive_grab_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_SET_EXCLUSIVE_GRAB,
-        runtime.replay_payload_for(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?,
+        binding.replay_payload_for(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_set_exclusive_grab(runtime, context, handle, enable)
+                platform_vm::destack_input_set_exclusive_grab(binding, context, handle, enable)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_set_exclusive_grab(
-                runtime, context, handle, enable,
+                binding, context, handle, enable,
             ),
         },
         |context, result| {
@@ -12517,22 +12516,22 @@ fn destack_input_event_set_exclusive_grab_vm_replay(
 
 #[inline]
 fn destack_input_event_set_read_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_SET_READ_MODE,
-        runtime.replay_payload_for(INPUT_EVENT_SET_READ_MODE)?,
+        binding.replay_payload_for(INPUT_EVENT_SET_READ_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_set_read_mode(runtime, context, handle, mode)
+                platform_vm::destack_input_set_read_mode(binding, context, handle, mode)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_set_read_mode(runtime, context, handle, mode)
+                platform_simulation_vm::destack_input_set_read_mode(binding, context, handle, mode)
             }
         },
         |context, result| {
@@ -12570,19 +12569,19 @@ fn destack_input_event_set_read_mode_vm_replay(
 
 #[inline]
 fn destack_input_event_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_EVENT_TRY_READ,
-        runtime.replay_payload_for(INPUT_EVENT_TRY_READ)?,
+        binding.replay_payload_for(INPUT_EVENT_TRY_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_input_try_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_try_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_input_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_try_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -13268,7 +13267,7 @@ fn destack_input_event_try_read_vm_replay(
 
 #[inline]
 fn destack_input_gamepad_set_light_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
@@ -13276,16 +13275,16 @@ fn destack_input_gamepad_set_light_vm_replay(
     green: u8,
     blue: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_GAMEPAD_SET_LIGHT,
-        runtime.replay_payload_for(INPUT_GAMEPAD_SET_LIGHT)?,
+        binding.replay_payload_for(INPUT_GAMEPAD_SET_LIGHT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_gamepad_set_light(
-                runtime, context, handle, red, green, blue,
+                binding, context, handle, red, green, blue,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_gamepad_set_light(
-                runtime, context, handle, red, green, blue,
+                binding, context, handle, red, green, blue,
             ),
         },
         |context, result| {
@@ -13323,26 +13322,26 @@ fn destack_input_gamepad_set_light_vm_replay(
 
 #[inline]
 fn destack_input_gamepad_set_player_index_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_GAMEPAD_SET_PLAYER_INDEX,
-        runtime.replay_payload_for(INPUT_GAMEPAD_SET_PLAYER_INDEX)?,
+        binding.replay_payload_for(INPUT_GAMEPAD_SET_PLAYER_INDEX)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_gamepad_set_player_index(
-                runtime,
+                binding,
                 context,
                 handle,
                 playerindex,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_input_gamepad_set_player_index(
-                    runtime,
+                    binding,
                     context,
                     handle,
                     playerindex,
@@ -13384,21 +13383,21 @@ fn destack_input_gamepad_set_player_index_vm_replay(
 
 #[inline]
 fn destack_input_gamepad_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_GAMEPAD_STATE,
-        runtime.replay_payload_for(INPUT_GAMEPAD_STATE)?,
+        binding.replay_payload_for(INPUT_GAMEPAD_STATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_gamepad_state(runtime, context, handle)
+                platform_vm::destack_input_gamepad_state(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_gamepad_state(runtime, context, handle)
+                platform_simulation_vm::destack_input_gamepad_state(binding, context, handle)
             }
         },
         |context, result| {
@@ -13695,21 +13694,21 @@ fn destack_input_gamepad_state_vm_replay(
 
 #[inline]
 fn destack_input_haptics_effects_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_HAPTICS_EFFECTS,
-        runtime.replay_payload_for(INPUT_HAPTICS_EFFECTS)?,
+        binding.replay_payload_for(INPUT_HAPTICS_EFFECTS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_haptics_effects(runtime, context, handle)
+                platform_vm::destack_input_haptics_effects(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_haptics_effects(runtime, context, handle)
+                platform_simulation_vm::destack_input_haptics_effects(binding, context, handle)
             }
         },
         |context, result| {
@@ -13778,23 +13777,23 @@ fn destack_input_haptics_effects_vm_replay(
 
 #[inline]
 fn destack_input_haptics_play_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
     parameters: InputHapticEffectParametersVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_HAPTICS_PLAY,
-        runtime.replay_payload_for(INPUT_HAPTICS_PLAY)?,
+        binding.replay_payload_for(INPUT_HAPTICS_PLAY)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_haptics_play(
-                runtime, context, handle, effect, parameters,
+                binding, context, handle, effect, parameters,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_haptics_play(
-                runtime, context, handle, effect, parameters,
+                binding, context, handle, effect, parameters,
             ),
         },
         |context, result| {
@@ -13836,19 +13835,19 @@ fn destack_input_haptics_play_vm_replay(
 
 #[inline]
 fn destack_input_haptics_stop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_HAPTICS_STOP,
-        runtime.replay_payload_for(INPUT_HAPTICS_STOP)?,
+        binding.replay_payload_for(INPUT_HAPTICS_STOP)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_haptics_stop(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_input_haptics_stop(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_haptics_stop(runtime, context, handle)
+                platform_simulation_vm::destack_input_haptics_stop(binding, context, handle)
             }
         },
         |context, result| {
@@ -13886,21 +13885,21 @@ fn destack_input_haptics_stop_vm_replay(
 
 #[inline]
 fn destack_input_keyboard_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_KEYBOARD_STATE,
-        runtime.replay_payload_for(INPUT_KEYBOARD_STATE)?,
+        binding.replay_payload_for(INPUT_KEYBOARD_STATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_keyboard_state(runtime, context, handle)
+                platform_vm::destack_input_keyboard_state(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_keyboard_state(runtime, context, handle)
+                platform_simulation_vm::destack_input_keyboard_state(binding, context, handle)
             }
         },
         |context, result| {
@@ -14021,23 +14020,23 @@ fn destack_input_keyboard_state_vm_replay(
 
 #[inline]
 fn destack_input_pointer_capture_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_POINTER_CAPTURE,
-        runtime.replay_payload_for(INPUT_POINTER_CAPTURE)?,
+        binding.replay_payload_for(INPUT_POINTER_CAPTURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_pointer_capture(
-                runtime, context, handle, target, enabled,
+                binding, context, handle, target, enabled,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_pointer_capture(
-                runtime, context, handle, target, enabled,
+                binding, context, handle, target, enabled,
             ),
         },
         |context, result| {
@@ -14075,22 +14074,22 @@ fn destack_input_pointer_capture_vm_replay(
 
 #[inline]
 fn destack_input_pointer_relative_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_POINTER_RELATIVE_STATE,
-        runtime.replay_payload_for(INPUT_POINTER_RELATIVE_STATE)?,
+        binding.replay_payload_for(INPUT_POINTER_RELATIVE_STATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_pointer_relative_state(runtime, context, handle)
+                platform_vm::destack_input_pointer_relative_state(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_input_pointer_relative_state(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -14195,24 +14194,24 @@ fn destack_input_pointer_relative_state_vm_replay(
 
 #[inline]
 fn destack_input_pointer_set_grab_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     mode: InputPointerGrabMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_POINTER_SET_GRAB_MODE,
-        runtime.replay_payload_for(INPUT_POINTER_SET_GRAB_MODE)?,
+        binding.replay_payload_for(INPUT_POINTER_SET_GRAB_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_pointer_set_grab_mode(
-                runtime, context, handle, target, mode,
+                binding, context, handle, target, mode,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_input_pointer_set_grab_mode(
-                    runtime, context, handle, target, mode,
+                    binding, context, handle, target, mode,
                 )
             }
         },
@@ -14251,23 +14250,23 @@ fn destack_input_pointer_set_grab_mode_vm_replay(
 
 #[inline]
 fn destack_input_pointer_set_relative_mode_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_POINTER_SET_RELATIVE_MODE,
-        runtime.replay_payload_for(INPUT_POINTER_SET_RELATIVE_MODE)?,
+        binding.replay_payload_for(INPUT_POINTER_SET_RELATIVE_MODE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_pointer_set_relative_mode(
-                runtime, context, handle, enabled,
+                binding, context, handle, enabled,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_input_pointer_set_relative_mode(
-                    runtime, context, handle, enabled,
+                    binding, context, handle, enabled,
                 )
             }
         },
@@ -14306,21 +14305,21 @@ fn destack_input_pointer_set_relative_mode_vm_replay(
 
 #[inline]
 fn destack_input_pointer_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_POINTER_STATE,
-        runtime.replay_payload_for(INPUT_POINTER_STATE)?,
+        binding.replay_payload_for(INPUT_POINTER_STATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_pointer_state(runtime, context, handle)
+                platform_vm::destack_input_pointer_state(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_pointer_state(runtime, context, handle)
+                platform_simulation_vm::destack_input_pointer_state(binding, context, handle)
             }
         },
         |context, result| {
@@ -14424,7 +14423,7 @@ fn destack_input_pointer_state_vm_replay(
 
 #[inline]
 fn destack_input_pointer_warp_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
@@ -14432,16 +14431,16 @@ fn destack_input_pointer_warp_vm_replay(
     x: f64,
     y: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_POINTER_WARP,
-        runtime.replay_payload_for(INPUT_POINTER_WARP)?,
+        binding.replay_payload_for(INPUT_POINTER_WARP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_pointer_warp(runtime, context, handle, target, x, y)
+                platform_vm::destack_input_pointer_warp(binding, context, handle, target, x, y)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_pointer_warp(
-                runtime, context, handle, target, x, y,
+                binding, context, handle, target, x, y,
             ),
         },
         |context, result| {
@@ -14479,23 +14478,23 @@ fn destack_input_pointer_warp_vm_replay(
 
 #[inline]
 fn destack_input_rawhid_get_feature_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_RAWHID_GET_FEATURE,
-        runtime.replay_payload_for(INPUT_RAWHID_GET_FEATURE)?,
+        binding.replay_payload_for(INPUT_RAWHID_GET_FEATURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_raw_hid_get_feature(
-                runtime, context, handle, reportid, maxbytes,
+                binding, context, handle, reportid, maxbytes,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_raw_hid_get_feature(
-                runtime, context, handle, reportid, maxbytes,
+                binding, context, handle, reportid, maxbytes,
             ),
         },
         |context, result| {
@@ -14537,23 +14536,23 @@ fn destack_input_rawhid_get_feature_vm_replay(
 
 #[inline]
 fn destack_input_rawhid_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_RAWHID_READ,
-        runtime.replay_payload_for(INPUT_RAWHID_READ)?,
+        binding.replay_payload_for(INPUT_RAWHID_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_raw_hid_read(
-                runtime, context, handle, maxbytes, timeoutns,
+                binding, context, handle, maxbytes, timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_raw_hid_read(
-                runtime, context, handle, maxbytes, timeoutns,
+                binding, context, handle, maxbytes, timeoutns,
             ),
         },
         |context, result| {
@@ -14613,23 +14612,23 @@ fn destack_input_rawhid_read_vm_replay(
 
 #[inline]
 fn destack_input_rawhid_set_feature_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_RAWHID_SET_FEATURE,
-        runtime.replay_payload_for(INPUT_RAWHID_SET_FEATURE)?,
+        binding.replay_payload_for(INPUT_RAWHID_SET_FEATURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_input_raw_hid_set_feature(
-                runtime, context, handle, reportid, data,
+                binding, context, handle, reportid, data,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_raw_hid_set_feature(
-                runtime, context, handle, reportid, data,
+                binding, context, handle, reportid, data,
             ),
         },
         |context, result| {
@@ -14667,22 +14666,22 @@ fn destack_input_rawhid_set_feature_vm_replay(
 
 #[inline]
 fn destack_input_rawhid_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_RAWHID_TRY_READ,
-        runtime.replay_payload_for(INPUT_RAWHID_TRY_READ)?,
+        binding.replay_payload_for(INPUT_RAWHID_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_raw_hid_try_read(runtime, context, handle, maxbytes)
+                platform_vm::destack_input_raw_hid_try_read(binding, context, handle, maxbytes)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_raw_hid_try_read(
-                runtime, context, handle, maxbytes,
+                binding, context, handle, maxbytes,
             ),
         },
         |context, result| {
@@ -14742,23 +14741,23 @@ fn destack_input_rawhid_try_read_vm_replay(
 
 #[inline]
 fn destack_input_rawhid_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_RAWHID_WRITE,
-        runtime.replay_payload_for(INPUT_RAWHID_WRITE)?,
+        binding.replay_payload_for(INPUT_RAWHID_WRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_raw_hid_write(runtime, context, handle, reportid, data)
+                platform_vm::destack_input_raw_hid_write(binding, context, handle, reportid, data)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_raw_hid_write(
-                runtime, context, handle, reportid, data,
+                binding, context, handle, reportid, data,
             ),
         },
         |context, result| {
@@ -14800,23 +14799,23 @@ fn destack_input_rawhid_write_vm_replay(
 
 #[inline]
 fn destack_input_sensor_configure_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
     config: InputSensorConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_SENSOR_CONFIGURE,
-        runtime.replay_payload_for(INPUT_SENSOR_CONFIGURE)?,
+        binding.replay_payload_for(INPUT_SENSOR_CONFIGURE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_sensor_configure(runtime, context, handle, kind, config)
+                platform_vm::destack_input_sensor_configure(binding, context, handle, kind, config)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_sensor_configure(
-                runtime, context, handle, kind, config,
+                binding, context, handle, kind, config,
             ),
         },
         |context, result| {
@@ -14876,19 +14875,19 @@ fn destack_input_sensor_configure_vm_replay(
 
 #[inline]
 fn destack_input_sensor_list_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_SENSOR_LIST,
-        runtime.replay_payload_for(INPUT_SENSOR_LIST)?,
+        binding.replay_payload_for(INPUT_SENSOR_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_sensor_list(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_input_sensor_list(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_sensor_list(runtime, context, handle)
+                platform_simulation_vm::destack_input_sensor_list(binding, context, handle)
             }
         },
         |context, result| {
@@ -15056,22 +15055,22 @@ fn destack_input_sensor_list_vm_replay(
 
 #[inline]
 fn destack_input_sensor_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_SENSOR_READ,
-        runtime.replay_payload_for(INPUT_SENSOR_READ)?,
+        binding.replay_payload_for(INPUT_SENSOR_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_sensor_read(runtime, context, handle, kind)
+                platform_vm::destack_input_sensor_read(binding, context, handle, kind)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_sensor_read(runtime, context, handle, kind)
+                platform_simulation_vm::destack_input_sensor_read(binding, context, handle, kind)
             }
         },
         |context, result| {
@@ -15143,22 +15142,22 @@ fn destack_input_sensor_read_vm_replay(
 
 #[inline]
 fn destack_input_sensor_try_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_SENSOR_TRY_READ,
-        runtime.replay_payload_for(INPUT_SENSOR_TRY_READ)?,
+        binding.replay_payload_for(INPUT_SENSOR_TRY_READ)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_sensor_try_read(runtime, context, handle, kind)
+                platform_vm::destack_input_sensor_try_read(binding, context, handle, kind)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_sensor_try_read(
-                runtime, context, handle, kind,
+                binding, context, handle, kind,
             ),
         },
         |context, result| {
@@ -15230,22 +15229,22 @@ fn destack_input_sensor_try_read_vm_replay(
 
 #[inline]
 fn destack_input_text_get_area_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_TEXT_GET_AREA,
-        runtime.replay_payload_for(INPUT_TEXT_GET_AREA)?,
+        binding.replay_payload_for(INPUT_TEXT_GET_AREA)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_get_area(runtime, context, handle, target)
+                platform_vm::destack_input_text_get_area(binding, context, handle, target)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_get_area(
-                runtime, context, handle, target,
+                binding, context, handle, target,
             ),
         },
         |context, result| {
@@ -15309,21 +15308,21 @@ fn destack_input_text_get_area_vm_replay(
 
 #[inline]
 fn destack_input_text_is_active_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_TEXT_IS_ACTIVE,
-        runtime.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
+        binding.replay_payload_for(INPUT_TEXT_IS_ACTIVE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_is_active(runtime, context, handle)
+                platform_vm::destack_input_text_is_active(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_text_is_active(runtime, context, handle)
+                platform_simulation_vm::destack_input_text_is_active(binding, context, handle)
             }
         },
         |context, result| {
@@ -15365,22 +15364,22 @@ fn destack_input_text_is_active_vm_replay(
 
 #[inline]
 fn destack_input_text_read_composition_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_TEXT_READ_COMPOSITION,
-        runtime.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
+        binding.replay_payload_for(INPUT_TEXT_READ_COMPOSITION)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_read_composition(runtime, context, handle)
+                platform_vm::destack_input_text_read_composition(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_input_text_read_composition(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -15491,23 +15490,23 @@ fn destack_input_text_read_composition_vm_replay(
 
 #[inline]
 fn destack_input_text_set_area_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     area: InputTextInputAreaVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_TEXT_SET_AREA,
-        runtime.replay_payload_for(INPUT_TEXT_SET_AREA)?,
+        binding.replay_payload_for(INPUT_TEXT_SET_AREA)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_set_area(runtime, context, handle, target, area)
+                platform_vm::destack_input_text_set_area(binding, context, handle, target, area)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_set_area(
-                runtime, context, handle, target, area,
+                binding, context, handle, target, area,
             ),
         },
         |context, result| {
@@ -15545,23 +15544,23 @@ fn destack_input_text_set_area_vm_replay(
 
 #[inline]
 fn destack_input_text_start_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     inputtype: InputTextInputType,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_TEXT_START,
-        runtime.replay_payload_for(INPUT_TEXT_START)?,
+        binding.replay_payload_for(INPUT_TEXT_START)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_start(runtime, context, handle, target, inputtype)
+                platform_vm::destack_input_text_start(binding, context, handle, target, inputtype)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_text_start(
-                runtime, context, handle, target, inputtype,
+                binding, context, handle, target, inputtype,
             ),
         },
         |context, result| {
@@ -15599,22 +15598,22 @@ fn destack_input_text_start_vm_replay(
 
 #[inline]
 fn destack_input_text_stop_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_TEXT_STOP,
-        runtime.replay_payload_for(INPUT_TEXT_STOP)?,
+        binding.replay_payload_for(INPUT_TEXT_STOP)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_stop(runtime, context, handle, target)
+                platform_vm::destack_input_text_stop(binding, context, handle, target)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_text_stop(runtime, context, handle, target)
+                platform_simulation_vm::destack_input_text_stop(binding, context, handle, target)
             }
         },
         |context, result| {
@@ -15652,22 +15651,22 @@ fn destack_input_text_stop_vm_replay(
 
 #[inline]
 fn destack_input_text_try_read_composition_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_TEXT_TRY_READ_COMPOSITION,
-        runtime.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
+        binding.replay_payload_for(INPUT_TEXT_TRY_READ_COMPOSITION)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_input_text_try_read_composition(runtime, context, handle)
+                platform_vm::destack_input_text_try_read_composition(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_input_text_try_read_composition(
-                    runtime, context, handle,
+                    binding, context, handle,
                 )
             }
         },
@@ -15778,19 +15777,19 @@ fn destack_input_text_try_read_composition_vm_replay(
 
 #[inline]
 fn destack_input_touch_state_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         INPUT_TOUCH_STATE,
-        runtime.replay_payload_for(INPUT_TOUCH_STATE)?,
+        binding.replay_payload_for(INPUT_TOUCH_STATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_touch_state(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_input_touch_state(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_touch_state(runtime, context, handle)
+                platform_simulation_vm::destack_input_touch_state(binding, context, handle)
             }
         },
         |context, result| {
@@ -16039,14 +16038,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_DEVICE_CAPABILITIES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_device_capabilities_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_DEVICE_CAPABILITIES)?;
-                    destack_input_device_capabilities_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_DEVICE_CAPABILITIES)?;
+                    destack_input_device_capabilities_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16058,14 +16057,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_DEVICE_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_device_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_DEVICE_CLOSE)?;
-                    destack_input_device_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_DEVICE_CLOSE)?;
+                    destack_input_device_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16077,11 +16076,11 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_DEVICE_LIST,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_DEVICE_LIST)?;
-                    destack_input_device_list_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(INPUT_DEVICE_LIST)?;
+                    destack_input_device_list_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -16093,14 +16092,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_DEVICE_OPEN,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (id,) = decode_destack_input_device_open_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_DEVICE_OPEN)?;
-                    destack_input_device_open_vm_replay(runtime, context, world, id)
+                        binding.on_before_binding_resolve_world(INPUT_DEVICE_OPEN)?;
+                    destack_input_device_open_vm_replay(binding, context, world, id)
                 })
                 .map_err(Into::into)
             }
@@ -16112,14 +16111,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_EVENT_MONITOR_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_event_monitor_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_CLOSE)?;
-                    destack_input_event_monitor_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_CLOSE)?;
+                    destack_input_event_monitor_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16131,11 +16130,11 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_EVENT_MONITOR_OPEN,
             move |context, _args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_OPEN)?;
-                    destack_input_event_monitor_open_vm_replay(runtime, context, world)
+                        binding.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_OPEN)?;
+                    destack_input_event_monitor_open_vm_replay(binding, context, world)
                 })
                 .map_err(Into::into)
             }
@@ -16147,14 +16146,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_EVENT_MONITOR_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_event_monitor_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_READ)?;
-                    destack_input_event_monitor_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_READ)?;
+                    destack_input_event_monitor_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16166,15 +16165,15 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_EVENT_MONITOR_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_input_event_monitor_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_TRY_READ)?;
-                    destack_input_event_monitor_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_TRY_READ)?;
+                    destack_input_event_monitor_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16182,14 +16181,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, INPUT_EVENT_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_input_event_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(INPUT_EVENT_READ)?;
-                destack_input_event_read_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(INPUT_EVENT_READ)?;
+                destack_input_event_read_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -16200,16 +16199,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_EVENT_READ_BATCH,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxevents) =
                         decode_destack_input_event_read_batch_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_EVENT_READ_BATCH)?;
+                        binding.on_before_binding_resolve_world(INPUT_EVENT_READ_BATCH)?;
                     destack_input_event_read_batch_vm_replay(
-                        runtime, context, world, handle, maxevents,
+                        binding, context, world, handle, maxevents,
                     )
                 })
                 .map_err(Into::into)
@@ -16222,16 +16221,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_EVENT_SET_EXCLUSIVE_GRAB,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enable) =
                         decode_destack_input_event_set_exclusive_grab_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
+                        binding.on_before_binding_resolve_world(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
                     destack_input_event_set_exclusive_grab_vm_replay(
-                        runtime, context, world, handle, enable,
+                        binding, context, world, handle, enable,
                     )
                 })
                 .map_err(Into::into)
@@ -16244,16 +16243,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_EVENT_SET_READ_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, mode) =
                         decode_destack_input_event_set_read_mode_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_EVENT_SET_READ_MODE)?;
+                        binding.on_before_binding_resolve_world(INPUT_EVENT_SET_READ_MODE)?;
                     destack_input_event_set_read_mode_vm_replay(
-                        runtime, context, world, handle, mode,
+                        binding, context, world, handle, mode,
                     )
                 })
                 .map_err(Into::into)
@@ -16266,14 +16265,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_EVENT_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_event_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_EVENT_TRY_READ)?;
-                    destack_input_event_try_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_EVENT_TRY_READ)?;
+                    destack_input_event_try_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16285,16 +16284,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_GAMEPAD_SET_LIGHT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, red, green, blue) =
                         decode_destack_input_gamepad_set_light_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_GAMEPAD_SET_LIGHT)?;
+                        binding.on_before_binding_resolve_world(INPUT_GAMEPAD_SET_LIGHT)?;
                     destack_input_gamepad_set_light_vm_replay(
-                        runtime, context, world, handle, red, green, blue,
+                        binding, context, world, handle, red, green, blue,
                     )
                 })
                 .map_err(Into::into)
@@ -16307,16 +16306,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_GAMEPAD_SET_PLAYER_INDEX,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, playerindex) =
                         decode_destack_input_gamepad_set_player_index_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
+                        binding.on_before_binding_resolve_world(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
                     destack_input_gamepad_set_player_index_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -16333,14 +16332,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_GAMEPAD_STATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_gamepad_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_GAMEPAD_STATE)?;
-                    destack_input_gamepad_state_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_GAMEPAD_STATE)?;
+                    destack_input_gamepad_state_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16352,14 +16351,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_HAPTICS_EFFECTS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_haptics_effects_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_HAPTICS_EFFECTS)?;
-                    destack_input_haptics_effects_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_HAPTICS_EFFECTS)?;
+                    destack_input_haptics_effects_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16371,16 +16370,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_HAPTICS_PLAY,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, effect, parameters) =
                         decode_destack_input_haptics_play_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_HAPTICS_PLAY)?;
+                        binding.on_before_binding_resolve_world(INPUT_HAPTICS_PLAY)?;
                     destack_input_haptics_play_vm_replay(
-                        runtime, context, world, handle, effect, parameters,
+                        binding, context, world, handle, effect, parameters,
                     )
                 })
                 .map_err(Into::into)
@@ -16393,14 +16392,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_HAPTICS_STOP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_haptics_stop_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_HAPTICS_STOP)?;
-                    destack_input_haptics_stop_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_HAPTICS_STOP)?;
+                    destack_input_haptics_stop_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16412,14 +16411,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_KEYBOARD_STATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_keyboard_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_KEYBOARD_STATE)?;
-                    destack_input_keyboard_state_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_KEYBOARD_STATE)?;
+                    destack_input_keyboard_state_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16431,16 +16430,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_POINTER_CAPTURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, target, enabled) =
                         decode_destack_input_pointer_capture_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_POINTER_CAPTURE)?;
+                        binding.on_before_binding_resolve_world(INPUT_POINTER_CAPTURE)?;
                     destack_input_pointer_capture_vm_replay(
-                        runtime, context, world, handle, target, enabled,
+                        binding, context, world, handle, target, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -16453,15 +16452,15 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_POINTER_RELATIVE_STATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_input_pointer_relative_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_POINTER_RELATIVE_STATE)?;
-                    destack_input_pointer_relative_state_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_POINTER_RELATIVE_STATE)?;
+                    destack_input_pointer_relative_state_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16473,16 +16472,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_POINTER_SET_GRAB_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, target, mode) =
                         decode_destack_input_pointer_set_grab_mode_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_POINTER_SET_GRAB_MODE)?;
+                        binding.on_before_binding_resolve_world(INPUT_POINTER_SET_GRAB_MODE)?;
                     destack_input_pointer_set_grab_mode_vm_replay(
-                        runtime, context, world, handle, target, mode,
+                        binding, context, world, handle, target, mode,
                     )
                 })
                 .map_err(Into::into)
@@ -16495,16 +16494,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_POINTER_SET_RELATIVE_MODE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, enabled) =
                         decode_destack_input_pointer_set_relative_mode_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_POINTER_SET_RELATIVE_MODE)?;
+                        binding.on_before_binding_resolve_world(INPUT_POINTER_SET_RELATIVE_MODE)?;
                     destack_input_pointer_set_relative_mode_vm_replay(
-                        runtime, context, world, handle, enabled,
+                        binding, context, world, handle, enabled,
                     )
                 })
                 .map_err(Into::into)
@@ -16517,14 +16516,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_POINTER_STATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_pointer_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_POINTER_STATE)?;
-                    destack_input_pointer_state_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_POINTER_STATE)?;
+                    destack_input_pointer_state_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16536,16 +16535,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_POINTER_WARP,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, target, x, y) =
                         decode_destack_input_pointer_warp_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_POINTER_WARP)?;
+                        binding.on_before_binding_resolve_world(INPUT_POINTER_WARP)?;
                     destack_input_pointer_warp_vm_replay(
-                        runtime, context, world, handle, target, x, y,
+                        binding, context, world, handle, target, x, y,
                     )
                 })
                 .map_err(Into::into)
@@ -16558,16 +16557,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_RAWHID_GET_FEATURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, reportid, maxbytes) =
                         decode_destack_input_rawhid_get_feature_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_GET_FEATURE)?;
+                        binding.on_before_binding_resolve_world(INPUT_RAWHID_GET_FEATURE)?;
                     destack_input_rawhid_get_feature_vm_replay(
-                        runtime, context, world, handle, reportid, maxbytes,
+                        binding, context, world, handle, reportid, maxbytes,
                     )
                 })
                 .map_err(Into::into)
@@ -16580,16 +16579,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_RAWHID_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxbytes, timeoutns) =
                         decode_destack_input_rawhid_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_READ)?;
+                        binding.on_before_binding_resolve_world(INPUT_RAWHID_READ)?;
                     destack_input_rawhid_read_vm_replay(
-                        runtime, context, world, handle, maxbytes, timeoutns,
+                        binding, context, world, handle, maxbytes, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -16602,16 +16601,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_RAWHID_SET_FEATURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, reportid, data) =
                         decode_destack_input_rawhid_set_feature_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_SET_FEATURE)?;
+                        binding.on_before_binding_resolve_world(INPUT_RAWHID_SET_FEATURE)?;
                     destack_input_rawhid_set_feature_vm_replay(
-                        runtime, context, world, handle, reportid, data,
+                        binding, context, world, handle, reportid, data,
                     )
                 })
                 .map_err(Into::into)
@@ -16624,16 +16623,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_RAWHID_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, maxbytes) =
                         decode_destack_input_rawhid_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_TRY_READ)?;
+                        binding.on_before_binding_resolve_world(INPUT_RAWHID_TRY_READ)?;
                     destack_input_rawhid_try_read_vm_replay(
-                        runtime, context, world, handle, maxbytes,
+                        binding, context, world, handle, maxbytes,
                     )
                 })
                 .map_err(Into::into)
@@ -16646,16 +16645,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_RAWHID_WRITE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, reportid, data) =
                         decode_destack_input_rawhid_write_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_WRITE)?;
+                        binding.on_before_binding_resolve_world(INPUT_RAWHID_WRITE)?;
                     destack_input_rawhid_write_vm_replay(
-                        runtime, context, world, handle, reportid, data,
+                        binding, context, world, handle, reportid, data,
                     )
                 })
                 .map_err(Into::into)
@@ -16668,16 +16667,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_SENSOR_CONFIGURE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, kind, config) =
                         decode_destack_input_sensor_configure_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_SENSOR_CONFIGURE)?;
+                        binding.on_before_binding_resolve_world(INPUT_SENSOR_CONFIGURE)?;
                     destack_input_sensor_configure_vm_replay(
-                        runtime, context, world, handle, kind, config,
+                        binding, context, world, handle, kind, config,
                     )
                 })
                 .map_err(Into::into)
@@ -16690,14 +16689,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_SENSOR_LIST,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_sensor_list_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_SENSOR_LIST)?;
-                    destack_input_sensor_list_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_SENSOR_LIST)?;
+                    destack_input_sensor_list_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16709,14 +16708,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_SENSOR_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, kind) = decode_destack_input_sensor_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_SENSOR_READ)?;
-                    destack_input_sensor_read_vm_replay(runtime, context, world, handle, kind)
+                        binding.on_before_binding_resolve_world(INPUT_SENSOR_READ)?;
+                    destack_input_sensor_read_vm_replay(binding, context, world, handle, kind)
                 })
                 .map_err(Into::into)
             }
@@ -16728,14 +16727,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_SENSOR_TRY_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, kind) = decode_destack_input_sensor_try_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_SENSOR_TRY_READ)?;
-                    destack_input_sensor_try_read_vm_replay(runtime, context, world, handle, kind)
+                        binding.on_before_binding_resolve_world(INPUT_SENSOR_TRY_READ)?;
+                    destack_input_sensor_try_read_vm_replay(binding, context, world, handle, kind)
                 })
                 .map_err(Into::into)
             }
@@ -16747,14 +16746,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_TEXT_GET_AREA,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, target) = decode_destack_input_text_get_area_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_TEXT_GET_AREA)?;
-                    destack_input_text_get_area_vm_replay(runtime, context, world, handle, target)
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_GET_AREA)?;
+                    destack_input_text_get_area_vm_replay(binding, context, world, handle, target)
                 })
                 .map_err(Into::into)
             }
@@ -16766,14 +16765,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_TEXT_IS_ACTIVE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_text_is_active_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
-                    destack_input_text_is_active_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
+                    destack_input_text_is_active_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16785,14 +16784,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_TEXT_READ_COMPOSITION,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_text_read_composition_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
-                    destack_input_text_read_composition_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
+                    destack_input_text_read_composition_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -16804,16 +16803,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_TEXT_SET_AREA,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, target, area) =
                         decode_destack_input_text_set_area_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_TEXT_SET_AREA)?;
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_SET_AREA)?;
                     destack_input_text_set_area_vm_replay(
-                        runtime, context, world, handle, target, area,
+                        binding, context, world, handle, target, area,
                     )
                 })
                 .map_err(Into::into)
@@ -16822,16 +16821,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, INPUT_TEXT_START, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, target, inputtype) =
                     decode_destack_input_text_start_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(INPUT_TEXT_START)?;
+                    binding.on_before_binding_resolve_world(INPUT_TEXT_START)?;
                 destack_input_text_start_vm_replay(
-                    runtime, context, world, handle, target, inputtype,
+                    binding, context, world, handle, target, inputtype,
                 )
             })
             .map_err(Into::into)
@@ -16839,14 +16838,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     }
     {
         binding!(registry, isolate, INPUT_TEXT_STOP, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, target) = decode_destack_input_text_stop_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(INPUT_TEXT_STOP)?;
-                destack_input_text_stop_vm_replay(runtime, context, world, handle, target)
+                    binding.on_before_binding_resolve_world(INPUT_TEXT_STOP)?;
+                destack_input_text_stop_vm_replay(binding, context, world, handle, target)
             })
             .map_err(Into::into)
         });
@@ -16857,16 +16856,16 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_TEXT_TRY_READ_COMPOSITION,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
                         decode_destack_input_text_try_read_composition_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
+                        binding.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
                     destack_input_text_try_read_composition_vm_replay(
-                        runtime, context, world, handle,
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -16879,14 +16878,14 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             isolate,
             INPUT_TOUCH_STATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_input_touch_state_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(INPUT_TOUCH_STATE)?;
-                    destack_input_touch_state_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(INPUT_TOUCH_STATE)?;
+                    destack_input_touch_state_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }

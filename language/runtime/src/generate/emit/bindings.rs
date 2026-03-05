@@ -1402,7 +1402,7 @@ impl<'a> DomainWriter<'a> {
                 "        binding!(registry, isolate, {}, move |context, {args_ident}| {{\n",
                 binding.const_name
             ));
-            output.push_str("            with_binding_call_context(|runtime| {\n");
+            output.push_str("            with_binding_call_context(|binding| {\n");
             if !binding.entry.parameters.is_empty() {
                 output.push_str("                // decode args\n");
                 let arg_names = binding
@@ -1432,19 +1432,19 @@ impl<'a> DomainWriter<'a> {
                         let replay_fn = vm_replay_fn_name(domain, binding.extern_name);
                         if binding.entry.scope == CatalogBindingScope::Runtime {
                             output.push_str(&format!(
-                                "                let _binding_hook_guard = runtime.on_before_binding({})?;\n",
+                                "                let _binding_hook_guard = binding.on_before_binding({})?;\n",
                                 binding.const_name
                             ));
                             output.push_str(&format!(
-                                "                {replay_fn}(runtime, context{invoke_args})\n"
+                                "                {replay_fn}(binding, context{invoke_args})\n"
                             ));
                         } else {
                             output.push_str(&format!(
-                                "                let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world({})?;\n",
+                                "                let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world({})?;\n",
                                 binding.const_name
                             ));
                             output.push_str(&format!(
-                                "                {replay_fn}(runtime, context, world{invoke_args})\n"
+                                "                {replay_fn}(binding, context, world{invoke_args})\n"
                             ));
                         }
                     } else {
@@ -1469,7 +1469,7 @@ impl<'a> DomainWriter<'a> {
                         &invoke_args,
                     );
                     output.push_str(&format!(
-                        "                let result = runtime.replay().run_time_read({kind_value}, || {{\n"
+                        "                let result = binding.replay().run_time_read({kind_value}, || {{\n"
                     ));
                     output.push_str(&format!("                    {call}\n"));
                     output.push_str("                });\n");
@@ -1486,7 +1486,7 @@ impl<'a> DomainWriter<'a> {
                             &invoke_args,
                         );
                         output.push_str(
-                            "                let result = runtime.replay().run_random_stream(|| {\n",
+                            "                let result = binding.replay().run_random_stream(|| {\n",
                         );
                         output.push_str(&format!(
                             "                    {call}.map(|stream| stream.0)\n"
@@ -1500,7 +1500,7 @@ impl<'a> DomainWriter<'a> {
                     CatalogRandomEventKind::NextU64 => {
                         let stream_expr = binding_random_stream_id_expr(
                             &binding.entry,
-                            "runtime.random_stream_id()",
+                            "binding.random_stream_id()",
                         );
                         let call = render_vm_checked_world_dispatch_expr(
                             &binding.const_name,
@@ -1509,7 +1509,7 @@ impl<'a> DomainWriter<'a> {
                             &invoke_args,
                         );
                         output.push_str(&format!(
-                            "                let result = runtime.replay().run_random_u64({stream_expr}, || {{\n"
+                            "                let result = binding.replay().run_random_u64({stream_expr}, || {{\n"
                         ));
                         output.push_str(&format!("                    {call}\n"));
                         output.push_str("                });\n");
@@ -1520,14 +1520,14 @@ impl<'a> DomainWriter<'a> {
                     CatalogRandomEventKind::Bytes => {
                         let stream_expr = binding_random_stream_id_expr(
                             &binding.entry,
-                            "runtime.random_stream_id()",
+                            "binding.random_stream_id()",
                         );
                         let buffer_name = binding_random_bytes_buffer_arg(&binding.entry);
                         output.push_str(
                             "                let context_ptr = context as *mut vm::ExternalCallContext<'_>;\n",
                         );
                         output.push_str(
-                            "                let result = runtime.replay().run_random_bytes(\n",
+                            "                let result = binding.replay().run_random_bytes(\n",
                         );
                         output.push_str(&format!("                    {stream_expr},\n"));
                         output.push_str("                    || {\n");
@@ -1652,20 +1652,20 @@ fn render_vm_checked_world_dispatch_expr(
     invoke_args: &str,
 ) -> String {
     let runtime_call =
-        format!("platform_runtime_vm::{implementation_fn_name}(runtime, context{invoke_args})");
-    let call = format!("platform_vm::{implementation_fn_name}(runtime, context{invoke_args})");
+        format!("platform_runtime_vm::{implementation_fn_name}(binding, context{invoke_args})");
+    let call = format!("platform_vm::{implementation_fn_name}(binding, context{invoke_args})");
 
     if scope == CatalogBindingScope::Runtime {
         return format!(
-            "{{\n                        let _binding_hook_guard = runtime.on_before_binding({binding_const})?;\n                        {runtime_call}\n                    }}"
+            "{{\n                        let _binding_hook_guard = binding.on_before_binding({binding_const})?;\n                        {runtime_call}\n                    }}"
         );
     }
 
     let simulation =
-        format!("platform_simulation_vm::{implementation_fn_name}(runtime, context{invoke_args})");
+        format!("platform_simulation_vm::{implementation_fn_name}(binding, context{invoke_args})");
 
     format!(
-        "{{\n                        let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulation => {simulation},\n                        }}\n                    }}"
+        "{{\n                        let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulation => {simulation},\n                        }}\n                    }}"
     )
 }
 
@@ -2802,7 +2802,15 @@ fn render_encode_expr(domain: &str, binding_type: &BindingType, value_expr: &str
             let some_expr = render_encode_expr(domain, inner, "value");
             format!("match {value_expr} {{ Some(value) => {some_expr}, None => vm::Value::VOID }}")
         }
-        BindingType::Newtype { inner, .. } => {
+        BindingType::Newtype {
+            name,
+            domain: newtype_domain,
+            inner,
+        } => {
+            if name == "ResourceKind" && newtype_domain == "resource" {
+                return format!("{value_expr}.value()");
+            }
+
             let inner_expr = format!("{value_expr}.0");
             render_encode_expr(domain, inner, inner_expr.as_str())
         }
@@ -3358,7 +3366,7 @@ fn render_native_replay_decode_lines(
                 vec![format!("let {name} = {value_expr}.clone();")]
             }
         }
-        BindingType::String => vec![format!("let {name} = context.store_string(&{value_expr});")],
+        BindingType::String => vec![format!("let {name} = binding.store_string(&{value_expr});")],
         BindingType::StringSlice => {
             let mut lines = Vec::new();
             let values_var = format!("{name}_values");
@@ -3366,11 +3374,11 @@ fn render_native_replay_decode_lines(
                 "let mut {values_var} = Vec::with_capacity({value_expr}.len());"
             ));
             lines.push(format!("for item in {value_expr}.iter() {{"));
-            lines.push("    let stored = context.store_string(item);".to_string());
+            lines.push("    let stored = binding.store_string(item);".to_string());
             lines.push(format!("    {values_var}.push(stored);"));
             lines.push("}".to_string());
             lines.push(format!(
-                "let {name} = context.store_string_slice({values_var});"
+                "let {name} = binding.store_string_slice({values_var});"
             ));
             lines
         }
@@ -3470,9 +3478,9 @@ fn render_native_replay_decode_collection_lines(
     lines.push(format!("    {values_var}.push({item_native_var});"));
     lines.push("}".to_string());
     if is_array {
-        lines.push(format!("let {name} = context.store_array({values_var});"));
+        lines.push(format!("let {name} = binding.store_array({values_var});"));
     } else {
-        lines.push(format!("let {name} = context.store_slice({values_var});"));
+        lines.push(format!("let {name} = binding.store_slice({values_var});"));
     }
     lines
 }

@@ -254,32 +254,32 @@ pub(crate) fn backend_native_device_events_supported(backend: audio_core::AudioB
 
 /// Start one unix backend native device-event monitor.
 pub(crate) fn start_backend_native_device_events(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: audio_core::AudioBackend,
 ) -> RuntimeResult<()> {
     #[cfg(feature = "audio-alsa")]
     if backend == audio_core::AudioBackend::Alsa {
-        return alsa::start_native_device_event_monitor(context);
+        return alsa::start_native_device_event_monitor(binding);
     }
 
     #[cfg(feature = "audio-pulseaudio")]
     if backend == audio_core::AudioBackend::PulseAudio {
-        return pulseaudio::start_native_device_event_monitor(context);
+        return pulseaudio::start_native_device_event_monitor(binding);
     }
 
     #[cfg(feature = "audio-pipewire")]
     if backend == audio_core::AudioBackend::PipeWire {
-        return pipewire::start_native_device_event_monitor(context);
+        return pipewire::start_native_device_event_monitor(binding);
     }
 
     #[cfg(feature = "audio-coreaudio")]
     if backend == audio_core::AudioBackend::CoreAudio {
-        return coreaudio::start_native_device_event_monitor(context);
+        return coreaudio::start_native_device_event_monitor(binding);
     }
 
     #[cfg(feature = "audio-jack")]
     if backend == audio_core::AudioBackend::Jack {
-        return jack::start_native_device_event_monitor(context);
+        return jack::start_native_device_event_monitor(binding);
     }
 
     let _ = backend;
@@ -288,36 +288,36 @@ pub(crate) fn start_backend_native_device_events(
 
 /// Stop one unix backend native device-event monitor.
 pub(crate) fn stop_backend_native_device_events(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: audio_core::AudioBackend,
 ) {
     #[cfg(feature = "audio-alsa")]
     if backend == audio_core::AudioBackend::Alsa {
-        alsa::stop_native_device_event_monitor(context);
+        alsa::stop_native_device_event_monitor(binding);
         return;
     }
 
     #[cfg(feature = "audio-pulseaudio")]
     if backend == audio_core::AudioBackend::PulseAudio {
-        pulseaudio::stop_native_device_event_monitor(context);
+        pulseaudio::stop_native_device_event_monitor(binding);
         return;
     }
 
     #[cfg(feature = "audio-pipewire")]
     if backend == audio_core::AudioBackend::PipeWire {
-        pipewire::stop_native_device_event_monitor(context);
+        pipewire::stop_native_device_event_monitor(binding);
         return;
     }
 
     #[cfg(feature = "audio-coreaudio")]
     if backend == audio_core::AudioBackend::CoreAudio {
-        coreaudio::stop_native_device_event_monitor(context);
+        coreaudio::stop_native_device_event_monitor(binding);
         return;
     }
 
     #[cfg(feature = "audio-jack")]
     if backend == audio_core::AudioBackend::Jack {
-        jack::stop_native_device_event_monitor(context);
+        jack::stop_native_device_event_monitor(binding);
         return;
     }
 

@@ -47,14 +47,14 @@ use crate::platform::resource;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputDeviceCapabilities,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.device.capabilities",
@@ -80,10 +80,10 @@ pub(crate) unsafe fn destack_input_capabilities(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.device.close")).boxed())
 }
@@ -110,13 +110,13 @@ pub(crate) unsafe fn destack_input_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.device.list")).boxed())
 }
@@ -142,14 +142,14 @@ pub(crate) unsafe fn destack_input_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::InputDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, id);
+    let _ = (binding, out, id);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.device.open")).boxed())
 }
@@ -172,10 +172,10 @@ pub(crate) unsafe fn destack_input_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.event.monitorClose",
@@ -204,13 +204,13 @@ pub(crate) unsafe fn destack_input_monitor_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (binding, out);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.event.monitorOpen",
@@ -239,14 +239,14 @@ pub(crate) unsafe fn destack_input_monitor_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.event.monitorRead",
@@ -275,14 +275,14 @@ pub(crate) unsafe fn destack_input_monitor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.event.monitorTryRead",
@@ -313,14 +313,14 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.read")).boxed())
 }
@@ -345,7 +345,7 @@ pub(crate) unsafe fn destack_input_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputEvent>,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
@@ -353,7 +353,7 @@ pub(crate) unsafe fn destack_input_read_batch(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxevents);
+    let _ = (binding, out, handle, maxevents);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.event.readBatch",
@@ -382,11 +382,11 @@ pub(crate) unsafe fn destack_input_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_exclusive_grab(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enable);
+    let _ = (binding, handle, enable);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.event.setExclusiveGrab",
@@ -414,11 +414,11 @@ pub(crate) unsafe fn destack_input_set_exclusive_grab(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_read_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, mode);
+    let _ = (binding, handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.event.setReadMode",
@@ -449,14 +449,14 @@ pub(crate) unsafe fn destack_input_set_read_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.tryRead")).boxed())
 }
@@ -478,13 +478,13 @@ pub(crate) unsafe fn destack_input_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_light(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     red: u8,
     green: u8,
     blue: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, red, green, blue);
+    let _ = (binding, handle, red, green, blue);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.gamepad.setLight",
@@ -509,11 +509,11 @@ pub(crate) unsafe fn destack_input_gamepad_set_light(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_player_index(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, playerindex);
+    let _ = (binding, handle, playerindex);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.gamepad.setPlayerIndex",
@@ -539,14 +539,14 @@ pub(crate) unsafe fn destack_input_gamepad_set_player_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputGamepadState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.gamepad.state")).boxed())
 }
@@ -568,14 +568,14 @@ pub(crate) unsafe fn destack_input_gamepad_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_effects(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputHapticEffectType>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.haptics.effects",
@@ -601,7 +601,7 @@ pub(crate) unsafe fn destack_input_haptics_effects(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_play(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
@@ -610,7 +610,7 @@ pub(crate) unsafe fn destack_input_haptics_play(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, effect, params);
+    let _ = (binding, out, handle, effect, params);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.haptics.play")).boxed())
 }
@@ -632,10 +632,10 @@ pub(crate) unsafe fn destack_input_haptics_play(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_stop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle);
+    let _ = (binding, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.haptics.stop")).boxed())
 }
@@ -659,14 +659,14 @@ pub(crate) unsafe fn destack_input_haptics_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_keyboard_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputKeyboardState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.keyboard.state")).boxed())
 }
@@ -689,12 +689,12 @@ pub(crate) unsafe fn destack_input_keyboard_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_capture(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target, enabled);
+    let _ = (binding, handle, target, enabled);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.pointer.capture",
@@ -722,14 +722,14 @@ pub(crate) unsafe fn destack_input_pointer_capture(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_relative_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.pointer.relativeState",
@@ -755,12 +755,12 @@ pub(crate) unsafe fn destack_input_pointer_relative_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     mode: InputPointerGrabMode,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target, mode);
+    let _ = (binding, handle, target, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.pointer.setGrabMode",
@@ -786,11 +786,11 @@ pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, enabled);
+    let _ = (binding, handle, enabled);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.pointer.setRelativeMode",
@@ -818,14 +818,14 @@ pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.pointer.state")).boxed())
 }
@@ -848,13 +848,13 @@ pub(crate) unsafe fn destack_input_pointer_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_warp(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     x: f64,
     y: f64,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target, x, y);
+    let _ = (binding, handle, target, x, y);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.pointer.warp")).boxed())
 }
@@ -876,7 +876,7 @@ pub(crate) unsafe fn destack_input_pointer_warp(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_get_feature(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -885,7 +885,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, reportid, maxbytes);
+    let _ = (binding, out, handle, reportid, maxbytes);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.rawhid.getFeature",
@@ -911,7 +911,7 @@ pub(crate) unsafe fn destack_input_raw_hid_get_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -920,7 +920,7 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxbytes, timeoutns);
+    let _ = (binding, out, handle, maxbytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.rawhid.read")).boxed())
 }
@@ -942,12 +942,12 @@ pub(crate) unsafe fn destack_input_raw_hid_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_set_feature(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, reportid, data);
+    let _ = (binding, handle, reportid, data);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.rawhid.setFeature",
@@ -974,7 +974,7 @@ pub(crate) unsafe fn destack_input_raw_hid_set_feature(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -982,7 +982,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, maxbytes);
+    let _ = (binding, out, handle, maxbytes);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.rawhid.tryRead")).boxed())
 }
@@ -1005,7 +1005,7 @@ pub(crate) unsafe fn destack_input_raw_hid_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_raw_hid_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -1014,7 +1014,7 @@ pub(crate) unsafe fn destack_input_raw_hid_write(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, reportid, data);
+    let _ = (binding, out, handle, reportid, data);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.rawhid.write")).boxed())
 }
@@ -1037,7 +1037,7 @@ pub(crate) unsafe fn destack_input_raw_hid_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_configure(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorEffectiveConfig,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -1046,7 +1046,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, kind, config);
+    let _ = (binding, out, handle, kind, config);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.sensor.configure",
@@ -1072,14 +1072,14 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.sensor.list")).boxed())
 }
@@ -1102,7 +1102,7 @@ pub(crate) unsafe fn destack_input_sensor_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -1110,7 +1110,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, kind);
+    let _ = (binding, out, handle, kind);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.sensor.read")).boxed())
 }
@@ -1132,7 +1132,7 @@ pub(crate) unsafe fn destack_input_sensor_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -1140,7 +1140,7 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, kind);
+    let _ = (binding, out, handle, kind);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.sensor.tryRead")).boxed())
 }
@@ -1163,7 +1163,7 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_get_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputTextInputArea,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -1171,7 +1171,7 @@ pub(crate) unsafe fn destack_input_text_get_area(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, target);
+    let _ = (binding, out, handle, target);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.getArea")).boxed())
 }
@@ -1193,14 +1193,14 @@ pub(crate) unsafe fn destack_input_text_get_area(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_is_active(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut bool,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.isActive")).boxed())
 }
@@ -1223,14 +1223,14 @@ pub(crate) unsafe fn destack_input_text_is_active(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_read_composition(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.text.readComposition",
@@ -1256,12 +1256,12 @@ pub(crate) unsafe fn destack_input_text_read_composition(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_set_area(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     area: InputTextInputArea,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target, area);
+    let _ = (binding, handle, target, area);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.setArea")).boxed())
 }
@@ -1286,12 +1286,12 @@ pub(crate) unsafe fn destack_input_text_set_area(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_start(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     inputtype: InputTextInputType,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target, inputtype);
+    let _ = (binding, handle, target, inputtype);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.start")).boxed())
 }
@@ -1314,11 +1314,11 @@ pub(crate) unsafe fn destack_input_text_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_stop(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
 ) -> RuntimeResult<()> {
-    let _ = (context, handle, target);
+    let _ = (binding, handle, target);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.text.stop")).boxed())
 }
@@ -1341,14 +1341,14 @@ pub(crate) unsafe fn destack_input_text_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_text_try_read_composition(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.text.tryReadComposition",
@@ -1375,14 +1375,14 @@ pub(crate) unsafe fn destack_input_text_try_read_composition(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_touch_state(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut InputTouchState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
+    let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.touch.state")).boxed())
 }

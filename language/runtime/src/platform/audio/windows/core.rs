@@ -63,16 +63,16 @@ pub(crate) fn backend_native_device_events_supported_impl(
 
 /// Start one windows backend native device-event monitor.
 pub(crate) fn start_backend_native_device_events_impl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: audio_core::AudioBackend,
 ) -> RuntimeResult<()> {
-    super::backend::start_backend_native_device_events(context, backend)
+    super::backend::start_backend_native_device_events(binding, backend)
 }
 
 /// Stop one windows backend native device-event monitor.
 pub(crate) fn stop_backend_native_device_events_impl(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: audio_core::AudioBackend,
 ) {
-    super::backend::stop_backend_native_device_events(context, backend);
+    super::backend::stop_backend_native_device_events(binding, backend);
 }

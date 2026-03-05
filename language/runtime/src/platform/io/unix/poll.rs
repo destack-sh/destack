@@ -22,10 +22,10 @@ use crate::runtime::BindingCallContext;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
-    core_io::poll_close(context, handle)
+    core_io::poll_close(binding, handle)
 }
 
 /// Remove one target from a poll instance.
@@ -46,11 +46,11 @@ pub(crate) unsafe fn destack_io_poll_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_deregister(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    core_io::poll_deregister(context, handle, target)
+    core_io::poll_deregister(binding, handle, target)
 }
 
 /// Open a poll instance.
@@ -71,13 +71,13 @@ pub(crate) unsafe fn destack_io_poll_deregister(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::PollHandle,
     backend: PollBackend,
 ) -> RuntimeResult<()> {
     require_out(out)?;
 
-    let value = core_io::poll_open(context, backend)?;
+    let value = core_io::poll_open(binding, backend)?;
 
     unsafe {
         out.write(value);
@@ -104,13 +104,13 @@ pub(crate) unsafe fn destack_io_poll_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_register(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
-    core_io::poll_register(context, handle, target, key, interest)
+    core_io::poll_register(binding, handle, target, key, interest)
 }
 
 /// Update one target in a poll instance.
@@ -131,13 +131,13 @@ pub(crate) unsafe fn destack_io_poll_register(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
-    core_io::poll_update(context, handle, target, key, interest)
+    core_io::poll_update(binding, handle, target, key, interest)
 }
 
 /// Wait for poll events.
@@ -158,7 +158,7 @@ pub(crate) unsafe fn destack_io_poll_update(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_poll_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<PollEvent>,
     handle: resource::PollHandle,
     timeoutns: u64,
@@ -166,8 +166,8 @@ pub(crate) unsafe fn destack_io_poll_wait(
 ) -> RuntimeResult<()> {
     require_out(out)?;
 
-    let events = core_io::poll_wait(context, handle, timeoutns, maxevents)?;
-    let events = context.store_array(events);
+    let events = core_io::poll_wait(binding, handle, timeoutns, maxevents)?;
+    let events = binding.store_array(events);
 
     unsafe {
         out.write(events);

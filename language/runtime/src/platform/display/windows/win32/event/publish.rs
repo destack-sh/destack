@@ -2,7 +2,7 @@ use super::*;
 
 /// Publish one mode-changed monitor event.
 pub(in super::super::super) fn publish_mode_changed_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     display_id: &str,
     mode: DisplayMode,
 ) {
@@ -12,13 +12,13 @@ pub(in super::super::super) fn publish_mode_changed_event(
         current: mode,
     });
 
-    let runtime_state = display_event_runtime_state(context);
+    let runtime_state = display_event_runtime_state(binding);
     publish_monitor_event(&runtime_state, record);
 }
 
 /// Publish one descriptor-changed monitor event.
 pub(in super::super::super) fn publish_descriptor_changed_event(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     descriptor: &DisplayDescriptorSnapshot,
     changed_mask: u32,
 ) {
@@ -28,19 +28,19 @@ pub(in super::super::super) fn publish_descriptor_changed_event(
         changed_mask,
     });
 
-    let runtime_state = display_event_runtime_state(context);
+    let runtime_state = display_event_runtime_state(binding);
     publish_monitor_event(&runtime_state, record);
 }
 
 /// Refresh the cached monitor topology snapshot from the current host state.
 pub(in super::super::super) fn refresh_monitor_topology_cache(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> RuntimeResult<()> {
     // refresh monitor snapshots from host state
     let snapshots = monitor::enumerate_monitor_snapshots()?;
 
     // replace cached topology snapshot atomically
-    let runtime_state = display_event_runtime_state(context);
+    let runtime_state = display_event_runtime_state(binding);
     let mut topology_snapshot = runtime_state
         .monitor_topology_snapshot
         .lock()

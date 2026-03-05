@@ -22,13 +22,13 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_cancel(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::completion_cancel(context, handle, target)?;
+    let value = io_core::completion_cancel(binding, handle, target)?;
 
     unsafe {
         out.write(value);
@@ -55,10 +55,10 @@ pub(crate) unsafe fn destack_io_completion_cancel(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
-    io_core::completion_close(context, handle)
+    io_core::completion_close(binding, handle)
 }
 
 /// Enter the completion backend with submit and wait hints.
@@ -79,7 +79,7 @@ pub(crate) unsafe fn destack_io_completion_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_enter(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     mincomplete: u32,
@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_io_completion_enter(
     flags: u32,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::completion_enter(context, handle, mincomplete, timeoutns, flags)?;
+    let value = io_core::completion_enter(binding, handle, mincomplete, timeoutns, flags)?;
 
     unsafe {
         out.write(value);
@@ -114,12 +114,12 @@ pub(crate) unsafe fn destack_io_completion_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CompletionHandle,
     entries: u32,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::completion_open(context, entries)?;
+    let value = io_core::completion_open(binding, entries)?;
 
     unsafe {
         out.write(value);
@@ -146,11 +146,11 @@ pub(crate) unsafe fn destack_io_completion_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeResult<()> {
-    io_core::completion_submit(context, handle, operation)
+    io_core::completion_submit(binding, handle, operation)
 }
 
 /// Submit a batch of completion operations.
@@ -171,7 +171,7 @@ pub(crate) unsafe fn destack_io_completion_submit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit_batch(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::CompletionHandle,
     operationwords: NativeSlice<u64>,
@@ -180,7 +180,7 @@ pub(crate) unsafe fn destack_io_completion_submit_batch(
 ) -> RuntimeResult<()> {
     require_out(out)?;
     let value = io_core::completion_submit_batch(
-        context,
+        binding,
         handle,
         operationwords,
         operationcount,
@@ -212,15 +212,15 @@ pub(crate) unsafe fn destack_io_completion_submit_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_completion_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeArray<CompletionEvent>,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::completion_wait(context, handle, timeoutns, maxevents)?;
-    let value = context.store_array(value);
+    let value = io_core::completion_wait(binding, handle, timeoutns, maxevents)?;
+    let value = binding.store_array(value);
 
     unsafe {
         out.write(value);

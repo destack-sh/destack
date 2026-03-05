@@ -36,13 +36,13 @@ const SHARED_MEMORY_UNMAP_OPERATION: &str = "destack.ipc.sharedMemory.unmap";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(core_platform::invalid_argument(
             "handle",
@@ -71,7 +71,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     size: u64,
@@ -125,7 +125,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
         }
 
         // register descriptor and write handle output
-        let handle = register_shared_memory_descriptor(context, descriptor);
+        let handle = register_shared_memory_descriptor(binding, descriptor);
         unsafe {
             out.write(handle);
         }
@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 
     #[cfg(target_os = "android")]
     {
-        let _ = (context, name);
+        let _ = (binding, name);
         Err(core_platform::not_supported(SHARED_MEMORY_CREATE_OPERATION))
     }
 }
@@ -158,7 +158,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_map(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SharedMemoryMapping,
     handle: resource::SharedMemoryHandle,
     offset: u64,
@@ -176,7 +176,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
     }
 
     // resolve one shared-memory descriptor
-    let descriptor = shared_memory_descriptor(context, handle, SHARED_MEMORY_MAP_OPERATION)?;
+    let descriptor = shared_memory_descriptor(binding, handle, SHARED_MEMORY_MAP_OPERATION)?;
 
     // decode length and offset into host ranges
     let length = core_platform::u64_to_usize(length, "length")?;
@@ -235,7 +235,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     flags: u32,
@@ -260,7 +260,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
         }
 
         // register descriptor and write handle output
-        let handle = register_shared_memory_descriptor(context, descriptor);
+        let handle = register_shared_memory_descriptor(binding, descriptor);
         unsafe {
             out.write(handle);
         }
@@ -270,7 +270,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 
     #[cfg(target_os = "android")]
     {
-        let _ = (context, name);
+        let _ = (binding, name);
         Err(core_platform::not_supported(SHARED_MEMORY_OPEN_OPERATION))
     }
 }
@@ -293,7 +293,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {

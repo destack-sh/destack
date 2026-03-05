@@ -150,18 +150,18 @@ struct WindowRuntimeEntry {
 }
 
 /// Return runtime-owned win32 window state.
-fn window_runtime_state(context: &BindingCallContext) -> Arc<WindowRuntimeState> {
-    let diagnostics = Arc::clone(&context.runtime().diagnostic);
-    context
-        .runtime()
+fn window_runtime_state(binding: &BindingCallContext) -> Arc<WindowRuntimeState> {
+    let diagnostics = Arc::clone(&binding.agent().diagnostic);
+    binding
+        .agent()
         .platform_state
         .display
         .window_runtime_state(|| WindowRuntimeState::new(diagnostics))
 }
 
 /// Allocate one stable runtime window identifier.
-fn next_window_identifier(context: &BindingCallContext) -> u64 {
-    let runtime_state = window_runtime_state(context);
+fn next_window_identifier(binding: &BindingCallContext) -> u64 {
+    let runtime_state = window_runtime_state(binding);
     runtime_state
         .next_window_identifier
         .fetch_add(1, Ordering::Relaxed)
@@ -951,25 +951,28 @@ fn refresh_window_snapshot(binding: &mut Win32WindowBinding) {
 
     // refresh cached position from outer rect
     if unsafe { GetWindowRect(binding.hwnd, &mut window_rect) } != 0 {
-        binding.position = WindowPosition {
+        window_binding.position = WindowPosition {
             x: window_rect.left,
             y: window_rect.top,
         };
     }
 
     // refresh cached physical size from client rect
-    if unsafe { GetClientRect(binding.hwnd, &mut client_rect) } != 0 {
+    if unsafe { GetClientRect(window_binding.hwnd, &mut client_rect) } != 0 {
         let width = (client_rect.right - client_rect.left).max(1) as u32;
         let height = (client_rect.bottom - client_rect.top).max(1) as u32;
-        binding.size_physical = WindowPhysicalSize { width, height };
+        window_binding.size_physical = WindowPhysicalSize { width, height };
     }
 
     // refresh derived state lanes
-    binding.scale_factor_milli = window_scale_factor_milli(binding.hwnd);
-    binding.size_logical = physical_to_logical(binding.size_physical, binding.scale_factor_milli);
-    binding.visibility = visibility_from_hwnd(binding.hwnd);
-    binding.focused = unsafe { GetForegroundWindow() } == binding.hwnd;
-    binding.theme = current_window_theme();
+    window_binding.scale_factor_milli = window_scale_factor_milli(binding.hwnd);
+    binding.size_logical = physical_to_logical(
+        window_binding.size_physical,
+        window_binding.scale_factor_milli,
+    );
+    window_binding.visibility = visibility_from_hwnd(binding.hwnd);
+    window_binding.focused = unsafe { GetForegroundWindow() } == binding.hwnd;
+    window_binding.theme = current_window_theme();
 }
 
 /// Return whether one sizing-edge code anchors width from the left side.
@@ -1023,12 +1026,12 @@ fn apply_aspect_ratio_on_sizing(entry: &WindowRuntimeEntry, edge: WPARAM, rect_p
     let Some(binding) = entry.binding.upgrade() else {
         return;
     };
-    let binding = match binding.try_lock() {
+    let window_binding = match binding.try_lock() {
         Ok(binding) => binding,
         Err(std::sync::TryLockError::WouldBlock) => return,
         Err(std::sync::TryLockError::Poisoned(error)) => error.into_inner(),
     };
-    let Some(aspect_ratio) = binding.aspect_ratio else {
+    let Some(aspect_ratio) = window_binding.aspect_ratio else {
         return;
     };
 
@@ -1049,11 +1052,11 @@ fn apply_aspect_ratio_on_sizing(entry: &WindowRuntimeEntry, edge: WPARAM, rect_p
         bottom: 0,
     };
     // evaluate this condition
-    if unsafe { GetWindowRect(binding.hwnd, &mut outer_rect) } == 0 {
+    if unsafe { GetWindowRect(window_binding.hwnd, &mut outer_rect) } == 0 {
         return;
     }
     // evaluate this condition
-    if unsafe { GetClientRect(binding.hwnd, &mut client_rect) } == 0 {
+    if unsafe { GetClientRect(window_binding.hwnd, &mut client_rect) } == 0 {
         return;
     }
 
@@ -1095,9 +1098,11 @@ fn apply_aspect_ratio_on_sizing(entry: &WindowRuntimeEntry, edge: WPARAM, rect_p
         width: target_width as u32,
         height: target_height as u32,
     };
-    let target_logical = physical_to_logical(target_physical, binding.scale_factor_milli);
-    let clamped_logical = clamp_logical_size(target_logical, binding.constraints);
-    let clamped_physical = logical_to_physical(clamped_logical, binding.scale_factor_milli);
+    let target_logical =
+        physical_to_logical(target_physical, window_window_binding.scale_factor_milli);
+    let clamped_logical = clamp_logical_size(target_logical, window_binding.constraints);
+    let clamped_physical =
+        logical_to_physical(clamped_logical, window_window_binding.scale_factor_milli);
 
     let target_outer_width = (clamped_physical.width as i32)
         .saturating_add(frame_width)
@@ -1125,17 +1130,17 @@ fn apply_window_message_snapshot(
         return;
     };
 
-    let mut binding = match binding.try_lock() {
+    let mut window_binding = match binding.try_lock() {
         Ok(binding) => binding,
         Err(std::sync::TryLockError::WouldBlock) => return,
         Err(std::sync::TryLockError::Poisoned(error)) => error.into_inner(),
     };
-    let previous = binding.clone();
+    let previous = window_binding.clone();
     let mut monitor_topology_changed = false;
 
     // evaluate this condition
     if message == WM_MOVE {
-        binding.position = WindowPosition {
+        window_binding.position = WindowPosition {
             x: (lparam as u32 & 0xFFFF) as i16 as i32,
             y: ((lparam as u32 >> 16) & 0xFFFF) as i16 as i32,
         };
@@ -1147,44 +1152,46 @@ fn apply_window_message_snapshot(
         let height = ((lparam as usize >> 16) & 0xFFFF) as u16 as u32;
         // evaluate this condition
         if width > 0 && height > 0 {
-            binding.size_physical = WindowPhysicalSize { width, height };
-            binding.size_logical =
-                physical_to_logical(binding.size_physical, binding.scale_factor_milli);
+            window_binding.size_physical = WindowPhysicalSize { width, height };
+            binding.size_logical = physical_to_logical(
+                window_binding.size_physical,
+                window_binding.scale_factor_milli,
+            );
         }
 
         // evaluate this condition
         if wparam == SIZE_MINIMIZED as usize {
-            binding.visibility = WindowVisibility::Minimized;
+            window_binding.visibility = WindowVisibility::Minimized;
         } else if wparam == SIZE_MAXIMIZED as usize {
-            binding.visibility = WindowVisibility::Maximized;
-        } else if binding.visibility != WindowVisibility::Hidden {
-            binding.visibility = WindowVisibility::Visible;
+            window_binding.visibility = WindowVisibility::Maximized;
+        } else if window_binding.visibility != WindowVisibility::Hidden {
+            window_binding.visibility = WindowVisibility::Visible;
         }
     }
 
     // evaluate this condition
     if message == WM_ACTIVATE {
         let activation = (wparam & 0xFFFF) as u32;
-        binding.focused = activation != WA_INACTIVE;
+        window_binding.focused = activation != WA_INACTIVE;
     }
 
     // evaluate this condition
     if message == WM_SETFOCUS {
-        binding.focused = true;
+        window_binding.focused = true;
     }
 
     // evaluate this condition
     if message == WM_KILLFOCUS {
-        binding.focused = false;
+        window_binding.focused = false;
     }
 
     // evaluate this condition
     if message == WM_SHOWWINDOW {
         // evaluate this condition
         if wparam == 0 {
-            binding.visibility = WindowVisibility::Hidden;
-        } else if binding.visibility == WindowVisibility::Hidden {
-            binding.visibility = WindowVisibility::Visible;
+            window_binding.visibility = WindowVisibility::Hidden;
+        } else if window_binding.visibility == WindowVisibility::Hidden {
+            window_binding.visibility = WindowVisibility::Visible;
         }
     }
 
@@ -1193,7 +1200,7 @@ fn apply_window_message_snapshot(
         let dpi_x = (wparam & 0xFFFF) as u32;
         // evaluate this condition
         if dpi_x > 0 {
-            binding.scale_factor_milli = dpi_x.saturating_mul(1000).max(1) / 96;
+            window_binding.scale_factor_milli = dpi_x.saturating_mul(1000).max(1) / 96;
         }
 
         // evaluate this condition
@@ -1201,7 +1208,7 @@ fn apply_window_message_snapshot(
             let recommended = unsafe { *(lparam as *const RECT) };
             let status = unsafe {
                 SetWindowPos(
-                    binding.hwnd,
+                    window_binding.hwnd,
                     0,
                     recommended.left,
                     recommended.top,
@@ -1225,7 +1232,7 @@ fn apply_window_message_snapshot(
 
     // evaluate this condition
     if message == WM_THEMECHANGED || message == WM_SETTINGCHANGE {
-        binding.theme = current_window_theme();
+        window_binding.theme = current_window_theme();
     }
 
     // evaluate this condition
@@ -1235,14 +1242,14 @@ fn apply_window_message_snapshot(
 
     // evaluate this condition
     if message == WM_DESTROY {
-        binding.destroyed_emitted = true;
-        binding.visibility = WindowVisibility::Hidden;
-        binding.focused = false;
+        window_window_binding.destroyed_emitted = true;
+        window_binding.visibility = WindowVisibility::Hidden;
+        window_binding.focused = false;
     }
 
-    refresh_window_snapshot(&mut binding);
-    let next = binding.clone();
-    drop(binding);
+    refresh_window_snapshot(&mut window_binding);
+    let next = window_binding.clone();
+    drop(window_binding);
 
     // evaluate this condition
     if monitor_topology_changed
@@ -1260,9 +1267,9 @@ fn apply_window_message_snapshot(
 }
 
 /// Drain pending window-thread messages and dispatch them through the registered wndproc.
-pub(in super::super) fn pump_window_messages(context: &BindingCallContext) -> RuntimeResult<()> {
+pub(in super::super) fn pump_window_messages(binding: &BindingCallContext) -> RuntimeResult<()> {
     // drain pending thread messages while preserving host-managed quit lifecycle
-    context.host().pump_pending_thread_messages(true)?;
+    binding.host().pump_pending_thread_messages(true)?;
 
     Ok(())
 }
@@ -1290,11 +1297,11 @@ unsafe extern "system" fn display_window_proc(
 
         // evaluate this condition
         if let Some(binding) = entry.binding.upgrade() {
-            let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+            let mut window_binding = binding.lock().unwrap_or_else(|error| error.into_inner());
             // evaluate this condition
-            if !binding.close_requested_emitted {
-                binding.close_requested_emitted = true;
-                drop(binding);
+            if !window_binding.close_requested_emitted {
+                window_binding.close_requested_emitted = true;
+                drop(window_binding);
                 event::publish_window_close_requested_event(
                     &entry.event_runtime_state,
                     entry.window,
@@ -1330,10 +1337,10 @@ unsafe extern "system" fn display_window_proc(
         let mut should_emit_destroyed = true;
         // evaluate this condition
         if let Some(binding) = entry.binding.upgrade() {
-            let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-            unregister_window_drop_target(&mut binding);
-            should_emit_destroyed = !binding.destroyed_emitted;
-            binding.destroyed_emitted = true;
+            let mut window_binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+            unregister_window_drop_target(&mut window_binding);
+            should_emit_destroyed = !window_binding.destroyed_emitted;
+            window_window_binding.destroyed_emitted = true;
         }
 
         apply_window_message_snapshot(&entry, message, wparam, lparam);
@@ -1352,8 +1359,8 @@ unsafe extern "system" fn display_window_proc(
         && let Some(entry) = runtime_window_entry(hwnd)
         && let Some(binding) = entry.binding.upgrade()
     {
-        let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        let cursor = unsafe { LoadCursorW(0, cursor_name(binding.cursor_icon)) };
+        let window_binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+        let cursor = unsafe { LoadCursorW(0, cursor_name(window_binding.cursor_icon)) };
         // evaluate this condition
         if cursor != 0 {
             unsafe {
@@ -1451,7 +1458,7 @@ fn mode_target_display(
 
 /// Restore one captured exclusive-fullscreen display mode snapshot.
 fn restore_exclusive_mode(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     restore: &ExclusiveModeRestore,
     operation: &'static str,
     emit_events: bool,
@@ -1459,11 +1466,11 @@ fn restore_exclusive_mode(
     monitor::apply_monitor_mode_by_id(&restore.display_id, restore.mode, operation)?;
     // evaluate this condition
     if emit_events {
-        event::publish_mode_changed_event(context, &restore.display_id, restore.mode);
+        event::publish_mode_changed_event(binding, &restore.display_id, restore.mode);
         // evaluate this condition
         if let Some(snapshot) = monitor::monitor_snapshot_by_id(&restore.display_id)? {
             event::publish_descriptor_changed_event(
-                context,
+                binding,
                 &snapshot.descriptor,
                 core::DISPLAY_CHANGED_MASK_BOUNDS
                     | core::DISPLAY_CHANGED_MASK_WORKAREA
@@ -1473,13 +1480,13 @@ fn restore_exclusive_mode(
         }
     }
 
-    event::refresh_monitor_topology_cache(context)?;
+    event::refresh_monitor_topology_cache(binding)?;
     Ok(())
 }
 
 /// Apply one window-mode transition and associated exclusive-display state changes.
 fn apply_mode_options(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &mut Win32WindowBinding,
     mode: WindowModeOptions,
     operation: &'static str,
@@ -1495,14 +1502,14 @@ fn apply_mode_options(
             ));
         };
 
-        let display_id = display_resource::resolve_display_id(context, display, operation)?;
+        let display_id = display_resource::resolve_display_id(binding_2, display, operation)?;
 
         // evaluate this condition
         if let Some(restore) = binding.exclusive_restore.as_ref()
             && restore.display_id != display_id
         {
             let restore = restore.clone();
-            restore_exclusive_mode(context, &restore, operation, emit_monitor_events)?;
+            restore_exclusive_mode(binding_2, &restore, operation, emit_monitor_events)?;
             binding.exclusive_restore = None;
         }
 
@@ -1526,11 +1533,11 @@ fn apply_mode_options(
             monitor::apply_monitor_mode_by_id(&display_id, display_mode, operation)?;
             // evaluate this condition
             if emit_monitor_events {
-                event::publish_mode_changed_event(context, &display_id, display_mode);
+                event::publish_mode_changed_event(binding_2, &display_id, display_mode);
                 // evaluate this condition
                 if let Some(snapshot) = monitor::monitor_snapshot_by_id(&display_id)? {
                     event::publish_descriptor_changed_event(
-                        context,
+                        binding_2,
                         &snapshot.descriptor,
                         core::DISPLAY_CHANGED_MASK_BOUNDS
                             | core::DISPLAY_CHANGED_MASK_WORKAREA
@@ -1541,7 +1548,7 @@ fn apply_mode_options(
             }
         }
     } else if let Some(restore) = binding.exclusive_restore.clone() {
-        restore_exclusive_mode(context, &restore, operation, emit_monitor_events)?;
+        restore_exclusive_mode(binding_2, &restore, operation, emit_monitor_events)?;
         binding.exclusive_restore = None;
     }
 
@@ -1551,12 +1558,12 @@ fn apply_mode_options(
 
     // evaluate this condition
     if let Some(rectangle) =
-        monitor::mode_target_rect(context, mode, binding.display, binding.hwnd, operation)?
+        monitor::mode_target_rect(binding_2, mode, binding.display, binding.hwnd, operation)?
     {
         apply_window_rect(binding, rectangle, operation)?;
     }
 
-    event::refresh_monitor_topology_cache(context)?;
+    event::refresh_monitor_topology_cache(binding_2)?;
     Ok(())
 }
 
@@ -1621,13 +1628,15 @@ fn restore_cursor_after_close(
 
 /// Resolve one referenced relationship window handle to one hwnd.
 fn resolve_relationship_hwnd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<HWND> {
-    let binding = display_resource::resolve_window_binding(context, window, operation)?;
-    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-    Ok(binding.hwnd)
+    let resolved_binding = display_resource::resolve_window_binding(binding, window, operation)?;
+    let resolved_binding = resolved_binding
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    Ok(resolved_binding.hwnd)
 }
 
 /// Resolve the owner relationship for one window binding.
@@ -1637,12 +1646,12 @@ fn owner_relationship(binding: &Win32WindowBinding) -> Option<resource::WindowHa
 
 /// Apply owner relationship style for one window.
 fn apply_owner_relationship(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &Win32WindowBinding,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let owner_hwnd = if let Some(owner) = owner_relationship(binding) {
-        let owner_hwnd = resolve_relationship_hwnd(context, owner, operation)?;
+        let owner_hwnd = resolve_relationship_hwnd(binding_2, owner, operation)?;
         // evaluate this condition
         if owner_hwnd == binding.hwnd {
             return Err(core_platform::invalid_argument(
@@ -1688,12 +1697,12 @@ fn apply_owner_relationship(
 
 /// Set one owner-window enabled state.
 fn set_owner_enabled(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     owner: resource::WindowHandle,
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let owner_hwnd = resolve_relationship_hwnd(context, owner, operation)?;
+    let owner_hwnd = resolve_relationship_hwnd(binding, owner, operation)?;
     let enabled = if enabled { 1 } else { 0 };
 
     unsafe {
@@ -1719,7 +1728,7 @@ fn set_owner_enabled(
 
 /// Apply one modal-owner state transition for one window.
 fn apply_modal_owner_transition(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     previous_owner: Option<resource::WindowHandle>,
     previous_modal: bool,
     next_owner: Option<resource::WindowHandle>,
@@ -1739,19 +1748,19 @@ fn apply_modal_owner_transition(
         && let Some(owner) = previous_owner
         && (!next_modal || Some(owner) != next_owner)
     {
-        set_owner_enabled(context, owner, true, operation)?;
+        set_owner_enabled(binding, owner, true, operation)?;
     }
 
     // evaluate this condition
     if next_modal && let Some(owner) = next_owner {
-        set_owner_enabled(context, owner, false, operation)?;
+        set_owner_enabled(binding, owner, false, operation)?;
     }
 
     Ok(())
 }
 
 /// Re-enable one modal owner as part of window close cleanup.
-fn restore_modal_owner_on_close(context: &BindingCallContext, binding: &Win32WindowBinding) {
+fn restore_modal_owner_on_close(binding_2: &BindingCallContext, binding: &Win32WindowBinding) {
     // evaluate this condition
     if !binding.modal {
         return;
@@ -1759,7 +1768,7 @@ fn restore_modal_owner_on_close(context: &BindingCallContext, binding: &Win32Win
 
     // evaluate this condition
     if let Some(owner) = owner_relationship(binding) {
-        let _ = set_owner_enabled(context, owner, true, "destack.display.window.close");
+        let _ = set_owner_enabled(binding_2, owner, true, "destack.display.window.close");
     }
 }
 

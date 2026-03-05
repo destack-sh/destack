@@ -27,22 +27,22 @@ use super::core::{
 
 /// Return whether one host store lane supports certificate write operations.
 pub(crate) fn host_store_supports_certificate_write(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    let _ = context;
+    let _ = binding;
 
     kind == CryptoStoreKind::User
 }
 
 /// Import one certificate into one host store lane.
 pub(crate) fn host_store_import_certificate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
 
     // certificate writes are user-lane only
     if kind != CryptoStoreKind::User {
@@ -121,12 +121,12 @@ pub(crate) fn host_store_import_certificate(
 
 /// Delete one certificate from one host store lane.
 pub(crate) fn host_store_delete_certificate(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let _ = context;
+    let _ = binding;
 
     // certificate writes are user-lane only
     if kind != CryptoStoreKind::User {
@@ -204,9 +204,9 @@ pub(crate) fn host_store_delete_certificate(
 }
 
 /// Collect certificates from configured iOS system trust-bundle locations.
-pub(super) fn collect_system_certificates(context: &BindingCallContext) -> Vec<X509> {
-    let system_certificate_files = configured_system_certificate_files(context);
-    let system_certificate_directories = configured_system_certificate_directories(context);
+pub(super) fn collect_system_certificates(binding: &BindingCallContext) -> Vec<X509> {
+    let system_certificate_files = configured_system_certificate_files(binding);
+    let system_certificate_directories = configured_system_certificate_directories(binding);
 
     unix_core::collect_system_certificates(
         &system_certificate_files,
@@ -215,9 +215,9 @@ pub(super) fn collect_system_certificates(context: &BindingCallContext) -> Vec<X
 }
 
 /// Return whether one iOS host certificate source path exists.
-pub(super) fn has_system_certificate_source(context: &BindingCallContext) -> bool {
-    let system_certificate_files = configured_system_certificate_files(context);
-    let system_certificate_directories = configured_system_certificate_directories(context);
+pub(super) fn has_system_certificate_source(binding: &BindingCallContext) -> bool {
+    let system_certificate_files = configured_system_certificate_files(binding);
+    let system_certificate_directories = configured_system_certificate_directories(binding);
 
     unix_core::has_system_certificate_source(
         &system_certificate_files,

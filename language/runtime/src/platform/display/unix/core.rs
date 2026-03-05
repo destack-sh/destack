@@ -88,7 +88,7 @@ pub(crate) fn backend_available(backend: DisplayBackend) -> bool {
 
 /// Return one backend capability mask for one unix backend.
 pub(crate) fn backend_capabilities(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     backend: DisplayBackend,
 ) -> DisplayBackendCapabilityFlags {
     if !backend_supported(backend) {
@@ -97,10 +97,10 @@ pub(crate) fn backend_capabilities(
 
     #[cfg(target_os = "linux")]
     if backend == DisplayBackend::X11 {
-        return x11::backend_descriptor_state(context).1;
+        return x11::backend_descriptor_state(binding).1;
     }
 
-    let _ = context;
+    let _ = binding;
     let _ = backend;
     DisplayBackendCapabilityFlags(0)
 }
@@ -118,7 +118,7 @@ pub(crate) fn backend_not_supported(
 }
 
 /// List unix display backend descriptors.
-pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
+pub(crate) fn backend_descriptors(binding: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
     let mut descriptors = Vec::with_capacity(preferred_host_backends().len());
 
     for (index, backend) in preferred_host_backends().iter().copied().enumerate() {
@@ -128,22 +128,22 @@ pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBa
 
         #[cfg(target_os = "linux")]
         let (available, capability_flags) = if backend == DisplayBackend::X11 {
-            x11::backend_descriptor_state(context)
+            x11::backend_descriptor_state(binding)
         } else {
             (
                 backend_available(backend),
-                backend_capabilities(context, backend),
+                backend_capabilities(binding, backend),
             )
         };
         #[cfg(not(target_os = "linux"))]
         let available = backend_available(backend);
         #[cfg(not(target_os = "linux"))]
-        let capability_flags = backend_capabilities(context, backend);
+        let capability_flags = backend_capabilities(binding, backend);
 
         let priority = u16::MAX.saturating_sub(index as u16);
         descriptors.push(DisplayBackendDescriptor {
             backend,
-            name: context.store_string(backend_name(backend)),
+            name: binding.store_string(backend_name(backend)),
             available,
             priority,
             capability_flags,

@@ -20,14 +20,14 @@ use crate::platform::crypto::core::{decode_bytes, write_out_bytes, write_out_val
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_compute(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     algorithm: CryptoDigestAlgorithm,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
     let digest = crypto_core::digest_compute(algorithm, &payload)?;
-    unsafe { write_out_bytes(context, out, digest) }
+    unsafe { write_out_bytes(binding, out, digest) }
 }
 
 /// Open one streaming digest context.
@@ -45,11 +45,11 @@ pub(crate) unsafe fn destack_crypto_digest_compute(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::CryptoDigestHandle,
     algorithm: CryptoDigestAlgorithm,
 ) -> RuntimeResult<()> {
-    let handle = crypto_core::digest_open(context, algorithm)?;
+    let handle = crypto_core::digest_open(binding, algorithm)?;
     unsafe { write_out_value(out, handle) }
 }
 
@@ -68,12 +68,12 @@ pub(crate) unsafe fn destack_crypto_digest_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_update(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let payload = decode_bytes(payload, "payload")?;
-    crypto_core::digest_update(context, handle, &payload)
+    crypto_core::digest_update(binding, handle, &payload)
 }
 
 /// Finalize one streaming digest context and return one digest output.
@@ -91,12 +91,12 @@ pub(crate) unsafe fn destack_crypto_digest_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_finish(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
-    let digest = crypto_core::digest_finish(context, handle)?;
-    unsafe { write_out_bytes(context, out, digest) }
+    let digest = crypto_core::digest_finish(binding, handle)?;
+    unsafe { write_out_bytes(binding, out, digest) }
 }
 
 /// Reset one streaming digest context to its initial state.
@@ -114,10 +114,10 @@ pub(crate) unsafe fn destack_crypto_digest_finish(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_reset(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
-    crypto_core::digest_reset(context, handle)
+    crypto_core::digest_reset(binding, handle)
 }
 
 /// Close one streaming digest context.
@@ -135,8 +135,8 @@ pub(crate) unsafe fn destack_crypto_digest_reset(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
-    crypto_core::digest_close(context, handle)
+    crypto_core::digest_close(binding, handle)
 }

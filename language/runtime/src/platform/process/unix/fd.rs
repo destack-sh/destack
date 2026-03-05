@@ -59,7 +59,7 @@ fn duplicate_stdio_fd(fd: libc::c_int) -> RuntimeResult<libc::c_int> {
 
 /// Register one duplicated stdio descriptor as a file handle.
 fn register_stdio_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::FileHandle,
     fd: libc::c_int,
     label: &str,
@@ -73,10 +73,10 @@ fn register_stdio_fd(
         .with_label(label)
         .with_fd(duplicated)
         .with_finalizer(StdioFdFinalizer { fd: duplicated });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::FileHandle(resource_id);
@@ -87,10 +87,10 @@ fn register_stdio_fd(
 
 /// Resolve a process-fd handle into its process id payload.
 fn resolve_process_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<ProcessId> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -109,10 +109,10 @@ fn resolve_process_fd(
 
 /// Resolve a signal-fd handle into its signal mask payload.
 fn resolve_signal_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<Vec<Signal>> {
-    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -131,11 +131,11 @@ fn resolve_signal_fd(
 
 /// Replace the signal mask payload for one signal-fd handle.
 fn update_signal_fd(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
     signals: Vec<Signal>,
 ) -> RuntimeResult<()> {
-    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
         entry
             .payload
             .as_mut()
@@ -158,10 +158,10 @@ fn update_signal_fd(
 
 /// Ensure one process-fd handle resolves to a process-fd payload.
 fn ensure_process_fd_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    let is_process_fd = context.agent().resources.with_entry(handle.0, |entry| {
+    let is_process_fd = binding.agent().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -182,10 +182,10 @@ fn ensure_process_fd_handle(
 
 /// Ensure one signal-fd handle resolves to a signal-fd payload.
 fn ensure_signal_fd_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    let is_signal_fd = context.agent().resources.with_entry(handle.0, |entry| {
+    let is_signal_fd = binding.agent().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
@@ -222,10 +222,10 @@ fn ensure_signal_fd_handle(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stdin(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    register_stdio_fd(context, out, libc::STDIN_FILENO, "process.stdio.stdin")
+    register_stdio_fd(binding, out, libc::STDIN_FILENO, "process.stdio.stdin")
 }
 
 /// Open one standard output stream handle.
@@ -246,10 +246,10 @@ pub(crate) unsafe fn destack_process_stdio_stdin(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stdout(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    register_stdio_fd(context, out, libc::STDOUT_FILENO, "process.stdio.stdout")
+    register_stdio_fd(binding, out, libc::STDOUT_FILENO, "process.stdio.stdout")
 }
 
 /// Open one standard error stream handle.
@@ -270,10 +270,10 @@ pub(crate) unsafe fn destack_process_stdio_stdout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stderr(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::FileHandle,
 ) -> RuntimeResult<()> {
-    register_stdio_fd(context, out, libc::STDERR_FILENO, "process.stdio.stderr")
+    register_stdio_fd(binding, out, libc::STDERR_FILENO, "process.stdio.stderr")
 }
 
 /// Close one process descriptor.
@@ -294,15 +294,15 @@ pub(crate) unsafe fn destack_process_stdio_stderr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    ensure_process_fd_handle(context, handle)?;
+    ensure_process_fd_handle(binding, handle)?;
 
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -332,7 +332,7 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ProcessFdHandle,
     pid: ProcessId,
     flags: ProcessFdFlags,
@@ -352,10 +352,10 @@ pub(crate) unsafe fn destack_process_process_fd_open(
     let entry = resource::ResourceEntry::new(resource::ResourceKind::ProcessFd)
         .with_label("process.fd")
         .with_payload(core_process::ProcessFdBinding { pid });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::ProcessFdHandle(resource_id);
@@ -382,7 +382,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_send_signal(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
     signal: Signal,
     flags: ProcessFdSignalFlags,
@@ -395,7 +395,7 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
         .boxed());
     }
 
-    let process_id = resolve_process_fd(context, handle)?;
+    let process_id = resolve_process_fd(binding, handle)?;
     super::signals::process_kill(process_id.0, signal.0)
 }
 
@@ -417,14 +417,14 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_try_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let process_id = resolve_process_fd(context, handle)?;
+    let process_id = resolve_process_fd(binding, handle)?;
     let status =
         super::wait::process_wait_pid(process_id.0, super::wait::PROCESS_WAIT_FLAG_NOHANG)?;
     unsafe {
@@ -452,7 +452,7 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
@@ -460,7 +460,7 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let process_id = resolve_process_fd(context, handle)?;
+    let process_id = resolve_process_fd(binding, handle)?;
     let status = super::wait::process_wait_pid_timeout(process_id.0, timeoutns)?;
     unsafe {
         *out = status;
@@ -487,15 +487,15 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    ensure_signal_fd_handle(context, handle)?;
+    ensure_signal_fd_handle(binding, handle)?;
 
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -525,7 +525,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
     flags: SignalFdFlags,
@@ -545,10 +545,10 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     let entry = resource::ResourceEntry::new(resource::ResourceKind::SignalFd)
         .with_label("process.signal.fd")
         .with_payload(core_process::SignalFdBinding { signals });
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::SignalFdHandle(resource_id);
@@ -575,14 +575,14 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = resolve_signal_fd(context, handle)?;
+    let signals = resolve_signal_fd(binding, handle)?;
     let event = super::signals::process_signal_wait(&signals)?;
     unsafe {
         *out = event;
@@ -609,12 +609,12 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_set_mask(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
     let signals = unsafe { signals.as_slice()? }.to_vec();
-    update_signal_fd(context, handle, signals)
+    update_signal_fd(binding, handle, signals)
 }
 
 /// Poll one queued signal event from a signal descriptor without blocking.
@@ -635,14 +635,14 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_try_read(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = resolve_signal_fd(context, handle)?;
+    let signals = resolve_signal_fd(binding, handle)?;
     let event = super::signals::process_signal_try_wait(&signals)?;
     unsafe {
         *out = event;

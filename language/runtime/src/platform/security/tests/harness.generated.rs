@@ -10,8 +10,9 @@ use crate::platform::security::{
     PlatformCapability, PlatformCapabilityVm, SecurityPolicyMode, SecurityPolicyRule,
     SecurityPolicyRuleVm, native as security_native, vm as security_vm,
 };
-use crate::platform::{PlatformError as HarnessPlatformError, VmSlice, resource};
-use crate::runtime::{NativeSlice, NativeStringRef};
+use crate::platform::{
+    NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmSlice, resource,
+};
 use destack_vm as vm;
 
 impl<'call> SecurityHarnessContext<'call> {

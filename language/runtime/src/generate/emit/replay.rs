@@ -120,7 +120,7 @@ impl<'a> DomainWriter<'a> {
 
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
-            output.push_str("    context: &BindingCallContext,\n");
+            output.push_str("    binding: &BindingCallContext,\n");
             if entry.scope != crate::model::CatalogBindingScope::Runtime {
                 output.push_str("    world: RuntimeWorld,\n");
             }
@@ -151,32 +151,32 @@ impl<'a> DomainWriter<'a> {
                 }
             }
 
-            output.push_str("    context.replay().run_binding_with_policy(\n");
+            output.push_str("    binding.replay().run_binding_with_policy(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
             output.push_str(&format!(
-                "        context.replay_payload_for({})?,\n",
+                "        binding.replay_payload_for({})?,\n",
                 binding.const_name
             ));
             let runtime_call = if args.is_empty() {
                 format!(
-                    "unsafe {{ platform_runtime_native::{}(context) }}",
+                    "unsafe {{ platform_runtime_native::{}(binding) }}",
                     implementation_fn_name
                 )
             } else {
                 format!(
-                    "unsafe {{ platform_runtime_native::{}(context, {}) }}",
+                    "unsafe {{ platform_runtime_native::{}(binding, {}) }}",
                     implementation_fn_name,
                     args.join(", ")
                 )
             };
             let host_call = if args.is_empty() {
                 format!(
-                    "unsafe {{ platform_native::{}(context) }}",
+                    "unsafe {{ platform_native::{}(binding) }}",
                     implementation_fn_name
                 )
             } else {
                 format!(
-                    "unsafe {{ platform_native::{}(context, {}) }}",
+                    "unsafe {{ platform_native::{}(binding, {}) }}",
                     implementation_fn_name,
                     args.join(", ")
                 )
@@ -186,12 +186,12 @@ impl<'a> DomainWriter<'a> {
             } else {
                 let simulation_call = if args.is_empty() {
                     format!(
-                        "unsafe {{ platform_simulation_native::{}(context) }}",
+                        "unsafe {{ platform_simulation_native::{}(binding) }}",
                         implementation_fn_name
                     )
                 } else {
                     format!(
-                        "unsafe {{ platform_simulation_native::{}(context, {}) }}",
+                        "unsafe {{ platform_simulation_native::{}(binding, {}) }}",
                         implementation_fn_name,
                         args.join(", ")
                     )
@@ -208,7 +208,7 @@ impl<'a> DomainWriter<'a> {
             if supports_args {
                 output.push_str("            let record_args = matches!(\n");
                 output.push_str(&format!(
-                    "                context.replay_payload_for({})?,\n",
+                    "                binding.replay_payload_for({})?,\n",
                     binding.const_name
                 ));
                 output.push_str("                BindingReplayPayload::ArgumentsAndResults,\n");
@@ -464,7 +464,7 @@ impl<'a> DomainWriter<'a> {
 
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
-            output.push_str("    runtime: &BindingCallContext,\n");
+            output.push_str("    binding: &BindingCallContext,\n");
             output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
             if entry.scope != crate::model::CatalogBindingScope::Runtime {
                 output.push_str("    world: RuntimeWorld,\n");
@@ -474,27 +474,27 @@ impl<'a> DomainWriter<'a> {
             }
             output.push_str(") -> RuntimeResult<vm::Value> {\n");
 
-            output.push_str("    let result = runtime.replay().run_binding_with_context_policy(\n");
+            output.push_str("    let result = binding.replay().run_binding_with_context_policy(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
             output.push_str(&format!(
-                "        runtime.replay_payload_for({})?,\n",
+                "        binding.replay_payload_for({})?,\n",
                 binding.const_name
             ));
             output.push_str("        context,\n");
             if entry.scope == crate::model::CatalogBindingScope::Runtime {
                 output.push_str(&format!(
-                    "        |context| platform_runtime_vm::{}(runtime, context{invoke_args}),\n",
+                    "        |context| platform_runtime_vm::{}(binding, context{invoke_args}),\n",
                     implementation_fn_name
                 ));
             } else {
                 let simulation_call = format!(
-                    "platform_simulation_vm::{}(runtime, context{invoke_args})",
+                    "platform_simulation_vm::{}(binding, context{invoke_args})",
                     implementation_fn_name
                 );
                 output.push_str("        |context| {\n");
                 output.push_str("            match world {\n");
                 output.push_str(&format!(
-                    "                RuntimeWorld::Host => platform_vm::{}(runtime, context{invoke_args}),\n",
+                    "                RuntimeWorld::Host => platform_vm::{}(binding, context{invoke_args}),\n",
                     implementation_fn_name
                 ));
                 output.push_str(&format!(
@@ -508,7 +508,7 @@ impl<'a> DomainWriter<'a> {
             if supports_args {
                 output.push_str("            let record_args = matches!(\n");
                 output.push_str(&format!(
-                    "                runtime.replay_payload_for({})?,\n",
+                    "                binding.replay_payload_for({})?,\n",
                     binding.const_name
                 ));
                 output.push_str("                BindingReplayPayload::ArgumentsAndResults,\n");

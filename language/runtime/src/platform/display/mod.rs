@@ -11,10 +11,12 @@ pub use bindings_generated::*;
 mod host;
 pub mod native;
 pub(crate) mod simulation;
+#[cfg(any(windows, target_os = "linux"))]
 mod state;
 #[cfg(test)]
 mod tests;
 mod unsupported;
 pub mod vm;
 
+#[cfg(any(windows, target_os = "linux"))]
 pub(crate) use state::*;

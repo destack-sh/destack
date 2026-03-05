@@ -120,7 +120,7 @@ pub(crate) fn stream_state_snapshot(binding: &AudioStreamBinding) -> AudioStream
 
 /// Build one stream timing snapshot.
 pub(crate) fn stream_timing_snapshot(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &AudioStreamBinding,
 ) -> AudioStreamTiming {
     let state = binding
@@ -163,7 +163,7 @@ pub(crate) fn stream_timing_snapshot(
         } else {
             None
         },
-        monotonic_clock_ns: context.world().clock().mono_nanos(),
+        monotonic_clock_ns: binding_2.world().clock().mono_nanos(),
         drift_ppm: estimate_drift_ppm(&state, binding.sample_rate),
         callback_cpu_load: state.last_callback_cpu_load,
     }
@@ -212,7 +212,7 @@ pub(crate) fn satisfied_stream_requirements(
 
 /// Build one stream availability snapshot.
 pub(crate) fn stream_availability_snapshot(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &AudioStreamBinding,
 ) -> AudioStreamAvailability {
     let state = binding
@@ -233,13 +233,13 @@ pub(crate) fn stream_availability_snapshot(
         writable_frames,
         min_transfer_frames: binding.period_frames,
         max_transfer_frames: binding.period_frames,
-        timestamp_ns: context.world().clock().mono_nanos(),
+        timestamp_ns: binding_2.world().clock().mono_nanos(),
     }
 }
 
 /// Build one stream snapshot payload.
 pub(crate) fn stream_descriptor(
-    context: &BindingCallContext,
+    binding_2: &BindingCallContext,
     binding: &AudioStreamBinding,
 ) -> AudioStreamDescriptor {
     let state = binding
@@ -250,8 +250,8 @@ pub(crate) fn stream_descriptor(
 
     AudioStreamDescriptor {
         backend: binding.device.backend,
-        backend_id: context.store_string(host::backend_name(binding.device.backend)),
-        device_id: context.store_string(&binding.device.id),
+        backend_id: binding_2.store_string(host::backend_name(binding.device.backend)),
+        device_id: binding_2.store_string(&binding.device.id),
         sample_rate: binding.sample_rate,
         channels: binding.channels,
         channel_layout: binding.requested.channel_layout,
@@ -486,7 +486,7 @@ pub(crate) fn open_null_stream(
         wake: Condvar::new(),
     });
 
-    let binding = Arc::new(AudioStreamBinding {
+    let stream_binding = Arc::new(AudioStreamBinding {
         device: device.clone(),
         direction: opened_direction,
         requested: config,
@@ -512,11 +512,11 @@ pub(crate) fn open_null_stream(
         null_worker: Mutex::new(None),
     });
 
-    let worker = build_null_worker(binding.clone());
-    *binding
+    let worker = build_null_worker(stream_binding.clone());
+    *stream_binding
         .null_worker
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = Some(worker);
 
-    binding
+    stream_binding
 }

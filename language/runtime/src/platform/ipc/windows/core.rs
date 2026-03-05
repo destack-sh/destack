@@ -81,11 +81,11 @@ pub(super) fn validate_handle(
 
 /// Resolve one pipe handle into one windows handle.
 pub(super) fn pipe_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PipeHandle,
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -108,11 +108,11 @@ pub(super) fn pipe_handle(
 
 /// Resolve one shared-memory handle into one windows handle.
 pub(super) fn shared_memory_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SharedMemoryHandle,
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -135,11 +135,11 @@ pub(super) fn shared_memory_handle(
 
 /// Resolve one semaphore handle into one windows handle.
 pub(super) fn semaphore_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
-    let resolved = context
+    let resolved = binding
         .agent()
         .resources
         .with_entry(handle.0, |entry| {
@@ -167,7 +167,7 @@ fn as_raw_handle(handle: HANDLE) -> RawHandle {
 
 /// Register one pipe endpoint handle in the runtime resource table.
 pub(super) fn register_pipe_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: HANDLE,
 ) -> resource::PipeHandle {
     let entry = ResourceEntry::labeled_handle_finalizer(
@@ -176,17 +176,17 @@ pub(super) fn register_pipe_handle(
         as_raw_handle(handle),
         WindowsHandleFinalizer { handle },
     );
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::PipeHandle(resource_id)
 }
 
 /// Register one shared-memory handle in the runtime resource table.
 pub(super) fn register_shared_memory_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: HANDLE,
 ) -> resource::SharedMemoryHandle {
     let entry = ResourceEntry::labeled_handle_finalizer(
@@ -195,17 +195,17 @@ pub(super) fn register_shared_memory_handle(
         as_raw_handle(handle),
         WindowsHandleFinalizer { handle },
     );
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::SharedMemoryHandle(resource_id)
 }
 
 /// Register one semaphore handle in the runtime resource table.
 pub(super) fn register_semaphore_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: HANDLE,
 ) -> resource::SemaphoreHandle {
     let entry = ResourceEntry::labeled_handle_finalizer(
@@ -214,10 +214,10 @@ pub(super) fn register_semaphore_handle(
         as_raw_handle(handle),
         WindowsHandleFinalizer { handle },
     );
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     resource::SemaphoreHandle(resource_id)
 }

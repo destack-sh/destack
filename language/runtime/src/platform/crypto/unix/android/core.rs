@@ -16,30 +16,30 @@ use super::constants::{
 };
 
 /// Return configured or default Android system certificate bundle files.
-pub(super) fn configured_system_certificate_files(context: &BindingCallContext) -> Vec<PathBuf> {
+pub(super) fn configured_system_certificate_files(binding: &BindingCallContext) -> Vec<PathBuf> {
     unix_core::configured_system_certificate_files(
-        context,
+        binding,
         &DEFAULT_ANDROID_SYSTEM_CERTIFICATE_FILES,
     )
 }
 
 /// Return configured or default Android system certificate directories.
 pub(super) fn configured_system_certificate_directories(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
 ) -> Vec<PathBuf> {
     unix_core::configured_system_certificate_directories(
-        context,
+        binding,
         &DEFAULT_ANDROID_SYSTEM_CERTIFICATE_DIRECTORIES,
     )
 }
 
 /// Return one host key-store snapshot path for one lane when available.
 pub(super) fn keystore_path(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     unix_core::keystore_path(
-        context,
+        binding,
         kind,
         ANDROID_USER_KEYSTORE_RELATIVE_PATH,
         ANDROID_MACHINE_KEYSTORE_ABSOLUTE_PATH,
@@ -54,10 +54,10 @@ pub(super) use unix_core::permission_denied;
 
 /// Resolve one callback runtime identifier for Android host callback routing.
 pub(super) fn callback_runtime_id(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
-    let Some(runtime_id) = context.host().callback_runtime_id() else {
+    let Some(runtime_id) = binding.host().callback_runtime_id() else {
         return Err(core_platform::not_supported(operation));
     };
 

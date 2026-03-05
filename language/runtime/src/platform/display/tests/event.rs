@@ -457,7 +457,7 @@ fn test_window_event_stream_receives_host_close_message() {
 
         let hwnd = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .with_entry(window.0, |entry| entry.raw_handle)
             .flatten()
@@ -506,7 +506,7 @@ fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
 
         let hwnd = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .with_entry(window.0, |entry| entry.raw_handle)
             .flatten()
@@ -701,7 +701,7 @@ fn test_monitor_event_stream_ignores_noop_displaychange_message() {
 
         let hwnd = context
             .call_context
-            .runtime()
+            .agent()
             .resources
             .with_entry(window.0, |entry| entry.raw_handle)
             .flatten()

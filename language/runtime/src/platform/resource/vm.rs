@@ -42,15 +42,15 @@ fn resource_not_found(op: &'static str, id: ResourceId) -> Box<RuntimeError> {
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_resource_close(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = runtime
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(id, Some(runtime.engine()));
+        .remove_and_finalize(id, Some(binding.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.close", id));
     }
@@ -76,12 +76,12 @@ pub(crate) fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_kind(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
     // resolve the kind for the requested resource
-    let kind = runtime
+    let kind = binding
         .agent()
         .resources
         .with_entry(id, |entry| entry.kind)
@@ -110,15 +110,15 @@ pub(crate) fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_remove(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = runtime
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(id, Some(runtime.engine()));
+        .remove_and_finalize(id, Some(binding.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.remove", id));
     }
@@ -144,18 +144,18 @@ pub(crate) fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) fn destack_resource_transfer(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: ResourceId,
     ownership: ResourceOwnership,
 ) -> RuntimeResult<()> {
     // validate that the source resource exists
-    let exists = runtime.agent().resources.contains(id);
+    let exists = binding.agent().resources.contains(id);
     if !exists {
         return Err(resource_not_found("destack.resource.id.transfer", id));
     }
 
-    // keep ownership consumed for future runtime ownership policy
+    // keep ownership consumed for future binding ownership policy
     let _ = ownership;
 
     Ok(())

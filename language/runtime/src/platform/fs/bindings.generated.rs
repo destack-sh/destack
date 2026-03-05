@@ -25,14 +25,13 @@ use crate::platform::fs::{
     WatchRenameEventReplayRecord, WatchRenameEventVm, XattrFlags,
 };
 use crate::platform::{
-    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -7208,22 +7207,22 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 /// Native replay implementations for fs bindings.
 #[inline]
 fn destack_fs_attrs_access_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_ACCESS,
-        context.replay_payload_for(FS_ATTRS_ACCESS)?,
+        binding.replay_payload_for(FS_ATTRS_ACCESS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_access(context, path, mode)
+                platform_native::destack_fs_access(binding, path, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_access(context, path, mode)
+                platform_simulation_native::destack_fs_access(binding, path, mode)
             },
         },
         |result| {
@@ -7257,7 +7256,7 @@ fn destack_fs_attrs_access_replay(
 
 #[inline]
 fn destack_fs_attrs_accessat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -7266,15 +7265,15 @@ fn destack_fs_attrs_accessat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_ACCESSAT,
-        context.replay_payload_for(FS_ATTRS_ACCESSAT)?,
+        binding.replay_payload_for(FS_ATTRS_ACCESSAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_accessat(context, dir, path, mode, flags)
+                platform_native::destack_fs_accessat(binding, dir, path, mode, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_accessat(context, dir, path, mode, flags)
+                platform_simulation_native::destack_fs_accessat(binding, dir, path, mode, flags)
             },
         },
         |result| {
@@ -7308,20 +7307,20 @@ fn destack_fs_attrs_accessat_replay(
 
 #[inline]
 fn destack_fs_attrs_chmod_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_CHMOD,
-        context.replay_payload_for(FS_ATTRS_CHMOD)?,
+        binding.replay_payload_for(FS_ATTRS_CHMOD)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_chmod(context, path, mode) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_chmod(binding, path, mode) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_chmod(context, path, mode)
+                platform_simulation_native::destack_fs_chmod(binding, path, mode)
             },
         },
         |result| {
@@ -7355,7 +7354,7 @@ fn destack_fs_attrs_chmod_replay(
 
 #[inline]
 fn destack_fs_attrs_chown_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     uid: u32,
@@ -7363,15 +7362,15 @@ fn destack_fs_attrs_chown_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &uid, &gid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_CHOWN,
-        context.replay_payload_for(FS_ATTRS_CHOWN)?,
+        binding.replay_payload_for(FS_ATTRS_CHOWN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_chown(context, path, uid, gid)
+                platform_native::destack_fs_chown(binding, path, uid, gid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_chown(context, path, uid, gid)
+                platform_simulation_native::destack_fs_chown(binding, path, uid, gid)
             },
         },
         |result| {
@@ -7405,22 +7404,22 @@ fn destack_fs_attrs_chown_replay(
 
 #[inline]
 fn destack_fs_attrs_fchmod_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_FCHMOD,
-        context.replay_payload_for(FS_ATTRS_FCHMOD)?,
+        binding.replay_payload_for(FS_ATTRS_FCHMOD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fchmod(context, handle, mode)
+                platform_native::destack_fs_fchmod(binding, handle, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fchmod(context, handle, mode)
+                platform_simulation_native::destack_fs_fchmod(binding, handle, mode)
             },
         },
         |result| {
@@ -7454,7 +7453,7 @@ fn destack_fs_attrs_fchmod_replay(
 
 #[inline]
 fn destack_fs_attrs_fchmodat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -7463,15 +7462,15 @@ fn destack_fs_attrs_fchmodat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_FCHMODAT,
-        context.replay_payload_for(FS_ATTRS_FCHMODAT)?,
+        binding.replay_payload_for(FS_ATTRS_FCHMODAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fchmodat(context, dir, path, mode, flags)
+                platform_native::destack_fs_fchmodat(binding, dir, path, mode, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fchmodat(context, dir, path, mode, flags)
+                platform_simulation_native::destack_fs_fchmodat(binding, dir, path, mode, flags)
             },
         },
         |result| {
@@ -7505,7 +7504,7 @@ fn destack_fs_attrs_fchmodat_replay(
 
 #[inline]
 fn destack_fs_attrs_fchown_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     uid: u32,
@@ -7513,15 +7512,15 @@ fn destack_fs_attrs_fchown_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &uid, &gid);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_FCHOWN,
-        context.replay_payload_for(FS_ATTRS_FCHOWN)?,
+        binding.replay_payload_for(FS_ATTRS_FCHOWN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fchown(context, handle, uid, gid)
+                platform_native::destack_fs_fchown(binding, handle, uid, gid)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fchown(context, handle, uid, gid)
+                platform_simulation_native::destack_fs_fchown(binding, handle, uid, gid)
             },
         },
         |result| {
@@ -7555,7 +7554,7 @@ fn destack_fs_attrs_fchown_replay(
 
 #[inline]
 fn destack_fs_attrs_fchownat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -7565,15 +7564,15 @@ fn destack_fs_attrs_fchownat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &uid, &gid, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_FCHOWNAT,
-        context.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
+        binding.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fchownat(context, dir, path, uid, gid, flags)
+                platform_native::destack_fs_fchownat(binding, dir, path, uid, gid, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fchownat(context, dir, path, uid, gid, flags)
+                platform_simulation_native::destack_fs_fchownat(binding, dir, path, uid, gid, flags)
             },
         },
         |result| {
@@ -7607,7 +7606,7 @@ fn destack_fs_attrs_fchownat_replay(
 
 #[inline]
 fn destack_fs_attrs_futimes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     atimens: u64,
@@ -7615,15 +7614,15 @@ fn destack_fs_attrs_futimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &atimens, &mtimens);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_FUTIMES,
-        context.replay_payload_for(FS_ATTRS_FUTIMES)?,
+        binding.replay_payload_for(FS_ATTRS_FUTIMES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_futimes(context, handle, atimens, mtimens)
+                platform_native::destack_fs_futimes(binding, handle, atimens, mtimens)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_futimes(context, handle, atimens, mtimens)
+                platform_simulation_native::destack_fs_futimes(binding, handle, atimens, mtimens)
             },
         },
         |result| {
@@ -7657,7 +7656,7 @@ fn destack_fs_attrs_futimes_replay(
 
 #[inline]
 fn destack_fs_attrs_lutimes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     atimens: u64,
@@ -7665,15 +7664,15 @@ fn destack_fs_attrs_lutimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &atimens, &mtimens);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_LUTIMES,
-        context.replay_payload_for(FS_ATTRS_LUTIMES)?,
+        binding.replay_payload_for(FS_ATTRS_LUTIMES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lutimes(context, path, atimens, mtimens)
+                platform_native::destack_fs_lutimes(binding, path, atimens, mtimens)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_lutimes(context, path, atimens, mtimens)
+                platform_simulation_native::destack_fs_lutimes(binding, path, atimens, mtimens)
             },
         },
         |result| {
@@ -7707,7 +7706,7 @@ fn destack_fs_attrs_lutimes_replay(
 
 #[inline]
 fn destack_fs_attrs_utimensat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -7717,16 +7716,16 @@ fn destack_fs_attrs_utimensat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &atimens, &mtimens, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_UTIMENSAT,
-        context.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
+        binding.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_utimensat(context, dir, path, atimens, mtimens, flags)
+                platform_native::destack_fs_utimensat(binding, dir, path, atimens, mtimens, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_utimensat(
-                    context, dir, path, atimens, mtimens, flags,
+                    binding, dir, path, atimens, mtimens, flags,
                 )
             },
         },
@@ -7761,7 +7760,7 @@ fn destack_fs_attrs_utimensat_replay(
 
 #[inline]
 fn destack_fs_attrs_utimes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     atimens: u64,
@@ -7769,15 +7768,15 @@ fn destack_fs_attrs_utimes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &atimens, &mtimens);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_ATTRS_UTIMES,
-        context.replay_payload_for(FS_ATTRS_UTIMES)?,
+        binding.replay_payload_for(FS_ATTRS_UTIMES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_utimes(context, path, atimens, mtimens)
+                platform_native::destack_fs_utimes(binding, path, atimens, mtimens)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_utimes(context, path, atimens, mtimens)
+                platform_simulation_native::destack_fs_utimes(binding, path, atimens, mtimens)
             },
         },
         |result| {
@@ -7811,19 +7810,19 @@ fn destack_fs_attrs_utimes_replay(
 
 #[inline]
 fn destack_fs_dir_closedir_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_CLOSEDIR,
-        context.replay_payload_for(FS_DIR_CLOSEDIR)?,
+        binding.replay_payload_for(FS_DIR_CLOSEDIR)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_closedir(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_closedir(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_closedir(context, handle)
+                platform_simulation_native::destack_fs_closedir(binding, handle)
             },
         },
         |result| {
@@ -7857,22 +7856,22 @@ fn destack_fs_dir_closedir_replay(
 
 #[inline]
 fn destack_fs_dir_dirfd_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_DIRFD,
-        context.replay_payload_for(FS_DIR_DIRFD)?,
+        binding.replay_payload_for(FS_DIR_DIRFD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_dirfd(context, out, handle)
+                platform_native::destack_fs_dirfd(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_dirfd(context, out, handle)
+                platform_simulation_native::destack_fs_dirfd(binding, out, handle)
             },
         },
         |result| {
@@ -7918,20 +7917,20 @@ fn destack_fs_dir_dirfd_replay(
 
 #[inline]
 fn destack_fs_dir_mkdir_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_MKDIR,
-        context.replay_payload_for(FS_DIR_MKDIR)?,
+        binding.replay_payload_for(FS_DIR_MKDIR)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_mkdir(context, path, mode) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_mkdir(binding, path, mode) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_mkdir(context, path, mode)
+                platform_simulation_native::destack_fs_mkdir(binding, path, mode)
             },
         },
         |result| {
@@ -7965,7 +7964,7 @@ fn destack_fs_dir_mkdir_replay(
 
 #[inline]
 fn destack_fs_dir_mkdirat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -7973,15 +7972,15 @@ fn destack_fs_dir_mkdirat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_MKDIRAT,
-        context.replay_payload_for(FS_DIR_MKDIRAT)?,
+        binding.replay_payload_for(FS_DIR_MKDIRAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mkdirat(context, dir, path, mode)
+                platform_native::destack_fs_mkdirat(binding, dir, path, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_mkdirat(context, dir, path, mode)
+                platform_simulation_native::destack_fs_mkdirat(binding, dir, path, mode)
             },
         },
         |result| {
@@ -8015,22 +8014,22 @@ fn destack_fs_dir_mkdirat_replay(
 
 #[inline]
 fn destack_fs_dir_mkdtemp_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut OsPath,
     template: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &template;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_MKDTEMP,
-        context.replay_payload_for(FS_DIR_MKDTEMP)?,
+        binding.replay_payload_for(FS_DIR_MKDTEMP)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mkdtemp(context, out, template)
+                platform_native::destack_fs_mkdtemp(binding, out, template)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_mkdtemp(context, out, template)
+                platform_simulation_native::destack_fs_mkdtemp(binding, out, template)
             },
         },
         |result| {
@@ -8111,7 +8110,7 @@ fn destack_fs_dir_mkdtemp_replay(
                 Ok(value) => {
                     let value_native = match value {
                         OsPathReplayRecord::OsPathBytes(value) => {
-                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let value_native_os_path_bytes_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_bytes_bytes_inner_values =
                                 Vec::with_capacity(value.bytes.len());
                             for value_native_os_path_bytes_bytes_inner_item in value.bytes {
@@ -8121,7 +8120,7 @@ fn destack_fs_dir_mkdtemp_replay(
                                     .push(value_native_os_path_bytes_bytes_inner_item_native);
                             }
                             let value_native_os_path_bytes_bytes_inner =
-                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                                binding.store_array(value_native_os_path_bytes_bytes_inner_values);
                             let value_native_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
                                     value_native_os_path_bytes_bytes_inner,
@@ -8133,7 +8132,7 @@ fn destack_fs_dir_mkdtemp_replay(
                             OsPath::OsPathBytes(value_native_os_path_bytes)
                         }
                         OsPathReplayRecord::OsPathUtf16(value) => {
-                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let value_native_os_path_utf16_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
@@ -8143,7 +8142,7 @@ fn destack_fs_dir_mkdtemp_replay(
                                     .push(value_native_os_path_utf16_utf16_inner_item_native);
                             }
                             let value_native_os_path_utf16_utf16_inner =
-                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                                binding.store_array(value_native_os_path_utf16_utf16_inner_values);
                             let value_native_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
                                     value_native_os_path_utf16_utf16_inner,
@@ -8168,22 +8167,22 @@ fn destack_fs_dir_mkdtemp_replay(
 
 #[inline]
 fn destack_fs_dir_opendir_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::DirectoryHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_OPENDIR,
-        context.replay_payload_for(FS_DIR_OPENDIR)?,
+        binding.replay_payload_for(FS_DIR_OPENDIR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_opendir(context, out, path)
+                platform_native::destack_fs_opendir(binding, out, path)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_opendir(context, out, path)
+                platform_simulation_native::destack_fs_opendir(binding, out, path)
             },
         },
         |result| {
@@ -8229,19 +8228,19 @@ fn destack_fs_dir_opendir_replay(
 
 #[inline]
 fn destack_fs_dir_readdir_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<Dirent>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_READDIR,
-        context.replay_payload_for(FS_DIR_READDIR)?,
+        binding.replay_payload_for(FS_DIR_READDIR)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_readdir(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_readdir(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_readdir(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_readdir(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -8318,13 +8317,13 @@ fn destack_fs_dir_readdir_replay(
                     for value_native_item in value {
                         let value_native_item_native_name = match value_native_item.name {
                             OsPathReplayRecord::OsPathBytes(value) => {
-                                let value_native_item_native_name_os_path_bytes_kind = context.store_string(&value.kind);
+                                let value_native_item_native_name_os_path_bytes_kind = binding.store_string(&value.kind);
                                 let mut value_native_item_native_name_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                 for value_native_item_native_name_os_path_bytes_bytes_inner_item in value.bytes {
                                     let value_native_item_native_name_os_path_bytes_bytes_inner_item_native = value_native_item_native_name_os_path_bytes_bytes_inner_item;
                                     value_native_item_native_name_os_path_bytes_bytes_inner_values.push(value_native_item_native_name_os_path_bytes_bytes_inner_item_native);
                                 }
-                                let value_native_item_native_name_os_path_bytes_bytes_inner = context.store_array(value_native_item_native_name_os_path_bytes_bytes_inner_values);
+                                let value_native_item_native_name_os_path_bytes_bytes_inner = binding.store_array(value_native_item_native_name_os_path_bytes_bytes_inner_values);
                                 let value_native_item_native_name_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_item_native_name_os_path_bytes_bytes_inner);
                                 let value_native_item_native_name_os_path_bytes = OsPathBytes {
                                     kind: value_native_item_native_name_os_path_bytes_kind,
@@ -8333,13 +8332,13 @@ fn destack_fs_dir_readdir_replay(
                                 OsPath::OsPathBytes(value_native_item_native_name_os_path_bytes)
                             }
                             OsPathReplayRecord::OsPathUtf16(value) => {
-                                let value_native_item_native_name_os_path_utf16_kind = context.store_string(&value.kind);
+                                let value_native_item_native_name_os_path_utf16_kind = binding.store_string(&value.kind);
                                 let mut value_native_item_native_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                 for value_native_item_native_name_os_path_utf16_utf16_inner_item in value.utf16 {
                                     let value_native_item_native_name_os_path_utf16_utf16_inner_item_native = value_native_item_native_name_os_path_utf16_utf16_inner_item;
                                     value_native_item_native_name_os_path_utf16_utf16_inner_values.push(value_native_item_native_name_os_path_utf16_utf16_inner_item_native);
                                 }
-                                let value_native_item_native_name_os_path_utf16_utf16_inner = context.store_array(value_native_item_native_name_os_path_utf16_utf16_inner_values);
+                                let value_native_item_native_name_os_path_utf16_utf16_inner = binding.store_array(value_native_item_native_name_os_path_utf16_utf16_inner_values);
                                 let value_native_item_native_name_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_item_native_name_os_path_utf16_utf16_inner);
                                 let value_native_item_native_name_os_path_utf16 = OsPathUtf16 {
                                     kind: value_native_item_native_name_os_path_utf16_kind,
@@ -8355,7 +8354,7 @@ fn destack_fs_dir_readdir_replay(
                         };
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
@@ -8367,19 +8366,19 @@ fn destack_fs_dir_readdir_replay(
 
 #[inline]
 fn destack_fs_dir_readdir_next_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut DirentNext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_READDIR_NEXT,
-        context.replay_payload_for(FS_DIR_READDIR_NEXT)?,
+        binding.replay_payload_for(FS_DIR_READDIR_NEXT)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_readdir_next(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_readdir_next(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_readdir_next(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_readdir_next(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -8465,23 +8464,23 @@ fn destack_fs_dir_readdir_next_replay(
                 Ok(value) => {
                     let value_native = match value {
                         DirentNextReplayRecord::DirentNextEnd(value) => {
-                            let value_native_dirent_next_end_kind = context.store_string(&value.kind);
+                            let value_native_dirent_next_end_kind = binding.store_string(&value.kind);
                             let value_native_dirent_next_end = DirentNextEnd {
                                 kind: value_native_dirent_next_end_kind,
                             };
                             DirentNext::DirentNextEnd(value_native_dirent_next_end)
                         }
                         DirentNextReplayRecord::DirentNextEntry(value) => {
-                            let value_native_dirent_next_entry_kind = context.store_string(&value.kind);
+                            let value_native_dirent_next_entry_kind = binding.store_string(&value.kind);
                             let value_native_dirent_next_entry_entry_name = match value.entry.name {
                                 OsPathReplayRecord::OsPathBytes(value) => {
-                                    let value_native_dirent_next_entry_entry_name_os_path_bytes_kind = context.store_string(&value.kind);
+                                    let value_native_dirent_next_entry_entry_name_os_path_bytes_kind = binding.store_string(&value.kind);
                                     let mut value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                     for value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_item in value.bytes {
                                         let value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_item_native = value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_item;
                                         value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_values.push(value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_item_native);
                                     }
-                                    let value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner = context.store_array(value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_values);
+                                    let value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner = binding.store_array(value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_values);
                                     let value_native_dirent_next_entry_entry_name_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner);
                                     let value_native_dirent_next_entry_entry_name_os_path_bytes = OsPathBytes {
                                         kind: value_native_dirent_next_entry_entry_name_os_path_bytes_kind,
@@ -8490,13 +8489,13 @@ fn destack_fs_dir_readdir_next_replay(
                                     OsPath::OsPathBytes(value_native_dirent_next_entry_entry_name_os_path_bytes)
                                 }
                                 OsPathReplayRecord::OsPathUtf16(value) => {
-                                    let value_native_dirent_next_entry_entry_name_os_path_utf16_kind = context.store_string(&value.kind);
+                                    let value_native_dirent_next_entry_entry_name_os_path_utf16_kind = binding.store_string(&value.kind);
                                     let mut value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                     for value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_native = value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item;
                                         value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values.push(value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_native);
                                     }
-                                    let value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner = context.store_array(value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values);
+                                    let value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner = binding.store_array(value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values);
                                     let value_native_dirent_next_entry_entry_name_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner);
                                     let value_native_dirent_next_entry_entry_name_os_path_utf16 = OsPathUtf16 {
                                         kind: value_native_dirent_next_entry_entry_name_os_path_utf16_kind,
@@ -8528,19 +8527,19 @@ fn destack_fs_dir_readdir_next_replay(
 
 #[inline]
 fn destack_fs_dir_rewinddir_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_REWINDDIR,
-        context.replay_payload_for(FS_DIR_REWINDDIR)?,
+        binding.replay_payload_for(FS_DIR_REWINDDIR)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_rewinddir(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_rewinddir(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_rewinddir(context, handle)
+                platform_simulation_native::destack_fs_rewinddir(binding, handle)
             },
         },
         |result| {
@@ -8574,19 +8573,19 @@ fn destack_fs_dir_rewinddir_replay(
 
 #[inline]
 fn destack_fs_dir_rmdir_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_DIR_RMDIR,
-        context.replay_payload_for(FS_DIR_RMDIR)?,
+        binding.replay_payload_for(FS_DIR_RMDIR)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_rmdir(context, path) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_rmdir(binding, path) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_rmdir(context, path)
+                platform_simulation_native::destack_fs_rmdir(binding, path)
             },
         },
         |result| {
@@ -8620,19 +8619,19 @@ fn destack_fs_dir_rmdir_replay(
 
 #[inline]
 fn destack_fs_file_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_CLOSE,
-        context.replay_payload_for(FS_FILE_CLOSE)?,
+        binding.replay_payload_for(FS_FILE_CLOSE)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_close(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_close(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_close(context, handle)
+                platform_simulation_native::destack_fs_close(binding, handle)
             },
         },
         |result| {
@@ -8666,7 +8665,7 @@ fn destack_fs_file_close_replay(
 
 #[inline]
 fn destack_fs_file_copy_file_range_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     src: resource::FileHandle,
@@ -8677,18 +8676,18 @@ fn destack_fs_file_copy_file_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&src, &srcoffset, &dst, &dstoffset, &length);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_COPY_FILE_RANGE,
-        context.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
+        binding.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_copy_file_range(
-                    context, out, src, srcoffset, dst, dstoffset, length,
+                    binding, out, src, srcoffset, dst, dstoffset, length,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_copy_file_range(
-                    context, out, src, srcoffset, dst, dstoffset, length,
+                    binding, out, src, srcoffset, dst, dstoffset, length,
                 )
             },
         },
@@ -8735,20 +8734,20 @@ fn destack_fs_file_copy_file_range_replay(
 
 #[inline]
 fn destack_fs_file_dup_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_DUP,
-        context.replay_payload_for(FS_FILE_DUP)?,
+        binding.replay_payload_for(FS_FILE_DUP)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_dup(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_dup(binding, out, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_dup(context, out, handle)
+                platform_simulation_native::destack_fs_dup(binding, out, handle)
             },
         },
         |result| {
@@ -8794,7 +8793,7 @@ fn destack_fs_file_dup_replay(
 
 #[inline]
 fn destack_fs_file_dup2_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
@@ -8802,15 +8801,15 @@ fn destack_fs_file_dup2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_DUP2,
-        context.replay_payload_for(FS_FILE_DUP2)?,
+        binding.replay_payload_for(FS_FILE_DUP2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_dup2(context, out, handle, target)
+                platform_native::destack_fs_dup2(binding, out, handle, target)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_dup2(context, out, handle, target)
+                platform_simulation_native::destack_fs_dup2(binding, out, handle, target)
             },
         },
         |result| {
@@ -8856,7 +8855,7 @@ fn destack_fs_file_dup2_replay(
 
 #[inline]
 fn destack_fs_file_dup3_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
@@ -8865,15 +8864,15 @@ fn destack_fs_file_dup3_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &target, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_DUP3,
-        context.replay_payload_for(FS_FILE_DUP3)?,
+        binding.replay_payload_for(FS_FILE_DUP3)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_dup3(context, out, handle, target, flags)
+                platform_native::destack_fs_dup3(binding, out, handle, target, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_dup3(context, out, handle, target, flags)
+                platform_simulation_native::destack_fs_dup3(binding, out, handle, target, flags)
             },
         },
         |result| {
@@ -8919,7 +8918,7 @@ fn destack_fs_file_dup3_replay(
 
 #[inline]
 fn destack_fs_file_fadvise_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -8928,16 +8927,16 @@ fn destack_fs_file_fadvise_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &advice);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_FADVISE,
-        context.replay_payload_for(FS_FILE_FADVISE)?,
+        binding.replay_payload_for(FS_FILE_FADVISE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fadvise(context, handle, offset, length, advice)
+                platform_native::destack_fs_fadvise(binding, handle, offset, length, advice)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fadvise(
-                    context, handle, offset, length, advice,
+                    binding, handle, offset, length, advice,
                 )
             },
         },
@@ -8972,7 +8971,7 @@ fn destack_fs_file_fadvise_replay(
 
 #[inline]
 fn destack_fs_file_fallocate_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -8981,16 +8980,16 @@ fn destack_fs_file_fallocate_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_FALLOCATE,
-        context.replay_payload_for(FS_FILE_FALLOCATE)?,
+        binding.replay_payload_for(FS_FILE_FALLOCATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fallocate(context, handle, offset, length, flags)
+                platform_native::destack_fs_fallocate(binding, handle, offset, length, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fallocate(
-                    context, handle, offset, length, flags,
+                    binding, handle, offset, length, flags,
                 )
             },
         },
@@ -9025,19 +9024,19 @@ fn destack_fs_file_fallocate_replay(
 
 #[inline]
 fn destack_fs_file_fdatasync_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_FDATASYNC,
-        context.replay_payload_for(FS_FILE_FDATASYNC)?,
+        binding.replay_payload_for(FS_FILE_FDATASYNC)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_fdatasync(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_fdatasync(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fdatasync(context, handle)
+                platform_simulation_native::destack_fs_fdatasync(binding, handle)
             },
         },
         |result| {
@@ -9071,19 +9070,19 @@ fn destack_fs_file_fdatasync_replay(
 
 #[inline]
 fn destack_fs_file_fsync_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_FSYNC,
-        context.replay_payload_for(FS_FILE_FSYNC)?,
+        binding.replay_payload_for(FS_FILE_FSYNC)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_fsync(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_fsync(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fsync(context, handle)
+                platform_simulation_native::destack_fs_fsync(binding, handle)
             },
         },
         |result| {
@@ -9117,22 +9116,22 @@ fn destack_fs_file_fsync_replay(
 
 #[inline]
 fn destack_fs_file_ftruncate_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_FTRUNCATE,
-        context.replay_payload_for(FS_FILE_FTRUNCATE)?,
+        binding.replay_payload_for(FS_FILE_FTRUNCATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_ftruncate(context, handle, size)
+                platform_native::destack_fs_ftruncate(binding, handle, size)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_ftruncate(context, handle, size)
+                platform_simulation_native::destack_fs_ftruncate(binding, handle, size)
             },
         },
         |result| {
@@ -9166,22 +9165,22 @@ fn destack_fs_file_ftruncate_replay(
 
 #[inline]
 fn destack_fs_file_get_fd_flags_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut FdFlags,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_GET_FD_FLAGS,
-        context.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
+        binding.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_get_fd_flags(context, out, handle)
+                platform_native::destack_fs_get_fd_flags(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_get_fd_flags(context, out, handle)
+                platform_simulation_native::destack_fs_get_fd_flags(binding, out, handle)
             },
         },
         |result| {
@@ -9227,22 +9226,22 @@ fn destack_fs_file_get_fd_flags_replay(
 
 #[inline]
 fn destack_fs_file_get_status_flags_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut StatusFlags,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_GET_STATUS_FLAGS,
-        context.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
+        binding.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_get_status_flags(context, out, handle)
+                platform_native::destack_fs_get_status_flags(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_get_status_flags(context, out, handle)
+                platform_simulation_native::destack_fs_get_status_flags(binding, out, handle)
             },
         },
         |result| {
@@ -9288,22 +9287,22 @@ fn destack_fs_file_get_status_flags_replay(
 
 #[inline]
 fn destack_fs_file_lock_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_LOCK,
-        context.replay_payload_for(FS_FILE_LOCK)?,
+        binding.replay_payload_for(FS_FILE_LOCK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lock(context, handle, flags)
+                platform_native::destack_fs_lock(binding, handle, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_lock(context, handle, flags)
+                platform_simulation_native::destack_fs_lock(binding, handle, flags)
             },
         },
         |result| {
@@ -9337,7 +9336,7 @@ fn destack_fs_file_lock_replay(
 
 #[inline]
 fn destack_fs_file_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     path: OsPath,
@@ -9346,15 +9345,15 @@ fn destack_fs_file_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &flags, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_OPEN,
-        context.replay_payload_for(FS_FILE_OPEN)?,
+        binding.replay_payload_for(FS_FILE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_open(context, out, path, flags, mode)
+                platform_native::destack_fs_open(binding, out, path, flags, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_open(context, out, path, flags, mode)
+                platform_simulation_native::destack_fs_open(binding, out, path, flags, mode)
             },
         },
         |result| {
@@ -9400,7 +9399,7 @@ fn destack_fs_file_open_replay(
 
 #[inline]
 fn destack_fs_file_openat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
@@ -9410,15 +9409,15 @@ fn destack_fs_file_openat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_OPENAT,
-        context.replay_payload_for(FS_FILE_OPENAT)?,
+        binding.replay_payload_for(FS_FILE_OPENAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_openat(context, out, dir, path, flags, mode)
+                platform_native::destack_fs_openat(binding, out, dir, path, flags, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_openat(context, out, dir, path, flags, mode)
+                platform_simulation_native::destack_fs_openat(binding, out, dir, path, flags, mode)
             },
         },
         |result| {
@@ -9464,7 +9463,7 @@ fn destack_fs_file_openat_replay(
 
 #[inline]
 fn destack_fs_file_openat2_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
@@ -9473,15 +9472,15 @@ fn destack_fs_file_openat2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &how);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_OPENAT2,
-        context.replay_payload_for(FS_FILE_OPENAT2)?,
+        binding.replay_payload_for(FS_FILE_OPENAT2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_openat2(context, out, dir, path, how)
+                platform_native::destack_fs_openat2(binding, out, dir, path, how)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_openat2(context, out, dir, path, how)
+                platform_simulation_native::destack_fs_openat2(binding, out, dir, path, how)
             },
         },
         |result| {
@@ -9527,7 +9526,7 @@ fn destack_fs_file_openat2_replay(
 
 #[inline]
 fn destack_fs_file_pread_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9536,15 +9535,15 @@ fn destack_fs_file_pread_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_PREAD,
-        context.replay_payload_for(FS_FILE_PREAD)?,
+        binding.replay_payload_for(FS_FILE_PREAD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_pread(context, out, handle, buffer, offset)
+                platform_native::destack_fs_pread(binding, out, handle, buffer, offset)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_pread(context, out, handle, buffer, offset)
+                platform_simulation_native::destack_fs_pread(binding, out, handle, buffer, offset)
             },
         },
         |result| {
@@ -9590,7 +9589,7 @@ fn destack_fs_file_pread_replay(
 
 #[inline]
 fn destack_fs_file_preadv_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9599,15 +9598,15 @@ fn destack_fs_file_preadv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_PREADV,
-        context.replay_payload_for(FS_FILE_PREADV)?,
+        binding.replay_payload_for(FS_FILE_PREADV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_preadv(context, out, handle, buffers, offset)
+                platform_native::destack_fs_preadv(binding, out, handle, buffers, offset)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_preadv(context, out, handle, buffers, offset)
+                platform_simulation_native::destack_fs_preadv(binding, out, handle, buffers, offset)
             },
         },
         |result| {
@@ -9653,7 +9652,7 @@ fn destack_fs_file_preadv_replay(
 
 #[inline]
 fn destack_fs_file_preadv2_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9663,16 +9662,16 @@ fn destack_fs_file_preadv2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_PREADV2,
-        context.replay_payload_for(FS_FILE_PREADV2)?,
+        binding.replay_payload_for(FS_FILE_PREADV2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_preadv2(context, out, handle, buffers, offset, flags)
+                platform_native::destack_fs_preadv2(binding, out, handle, buffers, offset, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_preadv2(
-                    context, out, handle, buffers, offset, flags,
+                    binding, out, handle, buffers, offset, flags,
                 )
             },
         },
@@ -9719,7 +9718,7 @@ fn destack_fs_file_preadv2_replay(
 
 #[inline]
 fn destack_fs_file_pwrite_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9728,15 +9727,15 @@ fn destack_fs_file_pwrite_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer, &offset);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_PWRITE,
-        context.replay_payload_for(FS_FILE_PWRITE)?,
+        binding.replay_payload_for(FS_FILE_PWRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_pwrite(context, out, handle, buffer, offset)
+                platform_native::destack_fs_pwrite(binding, out, handle, buffer, offset)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_pwrite(context, out, handle, buffer, offset)
+                platform_simulation_native::destack_fs_pwrite(binding, out, handle, buffer, offset)
             },
         },
         |result| {
@@ -9782,7 +9781,7 @@ fn destack_fs_file_pwrite_replay(
 
 #[inline]
 fn destack_fs_file_pwritev_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9791,16 +9790,16 @@ fn destack_fs_file_pwritev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_PWRITEV,
-        context.replay_payload_for(FS_FILE_PWRITEV)?,
+        binding.replay_payload_for(FS_FILE_PWRITEV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_pwritev(context, out, handle, buffers, offset)
+                platform_native::destack_fs_pwritev(binding, out, handle, buffers, offset)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_pwritev(
-                    context, out, handle, buffers, offset,
+                    binding, out, handle, buffers, offset,
                 )
             },
         },
@@ -9847,7 +9846,7 @@ fn destack_fs_file_pwritev_replay(
 
 #[inline]
 fn destack_fs_file_pwritev2_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9857,16 +9856,16 @@ fn destack_fs_file_pwritev2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers, &offset, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_PWRITEV2,
-        context.replay_payload_for(FS_FILE_PWRITEV2)?,
+        binding.replay_payload_for(FS_FILE_PWRITEV2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_pwritev2(context, out, handle, buffers, offset, flags)
+                platform_native::destack_fs_pwritev2(binding, out, handle, buffers, offset, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_pwritev2(
-                    context, out, handle, buffers, offset, flags,
+                    binding, out, handle, buffers, offset, flags,
                 )
             },
         },
@@ -9913,7 +9912,7 @@ fn destack_fs_file_pwritev2_replay(
 
 #[inline]
 fn destack_fs_file_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9921,15 +9920,15 @@ fn destack_fs_file_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_READ,
-        context.replay_payload_for(FS_FILE_READ)?,
+        binding.replay_payload_for(FS_FILE_READ)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_read(context, out, handle, buffer)
+                platform_native::destack_fs_read(binding, out, handle, buffer)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_read(context, out, handle, buffer)
+                platform_simulation_native::destack_fs_read(binding, out, handle, buffer)
             },
         },
         |result| {
@@ -9975,7 +9974,7 @@ fn destack_fs_file_read_replay(
 
 #[inline]
 fn destack_fs_file_readv_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -9983,15 +9982,15 @@ fn destack_fs_file_readv_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_READV,
-        context.replay_payload_for(FS_FILE_READV)?,
+        binding.replay_payload_for(FS_FILE_READV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_readv(context, out, handle, buffers)
+                platform_native::destack_fs_readv(binding, out, handle, buffers)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_readv(context, out, handle, buffers)
+                platform_simulation_native::destack_fs_readv(binding, out, handle, buffers)
             },
         },
         |result| {
@@ -10037,7 +10036,7 @@ fn destack_fs_file_readv_replay(
 
 #[inline]
 fn destack_fs_file_seek_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut FileOffset,
     handle: resource::FileHandle,
@@ -10046,15 +10045,15 @@ fn destack_fs_file_seek_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &whence);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_SEEK,
-        context.replay_payload_for(FS_FILE_SEEK)?,
+        binding.replay_payload_for(FS_FILE_SEEK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_seek(context, out, handle, offset, whence)
+                platform_native::destack_fs_seek(binding, out, handle, offset, whence)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_seek(context, out, handle, offset, whence)
+                platform_simulation_native::destack_fs_seek(binding, out, handle, offset, whence)
             },
         },
         |result| {
@@ -10100,7 +10099,7 @@ fn destack_fs_file_seek_replay(
 
 #[inline]
 fn destack_fs_file_sendfile_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     socket: resource::SocketHandle,
@@ -10110,16 +10109,16 @@ fn destack_fs_file_sendfile_replay(
 ) -> RuntimeResult<()> {
     let _ = (&socket, &file, &offset, &length);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_SENDFILE,
-        context.replay_payload_for(FS_FILE_SENDFILE)?,
+        binding.replay_payload_for(FS_FILE_SENDFILE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_sendfile(context, out, socket, file, offset, length)
+                platform_native::destack_fs_sendfile(binding, out, socket, file, offset, length)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_sendfile(
-                    context, out, socket, file, offset, length,
+                    binding, out, socket, file, offset, length,
                 )
             },
         },
@@ -10166,22 +10165,22 @@ fn destack_fs_file_sendfile_replay(
 
 #[inline]
 fn destack_fs_file_set_fd_flags_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_SET_FD_FLAGS,
-        context.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
+        binding.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_set_fd_flags(context, handle, flags)
+                platform_native::destack_fs_set_fd_flags(binding, handle, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_set_fd_flags(context, handle, flags)
+                platform_simulation_native::destack_fs_set_fd_flags(binding, handle, flags)
             },
         },
         |result| {
@@ -10215,22 +10214,22 @@ fn destack_fs_file_set_fd_flags_replay(
 
 #[inline]
 fn destack_fs_file_set_status_flags_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_SET_STATUS_FLAGS,
-        context.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
+        binding.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_set_status_flags(context, handle, flags)
+                platform_native::destack_fs_set_status_flags(binding, handle, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_set_status_flags(context, handle, flags)
+                platform_simulation_native::destack_fs_set_status_flags(binding, handle, flags)
             },
         },
         |result| {
@@ -10264,7 +10263,7 @@ fn destack_fs_file_set_status_flags_replay(
 
 #[inline]
 fn destack_fs_file_splice_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     source: resource::ResourceId,
@@ -10283,13 +10282,13 @@ fn destack_fs_file_splice_replay(
         &flags,
     );
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_SPLICE,
-        context.replay_payload_for(FS_FILE_SPLICE)?,
+        binding.replay_payload_for(FS_FILE_SPLICE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_splice(
-                    context,
+                    binding,
                     out,
                     source,
                     sourcecursor,
@@ -10301,7 +10300,7 @@ fn destack_fs_file_splice_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_splice(
-                    context,
+                    binding,
                     out,
                     source,
                     sourcecursor,
@@ -10355,7 +10354,7 @@ fn destack_fs_file_splice_replay(
 
 #[inline]
 fn destack_fs_file_sync_file_range_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -10364,16 +10363,16 @@ fn destack_fs_file_sync_file_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_SYNC_FILE_RANGE,
-        context.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
+        binding.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_sync_file_range(context, handle, offset, length, flags)
+                platform_native::destack_fs_sync_file_range(binding, handle, offset, length, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_sync_file_range(
-                    context, handle, offset, length, flags,
+                    binding, handle, offset, length, flags,
                 )
             },
         },
@@ -10408,19 +10407,19 @@ fn destack_fs_file_sync_file_range_replay(
 
 #[inline]
 fn destack_fs_file_syncfs_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_SYNCFS,
-        context.replay_payload_for(FS_FILE_SYNCFS)?,
+        binding.replay_payload_for(FS_FILE_SYNCFS)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_syncfs(context, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_syncfs(binding, handle) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_syncfs(context, handle)
+                platform_simulation_native::destack_fs_syncfs(binding, handle)
             },
         },
         |result| {
@@ -10454,7 +10453,7 @@ fn destack_fs_file_syncfs_replay(
 
 #[inline]
 fn destack_fs_file_tee_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     sourcepipe: resource::PipeHandle,
@@ -10464,16 +10463,16 @@ fn destack_fs_file_tee_replay(
 ) -> RuntimeResult<()> {
     let _ = (&sourcepipe, &targetpipe, &length, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_TEE,
-        context.replay_payload_for(FS_FILE_TEE)?,
+        binding.replay_payload_for(FS_FILE_TEE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_tee(context, out, sourcepipe, targetpipe, length, flags)
+                platform_native::destack_fs_tee(binding, out, sourcepipe, targetpipe, length, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_tee(
-                    context, out, sourcepipe, targetpipe, length, flags,
+                    binding, out, sourcepipe, targetpipe, length, flags,
                 )
             },
         },
@@ -10520,22 +10519,22 @@ fn destack_fs_file_tee_replay(
 
 #[inline]
 fn destack_fs_file_truncate_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let _ = (&path, &size);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_TRUNCATE,
-        context.replay_payload_for(FS_FILE_TRUNCATE)?,
+        binding.replay_payload_for(FS_FILE_TRUNCATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_truncate(context, path, size)
+                platform_native::destack_fs_truncate(binding, path, size)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_truncate(context, path, size)
+                platform_simulation_native::destack_fs_truncate(binding, path, size)
             },
         },
         |result| {
@@ -10569,7 +10568,7 @@ fn destack_fs_file_truncate_replay(
 
 #[inline]
 fn destack_fs_file_vmsplice_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     pipe: resource::PipeHandle,
@@ -10578,15 +10577,15 @@ fn destack_fs_file_vmsplice_replay(
 ) -> RuntimeResult<()> {
     let _ = (&pipe, &buffers, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_VMSPLICE,
-        context.replay_payload_for(FS_FILE_VMSPLICE)?,
+        binding.replay_payload_for(FS_FILE_VMSPLICE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_vmsplice(context, out, pipe, buffers, flags)
+                platform_native::destack_fs_vmsplice(binding, out, pipe, buffers, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_vmsplice(context, out, pipe, buffers, flags)
+                platform_simulation_native::destack_fs_vmsplice(binding, out, pipe, buffers, flags)
             },
         },
         |result| {
@@ -10632,7 +10631,7 @@ fn destack_fs_file_vmsplice_replay(
 
 #[inline]
 fn destack_fs_file_write_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -10640,15 +10639,15 @@ fn destack_fs_file_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffer);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_WRITE,
-        context.replay_payload_for(FS_FILE_WRITE)?,
+        binding.replay_payload_for(FS_FILE_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_write(context, out, handle, buffer)
+                platform_native::destack_fs_write(binding, out, handle, buffer)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_write(context, out, handle, buffer)
+                platform_simulation_native::destack_fs_write(binding, out, handle, buffer)
             },
         },
         |result| {
@@ -10694,7 +10693,7 @@ fn destack_fs_file_write_replay(
 
 #[inline]
 fn destack_fs_file_writev_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::FileHandle,
@@ -10702,15 +10701,15 @@ fn destack_fs_file_writev_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &buffers);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_FILE_WRITEV,
-        context.replay_payload_for(FS_FILE_WRITEV)?,
+        binding.replay_payload_for(FS_FILE_WRITEV)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_writev(context, out, handle, buffers)
+                platform_native::destack_fs_writev(binding, out, handle, buffers)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_writev(context, out, handle, buffers)
+                platform_simulation_native::destack_fs_writev(binding, out, handle, buffers)
             },
         },
         |result| {
@@ -10756,22 +10755,22 @@ fn destack_fs_file_writev_replay(
 
 #[inline]
 fn destack_fs_mmap_madvise_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &advice);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_MMAP_MADVISE,
-        context.replay_payload_for(FS_MMAP_MADVISE)?,
+        binding.replay_payload_for(FS_MMAP_MADVISE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_madvise(context, mapping, advice)
+                platform_native::destack_fs_madvise(binding, mapping, advice)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_madvise(context, mapping, advice)
+                platform_simulation_native::destack_fs_madvise(binding, mapping, advice)
             },
         },
         |result| {
@@ -10805,7 +10804,7 @@ fn destack_fs_mmap_madvise_replay(
 
 #[inline]
 fn destack_fs_mmap_mmap_anonymous_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     length: FileSize,
@@ -10814,16 +10813,16 @@ fn destack_fs_mmap_mmap_anonymous_replay(
 ) -> RuntimeResult<()> {
     let _ = (&length, &prot, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_MMAP_MMAP_ANONYMOUS,
-        context.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
+        binding.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mmap_anonymous(context, out, length, prot, flags)
+                platform_native::destack_fs_mmap_anonymous(binding, out, length, prot, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mmap_anonymous(
-                    context, out, length, prot, flags,
+                    binding, out, length, prot, flags,
                 )
             },
         },
@@ -10867,7 +10866,7 @@ fn destack_fs_mmap_mmap_anonymous_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -10881,7 +10880,7 @@ fn destack_fs_mmap_mmap_anonymous_replay(
 
 #[inline]
 fn destack_fs_mmap_mmap_file_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::FileHandle,
@@ -10892,18 +10891,18 @@ fn destack_fs_mmap_mmap_file_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &offset, &length, &prot, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_MMAP_MMAP_FILE,
-        context.replay_payload_for(FS_MMAP_MMAP_FILE)?,
+        binding.replay_payload_for(FS_MMAP_MMAP_FILE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_mmap_file(
-                    context, out, handle, offset, length, prot, flags,
+                    binding, out, handle, offset, length, prot, flags,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_mmap_file(
-                    context, out, handle, offset, length, prot, flags,
+                    binding, out, handle, offset, length, prot, flags,
                 )
             },
         },
@@ -10947,7 +10946,7 @@ fn destack_fs_mmap_mmap_file_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_slice(value_native_values);
+                    let value_native = binding.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -10961,22 +10960,22 @@ fn destack_fs_mmap_mmap_file_replay(
 
 #[inline]
 fn destack_fs_mmap_mprotect_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &prot);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_MMAP_MPROTECT,
-        context.replay_payload_for(FS_MMAP_MPROTECT)?,
+        binding.replay_payload_for(FS_MMAP_MPROTECT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mprotect(context, mapping, prot)
+                platform_native::destack_fs_mprotect(binding, mapping, prot)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_mprotect(context, mapping, prot)
+                platform_simulation_native::destack_fs_mprotect(binding, mapping, prot)
             },
         },
         |result| {
@@ -11010,22 +11009,22 @@ fn destack_fs_mmap_mprotect_replay(
 
 #[inline]
 fn destack_fs_mmap_msync_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
     let _ = (&mapping, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_MMAP_MSYNC,
-        context.replay_payload_for(FS_MMAP_MSYNC)?,
+        binding.replay_payload_for(FS_MMAP_MSYNC)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_msync(context, mapping, flags)
+                platform_native::destack_fs_msync(binding, mapping, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_msync(context, mapping, flags)
+                platform_simulation_native::destack_fs_msync(binding, mapping, flags)
             },
         },
         |result| {
@@ -11059,19 +11058,19 @@ fn destack_fs_mmap_msync_replay(
 
 #[inline]
 fn destack_fs_mmap_munmap_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = &mapping;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_MMAP_MUNMAP,
-        context.replay_payload_for(FS_MMAP_MUNMAP)?,
+        binding.replay_payload_for(FS_MMAP_MUNMAP)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_munmap(context, mapping) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_munmap(binding, mapping) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_munmap(context, mapping)
+                platform_simulation_native::destack_fs_munmap(binding, mapping)
             },
         },
         |result| {
@@ -11105,7 +11104,7 @@ fn destack_fs_mmap_munmap_replay(
 
 #[inline]
 fn destack_fs_path_copyfile_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     from: OsPath,
     to: OsPath,
@@ -11113,15 +11112,15 @@ fn destack_fs_path_copyfile_replay(
 ) -> RuntimeResult<()> {
     let _ = (&from, &to, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_COPYFILE,
-        context.replay_payload_for(FS_PATH_COPYFILE)?,
+        binding.replay_payload_for(FS_PATH_COPYFILE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_copyfile(context, from, to, flags)
+                platform_native::destack_fs_copyfile(binding, from, to, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_copyfile(context, from, to, flags)
+                platform_simulation_native::destack_fs_copyfile(binding, from, to, flags)
             },
         },
         |result| {
@@ -11155,22 +11154,22 @@ fn destack_fs_path_copyfile_replay(
 
 #[inline]
 fn destack_fs_path_link_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     existingpath: OsPath,
     newpath: OsPath,
 ) -> RuntimeResult<()> {
     let _ = (&existingpath, &newpath);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_LINK,
-        context.replay_payload_for(FS_PATH_LINK)?,
+        binding.replay_payload_for(FS_PATH_LINK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_link(context, existingpath, newpath)
+                platform_native::destack_fs_link(binding, existingpath, newpath)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_link(context, existingpath, newpath)
+                platform_simulation_native::destack_fs_link(binding, existingpath, newpath)
             },
         },
         |result| {
@@ -11204,7 +11203,7 @@ fn destack_fs_path_link_replay(
 
 #[inline]
 fn destack_fs_path_linkat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     existingdir: resource::DirectoryHandle,
     existingpath: OsPath,
@@ -11214,13 +11213,13 @@ fn destack_fs_path_linkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_LINKAT,
-        context.replay_payload_for(FS_PATH_LINKAT)?,
+        binding.replay_payload_for(FS_PATH_LINKAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_linkat(
-                    context,
+                    binding,
                     existingdir,
                     existingpath,
                     newdir,
@@ -11230,7 +11229,7 @@ fn destack_fs_path_linkat_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_linkat(
-                    context,
+                    binding,
                     existingdir,
                     existingpath,
                     newdir,
@@ -11270,22 +11269,22 @@ fn destack_fs_path_linkat_replay(
 
 #[inline]
 fn destack_fs_path_mkfifo_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_MKFIFO,
-        context.replay_payload_for(FS_PATH_MKFIFO)?,
+        binding.replay_payload_for(FS_PATH_MKFIFO)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mkfifo(context, path, mode)
+                platform_native::destack_fs_mkfifo(binding, path, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_mkfifo(context, path, mode)
+                platform_simulation_native::destack_fs_mkfifo(binding, path, mode)
             },
         },
         |result| {
@@ -11319,7 +11318,7 @@ fn destack_fs_path_mkfifo_replay(
 
 #[inline]
 fn destack_fs_path_mkfifoat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -11327,15 +11326,15 @@ fn destack_fs_path_mkfifoat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_MKFIFOAT,
-        context.replay_payload_for(FS_PATH_MKFIFOAT)?,
+        binding.replay_payload_for(FS_PATH_MKFIFOAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mkfifoat(context, dir, path, mode)
+                platform_native::destack_fs_mkfifoat(binding, dir, path, mode)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_mkfifoat(context, dir, path, mode)
+                platform_simulation_native::destack_fs_mkfifoat(binding, dir, path, mode)
             },
         },
         |result| {
@@ -11369,7 +11368,7 @@ fn destack_fs_path_mkfifoat_replay(
 
 #[inline]
 fn destack_fs_path_mknod_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     mode: FileMode,
@@ -11377,15 +11376,15 @@ fn destack_fs_path_mknod_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode, &device);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_MKNOD,
-        context.replay_payload_for(FS_PATH_MKNOD)?,
+        binding.replay_payload_for(FS_PATH_MKNOD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mknod(context, path, mode, device)
+                platform_native::destack_fs_mknod(binding, path, mode, device)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_mknod(context, path, mode, device)
+                platform_simulation_native::destack_fs_mknod(binding, path, mode, device)
             },
         },
         |result| {
@@ -11419,7 +11418,7 @@ fn destack_fs_path_mknod_replay(
 
 #[inline]
 fn destack_fs_path_mknodat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -11428,15 +11427,15 @@ fn destack_fs_path_mknodat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode, &device);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_MKNODAT,
-        context.replay_payload_for(FS_PATH_MKNODAT)?,
+        binding.replay_payload_for(FS_PATH_MKNODAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_mknodat(context, dir, path, mode, device)
+                platform_native::destack_fs_mknodat(binding, dir, path, mode, device)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_mknodat(context, dir, path, mode, device)
+                platform_simulation_native::destack_fs_mknodat(binding, dir, path, mode, device)
             },
         },
         |result| {
@@ -11470,22 +11469,22 @@ fn destack_fs_path_mknodat_replay(
 
 #[inline]
 fn destack_fs_path_readlink_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_READLINK,
-        context.replay_payload_for(FS_PATH_READLINK)?,
+        binding.replay_payload_for(FS_PATH_READLINK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_readlink(context, out, path)
+                platform_native::destack_fs_readlink(binding, out, path)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_readlink(context, out, path)
+                platform_simulation_native::destack_fs_readlink(binding, out, path)
             },
         },
         |result| {
@@ -11566,7 +11565,7 @@ fn destack_fs_path_readlink_replay(
                 Ok(value) => {
                     let value_native = match value {
                         OsPathReplayRecord::OsPathBytes(value) => {
-                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let value_native_os_path_bytes_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_bytes_bytes_inner_values =
                                 Vec::with_capacity(value.bytes.len());
                             for value_native_os_path_bytes_bytes_inner_item in value.bytes {
@@ -11576,7 +11575,7 @@ fn destack_fs_path_readlink_replay(
                                     .push(value_native_os_path_bytes_bytes_inner_item_native);
                             }
                             let value_native_os_path_bytes_bytes_inner =
-                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                                binding.store_array(value_native_os_path_bytes_bytes_inner_values);
                             let value_native_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
                                     value_native_os_path_bytes_bytes_inner,
@@ -11588,7 +11587,7 @@ fn destack_fs_path_readlink_replay(
                             OsPath::OsPathBytes(value_native_os_path_bytes)
                         }
                         OsPathReplayRecord::OsPathUtf16(value) => {
-                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let value_native_os_path_utf16_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
@@ -11598,7 +11597,7 @@ fn destack_fs_path_readlink_replay(
                                     .push(value_native_os_path_utf16_utf16_inner_item_native);
                             }
                             let value_native_os_path_utf16_utf16_inner =
-                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                                binding.store_array(value_native_os_path_utf16_utf16_inner_values);
                             let value_native_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
                                     value_native_os_path_utf16_utf16_inner,
@@ -11623,7 +11622,7 @@ fn destack_fs_path_readlink_replay(
 
 #[inline]
 fn destack_fs_path_readlinkat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut OsPath,
     dir: resource::DirectoryHandle,
@@ -11631,15 +11630,15 @@ fn destack_fs_path_readlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_READLINKAT,
-        context.replay_payload_for(FS_PATH_READLINKAT)?,
+        binding.replay_payload_for(FS_PATH_READLINKAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_readlinkat(context, out, dir, path)
+                platform_native::destack_fs_readlinkat(binding, out, dir, path)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_readlinkat(context, out, dir, path)
+                platform_simulation_native::destack_fs_readlinkat(binding, out, dir, path)
             },
         },
         |result| {
@@ -11720,7 +11719,7 @@ fn destack_fs_path_readlinkat_replay(
                 Ok(value) => {
                     let value_native = match value {
                         OsPathReplayRecord::OsPathBytes(value) => {
-                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let value_native_os_path_bytes_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_bytes_bytes_inner_values =
                                 Vec::with_capacity(value.bytes.len());
                             for value_native_os_path_bytes_bytes_inner_item in value.bytes {
@@ -11730,7 +11729,7 @@ fn destack_fs_path_readlinkat_replay(
                                     .push(value_native_os_path_bytes_bytes_inner_item_native);
                             }
                             let value_native_os_path_bytes_bytes_inner =
-                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                                binding.store_array(value_native_os_path_bytes_bytes_inner_values);
                             let value_native_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
                                     value_native_os_path_bytes_bytes_inner,
@@ -11742,7 +11741,7 @@ fn destack_fs_path_readlinkat_replay(
                             OsPath::OsPathBytes(value_native_os_path_bytes)
                         }
                         OsPathReplayRecord::OsPathUtf16(value) => {
-                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let value_native_os_path_utf16_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
@@ -11752,7 +11751,7 @@ fn destack_fs_path_readlinkat_replay(
                                     .push(value_native_os_path_utf16_utf16_inner_item_native);
                             }
                             let value_native_os_path_utf16_utf16_inner =
-                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                                binding.store_array(value_native_os_path_utf16_utf16_inner_values);
                             let value_native_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
                                     value_native_os_path_utf16_utf16_inner,
@@ -11777,22 +11776,22 @@ fn destack_fs_path_readlinkat_replay(
 
 #[inline]
 fn destack_fs_path_realpath_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_REALPATH,
-        context.replay_payload_for(FS_PATH_REALPATH)?,
+        binding.replay_payload_for(FS_PATH_REALPATH)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_realpath(context, out, path)
+                platform_native::destack_fs_realpath(binding, out, path)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_realpath(context, out, path)
+                platform_simulation_native::destack_fs_realpath(binding, out, path)
             },
         },
         |result| {
@@ -11873,7 +11872,7 @@ fn destack_fs_path_realpath_replay(
                 Ok(value) => {
                     let value_native = match value {
                         OsPathReplayRecord::OsPathBytes(value) => {
-                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let value_native_os_path_bytes_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_bytes_bytes_inner_values =
                                 Vec::with_capacity(value.bytes.len());
                             for value_native_os_path_bytes_bytes_inner_item in value.bytes {
@@ -11883,7 +11882,7 @@ fn destack_fs_path_realpath_replay(
                                     .push(value_native_os_path_bytes_bytes_inner_item_native);
                             }
                             let value_native_os_path_bytes_bytes_inner =
-                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                                binding.store_array(value_native_os_path_bytes_bytes_inner_values);
                             let value_native_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
                                     value_native_os_path_bytes_bytes_inner,
@@ -11895,7 +11894,7 @@ fn destack_fs_path_realpath_replay(
                             OsPath::OsPathBytes(value_native_os_path_bytes)
                         }
                         OsPathReplayRecord::OsPathUtf16(value) => {
-                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let value_native_os_path_utf16_kind = binding.store_string(&value.kind);
                             let mut value_native_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
@@ -11905,7 +11904,7 @@ fn destack_fs_path_realpath_replay(
                                     .push(value_native_os_path_utf16_utf16_inner_item_native);
                             }
                             let value_native_os_path_utf16_utf16_inner =
-                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                                binding.store_array(value_native_os_path_utf16_utf16_inner_values);
                             let value_native_os_path_utf16_utf16 =
                                 platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
                                     value_native_os_path_utf16_utf16_inner,
@@ -11930,20 +11929,20 @@ fn destack_fs_path_realpath_replay(
 
 #[inline]
 fn destack_fs_path_rename_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     from: OsPath,
     to: OsPath,
 ) -> RuntimeResult<()> {
     let _ = (&from, &to);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_RENAME,
-        context.replay_payload_for(FS_PATH_RENAME)?,
+        binding.replay_payload_for(FS_PATH_RENAME)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_rename(context, from, to) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_rename(binding, from, to) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_rename(context, from, to)
+                platform_simulation_native::destack_fs_rename(binding, from, to)
             },
         },
         |result| {
@@ -11977,7 +11976,7 @@ fn destack_fs_path_rename_replay(
 
 #[inline]
 fn destack_fs_path_renameat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     fromdir: resource::DirectoryHandle,
     from: OsPath,
@@ -11986,15 +11985,15 @@ fn destack_fs_path_renameat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&fromdir, &from, &todir, &to);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_RENAMEAT,
-        context.replay_payload_for(FS_PATH_RENAMEAT)?,
+        binding.replay_payload_for(FS_PATH_RENAMEAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_renameat(context, fromdir, from, todir, to)
+                platform_native::destack_fs_renameat(binding, fromdir, from, todir, to)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_renameat(context, fromdir, from, todir, to)
+                platform_simulation_native::destack_fs_renameat(binding, fromdir, from, todir, to)
             },
         },
         |result| {
@@ -12028,7 +12027,7 @@ fn destack_fs_path_renameat_replay(
 
 #[inline]
 fn destack_fs_path_renameat2_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     fromdir: resource::DirectoryHandle,
     from: OsPath,
@@ -12038,16 +12037,16 @@ fn destack_fs_path_renameat2_replay(
 ) -> RuntimeResult<()> {
     let _ = (&fromdir, &from, &todir, &to, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_RENAMEAT2,
-        context.replay_payload_for(FS_PATH_RENAMEAT2)?,
+        binding.replay_payload_for(FS_PATH_RENAMEAT2)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_renameat2(context, fromdir, from, todir, to, flags)
+                platform_native::destack_fs_renameat2(binding, fromdir, from, todir, to, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_renameat2(
-                    context, fromdir, from, todir, to, flags,
+                    binding, fromdir, from, todir, to, flags,
                 )
             },
         },
@@ -12082,7 +12081,7 @@ fn destack_fs_path_renameat2_replay(
 
 #[inline]
 fn destack_fs_path_symlink_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     target: OsPath,
     path: OsPath,
@@ -12090,15 +12089,15 @@ fn destack_fs_path_symlink_replay(
 ) -> RuntimeResult<()> {
     let _ = (&target, &path, &kind);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_SYMLINK,
-        context.replay_payload_for(FS_PATH_SYMLINK)?,
+        binding.replay_payload_for(FS_PATH_SYMLINK)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_symlink(context, target, path, kind)
+                platform_native::destack_fs_symlink(binding, target, path, kind)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_symlink(context, target, path, kind)
+                platform_simulation_native::destack_fs_symlink(binding, target, path, kind)
             },
         },
         |result| {
@@ -12132,7 +12131,7 @@ fn destack_fs_path_symlink_replay(
 
 #[inline]
 fn destack_fs_path_symlinkat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     target: OsPath,
     dir: resource::DirectoryHandle,
@@ -12141,15 +12140,15 @@ fn destack_fs_path_symlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&target, &dir, &path, &kind);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_SYMLINKAT,
-        context.replay_payload_for(FS_PATH_SYMLINKAT)?,
+        binding.replay_payload_for(FS_PATH_SYMLINKAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_symlinkat(context, target, dir, path, kind)
+                platform_native::destack_fs_symlinkat(binding, target, dir, path, kind)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_symlinkat(context, target, dir, path, kind)
+                platform_simulation_native::destack_fs_symlinkat(binding, target, dir, path, kind)
             },
         },
         |result| {
@@ -12183,19 +12182,19 @@ fn destack_fs_path_symlinkat_replay(
 
 #[inline]
 fn destack_fs_path_unlink_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_UNLINK,
-        context.replay_payload_for(FS_PATH_UNLINK)?,
+        binding.replay_payload_for(FS_PATH_UNLINK)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_unlink(context, path) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_unlink(binding, path) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_unlink(context, path)
+                platform_simulation_native::destack_fs_unlink(binding, path)
             },
         },
         |result| {
@@ -12229,7 +12228,7 @@ fn destack_fs_path_unlink_replay(
 
 #[inline]
 fn destack_fs_path_unlinkat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -12237,15 +12236,15 @@ fn destack_fs_path_unlinkat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_PATH_UNLINKAT,
-        context.replay_payload_for(FS_PATH_UNLINKAT)?,
+        binding.replay_payload_for(FS_PATH_UNLINKAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_unlinkat(context, dir, path, flags)
+                platform_native::destack_fs_unlinkat(binding, dir, path, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_unlinkat(context, dir, path, flags)
+                platform_simulation_native::destack_fs_unlinkat(binding, dir, path, flags)
             },
         },
         |result| {
@@ -12279,22 +12278,22 @@ fn destack_fs_path_unlinkat_replay(
 
 #[inline]
 fn destack_fs_stat_fstat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_STAT_FSTAT,
-        context.replay_payload_for(FS_STAT_FSTAT)?,
+        binding.replay_payload_for(FS_STAT_FSTAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fstat(context, out, handle)
+                platform_native::destack_fs_fstat(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fstat(context, out, handle)
+                platform_simulation_native::destack_fs_fstat(binding, out, handle)
             },
         },
         |result| {
@@ -12398,22 +12397,22 @@ fn destack_fs_stat_fstat_replay(
 
 #[inline]
 fn destack_fs_stat_fstatfs_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut StatFs,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_STAT_FSTATFS,
-        context.replay_payload_for(FS_STAT_FSTATFS)?,
+        binding.replay_payload_for(FS_STAT_FSTATFS)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fstatfs(context, out, handle)
+                platform_native::destack_fs_fstatfs(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fstatfs(context, out, handle)
+                platform_simulation_native::destack_fs_fstatfs(binding, out, handle)
             },
         },
         |result| {
@@ -12501,20 +12500,20 @@ fn destack_fs_stat_fstatfs_replay(
 
 #[inline]
 fn destack_fs_stat_lstat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_STAT_LSTAT,
-        context.replay_payload_for(FS_STAT_LSTAT)?,
+        binding.replay_payload_for(FS_STAT_LSTAT)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_lstat(context, out, path) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_lstat(binding, out, path) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_lstat(context, out, path)
+                platform_simulation_native::destack_fs_lstat(binding, out, path)
             },
         },
         |result| {
@@ -12618,20 +12617,20 @@ fn destack_fs_stat_lstat_replay(
 
 #[inline]
 fn destack_fs_stat_path_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_STAT_PATH,
-        context.replay_payload_for(FS_STAT_PATH)?,
+        binding.replay_payload_for(FS_STAT_PATH)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_stat(context, out, path) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_stat(binding, out, path) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_stat(context, out, path)
+                platform_simulation_native::destack_fs_stat(binding, out, path)
             },
         },
         |result| {
@@ -12735,7 +12734,7 @@ fn destack_fs_stat_path_replay(
 
 #[inline]
 fn destack_fs_stat_pathat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Stat,
     dir: resource::DirectoryHandle,
@@ -12744,15 +12743,15 @@ fn destack_fs_stat_pathat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_STAT_PATHAT,
-        context.replay_payload_for(FS_STAT_PATHAT)?,
+        binding.replay_payload_for(FS_STAT_PATHAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_statat(context, out, dir, path, flags)
+                platform_native::destack_fs_statat(binding, out, dir, path, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_statat(context, out, dir, path, flags)
+                platform_simulation_native::destack_fs_statat(binding, out, dir, path, flags)
             },
         },
         |result| {
@@ -12856,20 +12855,20 @@ fn destack_fs_stat_pathat_replay(
 
 #[inline]
 fn destack_fs_stat_pathfs_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut StatFs,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_STAT_PATHFS,
-        context.replay_payload_for(FS_STAT_PATHFS)?,
+        binding.replay_payload_for(FS_STAT_PATHFS)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_statfs(context, out, path) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_statfs(binding, out, path) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_statfs(context, out, path)
+                platform_simulation_native::destack_fs_statfs(binding, out, path)
             },
         },
         |result| {
@@ -12957,7 +12956,7 @@ fn destack_fs_stat_pathfs_replay(
 
 #[inline]
 fn destack_fs_stat_pathx_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut Statx,
     dir: resource::DirectoryHandle,
@@ -12967,15 +12966,15 @@ fn destack_fs_stat_pathx_replay(
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags, &mask);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_STAT_PATHX,
-        context.replay_payload_for(FS_STAT_PATHX)?,
+        binding.replay_payload_for(FS_STAT_PATHX)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_statx(context, out, dir, path, flags, mask)
+                platform_native::destack_fs_statx(binding, out, dir, path, flags, mask)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_statx(context, out, dir, path, flags, mask)
+                platform_simulation_native::destack_fs_statx(binding, out, dir, path, flags, mask)
             },
         },
         |result| {
@@ -13095,7 +13094,7 @@ fn destack_fs_stat_pathx_replay(
 
 #[inline]
 fn destack_fs_watch_open_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::WatchHandle,
     path: OsPath,
@@ -13103,15 +13102,15 @@ fn destack_fs_watch_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_WATCH_OPEN,
-        context.replay_payload_for(FS_WATCH_OPEN)?,
+        binding.replay_payload_for(FS_WATCH_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_watch(context, out, path, options)
+                platform_native::destack_fs_watch(binding, out, path, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_watch(context, out, path, options)
+                platform_simulation_native::destack_fs_watch(binding, out, path, options)
             },
         },
         |result| {
@@ -13157,21 +13156,21 @@ fn destack_fs_watch_open_replay(
 
 #[inline]
 fn destack_fs_watch_open_close_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_WATCH_OPEN_CLOSE,
-        context.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
+        binding.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_watch_close(context, handle)
+                platform_native::destack_fs_watch_close(binding, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_watch_close(context, handle)
+                platform_simulation_native::destack_fs_watch_close(binding, handle)
             },
         },
         |result| {
@@ -13205,19 +13204,19 @@ fn destack_fs_watch_open_close_replay(
 
 #[inline]
 fn destack_fs_watch_open_read_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut WatchBatch,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_WATCH_OPEN_READ,
-        context.replay_payload_for(FS_WATCH_OPEN_READ)?,
+        binding.replay_payload_for(FS_WATCH_OPEN_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_fs_watch_read(context, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_watch_read(context, out, handle) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_watch_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_watch_read(binding, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
@@ -13534,20 +13533,20 @@ fn destack_fs_watch_open_read_replay(
                     for value_native_events_item in value.events {
                         let value_native_events_item_native = match value_native_events_item {
                             WatchEventReplayRecord::WatchCreateEvent(value) => {
-                                let value_native_events_item_native_watch_create_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_create_event_kind = binding.store_string(&value.kind);
                                 let value_native_events_item_native_watch_create_event_metadata_cookie = value.metadata.cookie;
                                 let value_native_events_item_native_watch_create_event_metadata = WatchEventMetadata {
                                     cookie: value_native_events_item_native_watch_create_event_metadata_cookie,
                                 };
                                 let value_native_events_item_native_watch_create_event_path = match value.path {
                                     OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_events_item_native_watch_create_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_create_event_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_item;
                                             value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner = binding.store_array(value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_values);
                                         let value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner);
                                         let value_native_events_item_native_watch_create_event_path_os_path_bytes = OsPathBytes {
                                             kind: value_native_events_item_native_watch_create_event_path_os_path_bytes_kind,
@@ -13556,13 +13555,13 @@ fn destack_fs_watch_open_read_replay(
                                         OsPath::OsPathBytes(value_native_events_item_native_watch_create_event_path_os_path_bytes)
                                     }
                                     OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_events_item_native_watch_create_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_create_event_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_item;
                                             value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner = binding.store_array(value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_values);
                                         let value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner);
                                         let value_native_events_item_native_watch_create_event_path_os_path_utf16 = OsPathUtf16 {
                                             kind: value_native_events_item_native_watch_create_event_path_os_path_utf16_kind,
@@ -13579,20 +13578,20 @@ fn destack_fs_watch_open_read_replay(
                                 WatchEvent::WatchCreateEvent(value_native_events_item_native_watch_create_event)
                             }
                             WatchEventReplayRecord::WatchMetadataEvent(value) => {
-                                let value_native_events_item_native_watch_metadata_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_metadata_event_kind = binding.store_string(&value.kind);
                                 let value_native_events_item_native_watch_metadata_event_metadata_cookie = value.metadata.cookie;
                                 let value_native_events_item_native_watch_metadata_event_metadata = WatchEventMetadata {
                                     cookie: value_native_events_item_native_watch_metadata_event_metadata_cookie,
                                 };
                                 let value_native_events_item_native_watch_metadata_event_path = match value.path {
                                     OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_item;
                                             value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner = binding.store_array(value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_values);
                                         let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner);
                                         let value_native_events_item_native_watch_metadata_event_path_os_path_bytes = OsPathBytes {
                                             kind: value_native_events_item_native_watch_metadata_event_path_os_path_bytes_kind,
@@ -13601,13 +13600,13 @@ fn destack_fs_watch_open_read_replay(
                                         OsPath::OsPathBytes(value_native_events_item_native_watch_metadata_event_path_os_path_bytes)
                                     }
                                     OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_item;
                                             value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner = binding.store_array(value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_values);
                                         let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner);
                                         let value_native_events_item_native_watch_metadata_event_path_os_path_utf16 = OsPathUtf16 {
                                             kind: value_native_events_item_native_watch_metadata_event_path_os_path_utf16_kind,
@@ -13624,20 +13623,20 @@ fn destack_fs_watch_open_read_replay(
                                 WatchEvent::WatchMetadataEvent(value_native_events_item_native_watch_metadata_event)
                             }
                             WatchEventReplayRecord::WatchModifyEvent(value) => {
-                                let value_native_events_item_native_watch_modify_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_modify_event_kind = binding.store_string(&value.kind);
                                 let value_native_events_item_native_watch_modify_event_metadata_cookie = value.metadata.cookie;
                                 let value_native_events_item_native_watch_modify_event_metadata = WatchEventMetadata {
                                     cookie: value_native_events_item_native_watch_modify_event_metadata_cookie,
                                 };
                                 let value_native_events_item_native_watch_modify_event_path = match value.path {
                                     OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_events_item_native_watch_modify_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_item;
                                             value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner = binding.store_array(value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_values);
                                         let value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner);
                                         let value_native_events_item_native_watch_modify_event_path_os_path_bytes = OsPathBytes {
                                             kind: value_native_events_item_native_watch_modify_event_path_os_path_bytes_kind,
@@ -13646,13 +13645,13 @@ fn destack_fs_watch_open_read_replay(
                                         OsPath::OsPathBytes(value_native_events_item_native_watch_modify_event_path_os_path_bytes)
                                     }
                                     OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_events_item_native_watch_modify_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_item;
                                             value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner = binding.store_array(value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_values);
                                         let value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner);
                                         let value_native_events_item_native_watch_modify_event_path_os_path_utf16 = OsPathUtf16 {
                                             kind: value_native_events_item_native_watch_modify_event_path_os_path_utf16_kind,
@@ -13669,7 +13668,7 @@ fn destack_fs_watch_open_read_replay(
                                 WatchEvent::WatchModifyEvent(value_native_events_item_native_watch_modify_event)
                             }
                             WatchEventReplayRecord::WatchOverflowEvent(value) => {
-                                let value_native_events_item_native_watch_overflow_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_overflow_event_kind = binding.store_string(&value.kind);
                                 let value_native_events_item_native_watch_overflow_event_metadata_cookie = value.metadata.cookie;
                                 let value_native_events_item_native_watch_overflow_event_metadata = WatchEventMetadata {
                                     cookie: value_native_events_item_native_watch_overflow_event_metadata_cookie,
@@ -13681,20 +13680,20 @@ fn destack_fs_watch_open_read_replay(
                                 WatchEvent::WatchOverflowEvent(value_native_events_item_native_watch_overflow_event)
                             }
                             WatchEventReplayRecord::WatchRemoveEvent(value) => {
-                                let value_native_events_item_native_watch_remove_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_remove_event_kind = binding.store_string(&value.kind);
                                 let value_native_events_item_native_watch_remove_event_metadata_cookie = value.metadata.cookie;
                                 let value_native_events_item_native_watch_remove_event_metadata = WatchEventMetadata {
                                     cookie: value_native_events_item_native_watch_remove_event_metadata_cookie,
                                 };
                                 let value_native_events_item_native_watch_remove_event_path = match value.path {
                                     OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_events_item_native_watch_remove_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_item;
                                             value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner = binding.store_array(value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_values);
                                         let value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner);
                                         let value_native_events_item_native_watch_remove_event_path_os_path_bytes = OsPathBytes {
                                             kind: value_native_events_item_native_watch_remove_event_path_os_path_bytes_kind,
@@ -13703,13 +13702,13 @@ fn destack_fs_watch_open_read_replay(
                                         OsPath::OsPathBytes(value_native_events_item_native_watch_remove_event_path_os_path_bytes)
                                     }
                                     OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_events_item_native_watch_remove_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_item;
                                             value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner = binding.store_array(value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_values);
                                         let value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner);
                                         let value_native_events_item_native_watch_remove_event_path_os_path_utf16 = OsPathUtf16 {
                                             kind: value_native_events_item_native_watch_remove_event_path_os_path_utf16_kind,
@@ -13726,20 +13725,20 @@ fn destack_fs_watch_open_read_replay(
                                 WatchEvent::WatchRemoveEvent(value_native_events_item_native_watch_remove_event)
                             }
                             WatchEventReplayRecord::WatchRenameEvent(value) => {
-                                let value_native_events_item_native_watch_rename_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_rename_event_kind = binding.store_string(&value.kind);
                                 let value_native_events_item_native_watch_rename_event_metadata_cookie = value.metadata.cookie;
                                 let value_native_events_item_native_watch_rename_event_metadata = WatchEventMetadata {
                                     cookie: value_native_events_item_native_watch_rename_event_metadata_cookie,
                                 };
                                 let value_native_events_item_native_watch_rename_event_path = match value.path {
                                     OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_events_item_native_watch_rename_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_item;
                                             value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner = binding.store_array(value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_values);
                                         let value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner);
                                         let value_native_events_item_native_watch_rename_event_path_os_path_bytes = OsPathBytes {
                                             kind: value_native_events_item_native_watch_rename_event_path_os_path_bytes_kind,
@@ -13748,13 +13747,13 @@ fn destack_fs_watch_open_read_replay(
                                         OsPath::OsPathBytes(value_native_events_item_native_watch_rename_event_path_os_path_bytes)
                                     }
                                     OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_events_item_native_watch_rename_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_item;
                                             value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner = binding.store_array(value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_values);
                                         let value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner);
                                         let value_native_events_item_native_watch_rename_event_path_os_path_utf16 = OsPathUtf16 {
                                             kind: value_native_events_item_native_watch_rename_event_path_os_path_utf16_kind,
@@ -13765,13 +13764,13 @@ fn destack_fs_watch_open_read_replay(
                                 };
                                 let value_native_events_item_native_watch_rename_event_related_path = match value.related_path {
                                     OsPathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
                                         for value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_item in value.bytes {
                                             let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_item;
                                             value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner = binding.store_array(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_values);
                                         let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner);
                                         let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes = OsPathBytes {
                                             kind: value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_kind,
@@ -13780,13 +13779,13 @@ fn destack_fs_watch_open_read_replay(
                                         OsPath::OsPathBytes(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes)
                                     }
                                     OsPathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_kind = binding.store_string(&value.kind);
                                         let mut value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_item;
                                             value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_native);
                                         }
-                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner = binding.store_array(value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_values);
                                         let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner);
                                         let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16 = OsPathUtf16 {
                                             kind: value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_kind,
@@ -13806,7 +13805,7 @@ fn destack_fs_watch_open_read_replay(
                         };
                         value_native_events_values.push(value_native_events_item_native);
                     }
-                    let value_native_events = context.store_array(value_native_events_values);
+                    let value_native_events = binding.store_array(value_native_events_values);
                     let value_native_overflowed = value.overflowed;
                     let value_native = WatchBatch {
                         events: value_native_events,
@@ -13823,7 +13822,7 @@ fn destack_fs_watch_open_read_replay(
 
 #[inline]
 fn destack_fs_watch_openat_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut resource::WatchHandle,
     directory: resource::DirectoryHandle,
@@ -13832,16 +13831,16 @@ fn destack_fs_watch_openat_replay(
 ) -> RuntimeResult<()> {
     let _ = (&directory, &path, &options);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_WATCH_OPENAT,
-        context.replay_payload_for(FS_WATCH_OPENAT)?,
+        binding.replay_payload_for(FS_WATCH_OPENAT)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_watchat(context, out, directory, path, options)
+                platform_native::destack_fs_watchat(binding, out, directory, path, options)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_watchat(
-                    context, out, directory, path, options,
+                    binding, out, directory, path, options,
                 )
             },
         },
@@ -13888,7 +13887,7 @@ fn destack_fs_watch_openat_replay(
 
 #[inline]
 fn destack_fs_xattr_fgetxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
@@ -13896,15 +13895,15 @@ fn destack_fs_xattr_fgetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_FGETXATTR,
-        context.replay_payload_for(FS_XATTR_FGETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_FGETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fgetxattr(context, out, handle, name)
+                platform_native::destack_fs_fgetxattr(binding, out, handle, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fgetxattr(context, out, handle, name)
+                platform_simulation_native::destack_fs_fgetxattr(binding, out, handle, name)
             },
         },
         |result| {
@@ -13947,7 +13946,7 @@ fn destack_fs_xattr_fgetxattr_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -13961,7 +13960,7 @@ fn destack_fs_xattr_fgetxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_fgetxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
@@ -13969,15 +13968,15 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_FGETXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fgetxattr_bytes(context, out, handle, name)
+                platform_native::destack_fs_fgetxattr_bytes(binding, out, handle, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fgetxattr_bytes(context, out, handle, name)
+                platform_simulation_native::destack_fs_fgetxattr_bytes(binding, out, handle, name)
             },
         },
         |result| {
@@ -14020,7 +14019,7 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14034,22 +14033,22 @@ fn destack_fs_xattr_fgetxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_flistxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeStringRef>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_FLISTXATTR,
-        context.replay_payload_for(FS_XATTR_FLISTXATTR)?,
+        binding.replay_payload_for(FS_XATTR_FLISTXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_flistxattr(context, out, handle)
+                platform_native::destack_fs_flistxattr(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_flistxattr(context, out, handle)
+                platform_simulation_native::destack_fs_flistxattr(binding, out, handle)
             },
         },
         |result| {
@@ -14090,10 +14089,10 @@ fn destack_fs_xattr_flistxattr_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native = context.store_string(&value_native_item);
+                        let value_native_item_native = binding.store_string(&value_native_item);
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14107,22 +14106,22 @@ fn destack_fs_xattr_flistxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_flistxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeArray<u8>>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_FLISTXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_flistxattr_bytes(context, out, handle)
+                platform_native::destack_fs_flistxattr_bytes(binding, out, handle)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_flistxattr_bytes(context, out, handle)
+                platform_simulation_native::destack_fs_flistxattr_bytes(binding, out, handle)
             },
         },
         |result| {
@@ -14184,10 +14183,10 @@ fn destack_fs_xattr_flistxattr_bytes_replay(
                                 .push(value_native_item_native_item_native);
                         }
                         let value_native_item_native =
-                            context.store_array(value_native_item_native_values);
+                            binding.store_array(value_native_item_native_values);
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14201,22 +14200,22 @@ fn destack_fs_xattr_flistxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_fremovexattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_FREMOVEXATTR,
-        context.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
+        binding.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fremovexattr(context, handle, name)
+                platform_native::destack_fs_fremovexattr(binding, handle, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fremovexattr(context, handle, name)
+                platform_simulation_native::destack_fs_fremovexattr(binding, handle, name)
             },
         },
         |result| {
@@ -14250,22 +14249,22 @@ fn destack_fs_xattr_fremovexattr_replay(
 
 #[inline]
 fn destack_fs_xattr_fremovexattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_FREMOVEXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fremovexattr_bytes(context, handle, name)
+                platform_native::destack_fs_fremovexattr_bytes(binding, handle, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_fremovexattr_bytes(context, handle, name)
+                platform_simulation_native::destack_fs_fremovexattr_bytes(binding, handle, name)
             },
         },
         |result| {
@@ -14299,7 +14298,7 @@ fn destack_fs_xattr_fremovexattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_fsetxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeStringRef,
@@ -14308,16 +14307,16 @@ fn destack_fs_xattr_fsetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_FSETXATTR,
-        context.replay_payload_for(FS_XATTR_FSETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_FSETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fsetxattr(context, handle, name, argument_value, flags)
+                platform_native::destack_fs_fsetxattr(binding, handle, name, argument_value, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fsetxattr(
-                    context,
+                    binding,
                     handle,
                     name,
                     argument_value,
@@ -14356,7 +14355,7 @@ fn destack_fs_xattr_fsetxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_fsetxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
@@ -14365,13 +14364,13 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_FSETXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_fsetxattr_bytes(
-                    context,
+                    binding,
                     handle,
                     name,
                     argument_value,
@@ -14380,7 +14379,7 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_fsetxattr_bytes(
-                    context,
+                    binding,
                     handle,
                     name,
                     argument_value,
@@ -14419,7 +14418,7 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_getxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -14427,15 +14426,15 @@ fn destack_fs_xattr_getxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_GETXATTR,
-        context.replay_payload_for(FS_XATTR_GETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_GETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_getxattr(context, out, path, name)
+                platform_native::destack_fs_getxattr(binding, out, path, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_getxattr(context, out, path, name)
+                platform_simulation_native::destack_fs_getxattr(binding, out, path, name)
             },
         },
         |result| {
@@ -14478,7 +14477,7 @@ fn destack_fs_xattr_getxattr_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14492,7 +14491,7 @@ fn destack_fs_xattr_getxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_getxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -14500,15 +14499,15 @@ fn destack_fs_xattr_getxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_GETXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_getxattr_bytes(context, out, path, name)
+                platform_native::destack_fs_getxattr_bytes(binding, out, path, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_getxattr_bytes(context, out, path, name)
+                platform_simulation_native::destack_fs_getxattr_bytes(binding, out, path, name)
             },
         },
         |result| {
@@ -14551,7 +14550,7 @@ fn destack_fs_xattr_getxattr_bytes_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14565,7 +14564,7 @@ fn destack_fs_xattr_getxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_lgetxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -14573,15 +14572,15 @@ fn destack_fs_xattr_lgetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LGETXATTR,
-        context.replay_payload_for(FS_XATTR_LGETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LGETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lgetxattr(context, out, path, name)
+                platform_native::destack_fs_lgetxattr(binding, out, path, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_lgetxattr(context, out, path, name)
+                platform_simulation_native::destack_fs_lgetxattr(binding, out, path, name)
             },
         },
         |result| {
@@ -14624,7 +14623,7 @@ fn destack_fs_xattr_lgetxattr_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14638,7 +14637,7 @@ fn destack_fs_xattr_lgetxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_lgetxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<u8>,
     path: OsPath,
@@ -14646,15 +14645,15 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LGETXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lgetxattr_bytes(context, out, path, name)
+                platform_native::destack_fs_lgetxattr_bytes(binding, out, path, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_lgetxattr_bytes(context, out, path, name)
+                platform_simulation_native::destack_fs_lgetxattr_bytes(binding, out, path, name)
             },
         },
         |result| {
@@ -14697,7 +14696,7 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
                         let value_native_item_native = value_native_item;
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14711,22 +14710,22 @@ fn destack_fs_xattr_lgetxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_listxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LISTXATTR,
-        context.replay_payload_for(FS_XATTR_LISTXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LISTXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_listxattr(context, out, path)
+                platform_native::destack_fs_listxattr(binding, out, path)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_listxattr(context, out, path)
+                platform_simulation_native::destack_fs_listxattr(binding, out, path)
             },
         },
         |result| {
@@ -14767,10 +14766,10 @@ fn destack_fs_xattr_listxattr_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native = context.store_string(&value_native_item);
+                        let value_native_item_native = binding.store_string(&value_native_item);
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14784,22 +14783,22 @@ fn destack_fs_xattr_listxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_listxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeArray<u8>>,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LISTXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_listxattr_bytes(context, out, path)
+                platform_native::destack_fs_listxattr_bytes(binding, out, path)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_listxattr_bytes(context, out, path)
+                platform_simulation_native::destack_fs_listxattr_bytes(binding, out, path)
             },
         },
         |result| {
@@ -14861,10 +14860,10 @@ fn destack_fs_xattr_listxattr_bytes_replay(
                                 .push(value_native_item_native_item_native);
                         }
                         let value_native_item_native =
-                            context.store_array(value_native_item_native_values);
+                            binding.store_array(value_native_item_native_values);
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14878,22 +14877,22 @@ fn destack_fs_xattr_listxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_llistxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LLISTXATTR,
-        context.replay_payload_for(FS_XATTR_LLISTXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LLISTXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_llistxattr(context, out, path)
+                platform_native::destack_fs_llistxattr(binding, out, path)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_llistxattr(context, out, path)
+                platform_simulation_native::destack_fs_llistxattr(binding, out, path)
             },
         },
         |result| {
@@ -14934,10 +14933,10 @@ fn destack_fs_xattr_llistxattr_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native = context.store_string(&value_native_item);
+                        let value_native_item_native = binding.store_string(&value_native_item);
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -14951,22 +14950,22 @@ fn destack_fs_xattr_llistxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_llistxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     out: *mut NativeArray<NativeArray<u8>>,
     path: OsPath,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LLISTXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_llistxattr_bytes(context, out, path)
+                platform_native::destack_fs_llistxattr_bytes(binding, out, path)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_llistxattr_bytes(context, out, path)
+                platform_simulation_native::destack_fs_llistxattr_bytes(binding, out, path)
             },
         },
         |result| {
@@ -15028,10 +15027,10 @@ fn destack_fs_xattr_llistxattr_bytes_replay(
                                 .push(value_native_item_native_item_native);
                         }
                         let value_native_item_native =
-                            context.store_array(value_native_item_native_values);
+                            binding.store_array(value_native_item_native_values);
                         value_native_values.push(value_native_item_native);
                     }
-                    let value_native = context.store_array(value_native_values);
+                    let value_native = binding.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -15045,22 +15044,22 @@ fn destack_fs_xattr_llistxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_lremovexattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LREMOVEXATTR,
-        context.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lremovexattr(context, path, name)
+                platform_native::destack_fs_lremovexattr(binding, path, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_lremovexattr(context, path, name)
+                platform_simulation_native::destack_fs_lremovexattr(binding, path, name)
             },
         },
         |result| {
@@ -15094,22 +15093,22 @@ fn destack_fs_xattr_lremovexattr_replay(
 
 #[inline]
 fn destack_fs_xattr_lremovexattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LREMOVEXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lremovexattr_bytes(context, path, name)
+                platform_native::destack_fs_lremovexattr_bytes(binding, path, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_lremovexattr_bytes(context, path, name)
+                platform_simulation_native::destack_fs_lremovexattr_bytes(binding, path, name)
             },
         },
         |result| {
@@ -15143,7 +15142,7 @@ fn destack_fs_xattr_lremovexattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_lsetxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
@@ -15152,16 +15151,16 @@ fn destack_fs_xattr_lsetxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LSETXATTR,
-        context.replay_payload_for(FS_XATTR_LSETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LSETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lsetxattr(context, path, name, argument_value, flags)
+                platform_native::destack_fs_lsetxattr(binding, path, name, argument_value, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lsetxattr(
-                    context,
+                    binding,
                     path,
                     name,
                     argument_value,
@@ -15200,7 +15199,7 @@ fn destack_fs_xattr_lsetxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_lsetxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
@@ -15209,13 +15208,13 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_LSETXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_lsetxattr_bytes(
-                    context,
+                    binding,
                     path,
                     name,
                     argument_value,
@@ -15224,7 +15223,7 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_lsetxattr_bytes(
-                    context,
+                    binding,
                     path,
                     name,
                     argument_value,
@@ -15263,22 +15262,22 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_removexattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_REMOVEXATTR,
-        context.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
+        binding.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_removexattr(context, path, name)
+                platform_native::destack_fs_removexattr(binding, path, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_removexattr(context, path, name)
+                platform_simulation_native::destack_fs_removexattr(binding, path, name)
             },
         },
         |result| {
@@ -15312,22 +15311,22 @@ fn destack_fs_xattr_removexattr_replay(
 
 #[inline]
 fn destack_fs_xattr_removexattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (&path, &name);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_REMOVEXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_removexattr_bytes(context, path, name)
+                platform_native::destack_fs_removexattr_bytes(binding, path, name)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_removexattr_bytes(context, path, name)
+                platform_simulation_native::destack_fs_removexattr_bytes(binding, path, name)
             },
         },
         |result| {
@@ -15361,7 +15360,7 @@ fn destack_fs_xattr_removexattr_bytes_replay(
 
 #[inline]
 fn destack_fs_xattr_setxattr_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
@@ -15370,16 +15369,16 @@ fn destack_fs_xattr_setxattr_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_SETXATTR,
-        context.replay_payload_for(FS_XATTR_SETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_SETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_setxattr(context, path, name, argument_value, flags)
+                platform_native::destack_fs_setxattr(binding, path, name, argument_value, flags)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_setxattr(
-                    context,
+                    binding,
                     path,
                     name,
                     argument_value,
@@ -15418,7 +15417,7 @@ fn destack_fs_xattr_setxattr_replay(
 
 #[inline]
 fn destack_fs_xattr_setxattr_bytes_replay(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
@@ -15427,13 +15426,13 @@ fn destack_fs_xattr_setxattr_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = (&path, &name, &argument_value, &flags);
 
-    context.replay().run_binding_with_policy(
+    binding.replay().run_binding_with_policy(
         FS_XATTR_SETXATTR_BYTES,
-        context.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_fs_setxattr_bytes(
-                    context,
+                    binding,
                     path,
                     name,
                     argument_value,
@@ -15442,7 +15441,7 @@ fn destack_fs_xattr_setxattr_bytes_replay(
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_fs_setxattr_bytes(
-                    context,
+                    binding,
                     path,
                     name,
                     argument_value,
@@ -17348,20 +17347,20 @@ pub unsafe extern "C" fn destack_fs_xattr_setxattr_bytes(
 /// VM replay implementations for fs bindings.
 #[inline]
 fn destack_fs_attrs_access_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: AccessMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_ACCESS,
-        runtime.replay_payload_for(FS_ATTRS_ACCESS)?,
+        binding.replay_payload_for(FS_ATTRS_ACCESS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_access(runtime, context, path, mode),
+            RuntimeWorld::Host => platform_vm::destack_fs_access(binding, context, path, mode),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_access(runtime, context, path, mode)
+                platform_simulation_vm::destack_fs_access(binding, context, path, mode)
             }
         },
         |context, result| {
@@ -17399,7 +17398,7 @@ fn destack_fs_attrs_access_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_accessat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -17407,16 +17406,16 @@ fn destack_fs_attrs_accessat_vm_replay(
     mode: AccessMode,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_ACCESSAT,
-        runtime.replay_payload_for(FS_ATTRS_ACCESSAT)?,
+        binding.replay_payload_for(FS_ATTRS_ACCESSAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_accessat(runtime, context, dir, path, mode, flags)
+                platform_vm::destack_fs_accessat(binding, context, dir, path, mode, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_accessat(
-                runtime, context, dir, path, mode, flags,
+                binding, context, dir, path, mode, flags,
             ),
         },
         |context, result| {
@@ -17454,20 +17453,20 @@ fn destack_fs_attrs_accessat_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_chmod_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_CHMOD,
-        runtime.replay_payload_for(FS_ATTRS_CHMOD)?,
+        binding.replay_payload_for(FS_ATTRS_CHMOD)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_chmod(runtime, context, path, mode),
+            RuntimeWorld::Host => platform_vm::destack_fs_chmod(binding, context, path, mode),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_chmod(runtime, context, path, mode)
+                platform_simulation_vm::destack_fs_chmod(binding, context, path, mode)
             }
         },
         |context, result| {
@@ -17505,21 +17504,21 @@ fn destack_fs_attrs_chmod_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_chown_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_CHOWN,
-        runtime.replay_payload_for(FS_ATTRS_CHOWN)?,
+        binding.replay_payload_for(FS_ATTRS_CHOWN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_chown(runtime, context, path, uid, gid),
+            RuntimeWorld::Host => platform_vm::destack_fs_chown(binding, context, path, uid, gid),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_chown(runtime, context, path, uid, gid)
+                platform_simulation_vm::destack_fs_chown(binding, context, path, uid, gid)
             }
         },
         |context, result| {
@@ -17557,20 +17556,20 @@ fn destack_fs_attrs_chown_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_fchmod_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_FCHMOD,
-        runtime.replay_payload_for(FS_ATTRS_FCHMOD)?,
+        binding.replay_payload_for(FS_ATTRS_FCHMOD)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_fchmod(runtime, context, handle, mode),
+            RuntimeWorld::Host => platform_vm::destack_fs_fchmod(binding, context, handle, mode),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fchmod(runtime, context, handle, mode)
+                platform_simulation_vm::destack_fs_fchmod(binding, context, handle, mode)
             }
         },
         |context, result| {
@@ -17608,7 +17607,7 @@ fn destack_fs_attrs_fchmod_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_fchmodat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -17616,16 +17615,16 @@ fn destack_fs_attrs_fchmodat_vm_replay(
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_FCHMODAT,
-        runtime.replay_payload_for(FS_ATTRS_FCHMODAT)?,
+        binding.replay_payload_for(FS_ATTRS_FCHMODAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_fchmodat(runtime, context, dir, path, mode, flags)
+                platform_vm::destack_fs_fchmodat(binding, context, dir, path, mode, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fchmodat(
-                runtime, context, dir, path, mode, flags,
+                binding, context, dir, path, mode, flags,
             ),
         },
         |context, result| {
@@ -17663,23 +17662,23 @@ fn destack_fs_attrs_fchmodat_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_fchown_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_FCHOWN,
-        runtime.replay_payload_for(FS_ATTRS_FCHOWN)?,
+        binding.replay_payload_for(FS_ATTRS_FCHOWN)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
+                platform_vm::destack_fs_fchown(binding, context, handle, uid, gid)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fchown(runtime, context, handle, uid, gid)
+                platform_simulation_vm::destack_fs_fchown(binding, context, handle, uid, gid)
             }
         },
         |context, result| {
@@ -17717,7 +17716,7 @@ fn destack_fs_attrs_fchown_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_fchownat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -17726,16 +17725,16 @@ fn destack_fs_attrs_fchownat_vm_replay(
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_FCHOWNAT,
-        runtime.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
+        binding.replay_payload_for(FS_ATTRS_FCHOWNAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_fchownat(runtime, context, dir, path, uid, gid, flags)
+                platform_vm::destack_fs_fchownat(binding, context, dir, path, uid, gid, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fchownat(
-                runtime, context, dir, path, uid, gid, flags,
+                binding, context, dir, path, uid, gid, flags,
             ),
         },
         |context, result| {
@@ -17773,23 +17772,23 @@ fn destack_fs_attrs_fchownat_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_futimes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_FUTIMES,
-        runtime.replay_payload_for(FS_ATTRS_FUTIMES)?,
+        binding.replay_payload_for(FS_ATTRS_FUTIMES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_futimes(runtime, context, handle, atimens, mtimens)
+                platform_vm::destack_fs_futimes(binding, context, handle, atimens, mtimens)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_futimes(
-                runtime, context, handle, atimens, mtimens,
+                binding, context, handle, atimens, mtimens,
             ),
         },
         |context, result| {
@@ -17827,23 +17826,23 @@ fn destack_fs_attrs_futimes_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_lutimes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_LUTIMES,
-        runtime.replay_payload_for(FS_ATTRS_LUTIMES)?,
+        binding.replay_payload_for(FS_ATTRS_LUTIMES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_lutimes(runtime, context, path, atimens, mtimens)
+                platform_vm::destack_fs_lutimes(binding, context, path, atimens, mtimens)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_lutimes(runtime, context, path, atimens, mtimens)
+                platform_simulation_vm::destack_fs_lutimes(binding, context, path, atimens, mtimens)
             }
         },
         |context, result| {
@@ -17881,7 +17880,7 @@ fn destack_fs_attrs_lutimes_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_utimensat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -17890,16 +17889,16 @@ fn destack_fs_attrs_utimensat_vm_replay(
     mtimens: u64,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_UTIMENSAT,
-        runtime.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
+        binding.replay_payload_for(FS_ATTRS_UTIMENSAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_utimensat(
-                runtime, context, dir, path, atimens, mtimens, flags,
+                binding, context, dir, path, atimens, mtimens, flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_utimensat(
-                runtime, context, dir, path, atimens, mtimens, flags,
+                binding, context, dir, path, atimens, mtimens, flags,
             ),
         },
         |context, result| {
@@ -17937,23 +17936,23 @@ fn destack_fs_attrs_utimensat_vm_replay(
 
 #[inline]
 fn destack_fs_attrs_utimes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_ATTRS_UTIMES,
-        runtime.replay_payload_for(FS_ATTRS_UTIMES)?,
+        binding.replay_payload_for(FS_ATTRS_UTIMES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_utimes(runtime, context, path, atimens, mtimens)
+                platform_vm::destack_fs_utimes(binding, context, path, atimens, mtimens)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_utimes(runtime, context, path, atimens, mtimens)
+                platform_simulation_vm::destack_fs_utimes(binding, context, path, atimens, mtimens)
             }
         },
         |context, result| {
@@ -17991,19 +17990,19 @@ fn destack_fs_attrs_utimes_vm_replay(
 
 #[inline]
 fn destack_fs_dir_closedir_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_CLOSEDIR,
-        runtime.replay_payload_for(FS_DIR_CLOSEDIR)?,
+        binding.replay_payload_for(FS_DIR_CLOSEDIR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_closedir(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_closedir(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_closedir(runtime, context, handle)
+                platform_simulation_vm::destack_fs_closedir(binding, context, handle)
             }
         },
         |context, result| {
@@ -18041,19 +18040,19 @@ fn destack_fs_dir_closedir_vm_replay(
 
 #[inline]
 fn destack_fs_dir_dirfd_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_DIRFD,
-        runtime.replay_payload_for(FS_DIR_DIRFD)?,
+        binding.replay_payload_for(FS_DIR_DIRFD)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_dirfd(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_dirfd(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_dirfd(runtime, context, handle)
+                platform_simulation_vm::destack_fs_dirfd(binding, context, handle)
             }
         },
         |context, result| {
@@ -18095,20 +18094,20 @@ fn destack_fs_dir_dirfd_vm_replay(
 
 #[inline]
 fn destack_fs_dir_mkdir_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_MKDIR,
-        runtime.replay_payload_for(FS_DIR_MKDIR)?,
+        binding.replay_payload_for(FS_DIR_MKDIR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_mkdir(runtime, context, path, mode),
+            RuntimeWorld::Host => platform_vm::destack_fs_mkdir(binding, context, path, mode),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_mkdir(runtime, context, path, mode)
+                platform_simulation_vm::destack_fs_mkdir(binding, context, path, mode)
             }
         },
         |context, result| {
@@ -18146,23 +18145,23 @@ fn destack_fs_dir_mkdir_vm_replay(
 
 #[inline]
 fn destack_fs_dir_mkdirat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_MKDIRAT,
-        runtime.replay_payload_for(FS_DIR_MKDIRAT)?,
+        binding.replay_payload_for(FS_DIR_MKDIRAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
+                platform_vm::destack_fs_mkdirat(binding, context, dir, path, mode)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_mkdirat(runtime, context, dir, path, mode)
+                platform_simulation_vm::destack_fs_mkdirat(binding, context, dir, path, mode)
             }
         },
         |context, result| {
@@ -18200,19 +18199,19 @@ fn destack_fs_dir_mkdirat_vm_replay(
 
 #[inline]
 fn destack_fs_dir_mkdtemp_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     template: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_MKDTEMP,
-        runtime.replay_payload_for(FS_DIR_MKDTEMP)?,
+        binding.replay_payload_for(FS_DIR_MKDTEMP)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_mkdtemp(runtime, context, template),
+            RuntimeWorld::Host => platform_vm::destack_fs_mkdtemp(binding, context, template),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_mkdtemp(runtime, context, template)
+                platform_simulation_vm::destack_fs_mkdtemp(binding, context, template)
             }
         },
         |context, result| {
@@ -18351,19 +18350,19 @@ fn destack_fs_dir_mkdtemp_vm_replay(
 
 #[inline]
 fn destack_fs_dir_opendir_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_OPENDIR,
-        runtime.replay_payload_for(FS_DIR_OPENDIR)?,
+        binding.replay_payload_for(FS_DIR_OPENDIR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_opendir(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_opendir(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_opendir(runtime, context, path)
+                platform_simulation_vm::destack_fs_opendir(binding, context, path)
             }
         },
         |context, result| {
@@ -18405,19 +18404,19 @@ fn destack_fs_dir_opendir_vm_replay(
 
 #[inline]
 fn destack_fs_dir_readdir_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_READDIR,
-        runtime.replay_payload_for(FS_DIR_READDIR)?,
+        binding.replay_payload_for(FS_DIR_READDIR)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_readdir(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_readdir(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_fs_readdir(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_readdir(binding, context, handle),
             }
         },
         |context, result| {
@@ -18558,19 +18557,19 @@ fn destack_fs_dir_readdir_vm_replay(
 
 #[inline]
 fn destack_fs_dir_readdir_next_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_READDIR_NEXT,
-        runtime.replay_payload_for(FS_DIR_READDIR_NEXT)?,
+        binding.replay_payload_for(FS_DIR_READDIR_NEXT)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_readdir_next(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_readdir_next(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_fs_readdir_next(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_readdir_next(binding, context, handle),
             }
         },
         |context, result| {
@@ -18728,19 +18727,19 @@ fn destack_fs_dir_readdir_next_vm_replay(
 
 #[inline]
 fn destack_fs_dir_rewinddir_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_REWINDDIR,
-        runtime.replay_payload_for(FS_DIR_REWINDDIR)?,
+        binding.replay_payload_for(FS_DIR_REWINDDIR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_rewinddir(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_rewinddir(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_rewinddir(runtime, context, handle)
+                platform_simulation_vm::destack_fs_rewinddir(binding, context, handle)
             }
         },
         |context, result| {
@@ -18778,19 +18777,19 @@ fn destack_fs_dir_rewinddir_vm_replay(
 
 #[inline]
 fn destack_fs_dir_rmdir_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_DIR_RMDIR,
-        runtime.replay_payload_for(FS_DIR_RMDIR)?,
+        binding.replay_payload_for(FS_DIR_RMDIR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_rmdir(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_rmdir(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_rmdir(runtime, context, path)
+                platform_simulation_vm::destack_fs_rmdir(binding, context, path)
             }
         },
         |context, result| {
@@ -18828,19 +18827,19 @@ fn destack_fs_dir_rmdir_vm_replay(
 
 #[inline]
 fn destack_fs_file_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_CLOSE,
-        runtime.replay_payload_for(FS_FILE_CLOSE)?,
+        binding.replay_payload_for(FS_FILE_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_close(runtime, context, handle)
+                platform_simulation_vm::destack_fs_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -18878,7 +18877,7 @@ fn destack_fs_file_close_vm_replay(
 
 #[inline]
 fn destack_fs_file_copy_file_range_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     src: resource::FileHandle,
@@ -18887,16 +18886,16 @@ fn destack_fs_file_copy_file_range_vm_replay(
     dstoffset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_COPY_FILE_RANGE,
-        runtime.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
+        binding.replay_payload_for(FS_FILE_COPY_FILE_RANGE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_copy_file_range(
-                runtime, context, src, srcoffset, dst, dstoffset, length,
+                binding, context, src, srcoffset, dst, dstoffset, length,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_copy_file_range(
-                runtime, context, src, srcoffset, dst, dstoffset, length,
+                binding, context, src, srcoffset, dst, dstoffset, length,
             ),
         },
         |context, result| {
@@ -18938,19 +18937,19 @@ fn destack_fs_file_copy_file_range_vm_replay(
 
 #[inline]
 fn destack_fs_file_dup_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_DUP,
-        runtime.replay_payload_for(FS_FILE_DUP)?,
+        binding.replay_payload_for(FS_FILE_DUP)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_dup(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_dup(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_dup(runtime, context, handle)
+                platform_simulation_vm::destack_fs_dup(binding, context, handle)
             }
         },
         |context, result| {
@@ -18992,20 +18991,20 @@ fn destack_fs_file_dup_vm_replay(
 
 #[inline]
 fn destack_fs_file_dup2_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     target: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_DUP2,
-        runtime.replay_payload_for(FS_FILE_DUP2)?,
+        binding.replay_payload_for(FS_FILE_DUP2)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_dup2(runtime, context, handle, target),
+            RuntimeWorld::Host => platform_vm::destack_fs_dup2(binding, context, handle, target),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_dup2(runtime, context, handle, target)
+                platform_simulation_vm::destack_fs_dup2(binding, context, handle, target)
             }
         },
         |context, result| {
@@ -19047,23 +19046,23 @@ fn destack_fs_file_dup2_vm_replay(
 
 #[inline]
 fn destack_fs_file_dup3_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     target: resource::FileHandle,
     flags: OpenFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_DUP3,
-        runtime.replay_payload_for(FS_FILE_DUP3)?,
+        binding.replay_payload_for(FS_FILE_DUP3)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_dup3(runtime, context, handle, target, flags)
+                platform_vm::destack_fs_dup3(binding, context, handle, target, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_dup3(runtime, context, handle, target, flags)
+                platform_simulation_vm::destack_fs_dup3(binding, context, handle, target, flags)
             }
         },
         |context, result| {
@@ -19105,7 +19104,7 @@ fn destack_fs_file_dup3_vm_replay(
 
 #[inline]
 fn destack_fs_file_fadvise_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -19113,16 +19112,16 @@ fn destack_fs_file_fadvise_vm_replay(
     length: FileSize,
     advice: FileAdvice,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_FADVISE,
-        runtime.replay_payload_for(FS_FILE_FADVISE)?,
+        binding.replay_payload_for(FS_FILE_FADVISE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_fadvise(runtime, context, handle, offset, length, advice)
+                platform_vm::destack_fs_fadvise(binding, context, handle, offset, length, advice)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fadvise(
-                runtime, context, handle, offset, length, advice,
+                binding, context, handle, offset, length, advice,
             ),
         },
         |context, result| {
@@ -19160,7 +19159,7 @@ fn destack_fs_file_fadvise_vm_replay(
 
 #[inline]
 fn destack_fs_file_fallocate_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -19168,16 +19167,16 @@ fn destack_fs_file_fallocate_vm_replay(
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_FALLOCATE,
-        runtime.replay_payload_for(FS_FILE_FALLOCATE)?,
+        binding.replay_payload_for(FS_FILE_FALLOCATE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_fallocate(runtime, context, handle, offset, length, flags)
+                platform_vm::destack_fs_fallocate(binding, context, handle, offset, length, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fallocate(
-                runtime, context, handle, offset, length, flags,
+                binding, context, handle, offset, length, flags,
             ),
         },
         |context, result| {
@@ -19215,19 +19214,19 @@ fn destack_fs_file_fallocate_vm_replay(
 
 #[inline]
 fn destack_fs_file_fdatasync_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_FDATASYNC,
-        runtime.replay_payload_for(FS_FILE_FDATASYNC)?,
+        binding.replay_payload_for(FS_FILE_FDATASYNC)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_fdatasync(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_fdatasync(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fdatasync(runtime, context, handle)
+                platform_simulation_vm::destack_fs_fdatasync(binding, context, handle)
             }
         },
         |context, result| {
@@ -19265,19 +19264,19 @@ fn destack_fs_file_fdatasync_vm_replay(
 
 #[inline]
 fn destack_fs_file_fsync_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_FSYNC,
-        runtime.replay_payload_for(FS_FILE_FSYNC)?,
+        binding.replay_payload_for(FS_FILE_FSYNC)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_fsync(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_fsync(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fsync(runtime, context, handle)
+                platform_simulation_vm::destack_fs_fsync(binding, context, handle)
             }
         },
         |context, result| {
@@ -19315,20 +19314,20 @@ fn destack_fs_file_fsync_vm_replay(
 
 #[inline]
 fn destack_fs_file_ftruncate_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_FTRUNCATE,
-        runtime.replay_payload_for(FS_FILE_FTRUNCATE)?,
+        binding.replay_payload_for(FS_FILE_FTRUNCATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_ftruncate(runtime, context, handle, size),
+            RuntimeWorld::Host => platform_vm::destack_fs_ftruncate(binding, context, handle, size),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_ftruncate(runtime, context, handle, size)
+                platform_simulation_vm::destack_fs_ftruncate(binding, context, handle, size)
             }
         },
         |context, result| {
@@ -19366,19 +19365,19 @@ fn destack_fs_file_ftruncate_vm_replay(
 
 #[inline]
 fn destack_fs_file_get_fd_flags_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_GET_FD_FLAGS,
-        runtime.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
+        binding.replay_payload_for(FS_FILE_GET_FD_FLAGS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_get_fd_flags(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_get_fd_flags(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_get_fd_flags(runtime, context, handle)
+                platform_simulation_vm::destack_fs_get_fd_flags(binding, context, handle)
             }
         },
         |context, result| {
@@ -19420,21 +19419,21 @@ fn destack_fs_file_get_fd_flags_vm_replay(
 
 #[inline]
 fn destack_fs_file_get_status_flags_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_GET_STATUS_FLAGS,
-        runtime.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
+        binding.replay_payload_for(FS_FILE_GET_STATUS_FLAGS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_get_status_flags(runtime, context, handle)
+                platform_vm::destack_fs_get_status_flags(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_get_status_flags(runtime, context, handle)
+                platform_simulation_vm::destack_fs_get_status_flags(binding, context, handle)
             }
         },
         |context, result| {
@@ -19476,20 +19475,20 @@ fn destack_fs_file_get_status_flags_vm_replay(
 
 #[inline]
 fn destack_fs_file_lock_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_LOCK,
-        runtime.replay_payload_for(FS_FILE_LOCK)?,
+        binding.replay_payload_for(FS_FILE_LOCK)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_lock(runtime, context, handle, flags),
+            RuntimeWorld::Host => platform_vm::destack_fs_lock(binding, context, handle, flags),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_lock(runtime, context, handle, flags)
+                platform_simulation_vm::destack_fs_lock(binding, context, handle, flags)
             }
         },
         |context, result| {
@@ -19527,21 +19526,21 @@ fn destack_fs_file_lock_vm_replay(
 
 #[inline]
 fn destack_fs_file_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_OPEN,
-        runtime.replay_payload_for(FS_FILE_OPEN)?,
+        binding.replay_payload_for(FS_FILE_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_open(runtime, context, path, flags, mode),
+            RuntimeWorld::Host => platform_vm::destack_fs_open(binding, context, path, flags, mode),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_open(runtime, context, path, flags, mode)
+                platform_simulation_vm::destack_fs_open(binding, context, path, flags, mode)
             }
         },
         |context, result| {
@@ -19583,7 +19582,7 @@ fn destack_fs_file_open_vm_replay(
 
 #[inline]
 fn destack_fs_file_openat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -19591,16 +19590,16 @@ fn destack_fs_file_openat_vm_replay(
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_OPENAT,
-        runtime.replay_payload_for(FS_FILE_OPENAT)?,
+        binding.replay_payload_for(FS_FILE_OPENAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_openat(runtime, context, dir, path, flags, mode)
+                platform_vm::destack_fs_openat(binding, context, dir, path, flags, mode)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_openat(runtime, context, dir, path, flags, mode)
+                platform_simulation_vm::destack_fs_openat(binding, context, dir, path, flags, mode)
             }
         },
         |context, result| {
@@ -19642,21 +19641,21 @@ fn destack_fs_file_openat_vm_replay(
 
 #[inline]
 fn destack_fs_file_openat2_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     how: OpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_OPENAT2,
-        runtime.replay_payload_for(FS_FILE_OPENAT2)?,
+        binding.replay_payload_for(FS_FILE_OPENAT2)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_openat2(runtime, context, dir, path, how),
+            RuntimeWorld::Host => platform_vm::destack_fs_openat2(binding, context, dir, path, how),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_openat2(runtime, context, dir, path, how)
+                platform_simulation_vm::destack_fs_openat2(binding, context, dir, path, how)
             }
         },
         |context, result| {
@@ -19698,23 +19697,23 @@ fn destack_fs_file_openat2_vm_replay(
 
 #[inline]
 fn destack_fs_file_pread_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_PREAD,
-        runtime.replay_payload_for(FS_FILE_PREAD)?,
+        binding.replay_payload_for(FS_FILE_PREAD)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_pread(runtime, context, handle, buffer, offset)
+                platform_vm::destack_fs_pread(binding, context, handle, buffer, offset)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_pread(runtime, context, handle, buffer, offset)
+                platform_simulation_vm::destack_fs_pread(binding, context, handle, buffer, offset)
             }
         },
         |context, result| {
@@ -19756,23 +19755,23 @@ fn destack_fs_file_pread_vm_replay(
 
 #[inline]
 fn destack_fs_file_preadv_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_PREADV,
-        runtime.replay_payload_for(FS_FILE_PREADV)?,
+        binding.replay_payload_for(FS_FILE_PREADV)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_preadv(runtime, context, handle, buffers, offset)
+                platform_vm::destack_fs_preadv(binding, context, handle, buffers, offset)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_preadv(runtime, context, handle, buffers, offset)
+                platform_simulation_vm::destack_fs_preadv(binding, context, handle, buffers, offset)
             }
         },
         |context, result| {
@@ -19814,7 +19813,7 @@ fn destack_fs_file_preadv_vm_replay(
 
 #[inline]
 fn destack_fs_file_preadv2_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -19822,16 +19821,16 @@ fn destack_fs_file_preadv2_vm_replay(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_PREADV2,
-        runtime.replay_payload_for(FS_FILE_PREADV2)?,
+        binding.replay_payload_for(FS_FILE_PREADV2)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_preadv2(runtime, context, handle, buffers, offset, flags)
+                platform_vm::destack_fs_preadv2(binding, context, handle, buffers, offset, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_preadv2(
-                runtime, context, handle, buffers, offset, flags,
+                binding, context, handle, buffers, offset, flags,
             ),
         },
         |context, result| {
@@ -19873,23 +19872,23 @@ fn destack_fs_file_preadv2_vm_replay(
 
 #[inline]
 fn destack_fs_file_pwrite_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_PWRITE,
-        runtime.replay_payload_for(FS_FILE_PWRITE)?,
+        binding.replay_payload_for(FS_FILE_PWRITE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_pwrite(runtime, context, handle, buffer, offset)
+                platform_vm::destack_fs_pwrite(binding, context, handle, buffer, offset)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_pwrite(runtime, context, handle, buffer, offset)
+                platform_simulation_vm::destack_fs_pwrite(binding, context, handle, buffer, offset)
             }
         },
         |context, result| {
@@ -19931,23 +19930,23 @@ fn destack_fs_file_pwrite_vm_replay(
 
 #[inline]
 fn destack_fs_file_pwritev_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_PWRITEV,
-        runtime.replay_payload_for(FS_FILE_PWRITEV)?,
+        binding.replay_payload_for(FS_FILE_PWRITEV)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_pwritev(runtime, context, handle, buffers, offset)
+                platform_vm::destack_fs_pwritev(binding, context, handle, buffers, offset)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_pwritev(
-                runtime, context, handle, buffers, offset,
+                binding, context, handle, buffers, offset,
             ),
         },
         |context, result| {
@@ -19989,7 +19988,7 @@ fn destack_fs_file_pwritev_vm_replay(
 
 #[inline]
 fn destack_fs_file_pwritev2_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -19997,16 +19996,16 @@ fn destack_fs_file_pwritev2_vm_replay(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_PWRITEV2,
-        runtime.replay_payload_for(FS_FILE_PWRITEV2)?,
+        binding.replay_payload_for(FS_FILE_PWRITEV2)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_pwritev2(runtime, context, handle, buffers, offset, flags)
+                platform_vm::destack_fs_pwritev2(binding, context, handle, buffers, offset, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_pwritev2(
-                runtime, context, handle, buffers, offset, flags,
+                binding, context, handle, buffers, offset, flags,
             ),
         },
         |context, result| {
@@ -20048,20 +20047,20 @@ fn destack_fs_file_pwritev2_vm_replay(
 
 #[inline]
 fn destack_fs_file_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_READ,
-        runtime.replay_payload_for(FS_FILE_READ)?,
+        binding.replay_payload_for(FS_FILE_READ)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_read(runtime, context, handle, buffer),
+            RuntimeWorld::Host => platform_vm::destack_fs_read(binding, context, handle, buffer),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_read(runtime, context, handle, buffer)
+                platform_simulation_vm::destack_fs_read(binding, context, handle, buffer)
             }
         },
         |context, result| {
@@ -20103,20 +20102,20 @@ fn destack_fs_file_read_vm_replay(
 
 #[inline]
 fn destack_fs_file_readv_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_READV,
-        runtime.replay_payload_for(FS_FILE_READV)?,
+        binding.replay_payload_for(FS_FILE_READV)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_readv(runtime, context, handle, buffers),
+            RuntimeWorld::Host => platform_vm::destack_fs_readv(binding, context, handle, buffers),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_readv(runtime, context, handle, buffers)
+                platform_simulation_vm::destack_fs_readv(binding, context, handle, buffers)
             }
         },
         |context, result| {
@@ -20158,23 +20157,23 @@ fn destack_fs_file_readv_vm_replay(
 
 #[inline]
 fn destack_fs_file_seek_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     offset: FileOffset,
     whence: SeekWhence,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_SEEK,
-        runtime.replay_payload_for(FS_FILE_SEEK)?,
+        binding.replay_payload_for(FS_FILE_SEEK)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_seek(runtime, context, handle, offset, whence)
+                platform_vm::destack_fs_seek(binding, context, handle, offset, whence)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_seek(runtime, context, handle, offset, whence)
+                platform_simulation_vm::destack_fs_seek(binding, context, handle, offset, whence)
             }
         },
         |context, result| {
@@ -20216,7 +20215,7 @@ fn destack_fs_file_seek_vm_replay(
 
 #[inline]
 fn destack_fs_file_sendfile_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     socket: resource::SocketHandle,
@@ -20224,16 +20223,16 @@ fn destack_fs_file_sendfile_vm_replay(
     offset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_SENDFILE,
-        runtime.replay_payload_for(FS_FILE_SENDFILE)?,
+        binding.replay_payload_for(FS_FILE_SENDFILE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_sendfile(runtime, context, socket, file, offset, length)
+                platform_vm::destack_fs_sendfile(binding, context, socket, file, offset, length)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_sendfile(
-                runtime, context, socket, file, offset, length,
+                binding, context, socket, file, offset, length,
             ),
         },
         |context, result| {
@@ -20275,22 +20274,22 @@ fn destack_fs_file_sendfile_vm_replay(
 
 #[inline]
 fn destack_fs_file_set_fd_flags_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_SET_FD_FLAGS,
-        runtime.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
+        binding.replay_payload_for(FS_FILE_SET_FD_FLAGS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
+                platform_vm::destack_fs_set_fd_flags(binding, context, handle, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_set_fd_flags(runtime, context, handle, flags)
+                platform_simulation_vm::destack_fs_set_fd_flags(binding, context, handle, flags)
             }
         },
         |context, result| {
@@ -20328,22 +20327,22 @@ fn destack_fs_file_set_fd_flags_vm_replay(
 
 #[inline]
 fn destack_fs_file_set_status_flags_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_SET_STATUS_FLAGS,
-        runtime.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
+        binding.replay_payload_for(FS_FILE_SET_STATUS_FLAGS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_set_status_flags(runtime, context, handle, flags)
+                platform_vm::destack_fs_set_status_flags(binding, context, handle, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_set_status_flags(runtime, context, handle, flags)
+                platform_simulation_vm::destack_fs_set_status_flags(binding, context, handle, flags)
             }
         },
         |context, result| {
@@ -20381,7 +20380,7 @@ fn destack_fs_file_set_status_flags_vm_replay(
 
 #[inline]
 fn destack_fs_file_splice_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     source: resource::ResourceId,
@@ -20391,13 +20390,13 @@ fn destack_fs_file_splice_vm_replay(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_SPLICE,
-        runtime.replay_payload_for(FS_FILE_SPLICE)?,
+        binding.replay_payload_for(FS_FILE_SPLICE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_splice(
-                runtime,
+                binding,
                 context,
                 source,
                 sourcecursor,
@@ -20407,7 +20406,7 @@ fn destack_fs_file_splice_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_splice(
-                runtime,
+                binding,
                 context,
                 source,
                 sourcecursor,
@@ -20456,7 +20455,7 @@ fn destack_fs_file_splice_vm_replay(
 
 #[inline]
 fn destack_fs_file_sync_file_range_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -20464,16 +20463,16 @@ fn destack_fs_file_sync_file_range_vm_replay(
     length: FileSize,
     flags: SyncFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_SYNC_FILE_RANGE,
-        runtime.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
+        binding.replay_payload_for(FS_FILE_SYNC_FILE_RANGE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_sync_file_range(
-                runtime, context, handle, offset, length, flags,
+                binding, context, handle, offset, length, flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_sync_file_range(
-                runtime, context, handle, offset, length, flags,
+                binding, context, handle, offset, length, flags,
             ),
         },
         |context, result| {
@@ -20511,19 +20510,19 @@ fn destack_fs_file_sync_file_range_vm_replay(
 
 #[inline]
 fn destack_fs_file_syncfs_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_SYNCFS,
-        runtime.replay_payload_for(FS_FILE_SYNCFS)?,
+        binding.replay_payload_for(FS_FILE_SYNCFS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_syncfs(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_syncfs(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_syncfs(runtime, context, handle)
+                platform_simulation_vm::destack_fs_syncfs(binding, context, handle)
             }
         },
         |context, result| {
@@ -20561,7 +20560,7 @@ fn destack_fs_file_syncfs_vm_replay(
 
 #[inline]
 fn destack_fs_file_tee_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     sourcepipe: resource::PipeHandle,
@@ -20569,16 +20568,16 @@ fn destack_fs_file_tee_vm_replay(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_TEE,
-        runtime.replay_payload_for(FS_FILE_TEE)?,
+        binding.replay_payload_for(FS_FILE_TEE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_tee(runtime, context, sourcepipe, targetpipe, length, flags)
+                platform_vm::destack_fs_tee(binding, context, sourcepipe, targetpipe, length, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_tee(
-                runtime, context, sourcepipe, targetpipe, length, flags,
+                binding, context, sourcepipe, targetpipe, length, flags,
             ),
         },
         |context, result| {
@@ -20620,20 +20619,20 @@ fn destack_fs_file_tee_vm_replay(
 
 #[inline]
 fn destack_fs_file_truncate_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_TRUNCATE,
-        runtime.replay_payload_for(FS_FILE_TRUNCATE)?,
+        binding.replay_payload_for(FS_FILE_TRUNCATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_truncate(runtime, context, path, size),
+            RuntimeWorld::Host => platform_vm::destack_fs_truncate(binding, context, path, size),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_truncate(runtime, context, path, size)
+                platform_simulation_vm::destack_fs_truncate(binding, context, path, size)
             }
         },
         |context, result| {
@@ -20671,23 +20670,23 @@ fn destack_fs_file_truncate_vm_replay(
 
 #[inline]
 fn destack_fs_file_vmsplice_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pipe: resource::PipeHandle,
     buffers: VmSlice<VmSlice<u8>>,
     flags: SpliceFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_VMSPLICE,
-        runtime.replay_payload_for(FS_FILE_VMSPLICE)?,
+        binding.replay_payload_for(FS_FILE_VMSPLICE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_vmsplice(runtime, context, pipe, buffers, flags)
+                platform_vm::destack_fs_vmsplice(binding, context, pipe, buffers, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_vmsplice(runtime, context, pipe, buffers, flags)
+                platform_simulation_vm::destack_fs_vmsplice(binding, context, pipe, buffers, flags)
             }
         },
         |context, result| {
@@ -20729,20 +20728,20 @@ fn destack_fs_file_vmsplice_vm_replay(
 
 #[inline]
 fn destack_fs_file_write_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_WRITE,
-        runtime.replay_payload_for(FS_FILE_WRITE)?,
+        binding.replay_payload_for(FS_FILE_WRITE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_write(runtime, context, handle, buffer),
+            RuntimeWorld::Host => platform_vm::destack_fs_write(binding, context, handle, buffer),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_write(runtime, context, handle, buffer)
+                platform_simulation_vm::destack_fs_write(binding, context, handle, buffer)
             }
         },
         |context, result| {
@@ -20784,20 +20783,20 @@ fn destack_fs_file_write_vm_replay(
 
 #[inline]
 fn destack_fs_file_writev_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_FILE_WRITEV,
-        runtime.replay_payload_for(FS_FILE_WRITEV)?,
+        binding.replay_payload_for(FS_FILE_WRITEV)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_writev(runtime, context, handle, buffers),
+            RuntimeWorld::Host => platform_vm::destack_fs_writev(binding, context, handle, buffers),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_writev(runtime, context, handle, buffers)
+                platform_simulation_vm::destack_fs_writev(binding, context, handle, buffers)
             }
         },
         |context, result| {
@@ -20839,22 +20838,22 @@ fn destack_fs_file_writev_vm_replay(
 
 #[inline]
 fn destack_fs_mmap_madvise_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_MMAP_MADVISE,
-        runtime.replay_payload_for(FS_MMAP_MADVISE)?,
+        binding.replay_payload_for(FS_MMAP_MADVISE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_madvise(runtime, context, mapping, advice)
+                platform_vm::destack_fs_madvise(binding, context, mapping, advice)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_madvise(runtime, context, mapping, advice)
+                platform_simulation_vm::destack_fs_madvise(binding, context, mapping, advice)
             }
         },
         |context, result| {
@@ -20892,23 +20891,23 @@ fn destack_fs_mmap_madvise_vm_replay(
 
 #[inline]
 fn destack_fs_mmap_mmap_anonymous_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     length: FileSize,
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_MMAP_MMAP_ANONYMOUS,
-        runtime.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
+        binding.replay_payload_for(FS_MMAP_MMAP_ANONYMOUS)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_mmap_anonymous(runtime, context, length, prot, flags)
+                platform_vm::destack_fs_mmap_anonymous(binding, context, length, prot, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_mmap_anonymous(
-                runtime, context, length, prot, flags,
+                binding, context, length, prot, flags,
             ),
         },
         |context, result| {
@@ -20950,7 +20949,7 @@ fn destack_fs_mmap_mmap_anonymous_vm_replay(
 
 #[inline]
 fn destack_fs_mmap_mmap_file_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -20959,16 +20958,16 @@ fn destack_fs_mmap_mmap_file_vm_replay(
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_MMAP_MMAP_FILE,
-        runtime.replay_payload_for(FS_MMAP_MMAP_FILE)?,
+        binding.replay_payload_for(FS_MMAP_MMAP_FILE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_mmap_file(
-                runtime, context, handle, offset, length, prot, flags,
+                binding, context, handle, offset, length, prot, flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_mmap_file(
-                runtime, context, handle, offset, length, prot, flags,
+                binding, context, handle, offset, length, prot, flags,
             ),
         },
         |context, result| {
@@ -21010,20 +21009,20 @@ fn destack_fs_mmap_mmap_file_vm_replay(
 
 #[inline]
 fn destack_fs_mmap_mprotect_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_MMAP_MPROTECT,
-        runtime.replay_payload_for(FS_MMAP_MPROTECT)?,
+        binding.replay_payload_for(FS_MMAP_MPROTECT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_mprotect(runtime, context, mapping, prot),
+            RuntimeWorld::Host => platform_vm::destack_fs_mprotect(binding, context, mapping, prot),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_mprotect(runtime, context, mapping, prot)
+                platform_simulation_vm::destack_fs_mprotect(binding, context, mapping, prot)
             }
         },
         |context, result| {
@@ -21061,20 +21060,20 @@ fn destack_fs_mmap_mprotect_vm_replay(
 
 #[inline]
 fn destack_fs_mmap_msync_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_MMAP_MSYNC,
-        runtime.replay_payload_for(FS_MMAP_MSYNC)?,
+        binding.replay_payload_for(FS_MMAP_MSYNC)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_msync(runtime, context, mapping, flags),
+            RuntimeWorld::Host => platform_vm::destack_fs_msync(binding, context, mapping, flags),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_msync(runtime, context, mapping, flags)
+                platform_simulation_vm::destack_fs_msync(binding, context, mapping, flags)
             }
         },
         |context, result| {
@@ -21112,19 +21111,19 @@ fn destack_fs_mmap_msync_vm_replay(
 
 #[inline]
 fn destack_fs_mmap_munmap_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     mapping: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_MMAP_MUNMAP,
-        runtime.replay_payload_for(FS_MMAP_MUNMAP)?,
+        binding.replay_payload_for(FS_MMAP_MUNMAP)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_munmap(runtime, context, mapping),
+            RuntimeWorld::Host => platform_vm::destack_fs_munmap(binding, context, mapping),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_munmap(runtime, context, mapping)
+                platform_simulation_vm::destack_fs_munmap(binding, context, mapping)
             }
         },
         |context, result| {
@@ -21162,23 +21161,23 @@ fn destack_fs_mmap_munmap_vm_replay(
 
 #[inline]
 fn destack_fs_path_copyfile_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     from: OsPathVm,
     to: OsPathVm,
     flags: CopyFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_COPYFILE,
-        runtime.replay_payload_for(FS_PATH_COPYFILE)?,
+        binding.replay_payload_for(FS_PATH_COPYFILE)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_copyfile(runtime, context, from, to, flags)
+                platform_vm::destack_fs_copyfile(binding, context, from, to, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_copyfile(runtime, context, from, to, flags)
+                platform_simulation_vm::destack_fs_copyfile(binding, context, from, to, flags)
             }
         },
         |context, result| {
@@ -21216,22 +21215,22 @@ fn destack_fs_path_copyfile_vm_replay(
 
 #[inline]
 fn destack_fs_path_link_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     existingpath: OsPathVm,
     newpath: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_LINK,
-        runtime.replay_payload_for(FS_PATH_LINK)?,
+        binding.replay_payload_for(FS_PATH_LINK)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_link(runtime, context, existingpath, newpath)
+                platform_vm::destack_fs_link(binding, context, existingpath, newpath)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_link(runtime, context, existingpath, newpath)
+                platform_simulation_vm::destack_fs_link(binding, context, existingpath, newpath)
             }
         },
         |context, result| {
@@ -21269,7 +21268,7 @@ fn destack_fs_path_link_vm_replay(
 
 #[inline]
 fn destack_fs_path_linkat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     existingdir: resource::DirectoryHandle,
@@ -21278,13 +21277,13 @@ fn destack_fs_path_linkat_vm_replay(
     newpath: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_LINKAT,
-        runtime.replay_payload_for(FS_PATH_LINKAT)?,
+        binding.replay_payload_for(FS_PATH_LINKAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_linkat(
-                runtime,
+                binding,
                 context,
                 existingdir,
                 existingpath,
@@ -21293,7 +21292,7 @@ fn destack_fs_path_linkat_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_linkat(
-                runtime,
+                binding,
                 context,
                 existingdir,
                 existingpath,
@@ -21337,20 +21336,20 @@ fn destack_fs_path_linkat_vm_replay(
 
 #[inline]
 fn destack_fs_path_mkfifo_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_MKFIFO,
-        runtime.replay_payload_for(FS_PATH_MKFIFO)?,
+        binding.replay_payload_for(FS_PATH_MKFIFO)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_mkfifo(runtime, context, path, mode),
+            RuntimeWorld::Host => platform_vm::destack_fs_mkfifo(binding, context, path, mode),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_mkfifo(runtime, context, path, mode)
+                platform_simulation_vm::destack_fs_mkfifo(binding, context, path, mode)
             }
         },
         |context, result| {
@@ -21388,23 +21387,23 @@ fn destack_fs_path_mkfifo_vm_replay(
 
 #[inline]
 fn destack_fs_path_mkfifoat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_MKFIFOAT,
-        runtime.replay_payload_for(FS_PATH_MKFIFOAT)?,
+        binding.replay_payload_for(FS_PATH_MKFIFOAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
+                platform_vm::destack_fs_mkfifoat(binding, context, dir, path, mode)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_mkfifoat(runtime, context, dir, path, mode)
+                platform_simulation_vm::destack_fs_mkfifoat(binding, context, dir, path, mode)
             }
         },
         |context, result| {
@@ -21442,23 +21441,23 @@ fn destack_fs_path_mkfifoat_vm_replay(
 
 #[inline]
 fn destack_fs_path_mknod_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_MKNOD,
-        runtime.replay_payload_for(FS_PATH_MKNOD)?,
+        binding.replay_payload_for(FS_PATH_MKNOD)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_mknod(runtime, context, path, mode, device)
+                platform_vm::destack_fs_mknod(binding, context, path, mode, device)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_mknod(runtime, context, path, mode, device)
+                platform_simulation_vm::destack_fs_mknod(binding, context, path, mode, device)
             }
         },
         |context, result| {
@@ -21496,7 +21495,7 @@ fn destack_fs_path_mknod_vm_replay(
 
 #[inline]
 fn destack_fs_path_mknodat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -21504,16 +21503,16 @@ fn destack_fs_path_mknodat_vm_replay(
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_MKNODAT,
-        runtime.replay_payload_for(FS_PATH_MKNODAT)?,
+        binding.replay_payload_for(FS_PATH_MKNODAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_mknodat(runtime, context, dir, path, mode, device)
+                platform_vm::destack_fs_mknodat(binding, context, dir, path, mode, device)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_mknodat(
-                runtime, context, dir, path, mode, device,
+                binding, context, dir, path, mode, device,
             ),
         },
         |context, result| {
@@ -21551,19 +21550,19 @@ fn destack_fs_path_mknodat_vm_replay(
 
 #[inline]
 fn destack_fs_path_readlink_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_READLINK,
-        runtime.replay_payload_for(FS_PATH_READLINK)?,
+        binding.replay_payload_for(FS_PATH_READLINK)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_readlink(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_readlink(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_readlink(runtime, context, path)
+                platform_simulation_vm::destack_fs_readlink(binding, context, path)
             }
         },
         |context, result| {
@@ -21702,20 +21701,20 @@ fn destack_fs_path_readlink_vm_replay(
 
 #[inline]
 fn destack_fs_path_readlinkat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_READLINKAT,
-        runtime.replay_payload_for(FS_PATH_READLINKAT)?,
+        binding.replay_payload_for(FS_PATH_READLINKAT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_readlinkat(runtime, context, dir, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_readlinkat(binding, context, dir, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_readlinkat(runtime, context, dir, path)
+                platform_simulation_vm::destack_fs_readlinkat(binding, context, dir, path)
             }
         },
         |context, result| {
@@ -21854,19 +21853,19 @@ fn destack_fs_path_readlinkat_vm_replay(
 
 #[inline]
 fn destack_fs_path_realpath_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_REALPATH,
-        runtime.replay_payload_for(FS_PATH_REALPATH)?,
+        binding.replay_payload_for(FS_PATH_REALPATH)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_realpath(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_realpath(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_realpath(runtime, context, path)
+                platform_simulation_vm::destack_fs_realpath(binding, context, path)
             }
         },
         |context, result| {
@@ -22005,20 +22004,20 @@ fn destack_fs_path_realpath_vm_replay(
 
 #[inline]
 fn destack_fs_path_rename_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     from: OsPathVm,
     to: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_RENAME,
-        runtime.replay_payload_for(FS_PATH_RENAME)?,
+        binding.replay_payload_for(FS_PATH_RENAME)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_rename(runtime, context, from, to),
+            RuntimeWorld::Host => platform_vm::destack_fs_rename(binding, context, from, to),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_rename(runtime, context, from, to)
+                platform_simulation_vm::destack_fs_rename(binding, context, from, to)
             }
         },
         |context, result| {
@@ -22056,7 +22055,7 @@ fn destack_fs_path_rename_vm_replay(
 
 #[inline]
 fn destack_fs_path_renameat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     fromdir: resource::DirectoryHandle,
@@ -22064,16 +22063,16 @@ fn destack_fs_path_renameat_vm_replay(
     todir: resource::DirectoryHandle,
     to: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_RENAMEAT,
-        runtime.replay_payload_for(FS_PATH_RENAMEAT)?,
+        binding.replay_payload_for(FS_PATH_RENAMEAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_renameat(runtime, context, fromdir, from, todir, to)
+                platform_vm::destack_fs_renameat(binding, context, fromdir, from, todir, to)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_renameat(
-                runtime, context, fromdir, from, todir, to,
+                binding, context, fromdir, from, todir, to,
             ),
         },
         |context, result| {
@@ -22111,7 +22110,7 @@ fn destack_fs_path_renameat_vm_replay(
 
 #[inline]
 fn destack_fs_path_renameat2_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     fromdir: resource::DirectoryHandle,
@@ -22120,16 +22119,16 @@ fn destack_fs_path_renameat2_vm_replay(
     to: OsPathVm,
     flags: RenameFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_RENAMEAT2,
-        runtime.replay_payload_for(FS_PATH_RENAMEAT2)?,
+        binding.replay_payload_for(FS_PATH_RENAMEAT2)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_renameat2(runtime, context, fromdir, from, todir, to, flags)
+                platform_vm::destack_fs_renameat2(binding, context, fromdir, from, todir, to, flags)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_renameat2(
-                runtime, context, fromdir, from, todir, to, flags,
+                binding, context, fromdir, from, todir, to, flags,
             ),
         },
         |context, result| {
@@ -22167,23 +22166,23 @@ fn destack_fs_path_renameat2_vm_replay(
 
 #[inline]
 fn destack_fs_path_symlink_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     target: OsPathVm,
     path: OsPathVm,
     kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_SYMLINK,
-        runtime.replay_payload_for(FS_PATH_SYMLINK)?,
+        binding.replay_payload_for(FS_PATH_SYMLINK)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_symlink(runtime, context, target, path, kind)
+                platform_vm::destack_fs_symlink(binding, context, target, path, kind)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_symlink(runtime, context, target, path, kind)
+                platform_simulation_vm::destack_fs_symlink(binding, context, target, path, kind)
             }
         },
         |context, result| {
@@ -22221,7 +22220,7 @@ fn destack_fs_path_symlink_vm_replay(
 
 #[inline]
 fn destack_fs_path_symlinkat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     target: OsPathVm,
@@ -22229,16 +22228,16 @@ fn destack_fs_path_symlinkat_vm_replay(
     path: OsPathVm,
     kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_SYMLINKAT,
-        runtime.replay_payload_for(FS_PATH_SYMLINKAT)?,
+        binding.replay_payload_for(FS_PATH_SYMLINKAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_symlinkat(runtime, context, target, dir, path, kind)
+                platform_vm::destack_fs_symlinkat(binding, context, target, dir, path, kind)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_symlinkat(
-                runtime, context, target, dir, path, kind,
+                binding, context, target, dir, path, kind,
             ),
         },
         |context, result| {
@@ -22276,19 +22275,19 @@ fn destack_fs_path_symlinkat_vm_replay(
 
 #[inline]
 fn destack_fs_path_unlink_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_UNLINK,
-        runtime.replay_payload_for(FS_PATH_UNLINK)?,
+        binding.replay_payload_for(FS_PATH_UNLINK)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_unlink(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_unlink(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_unlink(runtime, context, path)
+                platform_simulation_vm::destack_fs_unlink(binding, context, path)
             }
         },
         |context, result| {
@@ -22326,23 +22325,23 @@ fn destack_fs_path_unlink_vm_replay(
 
 #[inline]
 fn destack_fs_path_unlinkat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_PATH_UNLINKAT,
-        runtime.replay_payload_for(FS_PATH_UNLINKAT)?,
+        binding.replay_payload_for(FS_PATH_UNLINKAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
+                platform_vm::destack_fs_unlinkat(binding, context, dir, path, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_unlinkat(runtime, context, dir, path, flags)
+                platform_simulation_vm::destack_fs_unlinkat(binding, context, dir, path, flags)
             }
         },
         |context, result| {
@@ -22380,19 +22379,19 @@ fn destack_fs_path_unlinkat_vm_replay(
 
 #[inline]
 fn destack_fs_stat_fstat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_STAT_FSTAT,
-        runtime.replay_payload_for(FS_STAT_FSTAT)?,
+        binding.replay_payload_for(FS_STAT_FSTAT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_fstat(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_fstat(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fstat(runtime, context, handle)
+                platform_simulation_vm::destack_fs_fstat(binding, context, handle)
             }
         },
         |context, result| {
@@ -22492,19 +22491,19 @@ fn destack_fs_stat_fstat_vm_replay(
 
 #[inline]
 fn destack_fs_stat_fstatfs_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_STAT_FSTATFS,
-        runtime.replay_payload_for(FS_STAT_FSTATFS)?,
+        binding.replay_payload_for(FS_STAT_FSTATFS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_fstatfs(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_fstatfs(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fstatfs(runtime, context, handle)
+                platform_simulation_vm::destack_fs_fstatfs(binding, context, handle)
             }
         },
         |context, result| {
@@ -22588,19 +22587,19 @@ fn destack_fs_stat_fstatfs_vm_replay(
 
 #[inline]
 fn destack_fs_stat_lstat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_STAT_LSTAT,
-        runtime.replay_payload_for(FS_STAT_LSTAT)?,
+        binding.replay_payload_for(FS_STAT_LSTAT)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_lstat(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_lstat(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_lstat(runtime, context, path)
+                platform_simulation_vm::destack_fs_lstat(binding, context, path)
             }
         },
         |context, result| {
@@ -22700,19 +22699,19 @@ fn destack_fs_stat_lstat_vm_replay(
 
 #[inline]
 fn destack_fs_stat_path_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_STAT_PATH,
-        runtime.replay_payload_for(FS_STAT_PATH)?,
+        binding.replay_payload_for(FS_STAT_PATH)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_stat(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_stat(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_stat(runtime, context, path)
+                platform_simulation_vm::destack_fs_stat(binding, context, path)
             }
         },
         |context, result| {
@@ -22812,23 +22811,23 @@ fn destack_fs_stat_path_vm_replay(
 
 #[inline]
 fn destack_fs_stat_pathat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
     path: OsPathVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_STAT_PATHAT,
-        runtime.replay_payload_for(FS_STAT_PATHAT)?,
+        binding.replay_payload_for(FS_STAT_PATHAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_statat(runtime, context, dir, path, flags)
+                platform_vm::destack_fs_statat(binding, context, dir, path, flags)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_statat(runtime, context, dir, path, flags)
+                platform_simulation_vm::destack_fs_statat(binding, context, dir, path, flags)
             }
         },
         |context, result| {
@@ -22928,19 +22927,19 @@ fn destack_fs_stat_pathat_vm_replay(
 
 #[inline]
 fn destack_fs_stat_pathfs_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_STAT_PATHFS,
-        runtime.replay_payload_for(FS_STAT_PATHFS)?,
+        binding.replay_payload_for(FS_STAT_PATHFS)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_statfs(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_statfs(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_statfs(runtime, context, path)
+                platform_simulation_vm::destack_fs_statfs(binding, context, path)
             }
         },
         |context, result| {
@@ -23024,7 +23023,7 @@ fn destack_fs_stat_pathfs_vm_replay(
 
 #[inline]
 fn destack_fs_stat_pathx_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     dir: resource::DirectoryHandle,
@@ -23032,16 +23031,16 @@ fn destack_fs_stat_pathx_vm_replay(
     flags: StatxFlags,
     mask: StatxMask,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_STAT_PATHX,
-        runtime.replay_payload_for(FS_STAT_PATHX)?,
+        binding.replay_payload_for(FS_STAT_PATHX)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_statx(runtime, context, dir, path, flags, mask)
+                platform_vm::destack_fs_statx(binding, context, dir, path, flags, mask)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_statx(runtime, context, dir, path, flags, mask)
+                platform_simulation_vm::destack_fs_statx(binding, context, dir, path, flags, mask)
             }
         },
         |context, result| {
@@ -23157,20 +23156,20 @@ fn destack_fs_stat_pathx_vm_replay(
 
 #[inline]
 fn destack_fs_watch_open_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_WATCH_OPEN,
-        runtime.replay_payload_for(FS_WATCH_OPEN)?,
+        binding.replay_payload_for(FS_WATCH_OPEN)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_watch(runtime, context, path, options),
+            RuntimeWorld::Host => platform_vm::destack_fs_watch(binding, context, path, options),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_watch(runtime, context, path, options)
+                platform_simulation_vm::destack_fs_watch(binding, context, path, options)
             }
         },
         |context, result| {
@@ -23212,19 +23211,19 @@ fn destack_fs_watch_open_vm_replay(
 
 #[inline]
 fn destack_fs_watch_open_close_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_WATCH_OPEN_CLOSE,
-        runtime.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
+        binding.replay_payload_for(FS_WATCH_OPEN_CLOSE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_watch_close(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_watch_close(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_watch_close(runtime, context, handle)
+                platform_simulation_vm::destack_fs_watch_close(binding, context, handle)
             }
         },
         |context, result| {
@@ -23262,19 +23261,19 @@ fn destack_fs_watch_open_close_vm_replay(
 
 #[inline]
 fn destack_fs_watch_open_read_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_WATCH_OPEN_READ,
-        runtime.replay_payload_for(FS_WATCH_OPEN_READ)?,
+        binding.replay_payload_for(FS_WATCH_OPEN_READ)?,
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_fs_watch_read(runtime, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_watch_read(runtime, context, handle),
+                RuntimeWorld::Host => platform_vm::destack_fs_watch_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_watch_read(binding, context, handle),
             }
         },
         |context, result| {
@@ -23908,23 +23907,23 @@ fn destack_fs_watch_open_read_vm_replay(
 
 #[inline]
 fn destack_fs_watch_openat_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     directory: resource::DirectoryHandle,
     path: OsPathVm,
     options: WatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_WATCH_OPENAT,
-        runtime.replay_payload_for(FS_WATCH_OPENAT)?,
+        binding.replay_payload_for(FS_WATCH_OPENAT)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_watchat(runtime, context, directory, path, options)
+                platform_vm::destack_fs_watchat(binding, context, directory, path, options)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_watchat(
-                runtime, context, directory, path, options,
+                binding, context, directory, path, options,
             ),
         },
         |context, result| {
@@ -23966,20 +23965,20 @@ fn destack_fs_watch_openat_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_fgetxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_FGETXATTR,
-        runtime.replay_payload_for(FS_XATTR_FGETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_FGETXATTR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_fgetxattr(runtime, context, handle, name),
+            RuntimeWorld::Host => platform_vm::destack_fs_fgetxattr(binding, context, handle, name),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fgetxattr(runtime, context, handle, name)
+                platform_simulation_vm::destack_fs_fgetxattr(binding, context, handle, name)
             }
         },
         |context, result| {
@@ -24021,22 +24020,22 @@ fn destack_fs_xattr_fgetxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_FGETXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_FGETXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_fgetxattr_bytes(runtime, context, handle, name)
+                platform_vm::destack_fs_fgetxattr_bytes(binding, context, handle, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fgetxattr_bytes(runtime, context, handle, name)
+                platform_simulation_vm::destack_fs_fgetxattr_bytes(binding, context, handle, name)
             }
         },
         |context, result| {
@@ -24078,19 +24077,19 @@ fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_flistxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_FLISTXATTR,
-        runtime.replay_payload_for(FS_XATTR_FLISTXATTR)?,
+        binding.replay_payload_for(FS_XATTR_FLISTXATTR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_flistxattr(runtime, context, handle),
+            RuntimeWorld::Host => platform_vm::destack_fs_flistxattr(binding, context, handle),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_flistxattr(runtime, context, handle)
+                platform_simulation_vm::destack_fs_flistxattr(binding, context, handle)
             }
         },
         |context, result| {
@@ -24152,21 +24151,21 @@ fn destack_fs_xattr_flistxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_flistxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_FLISTXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_FLISTXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
+                platform_vm::destack_fs_flistxattr_bytes(binding, context, handle)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_flistxattr_bytes(runtime, context, handle)
+                platform_simulation_vm::destack_fs_flistxattr_bytes(binding, context, handle)
             }
         },
         |context, result| {
@@ -24233,22 +24232,22 @@ fn destack_fs_xattr_flistxattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_fremovexattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_FREMOVEXATTR,
-        runtime.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
+        binding.replay_payload_for(FS_XATTR_FREMOVEXATTR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_fremovexattr(runtime, context, handle, name)
+                platform_vm::destack_fs_fremovexattr(binding, context, handle, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_fremovexattr(runtime, context, handle, name)
+                platform_simulation_vm::destack_fs_fremovexattr(binding, context, handle, name)
             }
         },
         |context, result| {
@@ -24286,22 +24285,22 @@ fn destack_fs_xattr_fremovexattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_fremovexattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_FREMOVEXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_FREMOVEXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_fremovexattr_bytes(runtime, context, handle, name)
+                platform_vm::destack_fs_fremovexattr_bytes(binding, context, handle, name)
             }
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fremovexattr_bytes(
-                runtime, context, handle, name,
+                binding, context, handle, name,
             ),
         },
         |context, result| {
@@ -24339,7 +24338,7 @@ fn destack_fs_xattr_fremovexattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_fsetxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -24347,13 +24346,13 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_FSETXATTR,
-        runtime.replay_payload_for(FS_XATTR_FSETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_FSETXATTR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_fsetxattr(
-                runtime,
+                binding,
                 context,
                 handle,
                 name,
@@ -24361,7 +24360,7 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fsetxattr(
-                runtime,
+                binding,
                 context,
                 handle,
                 name,
@@ -24404,7 +24403,7 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::FileHandle,
@@ -24412,13 +24411,13 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_FSETXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_fsetxattr_bytes(
-                runtime,
+                binding,
                 context,
                 handle,
                 name,
@@ -24426,7 +24425,7 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_fsetxattr_bytes(
-                runtime,
+                binding,
                 context,
                 handle,
                 name,
@@ -24469,20 +24468,20 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_getxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_GETXATTR,
-        runtime.replay_payload_for(FS_XATTR_GETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_GETXATTR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_getxattr(runtime, context, path, name),
+            RuntimeWorld::Host => platform_vm::destack_fs_getxattr(binding, context, path, name),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_getxattr(runtime, context, path, name)
+                platform_simulation_vm::destack_fs_getxattr(binding, context, path, name)
             }
         },
         |context, result| {
@@ -24524,22 +24523,22 @@ fn destack_fs_xattr_getxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_getxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_GETXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_GETXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
+                platform_vm::destack_fs_getxattr_bytes(binding, context, path, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_getxattr_bytes(runtime, context, path, name)
+                platform_simulation_vm::destack_fs_getxattr_bytes(binding, context, path, name)
             }
         },
         |context, result| {
@@ -24581,20 +24580,20 @@ fn destack_fs_xattr_getxattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_lgetxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LGETXATTR,
-        runtime.replay_payload_for(FS_XATTR_LGETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LGETXATTR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_lgetxattr(runtime, context, path, name),
+            RuntimeWorld::Host => platform_vm::destack_fs_lgetxattr(binding, context, path, name),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_lgetxattr(runtime, context, path, name)
+                platform_simulation_vm::destack_fs_lgetxattr(binding, context, path, name)
             }
         },
         |context, result| {
@@ -24636,22 +24635,22 @@ fn destack_fs_xattr_lgetxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LGETXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LGETXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
+                platform_vm::destack_fs_lgetxattr_bytes(binding, context, path, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_lgetxattr_bytes(runtime, context, path, name)
+                platform_simulation_vm::destack_fs_lgetxattr_bytes(binding, context, path, name)
             }
         },
         |context, result| {
@@ -24693,19 +24692,19 @@ fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_listxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LISTXATTR,
-        runtime.replay_payload_for(FS_XATTR_LISTXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LISTXATTR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_listxattr(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_listxattr(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_listxattr(runtime, context, path)
+                platform_simulation_vm::destack_fs_listxattr(binding, context, path)
             }
         },
         |context, result| {
@@ -24767,19 +24766,19 @@ fn destack_fs_xattr_listxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_listxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LISTXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LISTXATTR_BYTES)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_listxattr_bytes(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_listxattr_bytes(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_listxattr_bytes(runtime, context, path)
+                platform_simulation_vm::destack_fs_listxattr_bytes(binding, context, path)
             }
         },
         |context, result| {
@@ -24846,19 +24845,19 @@ fn destack_fs_xattr_listxattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_llistxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LLISTXATTR,
-        runtime.replay_payload_for(FS_XATTR_LLISTXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LLISTXATTR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_llistxattr(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_llistxattr(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_llistxattr(runtime, context, path)
+                platform_simulation_vm::destack_fs_llistxattr(binding, context, path)
             }
         },
         |context, result| {
@@ -24920,19 +24919,19 @@ fn destack_fs_xattr_llistxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_llistxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LLISTXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LLISTXATTR_BYTES)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_llistxattr_bytes(runtime, context, path),
+            RuntimeWorld::Host => platform_vm::destack_fs_llistxattr_bytes(binding, context, path),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_llistxattr_bytes(runtime, context, path)
+                platform_simulation_vm::destack_fs_llistxattr_bytes(binding, context, path)
             }
         },
         |context, result| {
@@ -24999,22 +24998,22 @@ fn destack_fs_xattr_llistxattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_lremovexattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LREMOVEXATTR,
-        runtime.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LREMOVEXATTR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_lremovexattr(runtime, context, path, name)
+                platform_vm::destack_fs_lremovexattr(binding, context, path, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_lremovexattr(runtime, context, path, name)
+                platform_simulation_vm::destack_fs_lremovexattr(binding, context, path, name)
             }
         },
         |context, result| {
@@ -25052,22 +25051,22 @@ fn destack_fs_xattr_lremovexattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_lremovexattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LREMOVEXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LREMOVEXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_lremovexattr_bytes(runtime, context, path, name)
+                platform_vm::destack_fs_lremovexattr_bytes(binding, context, path, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_lremovexattr_bytes(runtime, context, path, name)
+                platform_simulation_vm::destack_fs_lremovexattr_bytes(binding, context, path, name)
             }
         },
         |context, result| {
@@ -25105,7 +25104,7 @@ fn destack_fs_xattr_lremovexattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_lsetxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
@@ -25113,13 +25112,13 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LSETXATTR,
-        runtime.replay_payload_for(FS_XATTR_LSETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_LSETXATTR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_lsetxattr(
-                runtime,
+                binding,
                 context,
                 path,
                 name,
@@ -25127,7 +25126,7 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_lsetxattr(
-                runtime,
+                binding,
                 context,
                 path,
                 name,
@@ -25170,7 +25169,7 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
@@ -25178,13 +25177,13 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_LSETXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_lsetxattr_bytes(
-                runtime,
+                binding,
                 context,
                 path,
                 name,
@@ -25192,7 +25191,7 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_lsetxattr_bytes(
-                runtime,
+                binding,
                 context,
                 path,
                 name,
@@ -25235,20 +25234,20 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_removexattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_REMOVEXATTR,
-        runtime.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
+        binding.replay_payload_for(FS_XATTR_REMOVEXATTR)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_removexattr(runtime, context, path, name),
+            RuntimeWorld::Host => platform_vm::destack_fs_removexattr(binding, context, path, name),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_removexattr(runtime, context, path, name)
+                platform_simulation_vm::destack_fs_removexattr(binding, context, path, name)
             }
         },
         |context, result| {
@@ -25286,22 +25285,22 @@ fn destack_fs_xattr_removexattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_removexattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_REMOVEXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_REMOVEXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_fs_removexattr_bytes(runtime, context, path, name)
+                platform_vm::destack_fs_removexattr_bytes(binding, context, path, name)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_removexattr_bytes(runtime, context, path, name)
+                platform_simulation_vm::destack_fs_removexattr_bytes(binding, context, path, name)
             }
         },
         |context, result| {
@@ -25339,7 +25338,7 @@ fn destack_fs_xattr_removexattr_bytes_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_setxattr_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
@@ -25347,13 +25346,13 @@ fn destack_fs_xattr_setxattr_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_SETXATTR,
-        runtime.replay_payload_for(FS_XATTR_SETXATTR)?,
+        binding.replay_payload_for(FS_XATTR_SETXATTR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_setxattr(
-                runtime,
+                binding,
                 context,
                 path,
                 name,
@@ -25361,7 +25360,7 @@ fn destack_fs_xattr_setxattr_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_setxattr(
-                runtime,
+                binding,
                 context,
                 path,
                 name,
@@ -25404,7 +25403,7 @@ fn destack_fs_xattr_setxattr_vm_replay(
 
 #[inline]
 fn destack_fs_xattr_setxattr_bytes_vm_replay(
-    runtime: &BindingCallContext,
+    binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     path: OsPathVm,
@@ -25412,13 +25411,13 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
     argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding_with_context_policy(
         FS_XATTR_SETXATTR_BYTES,
-        runtime.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
+        binding.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
         context,
         |context| match world {
             RuntimeWorld::Host => platform_vm::destack_fs_setxattr_bytes(
-                runtime,
+                binding,
                 context,
                 path,
                 name,
@@ -25426,7 +25425,7 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
                 flags,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_setxattr_bytes(
-                runtime,
+                binding,
                 context,
                 path,
                 name,
@@ -25471,14 +25470,14 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
 pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, FS_ATTRS_ACCESS, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, mode) = decode_destack_fs_attrs_access_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_ATTRS_ACCESS)?;
-                destack_fs_attrs_access_vm_replay(runtime, context, world, path, mode)
+                    binding.on_before_binding_resolve_world(FS_ATTRS_ACCESS)?;
+                destack_fs_attrs_access_vm_replay(binding, context, world, path, mode)
             })
             .map_err(Into::into)
         });
@@ -25489,16 +25488,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_ATTRS_ACCESSAT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (dir, path, mode, flags) =
                         decode_destack_fs_attrs_accessat_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_ATTRS_ACCESSAT)?;
+                        binding.on_before_binding_resolve_world(FS_ATTRS_ACCESSAT)?;
                     destack_fs_attrs_accessat_vm_replay(
-                        runtime, context, world, dir, path, mode, flags,
+                        binding, context, world, dir, path, mode, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -25507,42 +25506,42 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_CHMOD, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, mode) = decode_destack_fs_attrs_chmod_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_ATTRS_CHMOD)?;
-                destack_fs_attrs_chmod_vm_replay(runtime, context, world, path, mode)
+                    binding.on_before_binding_resolve_world(FS_ATTRS_CHMOD)?;
+                destack_fs_attrs_chmod_vm_replay(binding, context, world, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_ATTRS_CHOWN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, uid, gid) = decode_destack_fs_attrs_chown_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_ATTRS_CHOWN)?;
-                destack_fs_attrs_chown_vm_replay(runtime, context, world, path, uid, gid)
+                    binding.on_before_binding_resolve_world(FS_ATTRS_CHOWN)?;
+                destack_fs_attrs_chown_vm_replay(binding, context, world, path, uid, gid)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_ATTRS_FCHMOD, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, mode) = decode_destack_fs_attrs_fchmod_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_ATTRS_FCHMOD)?;
-                destack_fs_attrs_fchmod_vm_replay(runtime, context, world, handle, mode)
+                    binding.on_before_binding_resolve_world(FS_ATTRS_FCHMOD)?;
+                destack_fs_attrs_fchmod_vm_replay(binding, context, world, handle, mode)
             })
             .map_err(Into::into)
         });
@@ -25553,16 +25552,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_ATTRS_FCHMODAT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (dir, path, mode, flags) =
                         decode_destack_fs_attrs_fchmodat_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_ATTRS_FCHMODAT)?;
+                        binding.on_before_binding_resolve_world(FS_ATTRS_FCHMODAT)?;
                     destack_fs_attrs_fchmodat_vm_replay(
-                        runtime, context, world, dir, path, mode, flags,
+                        binding, context, world, dir, path, mode, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -25571,14 +25570,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_FCHOWN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, uid, gid) = decode_destack_fs_attrs_fchown_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_ATTRS_FCHOWN)?;
-                destack_fs_attrs_fchown_vm_replay(runtime, context, world, handle, uid, gid)
+                    binding.on_before_binding_resolve_world(FS_ATTRS_FCHOWN)?;
+                destack_fs_attrs_fchown_vm_replay(binding, context, world, handle, uid, gid)
             })
             .map_err(Into::into)
         });
@@ -25589,16 +25588,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_ATTRS_FCHOWNAT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (dir, path, uid, gid, flags) =
                         decode_destack_fs_attrs_fchownat_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_ATTRS_FCHOWNAT)?;
+                        binding.on_before_binding_resolve_world(FS_ATTRS_FCHOWNAT)?;
                     destack_fs_attrs_fchownat_vm_replay(
-                        runtime, context, world, dir, path, uid, gid, flags,
+                        binding, context, world, dir, path, uid, gid, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -25607,16 +25606,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_FUTIMES, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, atimens, mtimens) =
                     decode_destack_fs_attrs_futimes_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_ATTRS_FUTIMES)?;
+                    binding.on_before_binding_resolve_world(FS_ATTRS_FUTIMES)?;
                 destack_fs_attrs_futimes_vm_replay(
-                    runtime, context, world, handle, atimens, mtimens,
+                    binding, context, world, handle, atimens, mtimens,
                 )
             })
             .map_err(Into::into)
@@ -25624,14 +25623,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_LUTIMES, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, atimens, mtimens) = decode_destack_fs_attrs_lutimes_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_ATTRS_LUTIMES)?;
-                destack_fs_attrs_lutimes_vm_replay(runtime, context, world, path, atimens, mtimens)
+                    binding.on_before_binding_resolve_world(FS_ATTRS_LUTIMES)?;
+                destack_fs_attrs_lutimes_vm_replay(binding, context, world, path, atimens, mtimens)
             })
             .map_err(Into::into)
         });
@@ -25642,16 +25641,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_ATTRS_UTIMENSAT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (dir, path, atimens, mtimens, flags) =
                         decode_destack_fs_attrs_utimensat_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_ATTRS_UTIMENSAT)?;
+                        binding.on_before_binding_resolve_world(FS_ATTRS_UTIMENSAT)?;
                     destack_fs_attrs_utimensat_vm_replay(
-                        runtime, context, world, dir, path, atimens, mtimens, flags,
+                        binding, context, world, dir, path, atimens, mtimens, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -25660,112 +25659,112 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_ATTRS_UTIMES, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, atimens, mtimens) = decode_destack_fs_attrs_utimes_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_ATTRS_UTIMES)?;
-                destack_fs_attrs_utimes_vm_replay(runtime, context, world, path, atimens, mtimens)
+                    binding.on_before_binding_resolve_world(FS_ATTRS_UTIMES)?;
+                destack_fs_attrs_utimes_vm_replay(binding, context, world, path, atimens, mtimens)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_DIR_CLOSEDIR, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_dir_closedir_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_CLOSEDIR)?;
-                destack_fs_dir_closedir_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_DIR_CLOSEDIR)?;
+                destack_fs_dir_closedir_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_DIR_DIRFD, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_dir_dirfd_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_DIRFD)?;
-                destack_fs_dir_dirfd_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_DIR_DIRFD)?;
+                destack_fs_dir_dirfd_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_DIR_MKDIR, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, mode) = decode_destack_fs_dir_mkdir_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_MKDIR)?;
-                destack_fs_dir_mkdir_vm_replay(runtime, context, world, path, mode)
+                    binding.on_before_binding_resolve_world(FS_DIR_MKDIR)?;
+                destack_fs_dir_mkdir_vm_replay(binding, context, world, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_DIR_MKDIRAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (dir, path, mode) = decode_destack_fs_dir_mkdirat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_MKDIRAT)?;
-                destack_fs_dir_mkdirat_vm_replay(runtime, context, world, dir, path, mode)
+                    binding.on_before_binding_resolve_world(FS_DIR_MKDIRAT)?;
+                destack_fs_dir_mkdirat_vm_replay(binding, context, world, dir, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_DIR_MKDTEMP, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (template,) = decode_destack_fs_dir_mkdtemp_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_MKDTEMP)?;
-                destack_fs_dir_mkdtemp_vm_replay(runtime, context, world, template)
+                    binding.on_before_binding_resolve_world(FS_DIR_MKDTEMP)?;
+                destack_fs_dir_mkdtemp_vm_replay(binding, context, world, template)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_DIR_OPENDIR, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path,) = decode_destack_fs_dir_opendir_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_OPENDIR)?;
-                destack_fs_dir_opendir_vm_replay(runtime, context, world, path)
+                    binding.on_before_binding_resolve_world(FS_DIR_OPENDIR)?;
+                destack_fs_dir_opendir_vm_replay(binding, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_DIR_READDIR, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_dir_readdir_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_READDIR)?;
-                destack_fs_dir_readdir_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_DIR_READDIR)?;
+                destack_fs_dir_readdir_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -25776,14 +25775,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_DIR_READDIR_NEXT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_fs_dir_readdir_next_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_DIR_READDIR_NEXT)?;
-                    destack_fs_dir_readdir_next_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(FS_DIR_READDIR_NEXT)?;
+                    destack_fs_dir_readdir_next_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -25791,42 +25790,42 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_DIR_REWINDDIR, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_dir_rewinddir_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_REWINDDIR)?;
-                destack_fs_dir_rewinddir_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_DIR_REWINDDIR)?;
+                destack_fs_dir_rewinddir_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_DIR_RMDIR, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path,) = decode_destack_fs_dir_rmdir_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_DIR_RMDIR)?;
-                destack_fs_dir_rmdir_vm_replay(runtime, context, world, path)
+                    binding.on_before_binding_resolve_world(FS_DIR_RMDIR)?;
+                destack_fs_dir_rmdir_vm_replay(binding, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_CLOSE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_file_close_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_CLOSE)?;
-                destack_fs_file_close_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_FILE_CLOSE)?;
+                destack_fs_file_close_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -25837,16 +25836,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_COPY_FILE_RANGE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (src, srcoffset, dst, dstoffset, length) =
                         decode_destack_fs_file_copy_file_range_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_COPY_FILE_RANGE)?;
+                        binding.on_before_binding_resolve_world(FS_FILE_COPY_FILE_RANGE)?;
                     destack_fs_file_copy_file_range_vm_replay(
-                        runtime, context, world, src, srcoffset, dst, dstoffset, length,
+                        binding, context, world, src, srcoffset, dst, dstoffset, length,
                     )
                 })
                 .map_err(Into::into)
@@ -25855,58 +25854,58 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_DUP, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_file_dup_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_DUP)?;
-                destack_fs_file_dup_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_FILE_DUP)?;
+                destack_fs_file_dup_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_DUP2, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, target) = decode_destack_fs_file_dup2_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_DUP2)?;
-                destack_fs_file_dup2_vm_replay(runtime, context, world, handle, target)
+                    binding.on_before_binding_resolve_world(FS_FILE_DUP2)?;
+                destack_fs_file_dup2_vm_replay(binding, context, world, handle, target)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_DUP3, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, target, flags) = decode_destack_fs_file_dup3_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_DUP3)?;
-                destack_fs_file_dup3_vm_replay(runtime, context, world, handle, target, flags)
+                    binding.on_before_binding_resolve_world(FS_FILE_DUP3)?;
+                destack_fs_file_dup3_vm_replay(binding, context, world, handle, target, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_FADVISE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, offset, length, advice) =
                     decode_destack_fs_file_fadvise_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_FADVISE)?;
+                    binding.on_before_binding_resolve_world(FS_FILE_FADVISE)?;
                 destack_fs_file_fadvise_vm_replay(
-                    runtime, context, world, handle, offset, length, advice,
+                    binding, context, world, handle, offset, length, advice,
                 )
             })
             .map_err(Into::into)
@@ -25918,16 +25917,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_FALLOCATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, offset, length, flags) =
                         decode_destack_fs_file_fallocate_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_FALLOCATE)?;
+                        binding.on_before_binding_resolve_world(FS_FILE_FALLOCATE)?;
                     destack_fs_file_fallocate_vm_replay(
-                        runtime, context, world, handle, offset, length, flags,
+                        binding, context, world, handle, offset, length, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -25940,14 +25939,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_FDATASYNC,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_fs_file_fdatasync_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_FDATASYNC)?;
-                    destack_fs_file_fdatasync_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(FS_FILE_FDATASYNC)?;
+                    destack_fs_file_fdatasync_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -25955,14 +25954,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_FSYNC, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_file_fsync_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_FSYNC)?;
-                destack_fs_file_fsync_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_FILE_FSYNC)?;
+                destack_fs_file_fsync_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
@@ -25973,14 +25972,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_FTRUNCATE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, size) = decode_destack_fs_file_ftruncate_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_FTRUNCATE)?;
-                    destack_fs_file_ftruncate_vm_replay(runtime, context, world, handle, size)
+                        binding.on_before_binding_resolve_world(FS_FILE_FTRUNCATE)?;
+                    destack_fs_file_ftruncate_vm_replay(binding, context, world, handle, size)
                 })
                 .map_err(Into::into)
             }
@@ -25992,14 +25991,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_GET_FD_FLAGS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_fs_file_get_fd_flags_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_GET_FD_FLAGS)?;
-                    destack_fs_file_get_fd_flags_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(FS_FILE_GET_FD_FLAGS)?;
+                    destack_fs_file_get_fd_flags_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -26011,14 +26010,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_GET_STATUS_FLAGS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_fs_file_get_status_flags_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_GET_STATUS_FLAGS)?;
-                    destack_fs_file_get_status_flags_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(FS_FILE_GET_STATUS_FLAGS)?;
+                    destack_fs_file_get_status_flags_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -26026,100 +26025,100 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_LOCK, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, flags) = decode_destack_fs_file_lock_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_LOCK)?;
-                destack_fs_file_lock_vm_replay(runtime, context, world, handle, flags)
+                    binding.on_before_binding_resolve_world(FS_FILE_LOCK)?;
+                destack_fs_file_lock_vm_replay(binding, context, world, handle, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, flags, mode) = decode_destack_fs_file_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_OPEN)?;
-                destack_fs_file_open_vm_replay(runtime, context, world, path, flags, mode)
+                    binding.on_before_binding_resolve_world(FS_FILE_OPEN)?;
+                destack_fs_file_open_vm_replay(binding, context, world, path, flags, mode)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_OPENAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (dir, path, flags, mode) = decode_destack_fs_file_openat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_OPENAT)?;
-                destack_fs_file_openat_vm_replay(runtime, context, world, dir, path, flags, mode)
+                    binding.on_before_binding_resolve_world(FS_FILE_OPENAT)?;
+                destack_fs_file_openat_vm_replay(binding, context, world, dir, path, flags, mode)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_OPENAT2, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (dir, path, how) = decode_destack_fs_file_openat2_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_OPENAT2)?;
-                destack_fs_file_openat2_vm_replay(runtime, context, world, dir, path, how)
+                    binding.on_before_binding_resolve_world(FS_FILE_OPENAT2)?;
+                destack_fs_file_openat2_vm_replay(binding, context, world, dir, path, how)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_PREAD, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer, offset) = decode_destack_fs_file_pread_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_PREAD)?;
-                destack_fs_file_pread_vm_replay(runtime, context, world, handle, buffer, offset)
+                    binding.on_before_binding_resolve_world(FS_FILE_PREAD)?;
+                destack_fs_file_pread_vm_replay(binding, context, world, handle, buffer, offset)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_PREADV, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffers, offset) = decode_destack_fs_file_preadv_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_PREADV)?;
-                destack_fs_file_preadv_vm_replay(runtime, context, world, handle, buffers, offset)
+                    binding.on_before_binding_resolve_world(FS_FILE_PREADV)?;
+                destack_fs_file_preadv_vm_replay(binding, context, world, handle, buffers, offset)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_PREADV2, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffers, offset, flags) =
                     decode_destack_fs_file_preadv2_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_PREADV2)?;
+                    binding.on_before_binding_resolve_world(FS_FILE_PREADV2)?;
                 destack_fs_file_preadv2_vm_replay(
-                    runtime, context, world, handle, buffers, offset, flags,
+                    binding, context, world, handle, buffers, offset, flags,
                 )
             })
             .map_err(Into::into)
@@ -26127,44 +26126,44 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_PWRITE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer, offset) = decode_destack_fs_file_pwrite_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_PWRITE)?;
-                destack_fs_file_pwrite_vm_replay(runtime, context, world, handle, buffer, offset)
+                    binding.on_before_binding_resolve_world(FS_FILE_PWRITE)?;
+                destack_fs_file_pwrite_vm_replay(binding, context, world, handle, buffer, offset)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_PWRITEV, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffers, offset) = decode_destack_fs_file_pwritev_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_PWRITEV)?;
-                destack_fs_file_pwritev_vm_replay(runtime, context, world, handle, buffers, offset)
+                    binding.on_before_binding_resolve_world(FS_FILE_PWRITEV)?;
+                destack_fs_file_pwritev_vm_replay(binding, context, world, handle, buffers, offset)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_PWRITEV2, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffers, offset, flags) =
                     decode_destack_fs_file_pwritev2_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_PWRITEV2)?;
+                    binding.on_before_binding_resolve_world(FS_FILE_PWRITEV2)?;
                 destack_fs_file_pwritev2_vm_replay(
-                    runtime, context, world, handle, buffers, offset, flags,
+                    binding, context, world, handle, buffers, offset, flags,
                 )
             })
             .map_err(Into::into)
@@ -26172,58 +26171,58 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_READ, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_fs_file_read_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_READ)?;
-                destack_fs_file_read_vm_replay(runtime, context, world, handle, buffer)
+                    binding.on_before_binding_resolve_world(FS_FILE_READ)?;
+                destack_fs_file_read_vm_replay(binding, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_READV, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffers) = decode_destack_fs_file_readv_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_READV)?;
-                destack_fs_file_readv_vm_replay(runtime, context, world, handle, buffers)
+                    binding.on_before_binding_resolve_world(FS_FILE_READV)?;
+                destack_fs_file_readv_vm_replay(binding, context, world, handle, buffers)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_SEEK, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, offset, whence) = decode_destack_fs_file_seek_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_SEEK)?;
-                destack_fs_file_seek_vm_replay(runtime, context, world, handle, offset, whence)
+                    binding.on_before_binding_resolve_world(FS_FILE_SEEK)?;
+                destack_fs_file_seek_vm_replay(binding, context, world, handle, offset, whence)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_SENDFILE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (socket, file, offset, length) =
                     decode_destack_fs_file_sendfile_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_SENDFILE)?;
+                    binding.on_before_binding_resolve_world(FS_FILE_SENDFILE)?;
                 destack_fs_file_sendfile_vm_replay(
-                    runtime, context, world, socket, file, offset, length,
+                    binding, context, world, socket, file, offset, length,
                 )
             })
             .map_err(Into::into)
@@ -26235,14 +26234,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_SET_FD_FLAGS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, flags) = decode_destack_fs_file_set_fd_flags_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_SET_FD_FLAGS)?;
-                    destack_fs_file_set_fd_flags_vm_replay(runtime, context, world, handle, flags)
+                        binding.on_before_binding_resolve_world(FS_FILE_SET_FD_FLAGS)?;
+                    destack_fs_file_set_fd_flags_vm_replay(binding, context, world, handle, flags)
                 })
                 .map_err(Into::into)
             }
@@ -26254,16 +26253,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_SET_STATUS_FLAGS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, flags) =
                         decode_destack_fs_file_set_status_flags_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_SET_STATUS_FLAGS)?;
+                        binding.on_before_binding_resolve_world(FS_FILE_SET_STATUS_FLAGS)?;
                     destack_fs_file_set_status_flags_vm_replay(
-                        runtime, context, world, handle, flags,
+                        binding, context, world, handle, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -26272,16 +26271,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_SPLICE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (source, sourcecursor, target, targetcursor, length, flags) =
                     decode_destack_fs_file_splice_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_SPLICE)?;
+                    binding.on_before_binding_resolve_world(FS_FILE_SPLICE)?;
                 destack_fs_file_splice_vm_replay(
-                    runtime,
+                    binding,
                     context,
                     world,
                     source,
@@ -26301,16 +26300,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_FILE_SYNC_FILE_RANGE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, offset, length, flags) =
                         decode_destack_fs_file_sync_file_range_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_FILE_SYNC_FILE_RANGE)?;
+                        binding.on_before_binding_resolve_world(FS_FILE_SYNC_FILE_RANGE)?;
                     destack_fs_file_sync_file_range_vm_replay(
-                        runtime, context, world, handle, offset, length, flags,
+                        binding, context, world, handle, offset, length, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -26319,30 +26318,30 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_SYNCFS, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_file_syncfs_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_SYNCFS)?;
-                destack_fs_file_syncfs_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_FILE_SYNCFS)?;
+                destack_fs_file_syncfs_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_TEE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (sourcepipe, targetpipe, length, flags) =
                     decode_destack_fs_file_tee_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_TEE)?;
+                    binding.on_before_binding_resolve_world(FS_FILE_TEE)?;
                 destack_fs_file_tee_vm_replay(
-                    runtime, context, world, sourcepipe, targetpipe, length, flags,
+                    binding, context, world, sourcepipe, targetpipe, length, flags,
                 )
             })
             .map_err(Into::into)
@@ -26350,70 +26349,70 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_FILE_TRUNCATE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, size) = decode_destack_fs_file_truncate_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_TRUNCATE)?;
-                destack_fs_file_truncate_vm_replay(runtime, context, world, path, size)
+                    binding.on_before_binding_resolve_world(FS_FILE_TRUNCATE)?;
+                destack_fs_file_truncate_vm_replay(binding, context, world, path, size)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_VMSPLICE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (pipe, buffers, flags) = decode_destack_fs_file_vmsplice_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_VMSPLICE)?;
-                destack_fs_file_vmsplice_vm_replay(runtime, context, world, pipe, buffers, flags)
+                    binding.on_before_binding_resolve_world(FS_FILE_VMSPLICE)?;
+                destack_fs_file_vmsplice_vm_replay(binding, context, world, pipe, buffers, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_WRITE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffer) = decode_destack_fs_file_write_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_WRITE)?;
-                destack_fs_file_write_vm_replay(runtime, context, world, handle, buffer)
+                    binding.on_before_binding_resolve_world(FS_FILE_WRITE)?;
+                destack_fs_file_write_vm_replay(binding, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_FILE_WRITEV, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle, buffers) = decode_destack_fs_file_writev_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_FILE_WRITEV)?;
-                destack_fs_file_writev_vm_replay(runtime, context, world, handle, buffers)
+                    binding.on_before_binding_resolve_world(FS_FILE_WRITEV)?;
+                destack_fs_file_writev_vm_replay(binding, context, world, handle, buffers)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_MMAP_MADVISE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (mapping, advice) = decode_destack_fs_mmap_madvise_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_MMAP_MADVISE)?;
-                destack_fs_mmap_madvise_vm_replay(runtime, context, world, mapping, advice)
+                    binding.on_before_binding_resolve_world(FS_MMAP_MADVISE)?;
+                destack_fs_mmap_madvise_vm_replay(binding, context, world, mapping, advice)
             })
             .map_err(Into::into)
         });
@@ -26424,16 +26423,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_MMAP_MMAP_ANONYMOUS,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (length, prot, flags) =
                         decode_destack_fs_mmap_mmap_anonymous_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_MMAP_MMAP_ANONYMOUS)?;
+                        binding.on_before_binding_resolve_world(FS_MMAP_MMAP_ANONYMOUS)?;
                     destack_fs_mmap_mmap_anonymous_vm_replay(
-                        runtime, context, world, length, prot, flags,
+                        binding, context, world, length, prot, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -26446,16 +26445,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_MMAP_MMAP_FILE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, offset, length, prot, flags) =
                         decode_destack_fs_mmap_mmap_file_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_MMAP_MMAP_FILE)?;
+                        binding.on_before_binding_resolve_world(FS_MMAP_MMAP_FILE)?;
                     destack_fs_mmap_mmap_file_vm_replay(
-                        runtime, context, world, handle, offset, length, prot, flags,
+                        binding, context, world, handle, offset, length, prot, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -26464,86 +26463,86 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_MMAP_MPROTECT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (mapping, prot) = decode_destack_fs_mmap_mprotect_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_MMAP_MPROTECT)?;
-                destack_fs_mmap_mprotect_vm_replay(runtime, context, world, mapping, prot)
+                    binding.on_before_binding_resolve_world(FS_MMAP_MPROTECT)?;
+                destack_fs_mmap_mprotect_vm_replay(binding, context, world, mapping, prot)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_MMAP_MSYNC, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (mapping, flags) = decode_destack_fs_mmap_msync_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_MMAP_MSYNC)?;
-                destack_fs_mmap_msync_vm_replay(runtime, context, world, mapping, flags)
+                    binding.on_before_binding_resolve_world(FS_MMAP_MSYNC)?;
+                destack_fs_mmap_msync_vm_replay(binding, context, world, mapping, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_MMAP_MUNMAP, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (mapping,) = decode_destack_fs_mmap_munmap_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_MMAP_MUNMAP)?;
-                destack_fs_mmap_munmap_vm_replay(runtime, context, world, mapping)
+                    binding.on_before_binding_resolve_world(FS_MMAP_MUNMAP)?;
+                destack_fs_mmap_munmap_vm_replay(binding, context, world, mapping)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_COPYFILE, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (from, to, flags) = decode_destack_fs_path_copyfile_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_COPYFILE)?;
-                destack_fs_path_copyfile_vm_replay(runtime, context, world, from, to, flags)
+                    binding.on_before_binding_resolve_world(FS_PATH_COPYFILE)?;
+                destack_fs_path_copyfile_vm_replay(binding, context, world, from, to, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_LINK, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (existingpath, newpath) = decode_destack_fs_path_link_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_LINK)?;
-                destack_fs_path_link_vm_replay(runtime, context, world, existingpath, newpath)
+                    binding.on_before_binding_resolve_world(FS_PATH_LINK)?;
+                destack_fs_path_link_vm_replay(binding, context, world, existingpath, newpath)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_LINKAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (existingdir, existingpath, newdir, newpath, flags) =
                     decode_destack_fs_path_linkat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_LINKAT)?;
+                    binding.on_before_binding_resolve_world(FS_PATH_LINKAT)?;
                 destack_fs_path_linkat_vm_replay(
-                    runtime,
+                    binding,
                     context,
                     world,
                     existingdir,
@@ -26558,70 +26557,70 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_MKFIFO, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, mode) = decode_destack_fs_path_mkfifo_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_MKFIFO)?;
-                destack_fs_path_mkfifo_vm_replay(runtime, context, world, path, mode)
+                    binding.on_before_binding_resolve_world(FS_PATH_MKFIFO)?;
+                destack_fs_path_mkfifo_vm_replay(binding, context, world, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_MKFIFOAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (dir, path, mode) = decode_destack_fs_path_mkfifoat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_MKFIFOAT)?;
-                destack_fs_path_mkfifoat_vm_replay(runtime, context, world, dir, path, mode)
+                    binding.on_before_binding_resolve_world(FS_PATH_MKFIFOAT)?;
+                destack_fs_path_mkfifoat_vm_replay(binding, context, world, dir, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_MKNOD, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, mode, device) = decode_destack_fs_path_mknod_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_MKNOD)?;
-                destack_fs_path_mknod_vm_replay(runtime, context, world, path, mode, device)
+                    binding.on_before_binding_resolve_world(FS_PATH_MKNOD)?;
+                destack_fs_path_mknod_vm_replay(binding, context, world, path, mode, device)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_MKNODAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (dir, path, mode, device) = decode_destack_fs_path_mknodat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_MKNODAT)?;
-                destack_fs_path_mknodat_vm_replay(runtime, context, world, dir, path, mode, device)
+                    binding.on_before_binding_resolve_world(FS_PATH_MKNODAT)?;
+                destack_fs_path_mknodat_vm_replay(binding, context, world, dir, path, mode, device)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_READLINK, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path,) = decode_destack_fs_path_readlink_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_READLINK)?;
-                destack_fs_path_readlink_vm_replay(runtime, context, world, path)
+                    binding.on_before_binding_resolve_world(FS_PATH_READLINK)?;
+                destack_fs_path_readlink_vm_replay(binding, context, world, path)
             })
             .map_err(Into::into)
         });
@@ -26632,14 +26631,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_PATH_READLINKAT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (dir, path) = decode_destack_fs_path_readlinkat_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_PATH_READLINKAT)?;
-                    destack_fs_path_readlinkat_vm_replay(runtime, context, world, dir, path)
+                        binding.on_before_binding_resolve_world(FS_PATH_READLINKAT)?;
+                    destack_fs_path_readlinkat_vm_replay(binding, context, world, dir, path)
                 })
                 .map_err(Into::into)
             }
@@ -26647,44 +26646,44 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_REALPATH, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path,) = decode_destack_fs_path_realpath_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_REALPATH)?;
-                destack_fs_path_realpath_vm_replay(runtime, context, world, path)
+                    binding.on_before_binding_resolve_world(FS_PATH_REALPATH)?;
+                destack_fs_path_realpath_vm_replay(binding, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_RENAME, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (from, to) = decode_destack_fs_path_rename_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_RENAME)?;
-                destack_fs_path_rename_vm_replay(runtime, context, world, from, to)
+                    binding.on_before_binding_resolve_world(FS_PATH_RENAME)?;
+                destack_fs_path_rename_vm_replay(binding, context, world, from, to)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_RENAMEAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (fromdir, from, todir, to) =
                     decode_destack_fs_path_renameat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_RENAMEAT)?;
+                    binding.on_before_binding_resolve_world(FS_PATH_RENAMEAT)?;
                 destack_fs_path_renameat_vm_replay(
-                    runtime, context, world, fromdir, from, todir, to,
+                    binding, context, world, fromdir, from, todir, to,
                 )
             })
             .map_err(Into::into)
@@ -26696,16 +26695,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_PATH_RENAMEAT2,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (fromdir, from, todir, to, flags) =
                         decode_destack_fs_path_renameat2_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_PATH_RENAMEAT2)?;
+                        binding.on_before_binding_resolve_world(FS_PATH_RENAMEAT2)?;
                     destack_fs_path_renameat2_vm_replay(
-                        runtime, context, world, fromdir, from, todir, to, flags,
+                        binding, context, world, fromdir, from, todir, to, flags,
                     )
                 })
                 .map_err(Into::into)
@@ -26714,14 +26713,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_SYMLINK, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (target, path, kind) = decode_destack_fs_path_symlink_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_SYMLINK)?;
-                destack_fs_path_symlink_vm_replay(runtime, context, world, target, path, kind)
+                    binding.on_before_binding_resolve_world(FS_PATH_SYMLINK)?;
+                destack_fs_path_symlink_vm_replay(binding, context, world, target, path, kind)
             })
             .map_err(Into::into)
         });
@@ -26732,16 +26731,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_PATH_SYMLINKAT,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (target, dir, path, kind) =
                         decode_destack_fs_path_symlinkat_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_PATH_SYMLINKAT)?;
+                        binding.on_before_binding_resolve_world(FS_PATH_SYMLINKAT)?;
                     destack_fs_path_symlinkat_vm_replay(
-                        runtime, context, world, target, dir, path, kind,
+                        binding, context, world, target, dir, path, kind,
                     )
                 })
                 .map_err(Into::into)
@@ -26750,140 +26749,140 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_PATH_UNLINK, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path,) = decode_destack_fs_path_unlink_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_UNLINK)?;
-                destack_fs_path_unlink_vm_replay(runtime, context, world, path)
+                    binding.on_before_binding_resolve_world(FS_PATH_UNLINK)?;
+                destack_fs_path_unlink_vm_replay(binding, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_PATH_UNLINKAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (dir, path, flags) = decode_destack_fs_path_unlinkat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_PATH_UNLINKAT)?;
-                destack_fs_path_unlinkat_vm_replay(runtime, context, world, dir, path, flags)
+                    binding.on_before_binding_resolve_world(FS_PATH_UNLINKAT)?;
+                destack_fs_path_unlinkat_vm_replay(binding, context, world, dir, path, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_STAT_FSTAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_stat_fstat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_STAT_FSTAT)?;
-                destack_fs_stat_fstat_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_STAT_FSTAT)?;
+                destack_fs_stat_fstat_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_STAT_FSTATFS, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (handle,) = decode_destack_fs_stat_fstatfs_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_STAT_FSTATFS)?;
-                destack_fs_stat_fstatfs_vm_replay(runtime, context, world, handle)
+                    binding.on_before_binding_resolve_world(FS_STAT_FSTATFS)?;
+                destack_fs_stat_fstatfs_vm_replay(binding, context, world, handle)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_STAT_LSTAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path,) = decode_destack_fs_stat_lstat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_STAT_LSTAT)?;
-                destack_fs_stat_lstat_vm_replay(runtime, context, world, path)
+                    binding.on_before_binding_resolve_world(FS_STAT_LSTAT)?;
+                destack_fs_stat_lstat_vm_replay(binding, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_STAT_PATH, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path,) = decode_destack_fs_stat_path_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_STAT_PATH)?;
-                destack_fs_stat_path_vm_replay(runtime, context, world, path)
+                    binding.on_before_binding_resolve_world(FS_STAT_PATH)?;
+                destack_fs_stat_path_vm_replay(binding, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_STAT_PATHAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (dir, path, flags) = decode_destack_fs_stat_pathat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_STAT_PATHAT)?;
-                destack_fs_stat_pathat_vm_replay(runtime, context, world, dir, path, flags)
+                    binding.on_before_binding_resolve_world(FS_STAT_PATHAT)?;
+                destack_fs_stat_pathat_vm_replay(binding, context, world, dir, path, flags)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_STAT_PATHFS, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path,) = decode_destack_fs_stat_pathfs_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_STAT_PATHFS)?;
-                destack_fs_stat_pathfs_vm_replay(runtime, context, world, path)
+                    binding.on_before_binding_resolve_world(FS_STAT_PATHFS)?;
+                destack_fs_stat_pathfs_vm_replay(binding, context, world, path)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_STAT_PATHX, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (dir, path, flags, mask) = decode_destack_fs_stat_pathx_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_STAT_PATHX)?;
-                destack_fs_stat_pathx_vm_replay(runtime, context, world, dir, path, flags, mask)
+                    binding.on_before_binding_resolve_world(FS_STAT_PATHX)?;
+                destack_fs_stat_pathx_vm_replay(binding, context, world, dir, path, flags, mask)
             })
             .map_err(Into::into)
         });
     }
     {
         binding!(registry, isolate, FS_WATCH_OPEN, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (path, options) = decode_destack_fs_watch_open_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_WATCH_OPEN)?;
-                destack_fs_watch_open_vm_replay(runtime, context, world, path, options)
+                    binding.on_before_binding_resolve_world(FS_WATCH_OPEN)?;
+                destack_fs_watch_open_vm_replay(binding, context, world, path, options)
             })
             .map_err(Into::into)
         });
@@ -26894,14 +26893,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_WATCH_OPEN_CLOSE,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_fs_watch_open_close_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_WATCH_OPEN_CLOSE)?;
-                    destack_fs_watch_open_close_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(FS_WATCH_OPEN_CLOSE)?;
+                    destack_fs_watch_open_close_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -26913,14 +26912,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_WATCH_OPEN_READ,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_fs_watch_open_read_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_WATCH_OPEN_READ)?;
-                    destack_fs_watch_open_read_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(FS_WATCH_OPEN_READ)?;
+                    destack_fs_watch_open_read_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -26928,15 +26927,15 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     }
     {
         binding!(registry, isolate, FS_WATCH_OPENAT, move |context, args| {
-            with_binding_call_context(|runtime| {
+            with_binding_call_context(|binding| {
                 // decode args
                 let (directory, path, options) =
                     decode_destack_fs_watch_openat_args(context, args)?;
 
                 // execute binding
                 let (world, _binding_hook_guard) =
-                    runtime.on_before_binding_resolve_world(FS_WATCH_OPENAT)?;
-                destack_fs_watch_openat_vm_replay(runtime, context, world, directory, path, options)
+                    binding.on_before_binding_resolve_world(FS_WATCH_OPENAT)?;
+                destack_fs_watch_openat_vm_replay(binding, context, world, directory, path, options)
             })
             .map_err(Into::into)
         });
@@ -26947,14 +26946,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FGETXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, name) = decode_destack_fs_xattr_fgetxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_FGETXATTR)?;
-                    destack_fs_xattr_fgetxattr_vm_replay(runtime, context, world, handle, name)
+                        binding.on_before_binding_resolve_world(FS_XATTR_FGETXATTR)?;
+                    destack_fs_xattr_fgetxattr_vm_replay(binding, context, world, handle, name)
                 })
                 .map_err(Into::into)
             }
@@ -26966,16 +26965,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FGETXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, name) =
                         decode_destack_fs_xattr_fgetxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_FGETXATTR_BYTES)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_FGETXATTR_BYTES)?;
                     destack_fs_xattr_fgetxattr_bytes_vm_replay(
-                        runtime, context, world, handle, name,
+                        binding, context, world, handle, name,
                     )
                 })
                 .map_err(Into::into)
@@ -26988,14 +26987,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FLISTXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_fs_xattr_flistxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_FLISTXATTR)?;
-                    destack_fs_xattr_flistxattr_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(FS_XATTR_FLISTXATTR)?;
+                    destack_fs_xattr_flistxattr_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -27007,14 +27006,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FLISTXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) = decode_destack_fs_xattr_flistxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_FLISTXATTR_BYTES)?;
-                    destack_fs_xattr_flistxattr_bytes_vm_replay(runtime, context, world, handle)
+                        binding.on_before_binding_resolve_world(FS_XATTR_FLISTXATTR_BYTES)?;
+                    destack_fs_xattr_flistxattr_bytes_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -27026,14 +27025,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FREMOVEXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, name) = decode_destack_fs_xattr_fremovexattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_FREMOVEXATTR)?;
-                    destack_fs_xattr_fremovexattr_vm_replay(runtime, context, world, handle, name)
+                        binding.on_before_binding_resolve_world(FS_XATTR_FREMOVEXATTR)?;
+                    destack_fs_xattr_fremovexattr_vm_replay(binding, context, world, handle, name)
                 })
                 .map_err(Into::into)
             }
@@ -27045,16 +27044,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FREMOVEXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, name) =
                         decode_destack_fs_xattr_fremovexattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_FREMOVEXATTR_BYTES)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_FREMOVEXATTR_BYTES)?;
                     destack_fs_xattr_fremovexattr_bytes_vm_replay(
-                        runtime, context, world, handle, name,
+                        binding, context, world, handle, name,
                     )
                 })
                 .map_err(Into::into)
@@ -27067,16 +27066,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FSETXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, name, argument_value, flags) =
                         decode_destack_fs_xattr_fsetxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_FSETXATTR)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_FSETXATTR)?;
                     destack_fs_xattr_fsetxattr_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -27095,16 +27094,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_FSETXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (handle, name, argument_value, flags) =
                         decode_destack_fs_xattr_fsetxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_FSETXATTR_BYTES)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_FSETXATTR_BYTES)?;
                     destack_fs_xattr_fsetxattr_bytes_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         handle,
@@ -27123,14 +27122,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_GETXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_getxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_GETXATTR)?;
-                    destack_fs_xattr_getxattr_vm_replay(runtime, context, world, path, name)
+                        binding.on_before_binding_resolve_world(FS_XATTR_GETXATTR)?;
+                    destack_fs_xattr_getxattr_vm_replay(binding, context, world, path, name)
                 })
                 .map_err(Into::into)
             }
@@ -27142,14 +27141,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_GETXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_getxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_GETXATTR_BYTES)?;
-                    destack_fs_xattr_getxattr_bytes_vm_replay(runtime, context, world, path, name)
+                        binding.on_before_binding_resolve_world(FS_XATTR_GETXATTR_BYTES)?;
+                    destack_fs_xattr_getxattr_bytes_vm_replay(binding, context, world, path, name)
                 })
                 .map_err(Into::into)
             }
@@ -27161,14 +27160,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LGETXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_lgetxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LGETXATTR)?;
-                    destack_fs_xattr_lgetxattr_vm_replay(runtime, context, world, path, name)
+                        binding.on_before_binding_resolve_world(FS_XATTR_LGETXATTR)?;
+                    destack_fs_xattr_lgetxattr_vm_replay(binding, context, world, path, name)
                 })
                 .map_err(Into::into)
             }
@@ -27180,14 +27179,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LGETXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_lgetxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LGETXATTR_BYTES)?;
-                    destack_fs_xattr_lgetxattr_bytes_vm_replay(runtime, context, world, path, name)
+                        binding.on_before_binding_resolve_world(FS_XATTR_LGETXATTR_BYTES)?;
+                    destack_fs_xattr_lgetxattr_bytes_vm_replay(binding, context, world, path, name)
                 })
                 .map_err(Into::into)
             }
@@ -27199,14 +27198,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LISTXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) = decode_destack_fs_xattr_listxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LISTXATTR)?;
-                    destack_fs_xattr_listxattr_vm_replay(runtime, context, world, path)
+                        binding.on_before_binding_resolve_world(FS_XATTR_LISTXATTR)?;
+                    destack_fs_xattr_listxattr_vm_replay(binding, context, world, path)
                 })
                 .map_err(Into::into)
             }
@@ -27218,14 +27217,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LISTXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) = decode_destack_fs_xattr_listxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LISTXATTR_BYTES)?;
-                    destack_fs_xattr_listxattr_bytes_vm_replay(runtime, context, world, path)
+                        binding.on_before_binding_resolve_world(FS_XATTR_LISTXATTR_BYTES)?;
+                    destack_fs_xattr_listxattr_bytes_vm_replay(binding, context, world, path)
                 })
                 .map_err(Into::into)
             }
@@ -27237,14 +27236,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LLISTXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) = decode_destack_fs_xattr_llistxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LLISTXATTR)?;
-                    destack_fs_xattr_llistxattr_vm_replay(runtime, context, world, path)
+                        binding.on_before_binding_resolve_world(FS_XATTR_LLISTXATTR)?;
+                    destack_fs_xattr_llistxattr_vm_replay(binding, context, world, path)
                 })
                 .map_err(Into::into)
             }
@@ -27256,14 +27255,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LLISTXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path,) = decode_destack_fs_xattr_llistxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LLISTXATTR_BYTES)?;
-                    destack_fs_xattr_llistxattr_bytes_vm_replay(runtime, context, world, path)
+                        binding.on_before_binding_resolve_world(FS_XATTR_LLISTXATTR_BYTES)?;
+                    destack_fs_xattr_llistxattr_bytes_vm_replay(binding, context, world, path)
                 })
                 .map_err(Into::into)
             }
@@ -27275,14 +27274,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LREMOVEXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_lremovexattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LREMOVEXATTR)?;
-                    destack_fs_xattr_lremovexattr_vm_replay(runtime, context, world, path, name)
+                        binding.on_before_binding_resolve_world(FS_XATTR_LREMOVEXATTR)?;
+                    destack_fs_xattr_lremovexattr_vm_replay(binding, context, world, path, name)
                 })
                 .map_err(Into::into)
             }
@@ -27294,16 +27293,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LREMOVEXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name) =
                         decode_destack_fs_xattr_lremovexattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LREMOVEXATTR_BYTES)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_LREMOVEXATTR_BYTES)?;
                     destack_fs_xattr_lremovexattr_bytes_vm_replay(
-                        runtime, context, world, path, name,
+                        binding, context, world, path, name,
                     )
                 })
                 .map_err(Into::into)
@@ -27316,16 +27315,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LSETXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_lsetxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LSETXATTR)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_LSETXATTR)?;
                     destack_fs_xattr_lsetxattr_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         path,
@@ -27344,16 +27343,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_LSETXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_lsetxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_LSETXATTR_BYTES)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_LSETXATTR_BYTES)?;
                     destack_fs_xattr_lsetxattr_bytes_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         path,
@@ -27372,14 +27371,14 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_REMOVEXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name) = decode_destack_fs_xattr_removexattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_REMOVEXATTR)?;
-                    destack_fs_xattr_removexattr_vm_replay(runtime, context, world, path, name)
+                        binding.on_before_binding_resolve_world(FS_XATTR_REMOVEXATTR)?;
+                    destack_fs_xattr_removexattr_vm_replay(binding, context, world, path, name)
                 })
                 .map_err(Into::into)
             }
@@ -27391,16 +27390,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_REMOVEXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name) =
                         decode_destack_fs_xattr_removexattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_REMOVEXATTR_BYTES)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_REMOVEXATTR_BYTES)?;
                     destack_fs_xattr_removexattr_bytes_vm_replay(
-                        runtime, context, world, path, name,
+                        binding, context, world, path, name,
                     )
                 })
                 .map_err(Into::into)
@@ -27413,16 +27412,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_SETXATTR,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_setxattr_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_SETXATTR)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_SETXATTR)?;
                     destack_fs_xattr_setxattr_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         path,
@@ -27441,16 +27440,16 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             isolate,
             FS_XATTR_SETXATTR_BYTES,
             move |context, args| {
-                with_binding_call_context(|runtime| {
+                with_binding_call_context(|binding| {
                     // decode args
                     let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_setxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        runtime.on_before_binding_resolve_world(FS_XATTR_SETXATTR_BYTES)?;
+                        binding.on_before_binding_resolve_world(FS_XATTR_SETXATTR_BYTES)?;
                     destack_fs_xattr_setxattr_bytes_vm_replay(
-                        runtime,
+                        binding,
                         context,
                         world,
                         path,

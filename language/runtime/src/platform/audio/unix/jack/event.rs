@@ -50,13 +50,13 @@ pub(crate) struct JackMonitorRuntimeState {
 
 /// Return runtime-owned JACK monitor state.
 #[cfg(target_os = "linux")]
-fn jack_monitor_runtime_state(context: &BindingCallContext) -> Arc<JackMonitorRuntimeState> {
-    let runtime_state = context
-        .runtime()
+fn jack_monitor_runtime_state(binding: &BindingCallContext) -> Arc<JackMonitorRuntimeState> {
+    let runtime_state = binding
+        .agent()
         .platform_state
         .audio
         .jack_monitor_runtime_state(JackMonitorRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
+    register_runtime_finalizer(binding, &runtime_state);
 
     runtime_state
 }
@@ -64,7 +64,7 @@ fn jack_monitor_runtime_state(context: &BindingCallContext) -> Arc<JackMonitorRu
 /// Register one runtime finalizer for JACK monitor teardown.
 #[cfg(target_os = "linux")]
 fn register_runtime_finalizer(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     runtime_state: &Arc<JackMonitorRuntimeState>,
 ) {
     if runtime_state
@@ -75,7 +75,7 @@ fn register_runtime_finalizer(
     }
 
     let runtime_state = Arc::clone(runtime_state);
-    context.runtime().finalizers.register(move || {
+    binding.agent().finalizers.register(move || {
         let monitor = runtime_state
             .monitor
             .lock()
@@ -105,11 +105,11 @@ pub(crate) fn native_device_events_supported() -> bool {
 
 /// Start one JACK native device-event monitor.
 pub(crate) fn start_native_device_event_monitor(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
-        let monitor_runtime_state = jack_monitor_runtime_state(_context);
+        let monitor_runtime_state = jack_monitor_runtime_state(binding);
         let mut monitor_slot = monitor_runtime_state
             .monitor
             .lock()
@@ -121,7 +121,7 @@ pub(crate) fn start_native_device_event_monitor(
 
         let stop = Arc::new(AtomicBool::new(false));
         let pending = Arc::new(AtomicBool::new(false));
-        let runtime_state = audio_core::audio_event_runtime_state(_context);
+        let runtime_state = audio_core::audio_event_runtime_state(binding);
         let stop_signal = Arc::clone(&stop);
         let pending_signal = Arc::clone(&pending);
         let callback_runtime_state = Arc::clone(&runtime_state);
@@ -167,10 +167,10 @@ pub(crate) fn start_native_device_event_monitor(
 }
 
 /// Stop one JACK native device-event monitor.
-pub(crate) fn stop_native_device_event_monitor(_context: &BindingCallContext) {
+pub(crate) fn stop_native_device_event_monitor(_binding: &BindingCallContext) {
     #[cfg(target_os = "linux")]
     {
-        let runtime_state = jack_monitor_runtime_state(_context);
+        let runtime_state = jack_monitor_runtime_state(binding);
         let monitor = {
             let mut monitor_slot = runtime_state
                 .monitor

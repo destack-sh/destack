@@ -72,11 +72,11 @@ unsafe fn decode_native_strings(slice: NativeStringSlice) -> RuntimeResult<Vec<S
 
 /// Resolve a file handle into a Windows handle value.
 fn resolve_file_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::FileHandle,
 ) -> RuntimeResult<HANDLE> {
     core_fs::require_resource(
-        context,
+        binding,
         handle.0,
         resource::ResourceKind::File,
         "file",
@@ -94,11 +94,11 @@ fn resolve_file_handle(
 
 /// Resolve a pipe handle into a Windows handle value.
 fn resolve_pipe_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::PipeHandle,
 ) -> RuntimeResult<HANDLE> {
     core_fs::require_resource(
-        context,
+        binding,
         handle.0,
         resource::ResourceKind::Pipe,
         "pipe",
@@ -280,7 +280,7 @@ fn close_spawn_handle(handle: HANDLE) {
 
 /// Resolve one stdio slot into a concrete inheritable child handle.
 fn resolve_spawn_stdio_handle(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     index: usize,
     descriptor: ProcessStdio,
 ) -> RuntimeResult<HANDLE> {
@@ -298,11 +298,11 @@ fn resolve_spawn_stdio_handle(
         }
         ProcessStdio::ProcessStdioNull(_) => open_null_stdio_handle(is_input),
         ProcessStdio::ProcessStdioPipe(descriptor_pipe) => {
-            let pipe_handle = resolve_pipe_handle(context, descriptor_pipe.pipe)?;
+            let pipe_handle = resolve_pipe_handle(binding, descriptor_pipe.pipe)?;
             duplicate_handle_for_child(pipe_handle, "stdio.pipe")
         }
         ProcessStdio::ProcessStdioFile(descriptor_file) => {
-            let file_handle = resolve_file_handle(context, descriptor_file.file)?;
+            let file_handle = resolve_file_handle(binding, descriptor_file.file)?;
             duplicate_handle_for_child(file_handle, "stdio.file")
         }
         ProcessStdio::ProcessStdioDescriptor(descriptor_fd) => {
@@ -322,7 +322,7 @@ fn resolve_spawn_stdio_handle(
 
 /// Resolve explicit stdio descriptors into startup handles.
 fn resolve_spawn_stdio_handles(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     stdio: &[ProcessStdio],
 ) -> RuntimeResult<Option<[HANDLE; 3]>> {
     if stdio.is_empty() {
@@ -338,13 +338,13 @@ fn resolve_spawn_stdio_handles(
 
     let defaults = [
         ProcessStdio::ProcessStdioInherit(ProcessStdioInherit {
-            kind: context.store_string("inherit"),
+            kind: binding.store_string("inherit"),
         }),
         ProcessStdio::ProcessStdioInherit(ProcessStdioInherit {
-            kind: context.store_string("inherit"),
+            kind: binding.store_string("inherit"),
         }),
         ProcessStdio::ProcessStdioInherit(ProcessStdioInherit {
-            kind: context.store_string("inherit"),
+            kind: binding.store_string("inherit"),
         }),
     ];
 
@@ -355,7 +355,7 @@ fn resolve_spawn_stdio_handles(
         } else {
             defaults[index]
         };
-        resolved[index] = resolve_spawn_stdio_handle(context, index, descriptor)?;
+        resolved[index] = resolve_spawn_stdio_handle(binding, index, descriptor)?;
     }
 
     Ok(Some(resolved))
@@ -389,7 +389,7 @@ fn spawn_current_directory(options: ProcessSpawnOptions) -> RuntimeResult<Option
 
 /// Spawn a child process and register its handle payload.
 fn spawn_process(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: String,
     arguments: Vec<String>,
@@ -401,7 +401,7 @@ fn spawn_process(
     let command_line = build_command_line(&command, &arguments);
     let creation_flags = spawn_creation_flags(options) | CREATE_UNICODE_ENVIRONMENT;
     let current_directory = spawn_current_directory(options)?;
-    let stdio_handles = resolve_spawn_stdio_handles(context, stdio)?;
+    let stdio_handles = resolve_spawn_stdio_handles(binding, stdio)?;
 
     let mut command_line_wide = core_platform::wide_with_nul(&command_line);
     let current_directory_pointer = current_directory
@@ -486,10 +486,10 @@ fn spawn_process(
         .with_payload(core_process::SpawnedProcess { pid: process_id })
         .with_handle(process_handle)
         .with_finalizer(ProcessHandleFinalizer::new(process_handle as HANDLE));
-    let resource_id = context
+    let resource_id = binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()));
+        .insert(entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::ProcessHandle(resource_id);
@@ -516,7 +516,7 @@ fn spawn_process(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -531,7 +531,7 @@ pub(crate) unsafe fn destack_process_spawn(
     let arguments = unsafe { decode_native_strings(arguments)? };
     let environment = unsafe { decode_native_strings(environment)? };
 
-    spawn_process(context, out, command, arguments, environment, options, &[])
+    spawn_process(binding, out, command, arguments, environment, options, &[])
 }
 
 /// Spawn a child process with explicit stdio and descriptor actions.
@@ -552,7 +552,7 @@ pub(crate) unsafe fn destack_process_spawn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_spawn_with_actions(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -580,7 +580,7 @@ pub(crate) unsafe fn destack_process_spawn_with_actions(
     }
 
     spawn_process(
-        context,
+        binding,
         out,
         command,
         arguments,

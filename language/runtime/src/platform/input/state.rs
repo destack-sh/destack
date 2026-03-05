@@ -1,8 +1,6 @@
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(windows)]
 use std::sync::{Arc, OnceLock};
 
-#[cfg(target_os = "macos")]
-use super::host::MacosTapRuntimeState;
 #[cfg(windows)]
 use super::host::{
     WindowsInputCoreRuntimeState, WindowsInputEventRuntimeState, WindowsRawInputRuntimeState,
@@ -10,7 +8,7 @@ use super::host::{
 
 /// Runtime-owned input module state.
 #[derive(Default)]
-pub struct PlatformInputState {
+pub(crate) struct PlatformInputState {
     /// Runtime-owned windows input core state.
     #[cfg(windows)]
     windows_input_core_runtime_state: OnceLock<Arc<WindowsInputCoreRuntimeState>>,
@@ -20,9 +18,6 @@ pub struct PlatformInputState {
     /// Runtime-owned windows raw-input state.
     #[cfg(windows)]
     windows_raw_input_runtime_state: OnceLock<Arc<WindowsRawInputRuntimeState>>,
-    /// Runtime-owned macOS event-tap state.
-    #[cfg(target_os = "macos")]
-    macos_tap_runtime_state: OnceLock<Arc<MacosTapRuntimeState>>,
 }
 
 impl std::fmt::Debug for PlatformInputState {
@@ -66,18 +61,6 @@ impl PlatformInputState {
     ) -> Arc<WindowsRawInputRuntimeState> {
         Arc::clone(
             self.windows_raw_input_runtime_state
-                .get_or_init(|| Arc::new(initialize())),
-        )
-    }
-
-    /// Return runtime-owned macOS event-tap state.
-    #[cfg(target_os = "macos")]
-    pub(crate) fn macos_tap_runtime_state(
-        &self,
-        initialize: impl FnOnce() -> MacosTapRuntimeState,
-    ) -> Arc<MacosTapRuntimeState> {
-        Arc::clone(
-            self.macos_tap_runtime_state
                 .get_or_init(|| Arc::new(initialize())),
         )
     }

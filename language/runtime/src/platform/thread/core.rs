@@ -156,7 +156,7 @@ pub(crate) fn current_thread_owner_id() -> ThreadOwnerId {
 
 /// Insert one thread-domain resource payload into the runtime table.
 pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     kind: ResourceKind,
     label: &str,
     resource: T,
@@ -165,20 +165,20 @@ pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
         .with_label(label)
         .with_payload(Arc::new(resource));
 
-    context
+    binding
         .agent()
         .resources
-        .insert(entry, Some(context.engine()))
+        .insert(entry, Some(binding.engine()))
 }
 
 /// Resolve one shared resource payload from the runtime table.
 pub(crate) fn resolve_thread_resource<T: Send + Sync + 'static>(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ResourceId,
     field: &str,
     kind: &str,
 ) -> RuntimeResult<Arc<T>> {
-    let resolved = context.agent().resources.with_entry(handle, |entry| {
+    let resolved = binding.agent().resources.with_entry(handle, |entry| {
         entry
             .payload
             .as_ref()
@@ -193,15 +193,15 @@ pub(crate) fn resolve_thread_resource<T: Send + Sync + 'static>(
 
 /// Remove one shared resource payload from the runtime table.
 pub(crate) fn take_thread_resource<T: Send + Sync + 'static>(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: ResourceId,
     field: &str,
     kind: &str,
 ) -> RuntimeResult<Arc<T>> {
-    let Some(entry) = context
+    let Some(entry) = binding
         .agent()
         .resources
-        .remove(handle, Some(context.engine()))
+        .remove(handle, Some(binding.engine()))
     else {
         return Err(invalid_handle_error(field, kind));
     };

@@ -50,13 +50,13 @@ fn already_exists(operation: &'static str) -> Box<RuntimeError> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_close(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
-    let removed = context
+    let removed = binding
         .agent()
         .resources
-        .remove_and_finalize(handle.0, Some(context.engine()));
+        .remove_and_finalize(handle.0, Some(binding.engine()));
     if !removed {
         return Err(core_platform::invalid_argument(
             "handle",
@@ -85,7 +85,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     size: u64,
@@ -131,7 +131,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
     }
 
     // register mapping handle and write output
-    let handle = register_shared_memory_handle(context, mapping);
+    let handle = register_shared_memory_handle(binding, mapping);
     unsafe {
         out.write(handle);
     }
@@ -157,7 +157,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_map(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut SharedMemoryMapping,
     handle: resource::SharedMemoryHandle,
     offset: u64,
@@ -175,7 +175,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
     }
 
     // resolve one mapping-object handle
-    let mapping = shared_memory_handle(context, handle, SHARED_MEMORY_MAP_OPERATION)?;
+    let mapping = shared_memory_handle(binding, handle, SHARED_MEMORY_MAP_OPERATION)?;
 
     // decode map offset and length into host ranges
     let offset_high = (offset >> 32) as u32;
@@ -228,7 +228,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_open(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     flags: u32,
@@ -247,7 +247,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
     }
 
     // register mapping handle and write output
-    let handle = register_shared_memory_handle(context, mapping);
+    let handle = register_shared_memory_handle(binding, mapping);
     unsafe {
         out.write(handle);
     }
@@ -273,7 +273,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {

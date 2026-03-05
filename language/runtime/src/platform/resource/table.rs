@@ -98,6 +98,70 @@ impl ResourceEntry {
         Self::new(H::KIND)
     }
 
+    /// Create one labeled resource entry.
+    pub fn labeled(kind: ResourceKind, label: impl Into<String>) -> Self {
+        Self::new(kind).with_label(label)
+    }
+
+    /// Create one labeled resource entry with one typed payload.
+    pub fn labeled_payload(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        payload: impl Any + Send + Sync,
+    ) -> Self {
+        Self::new(kind).with_label(label).with_payload(payload)
+    }
+
+    /// Create one labeled resource entry with one typed payload and finalizer.
+    pub fn labeled_payload_finalizer(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        payload: impl Any + Send + Sync,
+        finalizer: impl ResourceFinalizer + 'static,
+    ) -> Self {
+        Self::new(kind)
+            .with_label(label)
+            .with_payload(payload)
+            .with_finalizer(finalizer)
+    }
+
+    /// Create one labeled resource entry with one finalizer.
+    pub fn labeled_finalizer(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        finalizer: impl ResourceFinalizer + 'static,
+    ) -> Self {
+        Self::new(kind).with_label(label).with_finalizer(finalizer)
+    }
+
+    /// Create one labeled unix descriptor entry with one finalizer.
+    #[cfg(unix)]
+    pub fn labeled_fd_finalizer(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        descriptor: RawFd,
+        finalizer: impl ResourceFinalizer + 'static,
+    ) -> Self {
+        Self::new(kind)
+            .with_label(label)
+            .with_fd(descriptor)
+            .with_finalizer(finalizer)
+    }
+
+    /// Create one labeled windows handle entry with one finalizer.
+    #[cfg(windows)]
+    pub fn labeled_handle_finalizer(
+        kind: ResourceKind,
+        label: impl Into<String>,
+        handle: RawHandle,
+        finalizer: impl ResourceFinalizer + 'static,
+    ) -> Self {
+        Self::new(kind)
+            .with_label(label)
+            .with_handle(handle)
+            .with_finalizer(finalizer)
+    }
+
     /// Attach a diagnostic label.
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
         self.label = Some(label.into());
@@ -197,6 +261,25 @@ impl ResourceEntry {
     pub fn with_finalizer(mut self, finalizer: impl ResourceFinalizer + 'static) -> Self {
         self.finalizer = Some(Box::new(finalizer));
         self
+    }
+
+    /// Return one typed payload reference when present.
+    pub fn payload_ref<T: 'static>(&self) -> Option<&T> {
+        self.payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<T>())
+    }
+
+    /// Return one typed mutable payload reference when present.
+    pub fn payload_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        self.payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<T>())
+    }
+
+    /// Return one cloned typed payload when present.
+    pub fn payload_cloned<T: Clone + 'static>(&self) -> Option<T> {
+        self.payload_ref::<T>().cloned()
     }
 
     /// Invoke the finalizer when present.

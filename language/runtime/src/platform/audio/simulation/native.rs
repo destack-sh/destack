@@ -36,7 +36,7 @@ fn unsupported(operation: &'static str) -> Box<RuntimeError> {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_backend_list(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<AudioBackendDescriptor>,
 ) -> RuntimeResult<()> {
     let _ = out;
@@ -61,7 +61,7 @@ pub(crate) unsafe fn destack_audio_backend_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_clock_now(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     domain: AudioClockDomain,
 ) -> RuntimeResult<()> {
@@ -92,7 +92,7 @@ pub(crate) unsafe fn destack_audio_clock_now(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_clock(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioClockSnapshot,
     handle: resource::AudioStreamHandle,
     domain: AudioStreamClockDomain,
@@ -119,7 +119,7 @@ pub(crate) unsafe fn destack_audio_stream_clock(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -145,7 +145,7 @@ pub(crate) unsafe fn destack_audio_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_default(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeStringRef,
     direction: AudioDeviceDirection,
     backend: AudioBackend,
@@ -173,7 +173,7 @@ pub(crate) unsafe fn destack_audio_device_default(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_descriptor(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioDeviceDescriptor,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
@@ -199,7 +199,7 @@ pub(crate) unsafe fn destack_audio_device_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_list(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<AudioDeviceDescriptor>,
     request: AudioDeviceListRequest,
 ) -> RuntimeResult<()> {
@@ -225,7 +225,7 @@ pub(crate) unsafe fn destack_audio_device_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::AudioDeviceHandle,
     id: NativeStringRef,
     options: AudioDeviceOpenOptions,
@@ -252,7 +252,7 @@ pub(crate) unsafe fn destack_audio_device_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_rescan(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     backend: AudioBackend,
     backend_policy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<()> {
@@ -278,7 +278,7 @@ pub(crate) unsafe fn destack_audio_device_rescan(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -305,7 +305,7 @@ pub(crate) unsafe fn destack_audio_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::AudioEventHandle,
     options: AudioEventSubscriptionOptions,
 ) -> RuntimeResult<()> {
@@ -331,7 +331,7 @@ pub(crate) unsafe fn destack_audio_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioEvent,
     handle: resource::AudioEventHandle,
     timeoutns: u64,
@@ -359,7 +359,7 @@ pub(crate) unsafe fn destack_audio_event_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_read_batch(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<AudioEvent>,
     handle: resource::AudioEventHandle,
     maxevents: u32,
@@ -387,7 +387,7 @@ pub(crate) unsafe fn destack_audio_event_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_try_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioEvent,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
@@ -413,7 +413,7 @@ pub(crate) unsafe fn destack_audio_event_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_event_try_read_batch(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<AudioEvent>,
     handle: resource::AudioEventHandle,
     maxevents: u32,
@@ -440,7 +440,7 @@ pub(crate) unsafe fn destack_audio_event_try_read_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_abort(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -465,7 +465,7 @@ pub(crate) unsafe fn destack_audio_stream_abort(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_availability(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioStreamAvailability,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
@@ -491,7 +491,7 @@ pub(crate) unsafe fn destack_audio_stream_availability(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -516,7 +516,7 @@ pub(crate) unsafe fn destack_audio_stream_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_drain(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -542,7 +542,7 @@ pub(crate) unsafe fn destack_audio_stream_drain(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_flush(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -569,7 +569,7 @@ pub(crate) unsafe fn destack_audio_stream_flush(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::AudioStreamHandle,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfig,
@@ -597,7 +597,7 @@ pub(crate) unsafe fn destack_audio_stream_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_support(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioStreamSupport,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfig,
@@ -625,7 +625,7 @@ pub(crate) unsafe fn destack_audio_stream_support(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_pause(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
     pause: bool,
 ) -> RuntimeResult<()> {
@@ -651,7 +651,7 @@ pub(crate) unsafe fn destack_audio_stream_pause(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
@@ -678,7 +678,7 @@ pub(crate) unsafe fn destack_audio_stream_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_readv(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -705,7 +705,7 @@ pub(crate) unsafe fn destack_audio_stream_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_set_mute(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeResult<()> {
@@ -731,7 +731,7 @@ pub(crate) unsafe fn destack_audio_stream_set_mute(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_set_name(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -757,7 +757,7 @@ pub(crate) unsafe fn destack_audio_stream_set_name(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_set_volume(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeResult<()> {
@@ -783,7 +783,7 @@ pub(crate) unsafe fn destack_audio_stream_set_volume(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_descriptor(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioStreamDescriptor,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
@@ -809,7 +809,7 @@ pub(crate) unsafe fn destack_audio_stream_descriptor(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_start(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -834,7 +834,7 @@ pub(crate) unsafe fn destack_audio_stream_start(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_state(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioStreamState,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
@@ -860,7 +860,7 @@ pub(crate) unsafe fn destack_audio_stream_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_stop(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -886,7 +886,7 @@ pub(crate) unsafe fn destack_audio_stream_stop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_timing(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut AudioStreamTiming,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
@@ -912,7 +912,7 @@ pub(crate) unsafe fn destack_audio_stream_timing(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_try_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
@@ -939,7 +939,7 @@ pub(crate) unsafe fn destack_audio_stream_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_try_readv(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -966,7 +966,7 @@ pub(crate) unsafe fn destack_audio_stream_try_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_try_write(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     data: NativeSlice<u8>,
@@ -993,7 +993,7 @@ pub(crate) unsafe fn destack_audio_stream_try_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_try_writev(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -1020,7 +1020,7 @@ pub(crate) unsafe fn destack_audio_stream_try_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_write(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     data: NativeSlice<u8>,
@@ -1048,7 +1048,7 @@ pub(crate) unsafe fn destack_audio_stream_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_write_at(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     data: NativeSlice<u8>,
@@ -1077,7 +1077,7 @@ pub(crate) unsafe fn destack_audio_stream_write_at(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_write_atv(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -1105,7 +1105,7 @@ pub(crate) unsafe fn destack_audio_stream_write_atv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_writev(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -1131,7 +1131,7 @@ pub(crate) unsafe fn destack_audio_stream_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_flush(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1155,7 +1155,7 @@ pub(crate) unsafe fn destack_audio_midi_flush(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_close(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::MidiPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -1180,7 +1180,7 @@ pub(crate) unsafe fn destack_audio_midi_port_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_list(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeSlice<MidiPortDescriptor>,
     direction: MidiPortDirection,
 ) -> RuntimeResult<()> {
@@ -1206,7 +1206,7 @@ pub(crate) unsafe fn destack_audio_midi_port_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_port_open(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::MidiPortHandle,
     id: NativeStringRef,
     direction: MidiPortDirection,
@@ -1232,7 +1232,7 @@ pub(crate) unsafe fn destack_audio_midi_port_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeArray<MidiMessage>,
     handle: resource::MidiPortHandle,
     maxmessages: u32,
@@ -1259,7 +1259,7 @@ pub(crate) unsafe fn destack_audio_midi_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_try_read(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut NativeArray<MidiMessage>,
     handle: resource::MidiPortHandle,
     maxmessages: u32,
@@ -1285,7 +1285,7 @@ pub(crate) unsafe fn destack_audio_midi_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_midi_write(
-    _context: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut u32,
     handle: resource::MidiPortHandle,
     messages: NativeArray<MidiMessage>,

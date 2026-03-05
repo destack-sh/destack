@@ -37,7 +37,7 @@ const FUTEX_WAKE_OPERATION: &str = "destack.ipc.sync.futexWake";
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wait(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     expected: u32,
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wake(
-    _context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut u32,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
@@ -96,7 +96,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_create(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut resource::SemaphoreHandle,
     name: NativeStringRef,
     initial: u32,
@@ -129,7 +129,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
     }
 
     // register semaphore handle and write output
-    let handle = register_semaphore_handle(context, semaphore);
+    let handle = register_semaphore_handle(binding, semaphore);
     unsafe {
         out.write(handle);
     }
@@ -155,12 +155,12 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_post(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
     // resolve one semaphore handle and decode count range
-    let semaphore = semaphore_handle(context, handle, SEMAPHORE_POST_OPERATION)?;
+    let semaphore = semaphore_handle(binding, handle, SEMAPHORE_POST_OPERATION)?;
     let release_count = i32::try_from(count)
         .map_err(|_| core_platform::invalid_argument("count", "count exceeds windows i32 range"))?;
 
@@ -191,12 +191,12 @@ pub(crate) unsafe fn destack_ipc_semaphore_post(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_wait(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // resolve one semaphore handle and decode timeout
-    let semaphore = semaphore_handle(context, handle, SEMAPHORE_WAIT_OPERATION)?;
+    let semaphore = semaphore_handle(binding, handle, SEMAPHORE_WAIT_OPERATION)?;
     let timeout_milliseconds = timeout_to_wait_milliseconds(timeoutns);
 
     // wait on one semaphore permit
