@@ -341,9 +341,121 @@ pub(crate) fn find_useless_backreference(
         if !is_backreference_related_error {
             return None;
         }
+
+        // skip reports when a separate syntax error is masked by backreference parsing
+        if has_masked_non_backreference_syntax_error(regex, flags) {
+            return None;
+        }
     };
 
     analyze_backreferences(regex, flags)
+}
+
+/// Return true when sanitizing backreferences still leaves a syntax error.
+fn has_masked_non_backreference_syntax_error(regex: &str, flags: Option<&str>) -> bool {
+    let sanitized_pattern = sanitize_backreferences_for_parse(regex);
+    let parse = LintRegexParse::parse_with_flags(&sanitized_pattern, flags);
+    let Some(error) = parse.error else {
+        return false;
+    };
+
+    // only suppress known repetition-count syntax errors that must fail in JS too
+    matches!(
+        error.kind,
+        LintRegexErrorKind::Parse(
+            AstErrorKind::RepetitionCountInvalid
+                | AstErrorKind::RepetitionCountDecimalEmpty
+                | AstErrorKind::RepetitionCountUnclosed
+        )
+    )
+}
+
+/// Replace backreference tokens with literals for conservative syntax probing.
+fn sanitize_backreferences_for_parse(regex: &str) -> String {
+    let indexed_characters: Vec<(usize, char)> = regex.char_indices().collect();
+    let mut sanitized = String::with_capacity(regex.len());
+    let mut index = 0usize;
+    let mut in_character_class = false;
+
+    while index < indexed_characters.len() {
+        let (character_start, character) = indexed_characters[index];
+
+        // preserve character class contents and class escape structure
+        if in_character_class {
+            if character == '\\' {
+                let escape_end = character_end_offset(regex, &indexed_characters, index + 1);
+                sanitized.push_str(&regex[character_start..escape_end]);
+                index += 2;
+                continue;
+            }
+            if character == ']' {
+                in_character_class = false;
+            }
+
+            let character_end = character_end_offset(regex, &indexed_characters, index + 1);
+            sanitized.push_str(&regex[character_start..character_end]);
+            index += 1;
+            continue;
+        }
+
+        // mark the start of one character class
+        if character == '[' {
+            in_character_class = true;
+            let character_end = character_end_offset(regex, &indexed_characters, index + 1);
+            sanitized.push_str(&regex[character_start..character_end]);
+            index += 1;
+            continue;
+        }
+
+        // replace numeric and named backreferences with one literal
+        if character == '\\'
+            && let Some((_, next_character)) = indexed_characters.get(index + 1).copied()
+        {
+            if matches!(next_character, '1'..='9') {
+                sanitized.push('a');
+                index += 2;
+                while indexed_characters
+                    .get(index)
+                    .is_some_and(|(_, digit)| digit.is_ascii_digit())
+                {
+                    index += 1;
+                }
+                continue;
+            }
+
+            if next_character == 'k'
+                && indexed_characters
+                    .get(index + 2)
+                    .is_some_and(|(_, ch)| *ch == '<')
+            {
+                let mut cursor = index + 3;
+                while let Some((_, name_character)) = indexed_characters.get(cursor) {
+                    cursor += 1;
+                    if *name_character == '>' {
+                        break;
+                    }
+                }
+
+                sanitized.push('a');
+                index = cursor;
+                continue;
+            }
+        }
+
+        // preserve all other tokens
+        let character_end = character_end_offset(regex, &indexed_characters, index + 1);
+        sanitized.push_str(&regex[character_start..character_end]);
+        index += 1;
+    }
+
+    sanitized
+}
+
+/// Return one end byte offset for an indexed character position.
+fn character_end_offset(regex: &str, indexed_characters: &[(usize, char)], index: usize) -> usize {
+    indexed_characters
+        .get(index)
+        .map_or(regex.len(), |(start, _)| *start)
 }
 
 /// One lookaround kind in a parsed regex group.
