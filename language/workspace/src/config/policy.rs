@@ -522,7 +522,7 @@ impl From<ExecutionModeJson> for ExecutionMode {
 /// Replay payload mode for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum ReplayPayloadModeJson {
     /// Record only the result value.
     ResultsOnly,

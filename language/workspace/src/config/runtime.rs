@@ -322,6 +322,44 @@ pub struct RuntimeLabelRequirement {
     pub values: Vec<String>,
 }
 
+impl RuntimeLabelRequirement {
+    /// Create one in-operator requirement.
+    pub fn in_values(key: impl Into<String>, values: Vec<String>) -> Self {
+        Self {
+            key: key.into(),
+            operator: RuntimeLabelOperator::In,
+            values,
+        }
+    }
+
+    /// Create one not-in-operator requirement.
+    pub fn not_in_values(key: impl Into<String>, values: Vec<String>) -> Self {
+        Self {
+            key: key.into(),
+            operator: RuntimeLabelOperator::NotIn,
+            values,
+        }
+    }
+
+    /// Create one exists-operator requirement.
+    pub fn exists(key: impl Into<String>) -> Self {
+        Self {
+            key: key.into(),
+            operator: RuntimeLabelOperator::Exists,
+            values: Vec::new(),
+        }
+    }
+
+    /// Create one does-not-exist-operator requirement.
+    pub fn does_not_exist(key: impl Into<String>) -> Self {
+        Self {
+            key: key.into(),
+            operator: RuntimeLabelOperator::DoesNotExist,
+            values: Vec::new(),
+        }
+    }
+}
+
 /// Kubernetes-style label selector for runtime identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeLabelSelector {
@@ -329,6 +367,53 @@ pub struct RuntimeLabelSelector {
     pub match_labels: BTreeMap<String, String>,
     /// Additional set-based label requirements.
     pub match_expressions: Vec<RuntimeLabelRequirement>,
+}
+
+impl RuntimeLabelSelector {
+    /// Create one empty label selector.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Add one exact-match label requirement.
+    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.match_labels.insert(key.into(), value.into());
+        self
+    }
+
+    /// Add one expression requirement.
+    pub fn expression(mut self, requirement: RuntimeLabelRequirement) -> Self {
+        self.match_expressions.push(requirement);
+        self
+    }
+
+    /// Add one in-operator expression requirement.
+    pub fn in_values(mut self, key: impl Into<String>, values: Vec<String>) -> Self {
+        self.match_expressions
+            .push(RuntimeLabelRequirement::in_values(key, values));
+        self
+    }
+
+    /// Add one not-in-operator expression requirement.
+    pub fn not_in_values(mut self, key: impl Into<String>, values: Vec<String>) -> Self {
+        self.match_expressions
+            .push(RuntimeLabelRequirement::not_in_values(key, values));
+        self
+    }
+
+    /// Add one exists-operator expression requirement.
+    pub fn exists(mut self, key: impl Into<String>) -> Self {
+        self.match_expressions
+            .push(RuntimeLabelRequirement::exists(key));
+        self
+    }
+
+    /// Add one does-not-exist-operator expression requirement.
+    pub fn does_not_exist(mut self, key: impl Into<String>) -> Self {
+        self.match_expressions
+            .push(RuntimeLabelRequirement::does_not_exist(key));
+        self
+    }
 }
 
 /// Runtime identity selector for agent and runtime scopes.
@@ -340,11 +425,36 @@ pub struct RuntimeIdentitySelector {
     pub labels: Option<RuntimeLabelSelector>,
 }
 
+impl RuntimeIdentitySelector {
+    /// Create one identity selector that matches one name glob.
+    pub fn named(name: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            labels: None,
+        }
+    }
+
+    /// Attach one label selector.
+    pub fn labels(mut self, labels: RuntimeLabelSelector) -> Self {
+        self.labels = Some(labels);
+        self
+    }
+
+    /// Attach one exact-match label requirement.
+    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        let labels = self.labels.take().unwrap_or_default().label(key, value);
+        self.labels = Some(labels);
+        self
+    }
+}
+
 /// Selector clauses for runtime binding policies.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeSelector {
     /// Glob selector for full binding names.
     pub binding: Option<String>,
+    /// Glob selector for full userland function names.
+    pub function: Option<String>,
     /// Glob selector for capability names.
     pub capability: Option<String>,
     /// Glob selector for component names.
@@ -370,9 +480,152 @@ pub struct RuntimeSelector {
 }
 
 impl RuntimeSelector {
+    /// Create one selector for one binding name glob.
+    pub fn binding(pattern: impl Into<String>) -> Self {
+        Self {
+            binding: Some(pattern.into()),
+            ..Self::default()
+        }
+    }
+
+    /// Create one selector for one function name glob.
+    pub fn function(pattern: impl Into<String>) -> Self {
+        Self {
+            function: Some(pattern.into()),
+            ..Self::default()
+        }
+    }
+
+    /// Set the capability glob selector.
+    pub fn capability(mut self, pattern: impl Into<String>) -> Self {
+        self.capability = Some(pattern.into());
+        self
+    }
+
+    /// Set the component glob selector.
+    pub fn component(mut self, pattern: impl Into<String>) -> Self {
+        self.component = Some(pattern.into());
+        self
+    }
+
+    /// Set the module glob selector.
+    pub fn module(mut self, pattern: impl Into<String>) -> Self {
+        self.module = Some(pattern.into());
+        self
+    }
+
+    /// Set the execution-engine selector.
+    pub fn engine(mut self, engine: BindingEngine) -> Self {
+        self.engine = Some(engine);
+        self
+    }
+
+    /// Set execution-mode selectors.
+    pub fn execution_modes(mut self, modes: Vec<ExecutionMode>) -> Self {
+        self.execution_modes = Some(modes);
+        self
+    }
+
+    /// Add one execution-mode selector.
+    pub fn execution_mode(mut self, mode: ExecutionMode) -> Self {
+        let mut modes = self.execution_modes.take().unwrap_or_default();
+        modes.push(mode);
+        self.execution_modes = Some(modes);
+        self
+    }
+
+    /// Set the platform selectors.
+    pub fn platforms(mut self, platforms: Vec<String>) -> Self {
+        self.platforms = Some(platforms);
+        self
+    }
+
+    /// Add one platform selector.
+    pub fn platform(mut self, platform: impl Into<String>) -> Self {
+        let mut platforms = self.platforms.take().unwrap_or_default();
+        platforms.push(platform.into());
+        self.platforms = Some(platforms);
+        self
+    }
+
+    /// Set the binding-scope selector.
+    pub fn scope(mut self, scope: BindingScope) -> Self {
+        self.scope = Some(scope);
+        self
+    }
+
+    /// Set the binding-blocking selector.
+    pub fn blocking(mut self, blocking: BindingBlocking) -> Self {
+        self.blocking = Some(blocking);
+        self
+    }
+
+    /// Set the binding-effect selector.
+    pub fn effect(mut self, effect: BindingEffect) -> Self {
+        self.effect = Some(effect);
+        self
+    }
+
+    /// Set the runtime identity selector.
+    pub fn runtime(mut self, runtime: RuntimeIdentitySelector) -> Self {
+        self.runtime = Some(runtime);
+        self
+    }
+
+    /// Set the agent identity selector.
+    pub fn agent(mut self, agent: RuntimeIdentitySelector) -> Self {
+        self.agent = Some(agent);
+        self
+    }
+
+    /// Set runtime name selector.
+    pub fn runtime_name(mut self, name: impl Into<String>) -> Self {
+        let mut selector = self.runtime.take().unwrap_or_default();
+        selector.name = Some(name.into());
+        self.runtime = Some(selector);
+        self
+    }
+
+    /// Set runtime label selector.
+    pub fn runtime_labels(mut self, labels: RuntimeLabelSelector) -> Self {
+        let selector = self.runtime.take().unwrap_or_default().labels(labels);
+        self.runtime = Some(selector);
+        self
+    }
+
+    /// Add one runtime label requirement.
+    pub fn runtime_label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        let selector = self.runtime.take().unwrap_or_default().label(key, value);
+        self.runtime = Some(selector);
+        self
+    }
+
+    /// Set agent name selector.
+    pub fn agent_name(mut self, name: impl Into<String>) -> Self {
+        let mut selector = self.agent.take().unwrap_or_default();
+        selector.name = Some(name.into());
+        self.agent = Some(selector);
+        self
+    }
+
+    /// Set agent label selector.
+    pub fn agent_labels(mut self, labels: RuntimeLabelSelector) -> Self {
+        let selector = self.agent.take().unwrap_or_default().labels(labels);
+        self.agent = Some(selector);
+        self
+    }
+
+    /// Add one agent label requirement.
+    pub fn agent_label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        let selector = self.agent.take().unwrap_or_default().label(key, value);
+        self.agent = Some(selector);
+        self
+    }
+
     /// Return true when this selector has no clauses.
     pub fn is_empty(&self) -> bool {
         self.binding.is_none()
+            && self.function.is_none()
             && self.capability.is_none()
             && self.component.is_none()
             && self.module.is_none()
@@ -387,29 +640,17 @@ impl RuntimeSelector {
     }
 }
 
-/// Static runtime policy action for one config rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum RuntimePolicyAction {
-    /// Set the matching binding access mode.
-    SetAccess {
-        /// The selected access mode for matching bindings.
-        access: RuntimeAccess,
-    },
-    /// Set the matching binding world.
-    SetWorld {
-        /// The selected world for matching bindings.
-        world: RuntimeWorld,
-    },
-}
-
-/// Static runtime policy rule for dsconfig.
+/// Static runtime rule for dsconfig.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct RuntimePolicyRule {
+pub struct RuntimeRule {
     /// Rule filter clause.
     pub when: RuntimeSelector,
-    /// Rule action payload.
-    pub action: RuntimePolicyAction,
+    /// Access decision for matching bindings.
+    pub access: Option<RuntimeAccess>,
+    /// World decision for matching bindings.
+    pub world: Option<RuntimeWorld>,
+    /// Replay payload decision for matching bindings.
+    pub replay: Option<ReplayPayloadMode>,
 }
 
 /// Default identity options for one runtime primary agent.
@@ -432,12 +673,12 @@ pub struct RuntimeOptions {
     pub primary_agent: RuntimeAgentOptions,
     /// Execution mode for runtime scheduling and replay.
     pub execution: ExecutionMode,
-    /// Default world for bindings without a matching route.
+    /// Default world for bindings without a matching rule.
     pub world: RuntimeWorld,
     /// Default access policy for bindings without a matching access rule.
     pub access: RuntimeAccess,
-    /// Ordered static runtime policy rules.
-    pub rules: Vec<RuntimePolicyRule>,
+    /// Ordered static runtime rules.
+    pub rules: Vec<RuntimeRule>,
     /// Replay configuration.
     pub replay: ReplayOptions,
     /// Runtime clock configuration.
@@ -903,8 +1144,8 @@ pub struct DsConfigRuntimeOptionsJson {
     pub world: Option<RuntimeWorldJson>,
     /// Default access policy for bindings without matching access rules.
     pub access: Option<RuntimeAccessJson>,
-    /// Ordered static runtime policy rules.
-    pub rules: Option<Vec<RuntimePolicyRuleJson>>,
+    /// Ordered static runtime rules.
+    pub rules: Option<Vec<RuntimeRuleJson>>,
     /// Replay configuration.
     pub replay: Option<ReplayOptionsJson>,
     /// Runtime clock configuration.
@@ -1020,9 +1261,9 @@ impl DsConfigRuntimeOptionsJson {
             options.access = RuntimeAccess::from(default_access);
         }
 
-        // apply static policy rules
+        // apply static runtime rules
         if let Some(rules) = &self.rules {
-            options.rules = rules.iter().map(RuntimePolicyRule::from).collect();
+            options.rules = rules.iter().map(RuntimeRule::from).collect();
         }
 
         // apply replay overrides
@@ -1312,6 +1553,8 @@ impl From<&RuntimeIdentitySelectorJson> for RuntimeIdentitySelector {
 pub struct RuntimeSelectorJson {
     /// Glob selector for full binding names.
     pub binding: Option<String>,
+    /// Glob selector for full userland function names.
+    pub function: Option<String>,
     /// Glob selector for capability names.
     pub capability: Option<String>,
     /// Glob selector for component names.
@@ -1321,7 +1564,7 @@ pub struct RuntimeSelectorJson {
     /// Engine selector.
     pub engine: Option<BindingEngineJson>,
     /// Execution mode selector.
-    pub execution: Option<Vec<ExecutionModeJson>>,
+    pub execution: Option<RuntimeExecutionSelectorJson>,
     /// Platform selector.
     pub platforms: Option<Vec<String>>,
     /// Binding scope selector.
@@ -1340,6 +1583,7 @@ impl From<&RuntimeSelectorJson> for RuntimeSelector {
     fn from(value: &RuntimeSelectorJson) -> Self {
         Self {
             binding: value.binding.clone(),
+            function: value.function.clone(),
             capability: value.capability.clone(),
             component: value.component.clone(),
             module: value.module.clone(),
@@ -1347,13 +1591,34 @@ impl From<&RuntimeSelectorJson> for RuntimeSelector {
             execution_modes: value
                 .execution
                 .as_ref()
-                .map(|modes| modes.iter().copied().map(ExecutionMode::from).collect()),
+                .map(RuntimeExecutionSelectorJson::to_execution_modes),
             platforms: value.platforms.clone(),
             scope: value.scope.map(BindingScope::from),
             blocking: value.blocking.map(BindingBlocking::from),
             effect: value.effect.map(BindingEffect::from),
             runtime: value.runtime.as_ref().map(RuntimeIdentitySelector::from),
             agent: value.agent.as_ref().map(RuntimeIdentitySelector::from),
+        }
+    }
+}
+
+/// Runtime execution-mode selector for JSON deserialization.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum RuntimeExecutionSelectorJson {
+    /// Match one execution mode.
+    One(ExecutionModeJson),
+    /// Match any execution mode in this list.
+    Many(Vec<ExecutionModeJson>),
+}
+
+impl RuntimeExecutionSelectorJson {
+    /// Convert one JSON selector to execution modes.
+    pub fn to_execution_modes(&self) -> Vec<ExecutionMode> {
+        match self {
+            Self::One(mode) => vec![ExecutionMode::from(*mode)],
+            Self::Many(modes) => modes.iter().copied().map(ExecutionMode::from).collect(),
         }
     }
 }
@@ -1447,52 +1712,51 @@ impl From<BindingEffectJson> for BindingEffect {
     }
 }
 
-/// Runtime static policy action for JSON deserialization.
+/// Runtime static rule for JSON deserialization.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum RuntimePolicyActionJson {
-    /// Set the matching binding access mode.
-    SetAccess {
-        /// The selected access mode for matching bindings.
-        access: RuntimeAccessJson,
-    },
-    /// Set the matching binding world.
-    SetWorld {
-        /// The selected world for matching bindings.
-        world: RuntimeWorldJson,
-    },
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeRuleJson {
+    /// Rule filter clause.
+    pub when: RuntimeRuleWhenJson,
+    /// Access decision for matching bindings.
+    pub access: Option<RuntimeAccessJson>,
+    /// World decision for matching bindings.
+    pub world: Option<RuntimeWorldJson>,
+    /// Replay payload decision for matching bindings.
+    pub replay: Option<ReplayPayloadModeJson>,
 }
 
-impl From<&RuntimePolicyActionJson> for RuntimePolicyAction {
-    fn from(value: &RuntimePolicyActionJson) -> Self {
+/// Runtime rule selector clause for JSON deserialization.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum RuntimeRuleWhenJson {
+    /// Shorthand binding glob selector.
+    Binding(String),
+    /// Shorthand function glob selector.
+    Function(String),
+    /// Full selector object.
+    Selector(RuntimeSelectorJson),
+}
+
+impl From<&RuntimeRuleWhenJson> for RuntimeSelector {
+    fn from(value: &RuntimeRuleWhenJson) -> Self {
         match value {
-            RuntimePolicyActionJson::SetAccess { access } => RuntimePolicyAction::SetAccess {
-                access: RuntimeAccess::from(*access),
-            },
-            RuntimePolicyActionJson::SetWorld { world } => RuntimePolicyAction::SetWorld {
-                world: RuntimeWorld::from(*world),
-            },
+            RuntimeRuleWhenJson::Binding(pattern) => RuntimeSelector::binding(pattern.clone()),
+            RuntimeRuleWhenJson::Function(pattern) => RuntimeSelector::function(pattern.clone()),
+            RuntimeRuleWhenJson::Selector(selector) => RuntimeSelector::from(selector),
         }
     }
 }
 
-/// Runtime static policy rule for JSON deserialization.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimePolicyRuleJson {
-    /// Rule filter clause.
-    pub when: RuntimeSelectorJson,
-    /// Rule action payload.
-    pub action: RuntimePolicyActionJson,
-}
-
-impl From<&RuntimePolicyRuleJson> for RuntimePolicyRule {
-    fn from(value: &RuntimePolicyRuleJson) -> Self {
+impl From<&RuntimeRuleJson> for RuntimeRule {
+    fn from(value: &RuntimeRuleJson) -> Self {
         Self {
             when: RuntimeSelector::from(&value.when),
-            action: RuntimePolicyAction::from(&value.action),
+            access: value.access.map(RuntimeAccess::from),
+            world: value.world.map(RuntimeWorld::from),
+            replay: value.replay.map(ReplayPayloadMode::from),
         }
     }
 }
@@ -2813,7 +3077,6 @@ impl From<GcLoggingJson> for GcLogging {
         }
     }
 }
-
 /// Runtime diagnostic level for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -2843,5 +3106,97 @@ impl From<RuntimeDiagnosticLevelJson> for RuntimeDiagnosticLevel {
             RuntimeDiagnosticLevelJson::Debug => RuntimeDiagnosticLevel::Debug,
             RuntimeDiagnosticLevelJson::Trace => RuntimeDiagnosticLevel::Trace,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{
+        DsConfigRuntimeOptionsJson, ExecutionMode, ReplayPayloadMode, RuntimeAccess,
+        RuntimeSelector, RuntimeWorld,
+    };
+
+    /// Ensure runtime options apply shorthand and object selector rules.
+    #[test]
+    fn test_runtime_options_apply_parses_shorthand_and_object_rules() {
+        let runtime_json: DsConfigRuntimeOptionsJson = serde_json::from_value(json!({
+            "rules": [
+                {
+                    "when": "destack.net.*",
+                    "access": "deny"
+                },
+                {
+                    "when": { "binding": "destack.fs.*" },
+                    "world": "simulation"
+                },
+                {
+                    "when": { "binding": "destack.crypto.*" },
+                    "replay": "argumentsAndResults"
+                }
+            ]
+        }))
+        .expect("runtime options json should parse");
+
+        let mut options = super::RuntimeOptions::default();
+        runtime_json.apply_to(&mut options);
+
+        assert_eq!(options.rules.len(), 3);
+        assert_eq!(
+            options.rules[0].when,
+            RuntimeSelector::binding("destack.net.*")
+        );
+        assert_eq!(options.rules[0].access, Some(RuntimeAccess::Deny));
+        assert_eq!(options.rules[0].world, None);
+        assert_eq!(options.rules[0].replay, None);
+        assert_eq!(
+            options.rules[1].when,
+            RuntimeSelector::binding("destack.fs.*")
+        );
+        assert_eq!(options.rules[1].access, None);
+        assert_eq!(options.rules[1].world, Some(RuntimeWorld::Simulation));
+        assert_eq!(options.rules[1].replay, None);
+        assert_eq!(
+            options.rules[2].when,
+            RuntimeSelector::binding("destack.crypto.*")
+        );
+        assert_eq!(options.rules[2].access, None);
+        assert_eq!(options.rules[2].world, None);
+        assert_eq!(
+            options.rules[2].replay,
+            Some(ReplayPayloadMode::ArgumentsAndResults)
+        );
+    }
+
+    /// Ensure runtime selector execution accepts one mode and many modes.
+    #[test]
+    fn test_runtime_options_apply_parses_execution_string_or_array() {
+        let runtime_json: DsConfigRuntimeOptionsJson = serde_json::from_value(json!({
+            "rules": [
+                {
+                    "when": { "binding": "destack.net.*", "execution": "record" },
+                    "access": "deny"
+                },
+                {
+                    "when": { "binding": "destack.fs.*", "execution": ["record", "replay"] },
+                    "world": "simulation"
+                }
+            ]
+        }))
+        .expect("runtime options json should parse");
+
+        let mut options = super::RuntimeOptions::default();
+        runtime_json.apply_to(&mut options);
+
+        assert_eq!(options.rules.len(), 2);
+        assert_eq!(
+            options.rules[0].when.execution_modes,
+            Some(vec![ExecutionMode::Record])
+        );
+        assert_eq!(
+            options.rules[1].when.execution_modes,
+            Some(vec![ExecutionMode::Record, ExecutionMode::Replay])
+        );
     }
 }
