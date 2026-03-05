@@ -16,8 +16,8 @@ pub struct RandomOptions {
     pub mode: RandomMode,
     /// Seed for deterministic randomness streams.
     pub seed: Option<u64>,
-    /// Whether to use a per-task random stream.
-    pub per_task: bool,
+    /// Whether to use a per-runnable random stream.
+    pub per_runnable: bool,
 }
 /// Runtime randomness options for JSON deserialization.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
@@ -28,8 +28,8 @@ pub struct RandomOptionsJson {
     pub mode: Option<RandomModeJson>,
     /// Seed for deterministic randomness streams.
     pub seed: Option<u64>,
-    /// Whether to use a per-task random stream.
-    pub per_task: Option<bool>,
+    /// Whether to use a per-runnable random stream.
+    pub per_runnable: Option<bool>,
 }
 
 impl RandomOptionsJson {
@@ -45,9 +45,9 @@ impl RandomOptionsJson {
             options.seed = Some(seed);
         }
 
-        // apply per-task overrides
-        if let Some(per_task) = self.per_task {
-            options.per_task = per_task;
+        // apply per-runnable overrides
+        if let Some(per_runnable) = self.per_runnable {
+            options.per_runnable = per_runnable;
         }
     }
 }

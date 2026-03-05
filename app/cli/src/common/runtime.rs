@@ -58,9 +58,9 @@ pub struct RuntimeArgs {
     #[arg(long = "runtime-random-seed")]
     pub random_seed: Option<u64>,
 
-    /// Use a per-task random stream.
-    #[arg(long = "runtime-random-per-task")]
-    pub random_per_task: bool,
+    /// Use a per-runnable random stream.
+    #[arg(long = "runtime-random-per-runnable")]
+    pub random_per_runnable: bool,
 
     /// Runtime scheduler policy.
     #[arg(long = "runtime-scheduler-policy", value_enum)]
@@ -146,7 +146,7 @@ impl RuntimeArgs {
             && self.time_zone.is_none()
             && self.random_mode.is_none()
             && self.random_seed.is_none()
-            && !self.random_per_task
+            && !self.random_per_runnable
             && self.scheduler_policy.is_none()
             && self.scheduler_tick_budget_ns.is_none()
             && self.scheduler_microtask_budget.is_none()
@@ -204,12 +204,14 @@ impl RuntimeArgs {
             None
         };
 
-        let random =
-            if self.random_mode.is_some() || self.random_seed.is_some() || self.random_per_task {
+        let random = if self.random_mode.is_some()
+            || self.random_seed.is_some()
+            || self.random_per_runnable
+        {
                 Some(RandomOptionsJson {
                     mode: self.random_mode.map(Into::into),
                     seed: self.random_seed,
-                    per_task: if self.random_per_task {
+                    per_runnable: if self.random_per_runnable {
                         Some(true)
                     } else {
                         None
