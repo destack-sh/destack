@@ -178,6 +178,38 @@ impl World {
         &self.replay
     }
 
+    /// Return the runtime name registered in world topology.
+    pub(crate) fn runtime_name(&self, runtime_id: RuntimeId) -> RuntimeResult<String> {
+        let topology = self.topology.read();
+        let (runtime_name, _) = topology.runtime_identity(runtime_id).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: format!(
+                    "runtime {} is not registered or missing selector labels in world topology",
+                    runtime_id.0
+                ),
+            }
+            .boxed()
+        })?;
+
+        Ok(runtime_name.to_string())
+    }
+
+    /// Return the agent name registered in world topology.
+    pub(crate) fn agent_name(&self, agent_id: AgentId) -> RuntimeResult<String> {
+        let topology = self.topology.read();
+        let (agent_name, _) = topology.agent_identity(agent_id).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: format!(
+                    "agent {} is not registered or missing selector labels in world topology",
+                    agent_id.0
+                ),
+            }
+            .boxed()
+        })?;
+
+        Ok(agent_name.to_string())
+    }
+
     /// Apply one world command and return the new world revision.
     pub fn apply(&self, command: WorldCommand) -> RuntimeResult<u64> {
         self.apply_command(command, None)

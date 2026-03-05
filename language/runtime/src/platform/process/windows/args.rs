@@ -36,7 +36,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_args(
-    context: &BindingCallContext,
+    binding: &BindingCallContext,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -44,15 +44,15 @@ pub(crate) unsafe fn destack_process_args(
     }
 
     // collect argument strings into call-local storage
-    let args = context.platform().args();
+    let args = binding.platform_args();
     let mut values = Vec::with_capacity(args.len());
     for argument in args {
-        values.push(context.store_string(argument));
+        values.push(binding.store_string(argument));
     }
 
     // write the encoded string slice
     unsafe {
-        *out = context.store_string_slice(values);
+        *out = binding.store_string_slice(values);
     }
 
     Ok(())

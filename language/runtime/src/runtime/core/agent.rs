@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{AgentDiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::HostEventKind;
-use crate::platform::{PlatformContext, ResourceId, ResourceTable};
-use crate::runtime::Hooks;
+use crate::platform::state::PlatformState;
+use crate::platform::{ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
 use crate::runtime::engine::EngineContinuation;
@@ -16,20 +16,23 @@ use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
 use crate::runtime::snapshot::SnapshotStore;
 use crate::runtime::time::HostClockSource;
 use crate::runtime::world::{RuntimeId, World, WorldCommand};
+use crate::runtime::{Hooks, RuntimeFinalizers};
 use destack_workspace::RuntimeOptions;
 
-/// Stable identifier for one runtime-managed agent.
+/// Stable identifier for one world-managed agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct AgentId(pub u64);
 
 /// Primary agent lane for executing Destack programs.
 pub struct Agent {
-    /// Monotonic process-local agent identity.
+    /// Monotonic world-local agent identity.
     pub(crate) id: AgentId,
     /// Runtime owner identifier in world topology.
     pub(crate) runtime_id: RuntimeId,
-    /// Platform context for host integrations.
-    pub(crate) platform: PlatformContext,
+    /// Agent name used for identity selection and diagnostics.
+    pub(crate) name: String,
+    /// Immutable process arguments for platform bindings.
+    pub(crate) platform_args: Arc<[String]>,
     /// Shared deterministic world for policy, simulation, clock, and randomness.
     pub(crate) world: Arc<World>,
     /// Immutable runtime options.
@@ -39,6 +42,10 @@ pub struct Agent {
     pub(crate) resources: ResourceTable,
     /// Agent hooks and effect state.
     pub(crate) hooks: Arc<Hooks>,
+    /// Agent-level finalizer registry for module services.
+    pub(crate) finalizers: RuntimeFinalizers,
+    /// Agent-owned platform state store.
+    pub(crate) platform_state: PlatformState,
     /// Agent diagnostics storage for runtime errors and warning events.
     pub(crate) diagnostic: Arc<AgentDiagnosticStore>,
     /// External binding registry and policy enforcement.
@@ -54,10 +61,13 @@ impl std::fmt::Debug for Agent {
         f.debug_struct("Agent")
             .field("agent_id", &self.id)
             .field("runtime_id", &self.runtime_id)
-            .field("platform", &self.platform)
+            .field("name", &self.name)
+            .field("platform_args", &self.platform_args)
             .field("options", &self.options)
             .field("resources", &self.resources)
             .field("hooks", &self.hooks)
+            .field("finalizers", &self.finalizers)
+            .field("platform_state", &self.platform_state)
             .field("world", &self.world)
             .field("diagnostic", &self.diagnostic)
             .field("bindings", &self.bindings)
@@ -69,49 +79,87 @@ impl std::fmt::Debug for Agent {
 
 impl Agent {
     /// Create one agent with explicit runtime options.
-    pub fn new(platform: PlatformContext, options: &RuntimeOptions) -> RuntimeResult<Self> {
+    pub fn new(
+        platform_args: impl Into<Arc<[String]>>,
+        options: &RuntimeOptions,
+    ) -> RuntimeResult<Self> {
+        let platform_args = platform_args.into();
         let world = Self::create_world(options, None)?;
-        let (runtime_id, agent_id) = Self::register_runtime(world.as_ref(), options)?;
+        let (runtime_id, agent_id, _, agent_name) =
+            Self::register_runtime(world.as_ref(), options)?;
 
-        Self::assemble(platform, options, world, runtime_id, agent_id)
+        Self::assemble(
+            platform_args,
+            options,
+            world,
+            runtime_id,
+            agent_id,
+            agent_name,
+        )
     }
 
     /// Create one agent with explicit runtime options in one shared world.
     pub fn new_in_world(
-        platform: PlatformContext,
+        platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: impl Into<Arc<World>>,
     ) -> RuntimeResult<Self> {
+        let platform_args = platform_args.into();
         let world = world.into();
-        let (runtime_id, agent_id) = Self::register_runtime(world.as_ref(), options)?;
+        let (runtime_id, agent_id, _, agent_name) =
+            Self::register_runtime(world.as_ref(), options)?;
 
-        Self::assemble(platform, options, world, runtime_id, agent_id)
+        Self::assemble(
+            platform_args,
+            options,
+            world,
+            runtime_id,
+            agent_id,
+            agent_name,
+        )
     }
 
     /// Create one agent with explicit runtime options in one existing runtime.
     pub(crate) fn new_in_runtime(
-        platform: PlatformContext,
+        platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: impl Into<Arc<World>>,
         runtime_id: RuntimeId,
     ) -> RuntimeResult<Self> {
+        let platform_args = platform_args.into();
         let world = world.into();
-        let agent_id = Self::register_agent(world.as_ref(), options, runtime_id)?;
+        let (agent_id, agent_name) = Self::register_agent(world.as_ref(), options, runtime_id)?;
 
-        Self::assemble(platform, options, world, runtime_id, agent_id)
+        Self::assemble(
+            platform_args,
+            options,
+            world,
+            runtime_id,
+            agent_id,
+            agent_name,
+        )
     }
 
     /// Create one agent with explicit runtime options and host clock source.
     #[cfg(test)]
     pub(crate) fn new_with_host_clock_source(
-        platform: PlatformContext,
+        platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         host_clock_source: Arc<dyn HostClockSource>,
     ) -> RuntimeResult<Self> {
+        let platform_args = platform_args.into();
         let world = Self::create_world(options, Some(host_clock_source))?;
-        let (runtime_id, agent_id) = Self::register_runtime(world.as_ref(), options)?;
+        let (runtime_id, agent_id, _, agent_name) =
+            Self::register_runtime(world.as_ref(), options)?;
 
-        Self::assemble(platform, options, world, runtime_id, agent_id)
+        Self::assemble(
+            platform_args,
+            options,
+            world,
+            runtime_id,
+            agent_id,
+            agent_name,
+        )
     }
 
     /// Create one shared world from runtime options.
@@ -125,11 +173,12 @@ impl Agent {
 
     /// Assemble one agent from registered runtime and agent identities.
     fn assemble(
-        platform: PlatformContext,
+        platform_args: Arc<[String]>,
         options: &RuntimeOptions,
         world: Arc<World>,
         runtime_id: RuntimeId,
         agent_id: AgentId,
+        agent_name: String,
     ) -> RuntimeResult<Self> {
         // hooks and resources
         let hooks = Arc::new(Hooks::new(
@@ -158,10 +207,13 @@ impl Agent {
         Ok(Self {
             id: agent_id,
             runtime_id,
-            platform,
+            name: agent_name,
+            platform_args,
             options: options.clone(),
             resources,
             hooks,
+            finalizers: RuntimeFinalizers::default(),
+            platform_state: PlatformState::default(),
             world,
             diagnostic: Arc::new(AgentDiagnosticStore::from_options(&options.diagnostic)),
             bindings,
@@ -194,11 +246,21 @@ impl Agent {
         Ok(())
     }
 
+    /// Return immutable process arguments exposed to platform bindings.
+    pub fn platform_args(&self) -> &[String] {
+        self.platform_args.as_ref()
+    }
+
+    /// Return this agent name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Register one new runtime and one primary agent in one world.
     fn register_runtime(
         world: &World,
         options: &RuntimeOptions,
-    ) -> RuntimeResult<(RuntimeId, AgentId)> {
+    ) -> RuntimeResult<(RuntimeId, AgentId, String, String)> {
         // runtime selector metadata
         let runtime_name = options
             .name
@@ -217,16 +279,20 @@ impl Agent {
         let agent_labels = options.primary_agent.labels.clone();
 
         // register runtime and agent in one world command
-        let _ = world.apply(WorldCommand::CreateRuntime {
+        let _ = world.create_runtime(
             runtime_id,
             runtime_name,
             runtime_labels,
-            primary_agent_id: agent_id,
-            primary_agent_name: agent_name,
-            primary_agent_labels: agent_labels,
-        })?;
+            agent_id,
+            agent_name,
+            agent_labels,
+        )?;
 
-        Ok((runtime_id, agent_id))
+        // read canonical names back from world topology
+        let runtime_name = world.runtime_name(runtime_id)?;
+        let agent_name = world.agent_name(agent_id)?;
+
+        Ok((runtime_id, agent_id, runtime_name, agent_name))
     }
 
     /// Register one agent in one existing runtime.
@@ -234,7 +300,7 @@ impl Agent {
         world: &World,
         options: &RuntimeOptions,
         runtime_id: RuntimeId,
-    ) -> RuntimeResult<AgentId> {
+    ) -> RuntimeResult<(AgentId, String)> {
         // agent selector metadata
         let agent_id = world.allocate_agent_id();
         let agent_name = options
@@ -245,14 +311,12 @@ impl Agent {
         let agent_labels = options.primary_agent.labels.clone();
 
         // register one agent in one existing runtime
-        let _ = world.apply(WorldCommand::CreateAgent {
-            runtime_id,
-            agent_id,
-            agent_name,
-            agent_labels,
-        })?;
+        let _ = world.create_agent(runtime_id, agent_id, agent_name, agent_labels)?;
 
-        Ok(agent_id)
+        // read canonical name back from world topology
+        let agent_name = world.agent_name(agent_id)?;
+
+        Ok((agent_id, agent_name))
     }
 
     /// Borrow the shared world attached to this agent.

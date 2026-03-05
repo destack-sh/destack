@@ -1,6 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Host;
-use crate::platform::PlatformContext;
 use crate::runtime::engine::{Engine, EngineOutput};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::world::{RuntimeId, World};
@@ -16,8 +15,10 @@ use super::{Agent, AgentId};
 pub struct Runtime {
     /// Runtime identifier in world topology.
     id: RuntimeId,
-    /// Platform context shared by newly spawned agents.
-    platform: PlatformContext,
+    /// Runtime name used for identity selection and diagnostics.
+    name: String,
+    /// Immutable process arguments shared by newly spawned agents.
+    platform_args: Arc<[String]>,
     /// Runtime options used for agent creation.
     options: RuntimeOptions,
     /// Shared world attached to every agent in this runtime.
@@ -36,7 +37,8 @@ impl std::fmt::Debug for Runtime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Runtime")
             .field("runtime_id", &self.id)
-            .field("platform", &self.platform)
+            .field("name", &self.name)
+            .field("platform_args", &self.platform_args)
             .field("options", &self.options)
             .field("world", &self.world)
             .field("host", &self.host)
@@ -50,11 +52,12 @@ impl std::fmt::Debug for Runtime {
 impl Runtime {
     /// Create a runtime with one primary agent from explicit options.
     pub fn from_options(
-        platform: PlatformContext,
+        platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
-        let primary_agent = Agent::new(platform.clone(), options)?;
-        let mut runtime = Self::new(platform, options, primary_agent);
+        let platform_args = platform_args.into();
+        let primary_agent = Agent::new(platform_args.clone(), options)?;
+        let mut runtime = Self::new(platform_args, options, primary_agent)?;
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
         }
@@ -64,12 +67,13 @@ impl Runtime {
 
     /// Create a runtime with one primary agent in one explicit shared world.
     pub fn from_options_in_world(
-        platform: PlatformContext,
+        platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: impl Into<Arc<World>>,
     ) -> RuntimeResult<Self> {
-        let primary_agent = Agent::new_in_world(platform.clone(), options, world)?;
-        let mut runtime = Self::new(platform, options, primary_agent);
+        let platform_args = platform_args.into();
+        let primary_agent = Agent::new_in_world(platform_args.clone(), options, world)?;
+        let mut runtime = Self::new(platform_args, options, primary_agent)?;
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
         }
@@ -100,6 +104,11 @@ impl Runtime {
     /// Return the world topology runtime id.
     pub fn runtime_id(&self) -> RuntimeId {
         self.id
+    }
+
+    /// Return this runtime name.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Set one explicit primary agent.
@@ -144,8 +153,12 @@ impl Runtime {
         self.align_spawn_options_with_runtime(&mut options);
 
         // create one new agent attached to the runtime world
-        let agent =
-            Agent::new_in_runtime(self.platform.clone(), &options, self.world.clone(), self.id)?;
+        let agent = Agent::new_in_runtime(
+            self.platform_args.clone(),
+            &options,
+            self.world.clone(),
+            self.id,
+        )?;
 
         Ok(self.insert_agent(agent))
     }
@@ -209,27 +222,33 @@ impl Runtime {
     }
 
     /// Create one runtime from one already-constructed primary agent.
-    fn new(platform: PlatformContext, options: &RuntimeOptions, primary_agent: Agent) -> Self {
+    fn new(
+        platform_args: Arc<[String]>,
+        options: &RuntimeOptions,
+        primary_agent: Agent,
+    ) -> RuntimeResult<Self> {
         // seed runtime identity from runtime options
         let world = primary_agent.world.clone();
         let host = Host::from_runtime_options(options);
         let primary_agent = Box::new(primary_agent);
         let primary_agent_id = primary_agent.id;
         let runtime_id = primary_agent.runtime_id;
+        let runtime_name = world.runtime_name(runtime_id)?;
         let mut agents = BTreeMap::new();
         agents.insert(primary_agent_id, primary_agent);
 
         // store runtime state
-        Self {
+        Ok(Self {
             id: runtime_id,
-            platform,
+            name: runtime_name,
+            platform_args,
             options: options.clone(),
             world,
             host,
             poller: None,
             agents,
             primary_agent_id,
-        }
+        })
     }
 
     /// Insert one agent and return its id.

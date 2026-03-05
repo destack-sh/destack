@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
-use destack_runtime::platform::PlatformContext;
 use destack_runtime::runtime::Runtime;
 use destack_runtime::runtime::engine::VmEntry;
 use destack_source::ModuleId;
@@ -223,8 +222,7 @@ fn run_entry_module(
         .first()
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let process_args = process_args_for_source(entry_source, args);
-    let platform = PlatformContext::new(process_args);
-    let mut runtime = Runtime::from_options(platform, &target.runtime_options)
+    let mut runtime = Runtime::from_options(process_args, &target.runtime_options)
         .map_err(|error| format!("{error}"))?;
 
     let entry = VmEntry::new(entry_name);
