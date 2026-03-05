@@ -3,6 +3,7 @@ mod abi_generated;
 #[path = "bindings.generated.rs"]
 mod bindings_generated;
 mod handle;
+mod kind;
 pub mod native;
 mod resolve;
 pub(crate) mod runtime;
@@ -14,12 +15,8 @@ pub mod vm;
 
 pub use bindings_generated::*;
 pub use handle::*;
-#[cfg(windows)]
-pub(crate) use resolve::require_payload_with;
-pub(crate) use resolve::{
-    require_payload, resolve_payload, with_any_entry, with_entry, with_entry_mut, with_payload,
-};
+pub use kind::*;
 pub use snapshot::{
     ResourceDescriptor, ResourceSnapshot, ResourceSnapshotAdapter, ResourceSnapshotPolicy,
 };
-pub use table::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceTable};
+pub use table::{ResourceEntry, ResourceFinalizer, ResourceTable};

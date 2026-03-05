@@ -2,7 +2,7 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::resource::ThreadLocalKey;
+use crate::platform::resource::{ResourceKind, ThreadLocalKey};
 use crate::platform::thread::{core as core_thread, resource as resource_thread};
 
 use crate::runtime::BindingCallContext;
@@ -55,6 +55,7 @@ pub(crate) unsafe fn destack_thread_local_create(
     // allocate one thread-local key resource
     let resource_id = core_thread::insert_thread_resource(
         context,
+        ResourceKind::ThreadLocal,
         "thread.local",
         resource_thread::ThreadLocalResource { key },
     );

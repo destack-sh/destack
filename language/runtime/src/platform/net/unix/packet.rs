@@ -485,7 +485,7 @@ pub(crate) unsafe fn destack_net_packet_open(
             .with_socket(fd)
             .with_finalizer(SocketFinalizer { fd });
         let resource_id = context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.engine()));
         unsafe {
@@ -568,7 +568,7 @@ pub(crate) unsafe fn destack_net_packet_open(
             .with_socket(descriptor)
             .with_finalizer(SocketFinalizer { fd: descriptor });
         let resource_id = context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.engine()));
         unsafe {

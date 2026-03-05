@@ -1,11 +1,9 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use destack_workspace::PlatformWindowsPacketBackend;
 use parking_lot::Mutex;
-use windows_sys::Win32::Foundation::{
-    ERROR_BUFFER_OVERFLOW, ERROR_CALL_NOT_IMPLEMENTED, ERROR_NOT_SUPPORTED, ERROR_SUCCESS,
-};
+use windows_sys::Win32::Foundation::{ERROR_BUFFER_OVERFLOW, ERROR_SUCCESS};
 use windows_sys::Win32::NetworkManagement::IpHelper::{
     GAA_FLAG_INCLUDE_PREFIX, GetAdaptersAddresses, IP_ADAPTER_ADDRESSES_LH,
 };
@@ -15,13 +13,13 @@ use windows_sys::Win32::Networking::WinSock::{
     WSAGetLastError, WSAIoctl, bind, closesocket, recv, send, setsockopt, socket,
 };
 
-use super::util::socket_descriptor;
+use super::util::{ensure_winsock, net_error_with_code, socket_descriptor};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::*;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind, SocketHandle};
-use crate::platform::{PlatformError, ResourceId, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::platform::{NativeSlice, PlatformError, ResourceId};
+use crate::runtime::BindingCallContext;
 
 /// Maximum packet buffer length used by the Windows packet backend.
 const WINDOWS_PACKET_MAX_LENGTH: usize = 65_535;
@@ -117,7 +115,7 @@ const BPF_MISC_TAX: u16 = 0x00;
 const BPF_MISC_TXA: u16 = 0x80;
 
 /// One classic BPF instruction row.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 struct ClassicBpfInstruction {
     /// BPF opcode.
@@ -131,7 +129,7 @@ struct ClassicBpfInstruction {
 }
 
 /// Runtime packet-socket metadata for one Windows raw socket endpoint.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct WindowsPacketState {
     /// Bound interface index reported in capture records.
     interface_index: u32,
@@ -154,17 +152,12 @@ struct WindowsPacketState {
 struct WindowsPacketFinalizer {
     /// Raw WinSock socket descriptor.
     socket: SOCKET,
-    /// Runtime-owned packet state table.
-    runtime_state: Arc<WindowsPacketRuntimeState>,
 }
 
 impl WindowsPacketFinalizer {
     /// Build one packet-socket finalizer for one raw socket.
-    fn new(socket: SOCKET, runtime_state: Arc<WindowsPacketRuntimeState>) -> Self {
-        Self {
-            socket,
-            runtime_state,
-        }
+    fn new(socket: SOCKET) -> Self {
+        Self { socket }
     }
 }
 
@@ -177,43 +170,22 @@ impl ResourceFinalizer for WindowsPacketFinalizer {
         }
 
         // clear packet metadata for this resource id
-        self.runtime_state.socket_states.lock().remove(&resource_id);
+        PACKET_SOCKET_STATES.lock().remove(&resource_id);
     }
 }
 
-/// Runtime-owned mutable state for windows packet sockets.
-#[derive(Debug, Default)]
-pub(crate) struct WindowsPacketRuntimeState {
-    /// Packet metadata keyed by runtime resource id.
-    socket_states: Mutex<HashMap<ResourceId, WindowsPacketState>>,
-}
-
-/// Return runtime-owned windows packet state.
-fn windows_packet_runtime_state(context: &BindingCallContext) -> Arc<WindowsPacketRuntimeState> {
-    context
-        .runtime()
-        .platform_state
-        .net
-        .windows_packet_runtime_state(WindowsPacketRuntimeState::default)
-}
+/// Packet-state table for Windows packet sockets.
+static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, WindowsPacketState>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Return configured packet backend mode for Windows packet lanes.
 fn windows_packet_backend_mode(context: &BindingCallContext) -> PlatformWindowsPacketBackend {
-    context
-        .runtime()
-        .platform_options
-        .windows
-        .net_packet_backend
+    context.agent().options.windows.net_packet_backend
 }
 
 /// Return one `notSupported` error for unsupported Windows packet lanes.
 fn windows_packet_not_supported(operation: &'static str) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
-}
-
-/// Return whether one ip-helper status code reports not-supported behavior.
-fn is_ip_helper_not_supported(status: u32) -> bool {
-    status == ERROR_NOT_SUPPORTED || status == ERROR_CALL_NOT_IMPLEMENTED
 }
 
 /// Require that the Windows packet backend is enabled in runtime options.
@@ -277,17 +249,7 @@ fn interface_ipv4_bind_address(interface_index: u32) -> RuntimeResult<SOCKADDR_I
         break status;
     };
     if status != ERROR_SUCCESS {
-        if is_ip_helper_not_supported(status) {
-            return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.net.packet.open",
-            ))
-            .boxed());
-        }
-
-        return Err(core_platform::net_error_with_code(
-            "GetAdaptersAddresses",
-            status as i32,
-        ));
+        return Err(net_error_with_code("GetAdaptersAddresses", status as i32));
     }
 
     // locate one adapter row that matches the requested index
@@ -357,10 +319,9 @@ fn configure_packet_receive_timeout(socket: SOCKET, timeout_ms: i32) -> RuntimeR
         )
     };
     if rc != 0 {
-        return Err(core_platform::net_error_with_code(
-            "setsockopt(SO_RCVTIMEO)",
-            unsafe { WSAGetLastError() },
-        ));
+        return Err(net_error_with_code("setsockopt(SO_RCVTIMEO)", unsafe {
+            WSAGetLastError()
+        }));
     }
 
     Ok(())
@@ -385,10 +346,9 @@ fn configure_packet_promiscuous_mode(socket: SOCKET, promiscuous: bool) -> Runti
         )
     };
     if rc != 0 {
-        return Err(core_platform::net_error_with_code(
-            "WSAIoctl(SIO_RCVALL)",
-            unsafe { WSAGetLastError() },
-        ));
+        return Err(net_error_with_code("WSAIoctl(SIO_RCVALL)", unsafe {
+            WSAGetLastError()
+        }));
     }
 
     Ok(())
@@ -403,9 +363,7 @@ fn packet_socket_metadata(
     let socket = socket_descriptor(context, handle)?;
 
     // resolve one packet metadata row for packet-only lanes
-    let runtime_state = windows_packet_runtime_state(context);
-    let state = runtime_state
-        .socket_states
+    let state = PACKET_SOCKET_STATES
         .lock()
         .get(&handle.0)
         .cloned()
@@ -782,12 +740,10 @@ fn evaluate_filter_program(instructions: &[ClassicBpfInstruction], packet: &[u8]
 
 /// Update one packet metadata row in place.
 fn update_packet_socket_state(
-    context: &BindingCallContext,
     handle: SocketHandle,
     update: impl FnOnce(&mut WindowsPacketState),
 ) -> RuntimeResult<()> {
-    let runtime_state = windows_packet_runtime_state(context);
-    let mut states = runtime_state.socket_states.lock();
+    let mut states = PACKET_SOCKET_STATES.lock();
     let state = states.get_mut(&handle.0).ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -845,13 +801,12 @@ pub(crate) unsafe fn destack_net_packet_open(
     }
 
     // initialize winsock and create one raw IPv4 packet socket
-    core_platform::ensure_winsock()?;
+    ensure_winsock()?;
     let socket = unsafe { socket(AF_INET as i32, SOCK_RAW, IPPROTO_IP) };
     if socket == INVALID_SOCKET {
-        return Err(core_platform::net_error_with_code(
-            "socket(SOCK_RAW)",
-            unsafe { WSAGetLastError() },
-        ));
+        return Err(net_error_with_code("socket(SOCK_RAW)", unsafe {
+            WSAGetLastError()
+        }));
     }
 
     // bind the socket to one requested interface or to INADDR_ANY
@@ -869,9 +824,7 @@ pub(crate) unsafe fn destack_net_packet_open(
     };
     if bind_rc != 0 {
         let _ = unsafe { closesocket(socket) };
-        return Err(core_platform::net_error_with_code("bind", unsafe {
-            WSAGetLastError()
-        }));
+        return Err(net_error_with_code("bind", unsafe { WSAGetLastError() }));
     }
 
     // configure one receive timeout window when requested
@@ -887,20 +840,16 @@ pub(crate) unsafe fn destack_net_packet_open(
     }
 
     // register one packet socket resource and one packet metadata row
-    let runtime_state = windows_packet_runtime_state(context);
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
-        .with_finalizer(WindowsPacketFinalizer::new(
-            socket,
-            Arc::clone(&runtime_state),
-        ));
+        .with_finalizer(WindowsPacketFinalizer::new(socket));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     let snap_length = usize::try_from(options.snap_length).unwrap_or(WINDOWS_PACKET_MAX_LENGTH);
     let snap_length = snap_length.clamp(1, WINDOWS_PACKET_MAX_LENGTH);
-    runtime_state.socket_states.lock().insert(
+    PACKET_SOCKET_STATES.lock().insert(
         resource_id,
         WindowsPacketState {
             interface_index: options.interface_index,
@@ -980,7 +929,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
                 return Err(packet_receive_timeout_error("destack.net.packetReceive"));
             }
 
-            return Err(core_platform::net_error_with_code("recv", code));
+            return Err(net_error_with_code("recv", code));
         }
 
         let bytes = usize::try_from(bytes).map_err(|_| {
@@ -999,7 +948,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
             break bytes;
         }
 
-        update_packet_socket_state(context, handle, |state| {
+        update_packet_socket_state(handle, |state| {
             state.dropped_packets = state.dropped_packets.saturating_add(1);
         })?;
     };
@@ -1023,7 +972,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
     };
 
     // update packet counters after a successful receive
-    update_packet_socket_state(context, handle, |state| {
+    update_packet_socket_state(handle, |state| {
         state.received_packets = state.received_packets.saturating_add(1);
         if truncated {
             state.dropped_packets = state.dropped_packets.saturating_add(1);
@@ -1089,9 +1038,7 @@ pub(crate) unsafe fn destack_net_packet_send(
     // send one packet payload through the raw socket endpoint
     let sent = unsafe { send(socket, payload.as_ptr(), payload.len() as i32, 0) };
     if sent == SOCKET_ERROR {
-        return Err(core_platform::net_error_with_code("send", unsafe {
-            WSAGetLastError()
-        }));
+        return Err(net_error_with_code("send", unsafe { WSAGetLastError() }));
     }
 
     // write the number of payload bytes sent
@@ -1137,7 +1084,7 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 
     // ensure one packet endpoint exists and store the timestamp mode
     let _ = packet_socket_metadata(context, handle)?;
-    update_packet_socket_state(context, handle, |state| {
+    update_packet_socket_state(handle, |state| {
         state.timestamp_mode = mode;
     })?;
 
@@ -1200,7 +1147,7 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 
     // ensure one packet endpoint exists and clear the active filter
     let _ = packet_socket_metadata(context, handle)?;
-    update_packet_socket_state(context, handle, |state| {
+    update_packet_socket_state(handle, |state| {
         state.filter_program = None;
     })?;
 
@@ -1300,7 +1247,7 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
     let filter_program = Arc::<[ClassicBpfInstruction]>::from(instructions.into_boxed_slice());
 
     // install the filter program on the packet endpoint
-    update_packet_socket_state(context, handle, |state| {
+    update_packet_socket_state(handle, |state| {
         state.filter_program = Some(filter_program);
     })?;
 

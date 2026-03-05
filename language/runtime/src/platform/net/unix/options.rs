@@ -2523,7 +2523,7 @@ pub(crate) unsafe fn destack_net_raw_socket(
         .with_socket(fd)
         .with_finalizer(DescriptorFinalizer { fd });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {

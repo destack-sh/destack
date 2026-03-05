@@ -45,7 +45,7 @@ pub(crate) fn digest_open(
         .with_label(CRYPTO_DIGEST_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -115,7 +115,7 @@ pub(crate) fn digest_close(
 ) -> RuntimeResult<()> {
     // remove resource and validate handle kind
     let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()))
     else {

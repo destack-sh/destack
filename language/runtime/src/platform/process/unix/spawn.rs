@@ -679,7 +679,7 @@ fn spawn_process(
         .with_label("process.spawn")
         .with_payload(core_process::SpawnedProcess { pid: process_id });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 

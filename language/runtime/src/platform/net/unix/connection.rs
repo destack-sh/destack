@@ -57,7 +57,7 @@ pub(crate) unsafe fn destack_net_accept(
         .with_socket(client_fd)
         .with_finalizer(SocketFinalizer { fd: client_fd });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -90,7 +90,7 @@ pub(crate) unsafe fn destack_net_close(
 ) -> RuntimeResult<()> {
     // validate the handle kind
     let is_socket = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::Socket)
         .unwrap_or(false);
@@ -104,7 +104,7 @@ pub(crate) unsafe fn destack_net_close(
 
     // remove the resource and close it
     if !context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()))
     {
@@ -141,7 +141,7 @@ pub(crate) unsafe fn destack_net_close_listener(
 ) -> RuntimeResult<()> {
     // validate the handle kind
     let is_listener = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| entry.kind == ResourceKind::Listener)
         .unwrap_or(false);
@@ -155,7 +155,7 @@ pub(crate) unsafe fn destack_net_close_listener(
 
     // remove the resource and close it
     if !context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()))
     {
@@ -309,7 +309,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
             .with_listener(fd)
             .with_finalizer(DescriptorFinalizer { fd });
         let resource_id = context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.engine()));
         unsafe {
@@ -367,7 +367,7 @@ pub(crate) unsafe fn destack_net_socket(
         .with_socket(fd)
         .with_finalizer(DescriptorFinalizer { fd });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -438,7 +438,7 @@ pub(crate) unsafe fn destack_net_socket_pair(
         .with_socket(pair[0])
         .with_finalizer(DescriptorFinalizer { fd: pair[0] });
     let first_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(first_entry, Some(context.engine()));
 
@@ -446,7 +446,7 @@ pub(crate) unsafe fn destack_net_socket_pair(
         .with_socket(pair[1])
         .with_finalizer(DescriptorFinalizer { fd: pair[1] });
     let second_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(second_entry, Some(context.engine()));
 

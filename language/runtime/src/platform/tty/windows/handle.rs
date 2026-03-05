@@ -24,7 +24,7 @@ fn file_handle(
     operation: &'static str,
 ) -> RuntimeResult<HANDLE> {
     let resolved = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::File {
@@ -122,7 +122,7 @@ fn register_stdio_tty(
         .with_handle(duplicated as _)
         .with_finalizer(WindowsHandleFinalizer { handle: duplicated });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 

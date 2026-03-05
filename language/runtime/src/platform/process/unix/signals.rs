@@ -204,7 +204,7 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
             signals: vec![signal],
         });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -307,7 +307,7 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
     let _ = core_process::resolve_signal_subscription(context, handle)?;
 
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {

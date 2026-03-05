@@ -1,5 +1,5 @@
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread;
 
@@ -7,7 +7,6 @@ use parking_lot::{Condvar, Mutex};
 
 use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Host;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
@@ -16,7 +15,8 @@ use crate::platform::input::{
     InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputPointerState,
     InputReadMode, InputScrollEventPayload,
 };
-use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::platform::resource::ResourceKind;
+use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Stable runtime identifier for macOS global session input.
@@ -203,10 +203,8 @@ unsafe extern "C" {
     fn CFRunLoopGetCurrent() -> CFRunLoopRef;
     /// Add one source to one run loop with one mode.
     fn CFRunLoopAddSource(rl: CFRunLoopRef, source: CFRunLoopSourceRef, mode: CFStringRef);
-    /// Stop one CoreFoundation run loop.
-    fn CFRunLoopStop(rl: CFRunLoopRef);
-    /// Wake one CoreFoundation run loop.
-    fn CFRunLoopWakeUp(rl: CFRunLoopRef);
+    /// Run one CoreFoundation run loop until it is stopped.
+    fn CFRunLoopRun();
     /// Release one CoreFoundation object reference.
     fn CFRelease(value: CFTypeRef);
     /// Default run-loop mode used by event sources.
@@ -330,84 +328,12 @@ impl MacosInputState {
     }
 }
 
-/// Runtime-owned mutable state for macOS event-tap services.
-#[derive(Debug)]
-pub(crate) struct MacosTapRuntimeState {
-    /// Shared event-tap state for this runtime instance.
-    state: Arc<MacosTapState>,
-    /// Runtime-configured maximum queued packets per subscription queue.
-    event_queue_limit: AtomicUsize,
-    /// Worker bootstrap slot for one event-tap service.
-    worker: OnceLock<Result<(), String>>,
-    /// Worker join handle for deterministic runtime teardown.
-    worker_handle: Mutex<Option<thread::JoinHandle<()>>>,
-    /// Current worker run-loop pointer for cross-thread stop signaling.
-    run_loop: AtomicUsize,
-    /// Event-tap port pointer for callback-side re-enable handling.
-    tap_port: AtomicUsize,
-    /// Whether runtime shutdown finalizers were already registered.
-    shutdown_registered: AtomicBool,
-}
-
-impl Default for MacosTapRuntimeState {
-    /// Build one runtime-owned macOS event-tap state payload.
-    fn default() -> Self {
-        Self {
-            state: Arc::new(MacosTapState::new()),
-            event_queue_limit: AtomicUsize::new(MACOS_EVENT_QUEUE_LIMIT),
-            worker: OnceLock::new(),
-            worker_handle: Mutex::new(None),
-            run_loop: AtomicUsize::new(0),
-            tap_port: AtomicUsize::new(0),
-            shutdown_registered: AtomicBool::new(false),
-        }
-    }
-}
-
-/// Return runtime-owned mutable state for macOS event taps.
-fn macos_tap_runtime_state(context: &BindingCallContext) -> Arc<MacosTapRuntimeState> {
-    let runtime_state = context
-        .runtime()
-        .platform_state
-        .input
-        .macos_tap_runtime_state(MacosTapRuntimeState::default);
-    register_runtime_finalizer(context, &runtime_state);
-
-    runtime_state
-}
-
-/// Register one runtime teardown finalizer for macOS event taps.
-fn register_runtime_finalizer(
-    context: &BindingCallContext,
-    runtime_state: &Arc<MacosTapRuntimeState>,
-) {
-    if runtime_state
-        .shutdown_registered
-        .swap(true, Ordering::AcqRel)
-    {
-        return;
-    }
-
-    let runtime_state = Arc::clone(runtime_state);
-    context.runtime().finalizers.register(move || {
-        shutdown_tap_service(&runtime_state);
-    });
-}
-
-/// Stop and join the macOS event-tap worker when present.
-fn shutdown_tap_service(runtime_state: &MacosTapRuntimeState) {
-    let run_loop = runtime_state.run_loop.load(Ordering::Acquire) as CFRunLoopRef;
-    if !run_loop.is_null() {
-        unsafe {
-            CFRunLoopStop(run_loop);
-            CFRunLoopWakeUp(run_loop);
-        }
-    }
-
-    if let Some(handle) = runtime_state.worker_handle.lock().take() {
-        let _ = handle.join();
-    }
-}
+/// Global event-tap service state.
+static MACOS_TAP_STATE: OnceLock<Arc<MacosTapState>> = OnceLock::new();
+/// Worker bootstrap slot for one event-tap service.
+static MACOS_TAP_WORKER: OnceLock<Result<(), String>> = OnceLock::new();
+/// Global event-tap port pointer for callback-side re-enable handling.
+static MACOS_TAP_PORT: AtomicUsize = AtomicUsize::new(0);
 /// CoreGraphics state id for combined session input state.
 const KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE: i32 = 0;
 /// Runtime modifier bit for shift.
@@ -431,31 +357,9 @@ const POINTER_BUTTON_X1: u32 = 1u32 << 3;
 /// Runtime pointer button bit for x2.
 const POINTER_BUTTON_X2: u32 = 1u32 << 4;
 
-/// Return the configured macOS event queue capacity.
-fn macos_event_queue_limit(runtime_state: &MacosTapRuntimeState) -> usize {
-    runtime_state
-        .event_queue_limit
-        .load(Ordering::Relaxed)
-        .max(1)
-}
-
-/// Refresh macOS event queue capacity from runtime options.
-fn configure_macos_event_queue_limit(
-    runtime_state: &MacosTapRuntimeState,
-    context: &BindingCallContext,
-) {
-    let configured = context
-        .runtime()
-        .module_options
-        .input
-        .macos_event_queue_capacity;
-    let configured = core_platform::option_u64_to_usize(configured)
-        .unwrap_or(MACOS_EVENT_QUEUE_LIMIT)
-        .max(1);
-
-    runtime_state
-        .event_queue_limit
-        .store(configured, Ordering::Relaxed);
+/// Return one shared event-tap state instance.
+fn macos_tap_state() -> &'static Arc<MacosTapState> {
+    MACOS_TAP_STATE.get_or_init(|| Arc::new(MacosTapState::new()))
 }
 
 /// Return one event-mask bit for one CoreGraphics event type.
@@ -489,23 +393,13 @@ pub(super) fn is_macos_session_identifier(id: &str, id_lower: &str) -> bool {
 }
 
 /// Ensure the background event-tap worker is started and ready.
-fn ensure_tap_service_ready(
-    context: &BindingCallContext,
-    runtime_state: &Arc<MacosTapRuntimeState>,
-    operation: &'static str,
-) -> RuntimeResult<()> {
+fn ensure_tap_service_ready(operation: &'static str) -> RuntimeResult<()> {
     // spawn the worker once for this process
-    let start_result = runtime_state.worker.get_or_init(|| {
-        let host = context.host().clone();
-        let state = Arc::clone(&runtime_state.state);
-        let runtime_state = Arc::clone(runtime_state);
-        let worker_runtime_state = Arc::clone(&runtime_state);
+    let start_result = MACOS_TAP_WORKER.get_or_init(|| {
+        let state = Arc::clone(macos_tap_state());
         let builder = thread::Builder::new().name("destack-input-macos-tap".to_string());
-        match builder.spawn(move || run_event_tap_worker(worker_runtime_state, state, host)) {
-            Ok(handle) => {
-                *runtime_state.worker_handle.lock() = Some(handle);
-                Ok(())
-            }
+        match builder.spawn(move || run_event_tap_worker(state)) {
+            Ok(_) => Ok(()),
             Err(error) => Err(format!("failed to spawn macos input worker: {error}")),
         }
     });
@@ -522,7 +416,7 @@ fn ensure_tap_service_ready(
     }
 
     // wait until worker reports ready or failed startup state
-    let state = &runtime_state.state;
+    let state = macos_tap_state();
     let mut queues = state.queues.lock();
     loop {
         match &queues.startup {
@@ -546,15 +440,10 @@ fn ensure_tap_service_ready(
 }
 
 /// Register one subscriber queue for one opened input handle.
-fn register_subscription(
-    context: &BindingCallContext,
-    operation: &'static str,
-) -> RuntimeResult<u64> {
-    let runtime_state = macos_tap_runtime_state(context);
-    configure_macos_event_queue_limit(&runtime_state, context);
-    ensure_tap_service_ready(context, &runtime_state, operation)?;
+fn register_subscription(operation: &'static str) -> RuntimeResult<u64> {
+    ensure_tap_service_ready(operation)?;
 
-    let state = &runtime_state.state;
+    let state = macos_tap_state();
     let mut queues = state.queues.lock();
     let subscription_id = queues.next_subscription_id;
     queues.next_subscription_id = queues.next_subscription_id.saturating_add(1);
@@ -566,21 +455,15 @@ fn register_subscription(
 }
 
 /// Remove one subscriber queue when one handle is closed.
-fn unregister_subscription_with_runtime_state(
-    runtime_state: &MacosTapRuntimeState,
-    subscription_id: u64,
-) {
-    let state = &runtime_state.state;
+pub(super) fn unregister_subscription(subscription_id: u64) {
+    let state = macos_tap_state();
     let mut queues = state.queues.lock();
     queues.subscriptions.remove(&subscription_id);
 }
 
 /// Pop one queued packet for one subscription without blocking.
-fn try_pop_subscription_event(
-    runtime_state: &MacosTapRuntimeState,
-    subscription_id: u64,
-) -> RuntimeResult<Option<MacosTapPacket>> {
-    let state = &runtime_state.state;
+fn try_pop_subscription_event(subscription_id: u64) -> RuntimeResult<Option<MacosTapPacket>> {
+    let state = macos_tap_state();
     let mut queues = state.queues.lock();
 
     match queues.startup {
@@ -606,11 +489,8 @@ fn try_pop_subscription_event(
 }
 
 /// Pop one queued packet for one subscription and wait when empty.
-fn wait_pop_subscription_event(
-    runtime_state: &MacosTapRuntimeState,
-    subscription_id: u64,
-) -> RuntimeResult<Option<MacosTapPacket>> {
-    let state = &runtime_state.state;
+fn wait_pop_subscription_event(subscription_id: u64) -> RuntimeResult<Option<MacosTapPacket>> {
+    let state = macos_tap_state();
     let mut queues = state.queues.lock();
 
     loop {
@@ -961,28 +841,36 @@ fn resolve_subscription_id(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let subscription = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            let binding = entry.payload_mut::<input_core::UnixInputBinding>()?;
-            if binding.backend != input_core::UnixInputBackend::Platform {
-                return None;
-            }
+    let subscription = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
 
-            let state = binding.macos_state.as_mut()?;
-            if let Some(subscription_id) = state.subscription_id() {
-                return Some(Ok(subscription_id));
-            }
+        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+            return None;
+        }
 
-            match register_subscription(context, operation) {
-                Ok(subscription_id) => {
-                    state.set_subscription_id(subscription_id);
-                    Some(Ok(subscription_id))
-                }
-                Err(error) => Some(Err(error)),
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
+        if binding.backend != input_core::UnixInputBackend::Platform {
+            return None;
+        }
+
+        let state = binding.macos_state.as_mut()?;
+        if let Some(subscription_id) = state.subscription_id() {
+            return Some(Ok(subscription_id));
+        }
+
+        match register_subscription(operation) {
+            Ok(subscription_id) => {
+                state.set_subscription_id(subscription_id);
+                Some(Ok(subscription_id))
             }
-        });
+            Err(error) => Some(Err(error)),
+        }
+    });
 
     match subscription {
         Some(Some(Ok(subscription_id))) => Ok(subscription_id),
@@ -998,11 +886,10 @@ pub(super) fn read_macos_session_event(
     nonblocking: bool,
     _read_mode: InputReadMode,
 ) -> RuntimeResult<InputEvent> {
-    let runtime_state = macos_tap_runtime_state(context);
     let subscription_id = resolve_subscription_id(context, handle, "destack.input.event.read")?;
 
     if nonblocking {
-        let Some(packet) = try_pop_subscription_event(&runtime_state, subscription_id)? else {
+        let Some(packet) = try_pop_subscription_event(subscription_id)? else {
             return Err(RuntimeError::from(PlatformError::io_with(
                 Some(PlatformErrorCode::IoWouldBlock),
                 None,
@@ -1016,7 +903,7 @@ pub(super) fn read_macos_session_event(
         return Ok(packet_to_input_event(context, packet));
     }
 
-    let Some(packet) = wait_pop_subscription_event(&runtime_state, subscription_id)? else {
+    let Some(packet) = wait_pop_subscription_event(subscription_id)? else {
         return Err(input_core::input_not_found(
             "destack.input.event.read",
             handle,
@@ -1030,34 +917,34 @@ pub(super) fn release_macos_session_subscription(
     context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
 ) {
-    let runtime_state = macos_tap_runtime_state(context);
-    let subscription = context
-        .runtime()
-        .resources
-        .with_entry_mut(handle.0, |entry| {
-            let binding = entry.payload_mut::<input_core::UnixInputBinding>()?;
-            if binding.backend != input_core::UnixInputBackend::Platform {
-                return None;
-            }
+    let subscription = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
 
-            let state = binding.macos_state.as_mut()?;
-            Some(state.take_subscription_id())
-        });
+        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<input_core::UnixInputBinding>())?;
+        if binding.backend != input_core::UnixInputBackend::Platform {
+            return None;
+        }
+
+        let state = binding.macos_state.as_mut()?;
+        Some(state.take_subscription_id())
+    });
 
     if let Some(subscription_id) = subscription.flatten().flatten() {
-        unregister_subscription_with_runtime_state(&runtime_state, subscription_id);
+        unregister_subscription(subscription_id);
     }
 }
 
 /// Run the global CoreGraphics event-tap worker loop.
-fn run_event_tap_worker(
-    runtime_state: Arc<MacosTapRuntimeState>,
-    state: Arc<MacosTapState>,
-    host: Host,
-) {
-    let callback_runtime_state = Arc::clone(&runtime_state);
-    let callback_user_info = Arc::as_ptr(&callback_runtime_state) as *mut libc::c_void;
-
+fn run_event_tap_worker(state: Arc<MacosTapState>) {
     // create one listen-only event tap for supported event types
     let tap = unsafe {
         CGEventTapCreate(
@@ -1066,7 +953,7 @@ fn run_event_tap_worker(
             KCG_EVENT_TAP_OPTION_LISTEN_ONLY,
             supported_event_mask(),
             Some(event_tap_callback),
-            callback_user_info,
+            std::ptr::null_mut(),
         )
     };
     if tap.is_null() {
@@ -1076,15 +963,13 @@ fn run_event_tap_worker(
         );
         return;
     }
-    runtime_state
-        .tap_port
-        .store(tap as usize, Ordering::Release);
+    MACOS_TAP_PORT.store(tap as usize, Ordering::Release);
 
     // create one run-loop source for the event tap
     let source =
         unsafe { CFMachPortCreateRunLoopSource(std::ptr::null(), tap, KCF_RUN_LOOP_SOURCE_ORDER) };
     if source.is_null() {
-        runtime_state.tap_port.store(0, Ordering::Release);
+        MACOS_TAP_PORT.store(0, Ordering::Release);
         unsafe {
             CFRelease(tap.cast::<libc::c_void>());
         }
@@ -1097,28 +982,16 @@ fn run_event_tap_worker(
 
     // attach and enable the event tap in the worker run loop
     let run_loop = unsafe { CFRunLoopGetCurrent() };
-    runtime_state
-        .run_loop
-        .store(run_loop as usize, Ordering::Release);
     unsafe {
         CFRunLoopAddSource(run_loop, source, kCFRunLoopDefaultMode);
         CGEventTapEnable(tap, true);
     }
     set_startup_ready(&state);
 
-    // run one host-owned blocking message loop for this worker thread
-    let loop_result = host.run_blocking_thread_message_loop();
-    if let Err(error) = loop_result {
-        set_startup_failed(
-            &state,
-            format!("macos input run-loop failed through host adapter: {error}"),
-        );
-    }
-
-    // clear runtime pointers and release corefoundation objects
+    // run the event loop until process shutdown
     unsafe {
-        runtime_state.run_loop.store(0, Ordering::Release);
-        runtime_state.tap_port.store(0, Ordering::Release);
+        CFRunLoopRun();
+        MACOS_TAP_PORT.store(0, Ordering::Release);
         CFRelease(source.cast::<libc::c_void>());
         CFRelease(tap.cast::<libc::c_void>());
     }
@@ -1139,15 +1012,9 @@ fn set_startup_failed(state: &MacosTapState, message: String) {
 }
 
 /// Enqueue one packet to all active subscriber queues.
-fn enqueue_packet_to_subscribers(
-    runtime_state: &MacosTapRuntimeState,
-    queues: &mut MacosTapQueues,
-    packet: &MacosTapPacket,
-) {
-    let queue_capacity = macos_event_queue_limit(runtime_state);
-
+fn enqueue_packet_to_subscribers(queues: &mut MacosTapQueues, packet: &MacosTapPacket) {
     for queue in queues.subscriptions.values_mut() {
-        if queue.len() >= queue_capacity {
+        if queue.len() >= MACOS_EVENT_QUEUE_LIMIT {
             queue.pop_front();
         }
         queue.push_back(packet.clone());
@@ -1359,19 +1226,13 @@ unsafe extern "C" fn event_tap_callback(
     _proxy: CGEventTapProxy,
     event_type: u32,
     event: CGEventRef,
-    user_info: *mut libc::c_void,
+    _user_info: *mut libc::c_void,
 ) -> CGEventRef {
-    if user_info.is_null() {
-        return event;
-    }
-
-    let runtime_state = unsafe { &*(user_info as *const MacosTapRuntimeState) };
-
     // drop disabled notifications and pass through original event
     if event_type == KCG_EVENT_TAP_DISABLED_BY_TIMEOUT
         || event_type == KCG_EVENT_TAP_DISABLED_BY_USER_INPUT
     {
-        let tap = runtime_state.tap_port.load(Ordering::Acquire) as CFMachPortRef;
+        let tap = MACOS_TAP_PORT.load(Ordering::Acquire) as CFMachPortRef;
         if !tap.is_null() {
             unsafe {
                 CGEventTapEnable(tap, true);
@@ -1382,10 +1243,10 @@ unsafe extern "C" fn event_tap_callback(
 
     // map supported events and enqueue for subscribers
     if let Some(mut packet) = map_tap_event(event_type, event) {
-        let state = &runtime_state.state;
+        let state = macos_tap_state();
         let mut queues = state.queues.lock();
         stamp_pointer_button_state(&mut queues, &mut packet);
-        enqueue_packet_to_subscribers(runtime_state, &mut queues, &packet);
+        enqueue_packet_to_subscribers(&mut queues, &packet);
         state.wake.notify_all();
     }
 

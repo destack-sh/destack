@@ -2,7 +2,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::{ResourceId, core as core_platform};
 use crate::runtime::BindingCallContext;
 
-use super::{ResourceEntry, ResourceKind};
+use super::{ResourceEntry, ResourceHandle, ResourceKind};
 
 /// Resolve one resource entry without kind or label filtering.
 pub(crate) fn with_any_entry<R>(
@@ -137,7 +137,7 @@ pub(crate) fn require_resource<T>(
 ) -> RuntimeResult<T> {
     // resolve the resource entry
     let resource = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle, |entry| {
             if entry.kind != kind {
@@ -150,4 +150,15 @@ pub(crate) fn require_resource<T>(
 
     // return the extracted payload
     Ok(resource)
+}
+
+/// Resolve a resource entry for one typed resource handle.
+#[allow(dead_code)]
+pub(crate) fn require_handle<H: ResourceHandle, T>(
+    context: &BindingCallContext,
+    handle: H,
+    label: &str,
+    extract: impl FnOnce(&ResourceEntry) -> Option<T>,
+) -> RuntimeResult<T> {
+    require_resource(context, handle.resource_id(), H::KIND, label, extract)
 }

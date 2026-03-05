@@ -15,7 +15,7 @@ pub(crate) fn require_resource<T>(
     with_entry: impl FnOnce(&ResourceEntry) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
     let resolved = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(id, |entry| {
             if entry.kind != kind {

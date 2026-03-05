@@ -33,7 +33,7 @@ pub(crate) fn require_resource<T>(
     with_entry: impl FnOnce(&ResourceEntry) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
     let resolved = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(id, |entry| {
             if entry.kind != kind {
@@ -728,7 +728,7 @@ pub(crate) fn open_watch(
     let entry =
         ResourceEntry::new(ResourceKind::Watch).with_payload(Arc::new(Mutex::new(resource)));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 
@@ -743,7 +743,7 @@ pub(crate) fn close_watch(context: &BindingCallContext, handle: WatchHandle) -> 
 
     // remove the watch resource and drop the backend watcher
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {

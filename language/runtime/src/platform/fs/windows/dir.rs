@@ -117,7 +117,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
         .with_payload(directory)
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -191,7 +191,7 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
         .with_payload(directory)
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {

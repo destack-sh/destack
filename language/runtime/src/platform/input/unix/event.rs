@@ -14,6 +14,8 @@ use super::core as input_core;
 #[cfg(target_os = "linux")]
 use super::linux as input_linux;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(target_os = "linux")]
+use crate::platform::core as core_platform;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputDeviceKind, InputEvent, InputEventAction, InputMonitorChangeEvent,
@@ -24,7 +26,7 @@ use crate::platform::input::{
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 #[cfg(target_os = "linux")]
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
-use crate::platform::{NativeArray, PlatformError, core as core_platform, resource};
+use crate::platform::{NativeArray, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Resource-table label for opened input-monitor entries.
@@ -38,8 +40,6 @@ const INPUT_MONITOR_EVENT_PREFIX: &str = "event";
 /// Linux inotify read-buffer size for monitor polling.
 #[cfg(target_os = "linux")]
 const INPUT_MONITOR_INOTIFY_BUFFER_SIZE: usize = 4096;
-/// Default monitor poll interval for blocking monitor read loops.
-const INPUT_MONITOR_POLL_INTERVAL_NS: u64 = 8_000_000;
 
 /// Monitor event payload queued by unix monitor polling.
 #[derive(Debug, Clone)]
@@ -94,44 +94,20 @@ fn is_io_would_block(error: &RuntimeError) -> bool {
     error.platform_error().map(|platform| platform.code) == Some(PlatformErrorCode::IoWouldBlock)
 }
 
-/// Return the configured monitor poll interval for this runtime.
-fn monitor_poll_interval(context: &BindingCallContext) -> Duration {
-    let configured = context
-        .runtime()
-        .module_options
-        .input
-        .monitor_poll_interval_ns;
-    core_platform::duration_from_option_ns(configured, INPUT_MONITOR_POLL_INTERVAL_NS, 1)
-}
-
-/// Resolve one read-only unix monitor resource entry.
-fn with_monitor_entry<R>(
-    context: &BindingCallContext,
+/// Build io-not-found for one missing monitor handle.
+fn monitor_not_found(
+    operation: &'static str,
     handle: resource::InputMonitorHandle,
-    read: impl FnOnce(&ResourceEntry) -> R,
-) -> Option<R> {
-    resource::with_entry(
-        context,
-        handle.0,
-        ResourceKind::Input,
-        Some(INPUT_MONITOR_RESOURCE_LABEL),
-        read,
-    )
-}
-
-/// Resolve one mutable unix monitor resource entry.
-fn with_monitor_entry_mut<R>(
-    context: &BindingCallContext,
-    handle: resource::InputMonitorHandle,
-    write: impl FnOnce(&mut ResourceEntry) -> R,
-) -> Option<R> {
-    resource::with_entry_mut(
-        context,
-        handle.0,
-        ResourceKind::Input,
-        Some(INPUT_MONITOR_RESOURCE_LABEL),
-        write,
-    )
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("input monitor handle {} not found", handle.0.0),
+    ))
+    .boxed()
 }
 
 /// Validate that one monitor handle points to an input-monitor resource.
@@ -141,14 +117,17 @@ fn validate_monitor_handle(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // validate monitor resource kind and label
-    let valid = with_monitor_entry(context, handle, |entry| {
-        entry.payload_ref::<UnixInputMonitorBinding>().is_some()
+    let valid = context.agent().resources.with_entry(handle.0, |entry| {
+        entry.kind == ResourceKind::InputMonitor
+            && entry.label.as_deref() == Some(INPUT_MONITOR_RESOURCE_LABEL)
+            && entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<UnixInputMonitorBinding>())
+                .is_some()
     });
     if !matches!(valid, Some(true)) {
-        return Err(core_platform::io_not_found(
-            operation,
-            format!("input monitor handle {} not found", handle.0.0),
-        ));
+        return Err(monitor_not_found(operation, handle));
     }
 
     Ok(())
@@ -598,8 +577,19 @@ fn poll_monitor_event(
 ) -> RuntimeResult<InputMonitorEvent> {
     loop {
         // drain watcher queues and attempt one queue pop
-        let next = with_monitor_entry_mut(context, handle, |entry| {
-            let binding = entry.payload_mut::<UnixInputMonitorBinding>()?;
+        let next = context.agent().resources.with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::InputMonitor {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(INPUT_MONITOR_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputMonitorBinding>())?;
 
             #[cfg(target_os = "linux")]
             if let Err(error) = drain_linux_monitor_watch(binding) {
@@ -636,8 +626,19 @@ fn poll_monitor_event(
             // when no watch backend exists, rescan device ids and enqueue topology deltas
             Some(Some(Ok((None, _, true)))) => {
                 let current_devices = list_monitor_devices(context)?;
-                let next = with_monitor_entry_mut(context, handle, |entry| {
-                    let binding = entry.payload_mut::<UnixInputMonitorBinding>()?;
+                let next = context.agent().resources.with_entry_mut(handle.0, |entry| {
+                    if entry.kind != ResourceKind::InputMonitor {
+                        return None;
+                    }
+
+                    if entry.label.as_deref() != Some(INPUT_MONITOR_RESOURCE_LABEL) {
+                        return None;
+                    }
+
+                    let binding = entry
+                        .payload
+                        .as_mut()
+                        .and_then(|payload| payload.downcast_mut::<UnixInputMonitorBinding>())?;
                     enqueue_monitor_delta(binding, &current_devices);
                     let event = binding.pending_events.pop_front();
                     let event = event.map(|event| {
@@ -666,14 +667,9 @@ fn poll_monitor_event(
                         }
 
                         // avoid hot-spin when no topology delta is available
-                        thread::sleep(monitor_poll_interval(context));
+                        thread::sleep(Duration::from_millis(8));
                     }
-                    Some(None) | None => {
-                        return Err(core_platform::io_not_found(
-                            operation,
-                            format!("input monitor handle {} not found", handle.0.0),
-                        ));
-                    }
+                    Some(None) | None => return Err(monitor_not_found(operation, handle)),
                 }
             }
 
@@ -695,31 +691,21 @@ fn poll_monitor_event(
                 if let Some(watch_descriptor) = watch_descriptor {
                     wait_for_monitor_watch_event(watch_descriptor)?;
                 } else {
-                    thread::sleep(monitor_poll_interval(context));
+                    thread::sleep(Duration::from_millis(8));
                 }
 
                 #[cfg(not(target_os = "linux"))]
                 {
                     let _ = watch_descriptor;
-                    thread::sleep(monitor_poll_interval(context));
+                    thread::sleep(Duration::from_millis(8));
                 }
             }
             // bubble watcher failures
             Some(Some(Err(error))) => return Err(error),
             // return not-found when monitor payload cannot be resolved
-            Some(None) => {
-                return Err(core_platform::io_not_found(
-                    operation,
-                    format!("input monitor handle {} not found", handle.0.0),
-                ));
-            }
+            Some(None) => return Err(monitor_not_found(operation, handle)),
             // return not-found when monitor handle is invalid
-            None => {
-                return Err(core_platform::io_not_found(
-                    operation,
-                    format!("input monitor handle {} not found", handle.0.0),
-                ));
-            }
+            None => return Err(monitor_not_found(operation, handle)),
         }
     }
 }
@@ -796,13 +782,13 @@ pub(crate) unsafe fn destack_input_monitor_close(
 
     // remove and finalize monitor resource
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
-        return Err(core_platform::io_not_found(
+        return Err(monitor_not_found(
             "destack.input.event.monitorClose",
-            format!("input monitor handle {} not found", handle.0.0),
+            handle,
         ));
     }
 
@@ -881,7 +867,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
         drain_linux_monitor_watch(&mut binding)?;
     }
 
-    let entry = ResourceEntry::new(ResourceKind::Input)
+    let entry = ResourceEntry::new(ResourceKind::InputMonitor)
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
         .with_payload(binding);
     #[cfg(target_os = "linux")]
@@ -892,7 +878,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
     };
     let handle = resource::InputMonitorHandle(
         context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.engine())),
     );

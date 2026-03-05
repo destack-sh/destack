@@ -69,7 +69,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
         .with_fd(fd)
         .with_finalizer(FdFinalizer { fd });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -159,7 +159,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
         .with_payload(resource)
         .with_finalizer(FdFinalizer { fd });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -250,7 +250,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
         .with_fd(fd)
         .with_finalizer(FdFinalizer { fd });
     let handle = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -349,7 +349,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
             .with_fd(fd)
             .with_finalizer(FdFinalizer { fd });
         let handle = context
-            .runtime()
+            .agent()
             .resources
             .insert(entry, Some(context.engine()));
         unsafe {

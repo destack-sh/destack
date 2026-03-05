@@ -120,7 +120,7 @@ pub(crate) unsafe fn destack_audio_stream_close(
     audio_core::unregister_stream_binding_handle(&binding);
 
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()));
     if removed.is_none() {
@@ -328,7 +328,7 @@ pub(crate) unsafe fn destack_audio_stream_open(
         "destack.audio.stream.open",
     )?;
 
-    let resource_id = context.runtime().resources.insert(
+    let resource_id = context.agent().resources.insert(
         ResourceEntry::new(ResourceKind::AudioStream)
             .with_label(audio_core::AUDIO_STREAM_RESOURCE_LABEL)
             .with_payload(stream.clone()),

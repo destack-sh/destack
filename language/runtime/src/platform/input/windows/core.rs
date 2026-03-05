@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_ACCESS_DENIED,
@@ -13,6 +12,7 @@ use windows_sys::Win32::System::Console::{
     ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT, GetConsoleMode, GetStdHandle,
     INPUT_RECORD, STD_INPUT_HANDLE, SetConsoleMode,
 };
+use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, GetKeyState, VK_CAPITAL, VK_CONTROL, VK_LBUTTON, VK_MBUTTON, VK_MENU,
@@ -24,16 +24,14 @@ use super::{raw as raw_input, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEvent, InputCompositionEventPayload, InputDeviceEvent, InputDeviceEventPayload,
-    InputEvent, InputEventAction, InputEventKind, InputEventMetadata, InputEventPayload,
-    InputGamepadEvent, InputGamepadEventPayload, InputKeyEvent, InputKeyEventPayload,
-    InputPointerButtonEvent, InputPointerButtonEventPayload, InputPointerMotionEvent,
-    InputPointerMotionEventPayload, InputReadMode, InputScrollEvent, InputScrollEventPayload,
-    InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload, InputSensorKind,
-    InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEvent,
-    InputTouchEventPayload, InputWindowTarget,
+    InputCompositionEventPayload, InputDeviceEventPayload, InputEvent, InputEventAction,
+    InputEventKind, InputEventPayload, InputGamepadEventPayload, InputKeyEventPayload,
+    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
+    InputScrollEventPayload, InputSensorEffectiveConfig, InputSensorEventPayload, InputSensorKind,
+    InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEventPayload,
+    InputWindowTarget,
 };
-use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
+use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
@@ -83,132 +81,8 @@ const WINDOW_TARGET_DEFAULT_RESOURCE_ID: u64 = 0;
 const XINPUT_PLAYER_INDEX_MIN: u8 = 1;
 /// Maximum supported XInput player index.
 const XINPUT_PLAYER_INDEX_MAX: u8 = 4;
-/// Default poll interval for blocking XInput reads.
-const DEFAULT_XINPUT_POLL_INTERVAL_NS: u64 = 1_000_000;
-/// Default queue capacity for Windows console record buffering.
-const DEFAULT_WINDOWS_CONSOLE_RECORD_QUEUE_CAPACITY: usize = 4096;
-/// Default queue capacity for Windows console composition buffering.
-const DEFAULT_WINDOWS_CONSOLE_COMPOSITION_QUEUE_CAPACITY: usize = 4096;
-/// Default queue capacity for Windows raw-input buffering.
-const DEFAULT_WINDOWS_RAW_INPUT_QUEUE_CAPACITY: usize = 8192;
-/// Default queue capacity for Windows raw-monitor buffering.
-const DEFAULT_WINDOWS_RAW_MONITOR_QUEUE_CAPACITY: usize = 1024;
-/// Default queue capacity for Windows raw-hid buffering.
-const DEFAULT_WINDOWS_RAW_HID_QUEUE_CAPACITY: usize = 4096;
-/// Default queue capacity for Windows raw-touch buffering.
-const DEFAULT_WINDOWS_RAW_TOUCH_QUEUE_CAPACITY: usize = 2048;
-
-/// Build one ioNotFound runtime error for one missing input handle.
-pub(super) fn input_not_found(
-    operation: &'static str,
-    handle: resource::InputDeviceHandle,
-) -> Box<RuntimeError> {
-    core_platform::io_not_found(
-        operation,
-        format!("input device handle {} not found", handle.0.0),
-    )
-}
-
-/// Runtime-owned mutable state for windows input core bindings.
-#[derive(Debug, Default)]
-pub(crate) struct WindowsInputCoreRuntimeState {
-    /// Number of active console input streams in this runtime.
-    pub(super) console_streams: AtomicUsize,
-}
-
-/// Return runtime-owned windows input core state.
-pub(super) fn windows_input_core_runtime_state(
-    context: &BindingCallContext,
-) -> Arc<WindowsInputCoreRuntimeState> {
-    context
-        .runtime()
-        .platform_state
-        .input
-        .windows_input_core_runtime_state(WindowsInputCoreRuntimeState::default)
-}
-
-/// Resolve one optional queue capacity override from runtime options.
-fn configured_capacity(value: Option<u64>, default: usize) -> usize {
-    core_platform::option_u64_to_usize_or_min(value, default, 1)
-}
-
-/// Return the configured queue capacity for windows console records.
-pub(super) fn windows_console_record_queue_capacity(context: &BindingCallContext) -> usize {
-    let options = &context.runtime().module_options.input;
-    configured_capacity(
-        options
-            .windows_console_record_queue_capacity
-            .or(options.event_queue_capacity),
-        DEFAULT_WINDOWS_CONSOLE_RECORD_QUEUE_CAPACITY,
-    )
-}
-
-/// Return the configured queue capacity for windows console composition events.
-pub(super) fn windows_console_composition_queue_capacity(context: &BindingCallContext) -> usize {
-    let options = &context.runtime().module_options.input;
-    configured_capacity(
-        options
-            .windows_console_composition_queue_capacity
-            .or(options.event_queue_capacity),
-        DEFAULT_WINDOWS_CONSOLE_COMPOSITION_QUEUE_CAPACITY,
-    )
-}
-
-/// Return the configured queue capacity for windows raw input events.
-pub(super) fn windows_raw_input_queue_capacity(context: &BindingCallContext) -> usize {
-    let options = &context.runtime().module_options.input;
-    configured_capacity(
-        options
-            .windows_raw_input_queue_capacity
-            .or(options.event_queue_capacity),
-        DEFAULT_WINDOWS_RAW_INPUT_QUEUE_CAPACITY,
-    )
-}
-
-/// Return the configured queue capacity for windows raw monitor events.
-pub(super) fn windows_raw_monitor_queue_capacity(context: &BindingCallContext) -> usize {
-    let options = &context.runtime().module_options.input;
-    configured_capacity(
-        options
-            .windows_raw_monitor_queue_capacity
-            .or(options.event_queue_capacity),
-        DEFAULT_WINDOWS_RAW_MONITOR_QUEUE_CAPACITY,
-    )
-}
-
-/// Return the configured queue capacity for windows raw hid events.
-pub(super) fn windows_raw_hid_queue_capacity(context: &BindingCallContext) -> usize {
-    let options = &context.runtime().module_options.input;
-    configured_capacity(
-        options
-            .windows_raw_hid_queue_capacity
-            .or(options.event_queue_capacity),
-        DEFAULT_WINDOWS_RAW_HID_QUEUE_CAPACITY,
-    )
-}
-
-/// Return the configured queue capacity for windows raw touch events.
-pub(super) fn windows_raw_touch_queue_capacity(context: &BindingCallContext) -> usize {
-    let options = &context.runtime().module_options.input;
-    configured_capacity(
-        options
-            .windows_raw_touch_queue_capacity
-            .or(options.event_queue_capacity),
-        DEFAULT_WINDOWS_RAW_TOUCH_QUEUE_CAPACITY,
-    )
-}
-
-/// Return the configured polling interval for blocking xinput reads.
-pub(super) fn xinput_poll_interval(context: &BindingCallContext) -> Duration {
-    let options = &context.runtime().module_options.input;
-    core_platform::duration_from_option_ns(
-        options
-            .xinput_poll_interval_ns
-            .or(options.monitor_poll_interval_ns),
-        DEFAULT_XINPUT_POLL_INTERVAL_NS,
-        1,
-    )
-}
+/// Number of active console input streams.
+pub(super) static WINDOWS_CONSOLE_STREAMS: AtomicUsize = AtomicUsize::new(0);
 
 /// Build one zeroed payload shell for event-kind projection.
 pub(super) fn empty_event_payload(context: &BindingCallContext) -> InputEventPayload {
@@ -287,83 +161,12 @@ pub(super) fn build_input_event(
     device_id: &str,
     payload: InputEventPayload,
 ) -> InputEvent {
-    let metadata = InputEventMetadata {
+    InputEvent {
+        kind,
         timestamp_ns,
         sequence,
         device_id: context.store_string(device_id),
-    };
-
-    match kind {
-        InputEventKind::Key => InputEvent::InputKeyEvent(InputKeyEvent {
-            kind: context.store_string("key"),
-            metadata,
-            payload: payload.key,
-        }),
-        InputEventKind::PointerMotion => {
-            InputEvent::InputPointerMotionEvent(InputPointerMotionEvent {
-                kind: context.store_string("pointerMotion"),
-                metadata,
-                payload: payload.pointer_motion,
-            })
-        }
-        InputEventKind::PointerButton => {
-            InputEvent::InputPointerButtonEvent(InputPointerButtonEvent {
-                kind: context.store_string("pointerButton"),
-                metadata,
-                payload: payload.pointer_button,
-            })
-        }
-        InputEventKind::Scroll => InputEvent::InputScrollEvent(InputScrollEvent {
-            kind: context.store_string("scroll"),
-            metadata,
-            payload: payload.scroll,
-        }),
-        InputEventKind::Touch => InputEvent::InputTouchEvent(InputTouchEvent {
-            kind: context.store_string("touch"),
-            metadata,
-            payload: payload.touch,
-        }),
-        InputEventKind::Gamepad => InputEvent::InputGamepadEvent(InputGamepadEvent {
-            kind: context.store_string("gamepad"),
-            metadata,
-            payload: payload.gamepad,
-        }),
-        InputEventKind::Text => InputEvent::InputTextEvent(InputTextEvent {
-            kind: context.store_string("text"),
-            metadata,
-            payload: payload.text,
-        }),
-        InputEventKind::Device => InputEvent::InputDeviceEvent(InputDeviceEvent {
-            kind: context.store_string("device"),
-            metadata,
-            payload: payload.device,
-        }),
-        InputEventKind::Sensor => InputEvent::InputSensorEvent(InputSensorEvent {
-            kind: context.store_string("sensor"),
-            metadata,
-            payload: payload.sensor,
-        }),
-        InputEventKind::Composition => InputEvent::InputCompositionEvent(InputCompositionEvent {
-            kind: context.store_string("composition"),
-            metadata,
-            payload: payload.composition,
-        }),
-    }
-}
-
-/// Set one sequence number on one union input event.
-pub(super) fn set_input_event_sequence(event: &mut InputEvent, sequence: u64) {
-    match event {
-        InputEvent::InputCompositionEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputDeviceEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputGamepadEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputKeyEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputPointerButtonEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputPointerMotionEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputScrollEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputSensorEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputTextEvent(value) => value.metadata.sequence = sequence,
-        InputEvent::InputTouchEvent(value) => value.metadata.sequence = sequence,
+        payload,
     }
 }
 
@@ -490,8 +293,6 @@ pub(super) struct WindowsInputFinalizer {
     pub(super) restore_mode: Option<u32>,
     /// Whether this finalizer releases the singleton console stream lane.
     pub(super) release_console_lane: bool,
-    /// Runtime-owned console-stream state for lane accounting.
-    pub(super) runtime_state: Option<Arc<WindowsInputCoreRuntimeState>>,
 }
 
 /// Resolved input-handle state for one read or control operation.
@@ -542,10 +343,8 @@ impl ResourceFinalizer for WindowsInputFinalizer {
             CloseHandle(self.handle);
         }
 
-        if self.release_console_lane
-            && let Some(runtime_state) = self.runtime_state
-        {
-            runtime_state.console_streams.fetch_sub(1, Ordering::AcqRel);
+        if self.release_console_lane {
+            WINDOWS_CONSOLE_STREAMS.fetch_sub(1, Ordering::AcqRel);
         }
     }
 }
@@ -555,15 +354,42 @@ impl ResourceFinalizer for WindowsInputFinalizer {
 pub(super) struct RawInputDeviceFinalizer {
     /// Registered raw-input device identifier.
     pub(super) device_id: String,
-    /// Runtime-owned raw-input mutable state.
-    pub(super) runtime_state: Arc<raw_input::WindowsRawInputRuntimeState>,
 }
 
 impl ResourceFinalizer for RawInputDeviceFinalizer {
     /// Release one registered raw-input stream on resource finalization.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
-        raw_input::release_input_stream(&self.runtime_state, &self.device_id);
+        raw_input::release_input_stream(&self.device_id);
     }
+}
+
+/// Build io-not-found for one missing input device handle.
+pub(super) fn input_not_found(
+    operation: &'static str,
+    handle: resource::InputDeviceHandle,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("input device handle {} not found", handle.0.0),
+    ))
+    .boxed()
+}
+
+/// Build io-would-block for one empty input queue read.
+pub(super) fn io_would_block(operation: &'static str, message: &'static str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoWouldBlock),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message.to_string(),
+    ))
+    .boxed()
 }
 
 /// Build one windows io error with mapped platform error code.
@@ -722,12 +548,8 @@ pub(super) fn duplicate_console_handle(handle: HANDLE) -> RuntimeResult<HANDLE> 
 }
 
 /// Acquire the singleton console stream lane for this process.
-pub(super) fn acquire_console_stream(
-    context: &BindingCallContext,
-    operation: &'static str,
-) -> RuntimeResult<Arc<WindowsInputCoreRuntimeState>> {
-    let runtime_state = windows_input_core_runtime_state(context);
-    let mut current = runtime_state.console_streams.load(Ordering::Acquire);
+pub(super) fn acquire_console_stream(operation: &'static str) -> RuntimeResult<()> {
+    let mut current = WINDOWS_CONSOLE_STREAMS.load(Ordering::Acquire);
     loop {
         if current > 0 {
             return Err(RuntimeError::from(PlatformError::io_with(
@@ -741,13 +563,13 @@ pub(super) fn acquire_console_stream(
             .boxed());
         }
 
-        match runtime_state.console_streams.compare_exchange_weak(
+        match WINDOWS_CONSOLE_STREAMS.compare_exchange_weak(
             current,
             current + 1,
             Ordering::AcqRel,
             Ordering::Acquire,
         ) {
-            Ok(_) => return Ok(runtime_state),
+            Ok(_) => return Ok(()),
             Err(next) => current = next,
         }
     }
@@ -812,36 +634,6 @@ pub(super) fn read_mode_from_console_mode(mode: u32) -> InputReadMode {
     }
 }
 
-/// Resolve one read-only windows input resource entry.
-fn with_windows_input_entry<R>(
-    context: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    read: impl FnOnce(&ResourceEntry) -> R,
-) -> Option<R> {
-    resource::with_entry(
-        context,
-        handle.0,
-        ResourceKind::Input,
-        Some(INPUT_RESOURCE_LABEL),
-        read,
-    )
-}
-
-/// Resolve one mutable windows input resource entry.
-fn with_windows_input_entry_mut<R>(
-    context: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    write: impl FnOnce(&mut ResourceEntry) -> R,
-) -> Option<R> {
-    resource::with_entry_mut(
-        context,
-        handle.0,
-        ResourceKind::Input,
-        Some(INPUT_RESOURCE_LABEL),
-        write,
-    )
-}
-
 /// Resolve one windows input handle from the resource table.
 pub(super) fn resolve_input(
     context: &BindingCallContext,
@@ -849,8 +641,19 @@ pub(super) fn resolve_input(
     operation: &'static str,
 ) -> RuntimeResult<WindowsInputResolved> {
     // resolve and validate resource entry shape
-    let resolved = with_windows_input_entry(context, handle, |entry| {
-        let binding = entry.payload_ref::<WindowsInputBinding>()?;
+    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<WindowsInputBinding>())?;
 
         Some(WindowsInputResolved {
             backend: binding.backend,
@@ -873,10 +676,7 @@ pub(super) fn resolve_input(
 
     match resolved.flatten() {
         Some(resolved) => Ok(resolved),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 
@@ -892,10 +692,7 @@ pub(super) fn raw_device(
     }
 
     let Some(raw_device) = resolved.raw_device else {
-        return Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        ));
+        return Err(input_not_found(operation, handle));
     };
 
     Ok(raw_device)
@@ -907,8 +704,19 @@ pub(super) fn next_sequence(
     handle: resource::InputDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let sequence = with_windows_input_entry_mut(context, handle, |entry| {
-        let binding = entry.payload_mut::<WindowsInputBinding>()?;
+    let sequence = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         let next = binding.next_sequence;
         binding.next_sequence = binding.next_sequence.saturating_add(1);
         Some(next)
@@ -916,11 +724,38 @@ pub(super) fn next_sequence(
 
     match sequence.flatten() {
         Some(sequence) => Ok(sequence),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
+}
+
+/// Return the host performance-counter frequency.
+fn performance_counter_frequency() -> u64 {
+    static PERFORMANCE_COUNTER_FREQUENCY: OnceLock<u64> = OnceLock::new();
+    *PERFORMANCE_COUNTER_FREQUENCY.get_or_init(|| {
+        let mut frequency = 0i64;
+        let status = unsafe { QueryPerformanceFrequency(&mut frequency) };
+        if status == 0 || frequency <= 0 {
+            return 0;
+        }
+
+        frequency as u64
+    })
+}
+
+/// Read one monotonic timestamp from QueryPerformanceCounter.
+pub(super) fn now_timestamp_ns() -> u64 {
+    let frequency = performance_counter_frequency();
+    if frequency == 0 {
+        return 0;
+    }
+
+    let mut counter = 0i64;
+    let status = unsafe { QueryPerformanceCounter(&mut counter) };
+    if status == 0 || counter < 0 {
+        return 0;
+    }
+
+    ((counter as u128).saturating_mul(1_000_000_000u128) / u128::from(frequency)) as u64
 }
 
 /// Persist one xinput player-index override for one input handle.
@@ -939,8 +774,19 @@ pub(super) fn set_xinput_player_index_override(
         .boxed());
     }
 
-    let updated = with_windows_input_entry_mut(context, handle, |entry| {
-        let binding = entry.payload_mut::<WindowsInputBinding>()?;
+    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         if binding.backend != WindowsInputBackend::XInput {
             return Some(Err(RuntimeError::from(PlatformError::not_supported(
                 operation,
@@ -954,16 +800,29 @@ pub(super) fn set_xinput_player_index_override(
 
     match updated.flatten() {
         Some(result) => result,
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 
 /// Return whether one target selects one explicit window resource.
 fn has_explicit_window_target(target: InputWindowTarget) -> bool {
     target.window.0.0 != WINDOW_TARGET_DEFAULT_RESOURCE_ID
+}
+
+/// Build io-not-found for one missing explicit window target handle.
+fn window_target_not_found(
+    operation: &'static str,
+    target: InputWindowTarget,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        format!("window handle {} not found", target.window.0.0),
+    ))
+    .boxed()
 }
 
 /// Resolve one optional explicit window target into one host hwnd.
@@ -979,20 +838,20 @@ pub(super) fn resolve_window_target_handle(
 
     // resolve explicit window resources from the shared resource table
     let window_resource_id = target.window.0;
-    let hwnd = resource::with_entry(
-        context,
-        window_resource_id,
-        ResourceKind::Window,
-        None,
-        |entry| entry.handle().map(|handle| handle as HWND),
-    );
+    let hwnd = context
+        .agent()
+        .resources
+        .with_entry(window_resource_id, |entry| {
+            if entry.kind != ResourceKind::Window {
+                return None;
+            }
+
+            entry.handle().map(|handle| handle as HWND)
+        });
 
     match hwnd.flatten() {
         Some(hwnd) if hwnd != 0 => Ok(Some(hwnd)),
-        _ => Err(core_platform::io_not_found(
-            operation,
-            format!("window handle {} not found", target.window.0.0),
-        )),
+        _ => Err(window_target_not_found(operation, target)),
     }
 }
 
@@ -1104,8 +963,19 @@ pub(super) fn set_text_state(
     input_type: InputTextInputType,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = with_windows_input_entry_mut(context, handle, |entry| {
-        let binding = entry.payload_mut::<WindowsInputBinding>()?;
+    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         binding.text_active = active;
         binding.text_input_type = input_type;
         Some(())
@@ -1113,10 +983,7 @@ pub(super) fn set_text_state(
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 
@@ -1127,18 +994,26 @@ pub(super) fn set_text_area(
     area: InputTextInputArea,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = with_windows_input_entry_mut(context, handle, |entry| {
-        let binding = entry.payload_mut::<WindowsInputBinding>()?;
+    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         binding.text_area = area;
         Some(())
     });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 
@@ -1150,8 +1025,19 @@ pub(super) fn set_pointer_snapshot(
     y: f64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = with_windows_input_entry_mut(context, handle, |entry| {
-        let binding = entry.payload_mut::<WindowsInputBinding>()?;
+    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         binding.last_pointer_x = x;
         binding.last_pointer_y = y;
         Some(())
@@ -1159,10 +1045,7 @@ pub(super) fn set_pointer_snapshot(
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 
@@ -1173,18 +1056,26 @@ pub(super) fn set_relative_mode_flag(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = with_windows_input_entry_mut(context, handle, |entry| {
-        let binding = entry.payload_mut::<WindowsInputBinding>()?;
+    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         binding.relative_mode_enabled = enabled;
         Some(())
     });
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 
@@ -1196,8 +1087,19 @@ pub(super) fn set_sensor_stream_enabled(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let updated = with_windows_input_entry_mut(context, handle, |entry| {
-        let binding = entry.payload_mut::<WindowsInputBinding>()?;
+    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         if enabled {
             binding.sensor_enabled_kinds.insert(sensor_kind);
         } else {
@@ -1209,10 +1111,7 @@ pub(super) fn set_sensor_stream_enabled(
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 
@@ -1227,8 +1126,19 @@ pub(super) fn set_sensor_stream_config(
     // update stream-enabled state before storing effective configuration
     set_sensor_stream_enabled(context, handle, sensor_kind, config.enabled, operation)?;
 
-    let updated = with_windows_input_entry_mut(context, handle, |entry| {
-        let binding = entry.payload_mut::<WindowsInputBinding>()?;
+    let updated = context.agent().resources.with_entry_mut(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_mut()
+            .and_then(|payload| payload.downcast_mut::<WindowsInputBinding>())?;
         if config.enabled {
             binding.sensor_effective_configs.insert(sensor_kind, config);
         } else {
@@ -1240,10 +1150,7 @@ pub(super) fn set_sensor_stream_config(
 
     match updated.flatten() {
         Some(()) => Ok(()),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 
@@ -1254,17 +1161,25 @@ pub(super) fn is_sensor_stream_enabled(
     sensor_kind: InputSensorKind,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    let enabled = with_windows_input_entry(context, handle, |entry| {
-        let binding = entry.payload_ref::<WindowsInputBinding>()?;
+    let enabled = context.agent().resources.with_entry(handle.0, |entry| {
+        if entry.kind != ResourceKind::InputDevice {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+            return None;
+        }
+
+        let binding = entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<WindowsInputBinding>())?;
         Some(binding.sensor_enabled_kinds.contains(&sensor_kind))
     });
 
     match enabled.flatten() {
         Some(enabled) => Ok(enabled),
-        None => Err(core_platform::io_not_found(
-            operation,
-            format!("input device handle {} not found", handle.0.0),
-        )),
+        None => Err(input_not_found(operation, handle)),
     }
 }
 

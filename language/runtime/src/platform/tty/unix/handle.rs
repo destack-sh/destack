@@ -15,7 +15,7 @@ fn file_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<libc::c_int> {
     let descriptor = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::File {
@@ -99,7 +99,7 @@ fn register_stdio_tty(
             descriptor: duplicated,
         });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
 

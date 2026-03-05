@@ -156,7 +156,7 @@ pub(crate) fn close_tty_worker_resource(
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
@@ -177,7 +177,7 @@ pub(crate) fn pty_descriptor(
     handle: resource::PtyHandle,
 ) -> RuntimeResult<libc::c_int> {
     let descriptor = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Pty {
@@ -205,7 +205,7 @@ pub(crate) fn tty_descriptor(
     handle: resource::TtyHandle,
 ) -> RuntimeResult<libc::c_int> {
     let descriptor = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Tty {

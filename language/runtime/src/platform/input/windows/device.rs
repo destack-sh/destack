@@ -115,7 +115,7 @@ pub(super) fn open_device(
                 let duplicated = input_core::duplicate_console_handle(stdin)?;
 
                 // insert console binding with restore finalizer
-                let entry = ResourceEntry::new(ResourceKind::Input)
+                let entry = ResourceEntry::new(ResourceKind::InputDevice)
                     .with_label(input_core::INPUT_RESOURCE_LABEL)
                     .with_handle(duplicated as *mut c_void)
                     .with_payload(input_core::WindowsInputBinding {
@@ -153,7 +153,7 @@ pub(super) fn open_device(
                         runtime_state: Some(Arc::clone(&runtime_state)),
                     });
                 let resource_id = context
-                    .runtime()
+                    .agent()
                     .resources
                     .insert(entry, Some(context.engine()));
                 Ok(resource::InputDeviceHandle(resource_id))
@@ -175,7 +175,7 @@ pub(super) fn open_device(
                 "destack.input.device.open",
             )?;
 
-            let entry = ResourceEntry::new(ResourceKind::Input)
+            let entry = ResourceEntry::new(ResourceKind::InputDevice)
                 .with_label(input_core::INPUT_RESOURCE_LABEL)
                 .with_payload(input_core::WindowsInputBinding {
                     backend: input_core::WindowsInputBackend::RawDevice,
@@ -210,7 +210,7 @@ pub(super) fn open_device(
                     runtime_state: raw_runtime_state,
                 });
             let resource_id = context
-                .runtime()
+                .agent()
                 .resources
                 .insert(entry, Some(context.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
@@ -221,7 +221,7 @@ pub(super) fn open_device(
             let (pointer_x, pointer_y) = input_core::current_pointer_position();
 
             // insert xinput binding
-            let entry = ResourceEntry::new(ResourceKind::Input)
+            let entry = ResourceEntry::new(ResourceKind::InputDevice)
                 .with_label(input_core::INPUT_RESOURCE_LABEL)
                 .with_payload(input_core::WindowsInputBinding {
                     backend: input_core::WindowsInputBackend::XInput,
@@ -252,7 +252,7 @@ pub(super) fn open_device(
                     sensor_effective_configs: HashMap::new(),
                 });
             let resource_id = context
-                .runtime()
+                .agent()
                 .resources
                 .insert(entry, Some(context.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
@@ -271,7 +271,7 @@ pub(super) fn close_device(
 
     // remove from resource table and run finalizer
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {

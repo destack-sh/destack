@@ -162,15 +162,21 @@ pub(crate) fn resolve_signal_subscription(
     context: &BindingCallContext,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<Vec<Signal>> {
-    resource::require_payload::<SignalSubscription>(
-        context,
-        handle.0,
-        resource::ResourceKind::Signal,
-        None,
-        "handle",
-        "signal subscription",
-    )
-    .map(|subscription| subscription.signals)
+    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<SignalSubscription>())
+            .map(|subscription| subscription.signals.clone())
+    });
+
+    resolved.flatten().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal subscription handle",
+        ))
+        .boxed()
+    })
 }
 
 /// Subscription payload stored for signal handles.

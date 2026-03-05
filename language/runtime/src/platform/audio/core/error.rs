@@ -1,5 +1,20 @@
 use super::*;
-use crate::platform::core as core_platform;
+
+/// Build one audio-not-found error.
+pub(crate) fn audio_not_found(
+    operation: &'static str,
+    message: impl Into<String>,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message.into(),
+    ))
+    .boxed()
+}
 
 /// Build one ioWouldBlock error.
 pub(crate) fn audio_would_block(
@@ -81,10 +96,10 @@ pub(crate) fn stream_shutdown_error(
             .last_backend_message
             .as_deref()
             .unwrap_or("audio device was lost");
-        return core_platform::io_not_found(operation, message.to_string());
+        return audio_not_found(operation, message.to_string());
     }
 
-    core_platform::io_not_found(operation, "stream has been closed")
+    audio_not_found(operation, "stream has been closed")
 }
 
 /// Return whether one stream state is terminal for I/O operations.
@@ -99,20 +114,46 @@ pub(crate) fn stream_state_is_terminal(state: &AudioStreamStateInner) -> bool {
     )
 }
 
+/// Resolve one typed resource payload by kind and label.
+fn resolve_resource_payload<T: Clone + 'static>(
+    context: &BindingCallContext,
+    resource_id: resource::ResourceId,
+    resource_kind: ResourceKind,
+    resource_label: &'static str,
+) -> Option<T> {
+    let resolved = context.agent().resources.with_entry(resource_id, |entry| {
+        if entry.kind != resource_kind {
+            return None;
+        }
+
+        if entry.label.as_deref() != Some(resource_label) {
+            return None;
+        }
+
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<T>())
+            .cloned()
+    });
+
+    resolved.flatten()
+}
+
 /// Resolve one opened device handle.
 pub(crate) fn resolve_device_binding(
     context: &BindingCallContext,
     handle: resource::AudioDeviceHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<AudioDeviceBinding>> {
-    resource::resolve_payload::<Arc<AudioDeviceBinding>>(
+    resolve_resource_payload::<Arc<AudioDeviceBinding>>(
         context,
         handle.0,
         ResourceKind::AudioDevice,
-        Some(AUDIO_DEVICE_RESOURCE_LABEL),
+        AUDIO_DEVICE_RESOURCE_LABEL,
     )
     .ok_or_else(|| {
-        core_platform::io_not_found(
+        audio_not_found(
             operation,
             format!("unknown audio device handle {}", handle.0.0),
         )
@@ -125,14 +166,14 @@ pub(crate) fn resolve_stream_binding(
     handle: resource::AudioStreamHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<AudioStreamBinding>> {
-    resource::resolve_payload::<Arc<AudioStreamBinding>>(
+    resolve_resource_payload::<Arc<AudioStreamBinding>>(
         context,
         handle.0,
         ResourceKind::AudioStream,
-        Some(AUDIO_STREAM_RESOURCE_LABEL),
+        AUDIO_STREAM_RESOURCE_LABEL,
     )
     .ok_or_else(|| {
-        core_platform::io_not_found(
+        audio_not_found(
             operation,
             format!("unknown audio stream handle {}", handle.0.0),
         )
@@ -145,14 +186,14 @@ pub(crate) fn resolve_event_binding(
     handle: resource::AudioEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<AudioEventBinding>>> {
-    resource::resolve_payload::<Arc<Mutex<AudioEventBinding>>>(
+    resolve_resource_payload::<Arc<Mutex<AudioEventBinding>>>(
         context,
         handle.0,
         ResourceKind::AudioEvent,
-        Some(AUDIO_EVENT_RESOURCE_LABEL),
+        AUDIO_EVENT_RESOURCE_LABEL,
     )
     .ok_or_else(|| {
-        core_platform::io_not_found(
+        audio_not_found(
             operation,
             format!("unknown audio event handle {}", handle.0.0),
         )

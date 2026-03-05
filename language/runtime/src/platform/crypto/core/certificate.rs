@@ -564,7 +564,7 @@ pub(crate) fn certificate_delete(
 
     // remove certificate resource entry
     let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()))
     else {

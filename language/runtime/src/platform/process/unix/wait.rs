@@ -3,8 +3,9 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{bindings_generated as bindings, core as core_process};
-use crate::platform::{NativeArray, PlatformError, PlatformErrorCode};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
+};
 
 use crate::runtime::BindingCallContext;
 use bindings::*;
@@ -26,15 +27,21 @@ fn resolve_spawned_process_handle(
     context: &BindingCallContext,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessId> {
-    resource::require_payload::<core_process::SpawnedProcess>(
-        context,
-        handle.0,
-        resource::ResourceKind::Process,
-        None,
-        "handle",
-        "process",
-    )
-    .map(|process| process.pid)
+    let resolved = context.agent().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::SpawnedProcess>())
+            .map(|process| process.pid)
+    });
+
+    resolved.flatten().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown process handle",
+        ))
+        .boxed()
+    })
 }
 
 /// Return true when a wait status is terminal for a spawned process.
@@ -109,7 +116,7 @@ pub(crate) unsafe fn destack_process_try_wait(
 
     if is_terminal_wait_status(&status) {
         let _ = context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(handle.0, Some(context.engine()));
     }
@@ -152,7 +159,7 @@ pub(crate) unsafe fn destack_process_wait(
 
     if is_terminal_wait_status(&status) {
         let _ = context
-            .runtime()
+            .agent()
             .resources
             .remove_and_finalize(handle.0, Some(context.engine()));
     }
@@ -196,7 +203,6 @@ pub(super) fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWai
 
 /// Wait for one process state transition with a timeout.
 pub(super) fn process_wait_pid_timeout(
-    context: &BindingCallContext,
     pid: u32,
     timeout_ns: u64,
 ) -> RuntimeResult<ProcessWaitStatus> {
@@ -213,24 +219,8 @@ pub(super) fn process_wait_pid_timeout(
         .boxed()
     })?;
 
-    let configured_initial_backoff_ns = context
-        .runtime()
-        .module_options
-        .process
-        .wait_poll_initial_backoff_ns;
-    let configured_max_backoff_ns = context
-        .runtime()
-        .module_options
-        .process
-        .wait_poll_max_backoff_ns;
-
-    let mut sleep_duration =
-        Duration::from_nanos(configured_initial_backoff_ns.unwrap_or(100_000).max(1));
-    let max_sleep_duration = Duration::from_nanos(
-        configured_max_backoff_ns
-            .unwrap_or(10_000_000)
-            .max(sleep_duration.as_nanos() as u64),
-    );
+    let mut sleep_duration = Duration::from_micros(100);
+    let max_sleep_duration = Duration::from_millis(10);
     loop {
         match process_wait_pid(pid, PROCESS_WAIT_FLAG_NOHANG) {
             Ok(status) => return Ok(status),

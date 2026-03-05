@@ -9,8 +9,8 @@ use crate::platform::audio::{
     AudioStreamStatusFlags, AudioStreamSupport, AudioStreamTiming, core as audio_core,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{PlatformError, core as core_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
+use crate::runtime::BindingCallContext;
 
 /// Flatten one vectorized byte-buffer payload into one contiguous payload.
 unsafe fn flatten_vectorized_buffers(
@@ -120,11 +120,11 @@ pub(crate) unsafe fn destack_audio_stream_close(
     audio_core::unregister_stream_binding_handle(&binding);
 
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle.0, Some(context.engine()));
     if removed.is_none() {
-        return Err(core_platform::io_not_found(
+        return Err(audio_core::audio_not_found(
             "destack.audio.stream.close",
             format!("unknown audio stream handle {}", handle.0.0),
         ));
@@ -179,8 +179,7 @@ pub(crate) unsafe fn destack_audio_stream_drain(
         }
 
         let remaining = deadline.saturating_sub(audio_core::host_monotonic_nanos());
-        let wait_slice_ns = audio_core::resolved_stream_wait_slice_ns(context);
-        let duration = Duration::from_nanos(remaining.min(wait_slice_ns));
+        let duration = Duration::from_nanos(remaining.min(audio_core::EVENT_POLL_INTERVAL_NS));
         let wait = binding
             .sync
             .wake
@@ -328,14 +327,13 @@ pub(crate) unsafe fn destack_audio_stream_open(
         "destack.audio.stream.open",
     )?;
 
-    let resource_id = context.runtime().resources.insert(
-        ResourceEntry::new(ResourceKind::AudioStream)
+    let resource_id = context.agent().resources.insert(
+        ResourceEntry::new(ResourceKind::AudioStream, Some(context.engine()))
             .with_label(audio_core::AUDIO_STREAM_RESOURCE_LABEL)
             .with_payload(stream.clone()),
-        Some(context.engine()),
     );
     let stream_handle = resource::AudioStreamHandle(resource_id);
-    audio_core::register_stream_binding_handle(context, &stream, stream_handle);
+    audio_core::register_stream_binding_handle(&stream, stream_handle);
 
     unsafe {
         *out = stream_handle;
@@ -457,8 +455,7 @@ pub(crate) unsafe fn destack_audio_stream_read(
         .boxed());
     }
 
-    let max_read_bytes = audio_core::resolved_max_stream_read_bytes(context);
-    if maxbytes > max_read_bytes {
+    if maxbytes > audio_core::MAX_STREAM_READ_BYTES {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "maxbytes",
             "maxbytes exceeds supported audio read limit",
@@ -559,8 +556,9 @@ pub(crate) unsafe fn destack_audio_stream_readv(
         .boxed());
     }
 
-    let max_read_bytes = audio_core::resolved_max_stream_read_bytes(context) as usize;
-    let maxbytes = capacity_bytes.min(max_read_bytes).min(u32::MAX as usize) as u32;
+    let maxbytes = capacity_bytes
+        .min(audio_core::MAX_STREAM_READ_BYTES as usize)
+        .min(u32::MAX as usize) as u32;
     let mut packet_out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
     unsafe {
         destack_audio_stream_read(context, packet_out.as_mut_ptr(), handle, maxbytes)?;
@@ -1205,8 +1203,9 @@ pub(crate) unsafe fn destack_audio_stream_try_readv(
         .boxed());
     }
 
-    let max_read_bytes = audio_core::resolved_max_stream_read_bytes(context) as usize;
-    let maxbytes = capacity_bytes.min(max_read_bytes).min(u32::MAX as usize) as u32;
+    let maxbytes = capacity_bytes
+        .min(audio_core::MAX_STREAM_READ_BYTES as usize)
+        .min(u32::MAX as usize) as u32;
     let mut packet_out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
     unsafe {
         destack_audio_stream_try_read(context, packet_out.as_mut_ptr(), handle, maxbytes)?;

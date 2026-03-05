@@ -3,10 +3,6 @@ use std::time::Duration;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::core::{
-    io_operation_error, u64_to_usize_with_message, unknown_handle,
-    unsupported_flags as unsupported_flags_helper,
-};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceEntry, ResourceId, ResourceKind};
 use crate::runtime::BindingCallContext;
@@ -14,17 +10,22 @@ use crate::runtime::BindingCallContext;
 /// Sentinel timeout that means wait indefinitely.
 pub(crate) const WAIT_FOREVER: u64 = u64::MAX;
 
-/// Canonical resource kind for thread-domain runtime resources.
-const THREAD_RESOURCE_KIND: ResourceKind = ResourceKind::Thread;
-
 /// Produce one invalid-handle error.
 pub(crate) fn invalid_handle_error(field: &str, kind: &str) -> Box<RuntimeError> {
-    unknown_handle(field, kind)
+    RuntimeError::from(PlatformError::invalid_argument_value(
+        field,
+        format!("unknown {kind}"),
+    ))
+    .boxed()
 }
 
 /// Produce one unsupported-flags error.
 pub(crate) fn unsupported_flags_error(field: &str, flags: u32) -> Box<RuntimeError> {
-    unsupported_flags_helper(field, flags)
+    RuntimeError::from(PlatformError::invalid_argument_value(
+        field,
+        format!("unsupported flag bits: 0x{flags:x}"),
+    ))
+    .boxed()
 }
 
 /// Produce one thread-deadlock error.
@@ -41,12 +42,28 @@ pub(crate) fn io_would_block_error(
     operation: &str,
     message: impl Into<String>,
 ) -> Box<RuntimeError> {
-    io_operation_error(operation, Some(PlatformErrorCode::IoWouldBlock), message)
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoWouldBlock),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message,
+    ))
+    .boxed()
 }
 
 /// Produce one timeout error.
 pub(crate) fn io_timed_out_error(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
-    io_operation_error(operation, Some(PlatformErrorCode::IoTimedOut), message)
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoTimedOut),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message,
+    ))
+    .boxed()
 }
 
 /// Produce one permission-denied error.
@@ -54,11 +71,15 @@ pub(crate) fn io_permission_denied_error(
     operation: &str,
     message: impl Into<String>,
 ) -> Box<RuntimeError> {
-    io_operation_error(
-        operation,
+    RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::IoPermissionDenied),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
         message,
-    )
+    ))
+    .boxed()
 }
 
 /// Convert binding timeout nanoseconds into an optional duration.
@@ -92,7 +113,13 @@ pub(crate) fn checked_u32_word_pointer(address: u64, field: &str) -> RuntimeResu
     }
 
     // reject values that do not fit the host pointer width
-    let address = u64_to_usize_with_message(address, field, "address exceeds host pointer width")?;
+    let address = usize::try_from(address).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "address exceeds host pointer width",
+        ))
+        .boxed()
+    })?;
 
     Ok(address as *const u32)
 }
@@ -130,15 +157,16 @@ pub(crate) fn current_thread_owner_id() -> ThreadOwnerId {
 /// Insert one thread-domain resource payload into the runtime table.
 pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
     context: &BindingCallContext,
+    kind: ResourceKind,
     label: &str,
     resource: T,
 ) -> ResourceId {
-    let entry = ResourceEntry::new(THREAD_RESOURCE_KIND)
+    let entry = ResourceEntry::new(kind)
         .with_label(label)
         .with_payload(Arc::new(resource));
 
     context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()))
 }
@@ -150,10 +178,13 @@ pub(crate) fn resolve_thread_resource<T: Send + Sync + 'static>(
     field: &str,
     kind: &str,
 ) -> RuntimeResult<Arc<T>> {
-    let resolved = context
-        .runtime()
-        .resources
-        .with_entry(handle, |entry| entry.payload_cloned::<Arc<T>>());
+    let resolved = context.agent().resources.with_entry(handle, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<Arc<T>>())
+            .map(Arc::clone)
+    });
 
     resolved
         .flatten()
@@ -168,7 +199,7 @@ pub(crate) fn take_thread_resource<T: Send + Sync + 'static>(
     kind: &str,
 ) -> RuntimeResult<Arc<T>> {
     let Some(entry) = context
-        .runtime()
+        .agent()
         .resources
         .remove(handle, Some(context.engine()))
     else {

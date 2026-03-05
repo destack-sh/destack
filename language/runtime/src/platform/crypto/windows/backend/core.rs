@@ -84,15 +84,9 @@ pub(super) fn windows_configured_keystore_path(
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
     match kind {
-        CryptoStoreKind::User => context
-            .runtime()
-            .options
-            .crypto
-            .host_store_paths
-            .user
-            .clone(),
+        CryptoStoreKind::User => context.agent().options.crypto.host_store_paths.user.clone(),
         CryptoStoreKind::Machine => context
-            .runtime()
+            .agent()
             .options
             .crypto
             .host_store_paths

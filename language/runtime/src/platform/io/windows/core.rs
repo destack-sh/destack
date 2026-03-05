@@ -12,7 +12,7 @@ use crate::platform::io::{
 };
 use crate::platform::proactor::Proactor;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-use crate::platform::{IocpProactor, PlatformError, ResourceId, core as core_platform, resource};
+use crate::platform::{IocpProactor, PlatformError, ResourceId, core as core_platform};
 use crate::runtime::BindingCallContext;
 use crate::runtime::poller::{HostPollerBackend, PlatformHandle};
 
@@ -58,23 +58,9 @@ impl ResourceFinalizer for WindowsSocketFinalizer {
 }
 
 /// Create one completion backend for Windows hosts.
-pub(crate) fn host_completion_create_proactor(
-    context: &BindingCallContext,
-    entries: u32,
-) -> RuntimeResult<Box<dyn Proactor>> {
+pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
     let _ = entries;
-
-    let pending_poll_slice_ns = context
-        .runtime()
-        .module_options
-        .io
-        .windows_iocp_pending_poll_slice_ns
-        .unwrap_or(10_000_000)
-        .max(1);
-
-    Ok(Box::new(IocpProactor::with_pending_poll_slice_ns(
-        pending_poll_slice_ns,
-    )?))
+    Ok(Box::new(IocpProactor::new()?))
 }
 
 /// Execute one generic descriptor fcntl-style operation.
@@ -153,15 +139,10 @@ pub(crate) fn host_control_ioctl(
 
     // resolve one host-backed resource entry
     let entry = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle, |entry| (entry.socket(), entry.handle()))
-        .ok_or_else(|| {
-            core_platform::io_not_found(
-                "destack.io.control.ioctl",
-                format!("target resource {} not found", handle.0),
-            )
-        })?;
+        .ok_or_else(|| io_core::io_target_not_found("destack.io.control.ioctl", handle))?;
     let (socket, host_handle) = entry;
 
     // dispatch to winsock when the resource is socket-backed
@@ -264,15 +245,15 @@ pub(crate) fn host_poll_resolve_target_handle(
     target: ResourceId,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = resource::with_any_entry(context, target, |entry| {
+    let resolved = context.agent().resources.with_entry(target, |entry| {
         entry.socket().map(PlatformHandle::from_raw_socket)
     });
 
     // reject unknown resources first
     let Some(handle) = resolved else {
-        return Err(core_platform::io_not_found(
+        return Err(io_core::io_target_not_found(
             "destack.io.poll.target",
-            format!("target resource {} not found", target.0),
+            target,
         ));
     };
 
@@ -295,7 +276,7 @@ pub(crate) fn host_completion_resolve_target_handle(
     operation: &'static str,
 ) -> RuntimeResult<PlatformHandle> {
     // resolve one runtime target entry
-    let resolved = resource::with_any_entry(context, target, |entry| {
+    let resolved = context.agent().resources.with_entry(target, |entry| {
         if let Some(socket) = entry.socket() {
             return Some(PlatformHandle::from_raw_socket(socket));
         }
@@ -305,10 +286,7 @@ pub(crate) fn host_completion_resolve_target_handle(
 
     // reject unknown targets first
     let Some(handle) = resolved else {
-        return Err(core_platform::io_not_found(
-            operation,
-            format!("target resource {} not found", target.0),
-        ));
+        return Err(io_core::io_target_not_found(operation, target));
     };
 
     // reject targets without host handles
@@ -336,7 +314,7 @@ pub(crate) fn host_completion_register_accepted_handle(
             socket: socket as SOCKET,
         });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     Ok(resource_id.0 as i64)
@@ -366,7 +344,7 @@ pub(crate) fn host_event_open(
         .with_handle(handle as _)
         .with_finalizer(WindowsHandleFinalizer { handle });
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     Ok(EventToken(resource_id.0))
@@ -379,14 +357,11 @@ pub(crate) fn host_event_close(
 ) -> RuntimeResult<()> {
     // remove one token resource from the runtime table
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(ResourceId(token.0), Some(context.engine()));
     if !removed {
-        return Err(core_platform::io_not_found(
-            "destack.io.event.close",
-            format!("event token {} not found", token.0),
-        ));
+        return Err(io_core::event_not_found("destack.io.event.close", token));
     }
 
     Ok(())
@@ -401,20 +376,18 @@ pub(crate) fn host_event_signal(
     let _ = value;
 
     // resolve one event handle from the token resource
-    let handle = resource::with_entry(
-        context,
-        ResourceId(token.0),
-        ResourceKind::Event,
-        Some(io_core::EVENT_RESOURCE_LABEL),
-        |entry| entry.handle(),
-    )
-    .flatten()
-    .ok_or_else(|| {
-        core_platform::io_not_found(
-            "destack.io.event.signal",
-            format!("event token {} not found", token.0),
-        )
-    })?;
+    let handle = context
+        .agent()
+        .resources
+        .with_entry(ResourceId(token.0), |entry| {
+            if entry.label.as_deref() != Some(io_core::EVENT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            entry.handle()
+        })
+        .flatten()
+        .ok_or_else(|| io_core::event_not_found("destack.io.event.signal", token))?;
 
     // signal the event object
     let ok = unsafe { SetEvent(handle as HANDLE) };

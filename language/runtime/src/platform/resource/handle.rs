@@ -3,6 +3,9 @@ use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
+use super::ResourceKind;
+use super::kind::for_each_resource_handle_kind;
+
 /// The identifier for one runtime-managed resource table entry.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -31,257 +34,67 @@ pub enum ResourceOwnership {
     Owned = 2,
 }
 
-/// The VM-facing resource kind payload.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy)]
-pub struct ResourceKindVm(
-    /// The inner resource kind string handle.
-    pub vm::StringHandle,
-);
+/// VM transport alias for resource kind labels.
+pub type ResourceKindVm = vm::StringHandle;
 
-impl VmValueCodec for ResourceKindVm {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        Ok(Self(vm::StringHandle::new(value)))
-    }
+/// Typed resource-handle contract bound to one canonical resource kind.
+pub trait ResourceHandle: Copy {
+    /// Canonical resource kind for this handle type.
+    const KIND: ResourceKind;
 
-    fn encode(self) -> vm::Value {
-        self.0.value()
-    }
+    /// Return the raw resource identifier.
+    fn resource_id(self) -> ResourceId;
+
+    /// Build one typed handle from a raw resource identifier.
+    fn from_resource_id(resource_id: ResourceId) -> Self;
 }
 
-/// Declare one resource handle newtype.
-macro_rules! define_handle {
-    ($doc:literal, $name:ident) => {
-        #[doc = $doc]
-        #[repr(transparent)]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        pub struct $name(
-            /// The inner resource identifier.
-            pub ResourceId,
-        );
+macro_rules! define_resource_handle_types {
+    ($(($handle:ident, $kind:ident, $kind_id:literal, $label:literal, $doc:literal),)+) => {
+        $(
+            #[doc = $doc]
+            #[repr(transparent)]
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+            pub struct $handle(
+                /// The inner resource identifier.
+                pub ResourceId,
+            );
 
-        impl VmValueCodec for $name {
-            fn decode(value: vm::Value) -> RuntimeResult<Self> {
-                Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+            impl ResourceHandle for $handle {
+                const KIND: ResourceKind = ResourceKind::$kind;
+
+                fn resource_id(self) -> ResourceId {
+                    self.0
+                }
+
+                fn from_resource_id(resource_id: ResourceId) -> Self {
+                    Self(resource_id)
+                }
             }
 
-            fn encode(self) -> vm::Value {
-                <ResourceId as VmValueCodec>::encode(self.0)
+            impl From<ResourceId> for $handle {
+                fn from(resource_id: ResourceId) -> Self {
+                    Self::from_resource_id(resource_id)
+                }
             }
-        }
+
+            impl From<$handle> for ResourceId {
+                fn from(handle: $handle) -> Self {
+                    handle.resource_id()
+                }
+            }
+
+            impl VmValueCodec for $handle {
+                fn decode(value: vm::Value) -> RuntimeResult<Self> {
+                    Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+                }
+
+                fn encode(self) -> vm::Value {
+                    <ResourceId as VmValueCodec>::encode(self.0)
+                }
+            }
+        )+
     };
 }
 
-define_handle!("The handle for an open file.", FileHandle);
-define_handle!("The handle for an open directory.", DirectoryHandle);
-define_handle!("The handle for a network socket.", SocketHandle);
-define_handle!("The handle for a network listener.", ListenerHandle);
-define_handle!("The handle for a spawned process.", ProcessHandle);
-define_handle!(
-    "The handle for one process file descriptor style object.",
-    ProcessFdHandle
-);
-define_handle!("The handle for a scheduled timer.", TimerHandle);
-define_handle!("The handle for a filesystem watcher.", WatchHandle);
-define_handle!("The handle for a pipe endpoint.", PipeHandle);
-define_handle!(
-    "The handle for one shared memory object.",
-    SharedMemoryHandle
-);
-define_handle!("The handle for one semaphore object.", SemaphoreHandle);
-define_handle!("The handle for one readiness poll instance.", PollHandle);
-define_handle!(
-    "The handle for one completion queue instance.",
-    CompletionHandle
-);
-define_handle!(
-    "The handle for one eventfd style descriptor.",
-    EventFdHandle
-);
-define_handle!("The handle for one io_uring instance.", UringHandle);
-define_handle!(
-    "The handle for one timerfd style descriptor.",
-    TimerFdHandle
-);
-define_handle!("The handle for one dynamic library.", LibraryHandle);
-define_handle!(
-    "The handle for one symbol in a dynamic library.",
-    SymbolHandle
-);
-define_handle!("The handle for one device endpoint.", DeviceHandle);
-define_handle!("The handle for one pseudo terminal endpoint.", PtyHandle);
-define_handle!("The handle for one thread object.", ThreadHandle);
-define_handle!("The handle for one mutex object.", MutexHandle);
-define_handle!("The handle for one read write lock object.", RwLockHandle);
-define_handle!(
-    "The handle for one condition variable object.",
-    CondVarHandle
-);
-define_handle!(
-    "The handle for one thread-scoped semaphore object.",
-    ThreadSemaphoreHandle
-);
-define_handle!(
-    "The handle for one thread-scoped barrier object.",
-    BarrierHandle
-);
-define_handle!("The handle for one thread local key.", ThreadLocalKey);
-define_handle!("The handle for one sandbox scope.", SandboxHandle);
-define_handle!("The handle for one inspector session.", InspectorHandle);
-define_handle!("The handle for one profiler session.", ProfileHandle);
-define_handle!("The handle for one trace session.", TraceHandle);
-define_handle!("The handle for one tty endpoint.", TtyHandle);
-define_handle!("The handle for one signal subscription.", SignalHandle);
-define_handle!(
-    "The handle for one signalfd style queue descriptor.",
-    SignalFdHandle
-);
-define_handle!(
-    "The handle for one transferred resource.",
-    TransferredHandle
-);
-define_handle!("The handle for one message queue.", MessageQueueHandle);
-define_handle!("The handle for one audio device.", AudioDeviceHandle);
-define_handle!("The handle for one audio stream.", AudioStreamHandle);
-define_handle!(
-    "The handle for one audio event subscription endpoint.",
-    AudioEventHandle
-);
-define_handle!("The handle for one display device.", DisplayHandle);
-define_handle!("The handle for one window object.", WindowHandle);
-define_handle!("The handle for one input device.", InputDeviceHandle);
-define_handle!(
-    "The handle for one global input monitor stream.",
-    InputMonitorHandle
-);
-define_handle!("The handle for one gpu adapter.", GpuAdapterHandle);
-define_handle!("The handle for one gpu device.", GpuDeviceHandle);
-define_handle!("The handle for one gpu queue.", GpuQueueHandle);
-define_handle!("The handle for one gpu surface endpoint.", GpuSurfaceHandle);
-define_handle!("The handle for one gpu command list.", GpuCommandListHandle);
-define_handle!(
-    "The handle for one gpu compute pass endpoint.",
-    GpuComputePassHandle
-);
-define_handle!(
-    "The handle for one gpu render pass endpoint.",
-    GpuRenderPassHandle
-);
-define_handle!(
-    "The handle for one gpu render bundle endpoint.",
-    GpuRenderBundleHandle
-);
-define_handle!(
-    "The handle for one gpu render bundle encoder endpoint.",
-    GpuRenderBundleEncoderHandle
-);
-define_handle!(
-    "The handle for one gpu pipeline layout endpoint.",
-    GpuPipelineLayoutHandle
-);
-define_handle!(
-    "The handle for one gpu bind group layout endpoint.",
-    GpuBindGroupLayoutHandle
-);
-define_handle!(
-    "The handle for one gpu bind group endpoint.",
-    GpuBindGroupHandle
-);
-define_handle!(
-    "The handle for one gpu synchronization fence endpoint.",
-    GpuFenceHandle
-);
-define_handle!(
-    "The handle for one gpu query set endpoint.",
-    GpuQuerySetHandle
-);
-define_handle!("The handle for one gpu memory allocation.", GpuMemoryHandle);
-define_handle!("The handle for one gpu buffer.", GpuBufferHandle);
-define_handle!("The handle for one gpu texture.", GpuTextureHandle);
-define_handle!(
-    "The handle for one gpu texture view endpoint.",
-    GpuTextureViewHandle
-);
-define_handle!("The handle for one gpu sampler.", GpuSamplerHandle);
-define_handle!("The handle for one gpu shader module.", GpuShaderHandle);
-define_handle!("The handle for one gpu pipeline.", GpuPipelineHandle);
-define_handle!(
-    "The handle for one cryptographic certificate object.",
-    CryptoCertificateHandle
-);
-define_handle!(
-    "The handle for one cryptographic digest context.",
-    CryptoDigestHandle
-);
-define_handle!(
-    "The handle for one cryptographic message-authentication context.",
-    CryptoMacHandle
-);
-define_handle!(
-    "The handle for one cryptographic symmetric-cipher context.",
-    CryptoCipherHandle
-);
-define_handle!(
-    "The handle for one cryptographic key object.",
-    CryptoKeyHandle
-);
-define_handle!(
-    "The handle for one cryptographic store object.",
-    CryptoStoreHandle
-);
-define_handle!("The handle for one tls context object.", TlsContextHandle);
-define_handle!("The handle for one tls session object.", TlsSessionHandle);
-define_handle!(
-    "The handle for one background event stream.",
-    BackgroundEventHandle
-);
-define_handle!(
-    "The handle for one Bluetooth device session.",
-    BluetoothDeviceHandle
-);
-define_handle!(
-    "The handle for one Bluetooth scan session.",
-    BluetoothScanHandle
-);
-define_handle!(
-    "The handle for one Bluetooth GATT subscription session.",
-    BluetoothSubscriptionHandle
-);
-define_handle!(
-    "The handle for one camera device session.",
-    CameraDeviceHandle
-);
-define_handle!(
-    "The handle for one camera stream session.",
-    CameraStreamHandle
-);
-define_handle!("The handle for one document session.", DocumentHandle);
-define_handle!("The handle for one intent session.", IntentHandle);
-define_handle!(
-    "The handle for one lifecycle event stream.",
-    LifecycleEventHandle
-);
-define_handle!(
-    "The handle for one location watch stream.",
-    LocationWatchHandle
-);
-define_handle!("The handle for one MIDI port session.", MidiPortHandle);
-define_handle!(
-    "The handle for one network watch stream.",
-    NetworkWatchHandle
-);
-define_handle!(
-    "The handle for one notification event stream.",
-    NotificationEventHandle
-);
-define_handle!("The handle for one serial port session.", SerialPortHandle);
-define_handle!("The handle for one USB device session.", UsbDeviceHandle);
-define_handle!(
-    "The handle for one USB hotplug watch stream.",
-    UsbWatchHandle
-);
-define_handle!("The handle for one window event stream.", WindowEventHandle);
-define_handle!(
-    "The handle for one display event stream.",
-    DisplayEventHandle
-);
+for_each_resource_handle_kind!(define_resource_handle_types);

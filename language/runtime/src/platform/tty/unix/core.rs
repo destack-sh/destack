@@ -104,7 +104,7 @@ pub(super) fn tty_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
     let descriptor = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Tty {
@@ -126,7 +126,7 @@ pub(super) fn pty_descriptor(
     operation: &'static str,
 ) -> RuntimeResult<RawFd> {
     let descriptor = context
-        .runtime()
+        .agent()
         .resources
         .with_entry(handle.0, |entry| {
             if entry.kind != ResourceKind::Pty {
@@ -168,7 +168,7 @@ pub(super) fn register_pty_pair(
             descriptor: controller_descriptor,
         });
     let controller_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(controller_entry, Some(context.engine()));
 
@@ -179,7 +179,7 @@ pub(super) fn register_pty_pair(
             descriptor: worker_descriptor,
         });
     let worker_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(worker_entry, Some(context.engine()));
 

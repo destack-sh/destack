@@ -48,17 +48,13 @@ pub(crate) unsafe fn destack_fs_close(
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = context
-        .runtime()
-        .resources
-        .remove(handle.0, Some(context.engine()))
-        .ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "handle",
-                "unknown file handle",
-            ))
-            .boxed()
-        })?;
+    let entry = context.agent().resources.remove(handle.0).ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown file handle",
+        ))
+        .boxed()
+    })?;
 
     // finalize the handle
     entry.finalize(handle.0);
@@ -134,7 +130,7 @@ pub(crate) unsafe fn destack_fs_dup(
         })
         .with_finalizer(HandleFinalizer::new(duplicated));
     let resource_id = context
-        .runtime()
+        .agent()
         .resources
         .insert(entry, Some(context.engine()));
     unsafe {
@@ -175,7 +171,7 @@ pub(crate) unsafe fn destack_fs_dup2(
     // close the target handle if it exists
     if handle.0 != target.0
         && let Some(entry) = context
-            .runtime()
+            .agent()
             .resources
             .remove(target.0, Some(context.engine()))
     {
@@ -235,17 +231,13 @@ pub(crate) unsafe fn destack_fs_closedir(
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     // remove the resource entry
-    let entry = context
-        .runtime()
-        .resources
-        .remove(handle.0, Some(context.engine()))
-        .ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "handle",
-                "unknown directory handle",
-            ))
-            .boxed()
-        })?;
+    let entry = context.agent().resources.remove(handle.0).ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown directory handle",
+        ))
+        .boxed()
+    })?;
 
     // finalize the handle
     entry.finalize(handle.0);
@@ -644,7 +636,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
             .with_fd(file_fd)
             .with_finalizer(DescriptorFinalizer { fd: file_fd });
         let resource_id = context
-            .runtime()
+            .agent()
             .resources
             .insert(resource, Some(context.engine()));
         unsafe {
@@ -695,7 +687,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
             })
             .with_finalizer(HandleFinalizer::new(duplicated));
         let resource_id = context
-            .runtime()
+            .agent()
             .resources
             .insert(resource, Some(context.engine()));
         unsafe {

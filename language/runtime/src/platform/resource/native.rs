@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::platform::{PlatformError, PlatformErrorCode, resource};
 use crate::runtime::BindingCallContext;
 
 /// Validate one required output pointer.
@@ -10,6 +10,19 @@ unsafe fn check_out_pointer<T>(out: *mut T, name: &'static str) -> RuntimeResult
     }
 
     Ok(())
+}
+
+/// Build one io not found error for missing resources.
+fn resource_not_found(op: &'static str, id: resource::ResourceId) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(op.to_string()),
+        None,
+        format!("resource {} not found", id.0),
+    ))
+    .boxed()
 }
 
 /// Close a resource by identifier.
@@ -35,14 +48,11 @@ pub(crate) unsafe fn destack_resource_close(
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(id, Some(context.engine()));
     if !removed {
-        return Err(core_platform::io_not_found(
-            "destack.resource.id.close",
-            format!("resource {} not found", id.0),
-        ));
+        return Err(resource_not_found("destack.resource.id.close", id));
     }
 
     Ok(())
@@ -74,12 +84,11 @@ pub(crate) unsafe fn destack_resource_kind(
     unsafe { check_out_pointer(out, "out")? };
 
     // load the kind for the requested resource
-    let kind = super::with_any_entry(context, id, |entry| entry.kind).ok_or_else(|| {
-        core_platform::io_not_found(
-            "destack.resource.id.kind",
-            format!("resource {} not found", id.0),
-        )
-    })?;
+    let kind = context
+        .agent()
+        .resources
+        .with_entry(id, |entry| entry.kind)
+        .ok_or_else(|| resource_not_found("destack.resource.id.kind", id))?;
 
     // write the resolved kind to the output pointer
     unsafe {
@@ -112,14 +121,11 @@ pub(crate) unsafe fn destack_resource_remove(
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
     let removed = context
-        .runtime()
+        .agent()
         .resources
         .remove_and_finalize(id, Some(context.engine()));
     if !removed {
-        return Err(core_platform::io_not_found(
-            "destack.resource.id.remove",
-            format!("resource {} not found", id.0),
-        ));
+        return Err(resource_not_found("destack.resource.id.remove", id));
     }
 
     Ok(())
@@ -148,12 +154,9 @@ pub(crate) unsafe fn destack_resource_transfer(
     ownership: resource::ResourceOwnership,
 ) -> RuntimeResult<()> {
     // validate that the source resource exists
-    let exists = context.runtime().resources.contains(id);
+    let exists = context.agent().resources.contains(id);
     if !exists {
-        return Err(core_platform::io_not_found(
-            "destack.resource.id.transfer",
-            format!("resource {} not found", id.0),
-        ));
+        return Err(resource_not_found("destack.resource.id.transfer", id));
     }
 
     // keep ownership value consumed for future policy hooks
