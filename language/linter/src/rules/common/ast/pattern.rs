@@ -53,6 +53,29 @@ pub fn match_selector_expression_id(
     pattern_expression_id(ctx, pattern_id)
 }
 
+/// Return one default expression id for a parameter when present.
+pub fn parameter_default_expression_id(
+    parameter: &ast::Parameter,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    match parameter {
+        ast::Parameter::Named { default, .. } | ast::Parameter::Pattern { default, .. } => *default,
+        ast::Parameter::VariadicNamed { .. } | ast::Parameter::VariadicPattern { .. } => None,
+    }
+}
+
+/// Return one default expression id for a pattern field when present.
+pub fn pattern_field_default_expression_id(
+    pattern_field: &ast::PatternField,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    match pattern_field {
+        ast::PatternField::Named { default, .. }
+        | ast::PatternField::Computed { default, .. }
+        | ast::PatternField::Alias { default, .. }
+        | ast::PatternField::Positional { default, .. } => *default,
+        ast::PatternField::Spread { .. } | ast::PatternField::Elision => None,
+    }
+}
+
 /// Return the expression id when a pattern wraps one expression pattern.
 pub fn pattern_expression_id(
     ctx: &LintModuleAstContext<'_>,
@@ -92,6 +115,22 @@ pub fn pattern_matches_all(
         ast::Pattern::Union { patterns } => patterns
             .iter()
             .any(|pattern_id| pattern_matches_all(ctx, *pattern_id)),
+        _ => false,
+    }
+}
+
+/// Return true when one pattern is `_` or one underscore prefixed binding.
+pub fn pattern_is_underscore_binding_or_wildcard(
+    ctx: &LintModuleAstContext<'_>,
+    pattern_id: ast::LocalNodeId<ast::Pattern>,
+) -> bool {
+    // resolve one pattern node
+    let pattern = ctx.tree.get(pattern_id);
+
+    // match wildcard and underscore bindings
+    match pattern {
+        ast::Pattern::Wildcard => true,
+        ast::Pattern::Binding { name, .. } => ctx.strings.get(*name).starts_with('_'),
         _ => false,
     }
 }

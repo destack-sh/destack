@@ -37,6 +37,92 @@ pub fn expression_unwrap_statement_syntax(
     }
 }
 
+/// The assignment wrapping style for one conditional expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConditionAssignmentStyle {
+    /// No direct assignment style matched.
+    None,
+    /// Bare assignment expression: `x = y`.
+    Bare,
+    /// Single parenthesized assignment: `(x = y)`.
+    SingleParenthesized,
+}
+
+/// Return the assignment wrapping style for one conditional expression.
+pub fn condition_assignment_style(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> ConditionAssignmentStyle {
+    // inspect the outer condition expression
+    let expression = tree.get(expression_id);
+    match expression {
+        // let and using expressions are valid binding conditions
+        ast::Expression::Let { .. } | ast::Expression::Using { .. } => {
+            ConditionAssignmentStyle::None
+        }
+        ast::Expression::Assign { .. } => ConditionAssignmentStyle::Bare,
+        ast::Expression::Parenthesized { expression } => {
+            // single parens around assignment are still ambiguous
+            let inner_expression = tree.get(*expression);
+            if matches!(inner_expression, ast::Expression::Assign { .. }) {
+                ConditionAssignmentStyle::SingleParenthesized
+            } else {
+                ConditionAssignmentStyle::None
+            }
+        }
+        _ => ConditionAssignmentStyle::None,
+    }
+}
+
+/// Return the condition expression id for supported control-flow expressions.
+pub fn control_flow_condition_expression(
+    expression: &ast::Expression,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    match expression {
+        ast::Expression::If { condition, .. } => match condition {
+            ast::IfCondition::Expression { condition } => Some(*condition),
+            ast::IfCondition::Let { .. } => None,
+        },
+        ast::Expression::While { condition, .. } => Some(*condition),
+        ast::Expression::For {
+            condition: Some(condition),
+            ..
+        } => Some(*condition),
+        _ => None,
+    }
+}
+
+/// Return the outer expression id including parenthesized wrappers.
+pub fn expression_outer_parenthesized_syntax(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> ast::LocalNodeId<ast::Expression> {
+    // start from one normalized inner expression
+    let mut current_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
+
+    // climb through direct parenthesized wrappers
+    loop {
+        let Some(parent_id) = parents.get(current_id) else {
+            return current_id;
+        };
+        if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+            return current_id;
+        }
+
+        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        let parent_expression = tree.get(parent_expression_id);
+        if let ast::Expression::Parenthesized { expression } = parent_expression
+            && *expression == current_id
+        {
+            current_id = parent_expression_id;
+            continue;
+        }
+
+        return current_id;
+    }
+}
+
 /// Return the surrounding statement expression for a standalone expression.
 pub fn expression_statement_ancestor(
     tree: &ast::NodeTree,
@@ -299,6 +385,132 @@ pub fn expression_is_unqualified_path_name(
 
     // match one bare identifier segment
     path_segments.len() == 1 && path_segments[0] == name
+}
+
+/// Return true when one expression belongs to one type annotation position.
+pub fn expression_is_type_annotation(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // start from one normalized expression id
+    let mut current_id = expression_unwrap_parenthesized_syntax(tree, expression_id).id;
+
+    // climb ancestors until one type annotation slot is found
+    while let Some(parent_id) = parents.get_by_id(current_id) {
+        let parent_type = tree.get_node_type(parent_id);
+
+        // check declarator annotation slots
+        if parent_type == ast::NodeType::Declarator {
+            let declarator_id = ast::LocalNodeId::<ast::Declarator>::new(parent_id);
+            let declarator = tree.get(declarator_id);
+            if declarator.ty.is_some_and(|ty_id| ty_id.id == current_id) {
+                return true;
+            }
+        }
+
+        // check parameter annotation slots
+        if parent_type == ast::NodeType::Parameter {
+            let parameter_id = ast::LocalNodeId::<ast::Parameter>::new(parent_id);
+            let parameter = tree.get(parameter_id);
+            let parameter_type = match parameter {
+                ast::Parameter::Named { ty, .. }
+                | ast::Parameter::Pattern { ty, .. }
+                | ast::Parameter::VariadicNamed { ty, .. }
+                | ast::Parameter::VariadicPattern { ty, .. } => *ty,
+            };
+            if parameter_type.is_some_and(|ty_id| ty_id.id == current_id) {
+                return true;
+            }
+        }
+
+        // check declaration type expression slots
+        if parent_type == ast::NodeType::Declaration {
+            let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(parent_id);
+            let declaration = tree.get(declaration_id);
+            match declaration {
+                ast::Declaration::Type { value, .. } => {
+                    if value.id == current_id {
+                        return true;
+                    }
+                }
+                ast::Declaration::Function { signature, .. } => {
+                    if signature
+                        .return_type
+                        .is_some_and(|return_type_id| return_type_id.id == current_id)
+                    {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // check member type expression slots
+        if parent_type == ast::NodeType::Member {
+            let member_id = ast::LocalNodeId::<ast::Member>::new(parent_id);
+            let member = tree.get(member_id);
+            match member {
+                ast::Member::Type { ty, value, .. } => {
+                    if ty.is_some_and(|ty_id| ty_id.id == current_id)
+                        || value.is_some_and(|value_id| value_id.id == current_id)
+                    {
+                        return true;
+                    }
+                }
+                ast::Member::ComptimeConst { ty, .. } => {
+                    if ty.is_some_and(|ty_id| ty_id.id == current_id) {
+                        return true;
+                    }
+                }
+                ast::Member::Field { value, .. } => {
+                    if value.is_some_and(|value_id| value_id.id == current_id) {
+                        return true;
+                    }
+                }
+                ast::Member::Method { signature, .. } => {
+                    if signature
+                        .return_type
+                        .is_some_and(|return_type_id| return_type_id.id == current_id)
+                    {
+                        return true;
+                    }
+                }
+                ast::Member::Embed { value, .. } => {
+                    if value.id == current_id {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // check property method return types
+        if parent_type == ast::NodeType::Property {
+            let property_id = ast::LocalNodeId::<ast::Property>::new(parent_id);
+            let property = tree.get(property_id);
+            if let ast::Property::Method { signature, .. } = property
+                && signature
+                    .return_type
+                    .is_some_and(|return_type_id| return_type_id.id == current_id)
+            {
+                return true;
+            }
+        }
+
+        // check where clause type slots
+        if parent_type == ast::NodeType::WhereClause {
+            let where_clause_id = ast::LocalNodeId::<ast::WhereClause>::new(parent_id);
+            let where_clause = tree.get(where_clause_id);
+            if where_clause.right.id == current_id {
+                return true;
+            }
+        }
+
+        current_id = parent_id;
+    }
+
+    false
 }
 
 /// Visitor that tracks whether one expression subtree contains assignment.
@@ -1131,7 +1343,7 @@ pub fn argument_is_equal(
 
 /// Check if an expression has side effects (conservatively returns true if unsure).
 ///
-/// This is useful for lints that want to detect expressions that can be safely removed
+/// This is useful for lints that want to detect expressions that can be safely removed.
 /// or that need to distinguish between pure and impure expressions.
 /// #Cleanup: can expression_has_side_effects use NodeVisitor..?
 pub fn expression_has_side_effects(

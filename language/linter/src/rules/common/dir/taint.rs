@@ -9,7 +9,7 @@ use crate::rules::common::glob_matches;
 
 use super::{
     expression_candidate_symbols, expression_unwrap_parenthesized, symbol_decorators_for,
-    symbol_primary_declaration_for,
+    symbol_initializer_expression as resolve_symbol_initializer_expression,
 };
 
 /// Label set for taint tracking.
@@ -688,19 +688,14 @@ impl<'a> TaintAnalysis<'a> {
         expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
         symbol_stack: &mut Vec<dir::GlobalSymbolId>,
     ) -> Option<TaintLabels> {
-        let declaration_id = symbol_primary_declaration_for(
+        let value_expression_id = resolve_symbol_initializer_expression(
             self.program,
             self.profile_id,
             self.module_id,
             self.symbols,
+            self.tree,
             symbol_id,
         )?;
-        if declaration_id.module_id != self.module_id {
-            return None;
-        }
-
-        let value_expression_id =
-            primary_declaration_initializer(self.tree, declaration_id, symbol_id.local_id)?;
         Some(self.expression_taint_labels_inner(
             value_expression_id,
             expression_stack,
@@ -852,83 +847,4 @@ fn label_matches_glob_pattern(program: &Program, source: StringId, sink: StringI
     let sink_text = sink_text.as_ref();
 
     glob_matches(sink_text, source_text)
-}
-
-/// Resolve one initializer expression for a symbol declaration.
-fn primary_declaration_initializer(
-    tree: &dir::NodeTree,
-    declaration_id: dir::GlobalNodeIdAny,
-    symbol_id: dir::LocalSymbolId,
-) -> Option<dir::LocalNodeId<dir::Expression>> {
-    match declaration_id.local_id.ty {
-        dir::NodeType::Declarator => {
-            let declarator = tree.get(declaration_id.into_local_typed::<dir::Declarator>());
-            declarator.value
-        }
-        dir::NodeType::Pattern | dir::NodeType::PatternField => {
-            let declarator_id = enclosing_declarator(tree, declaration_id.local_id.id)?;
-            let declarator = tree.get(declarator_id);
-            declarator.value
-        }
-        dir::NodeType::Property => {
-            let property = tree.get(declaration_id.into_local_typed::<dir::Property>());
-            match property {
-                dir::Property::Field { value, default, .. } => value.or(*default),
-                dir::Property::Method { .. } => None,
-                dir::Property::Spread { value, .. } => Some(*value),
-            }
-        }
-        dir::NodeType::Member => {
-            let member = tree.get(declaration_id.into_local_typed::<dir::Member>());
-            match member {
-                dir::Member::Field { value, default, .. } => value.or(*default),
-                dir::Member::ComptimeConst { value, .. } => *value,
-                dir::Member::Method { .. }
-                | dir::Member::Type { .. }
-                | dir::Member::Embed { .. }
-                | dir::Member::StaticBlock { .. }
-                | dir::Member::ComptimeBlock { .. } => None,
-            }
-        }
-        dir::NodeType::Parameter => {
-            let parameter = tree.get(declaration_id.into_local_typed::<dir::Parameter>());
-            match parameter {
-                dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => {
-                    *default
-                }
-                dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => {
-                    None
-                }
-            }
-        }
-        dir::NodeType::Expression => {
-            let expression = tree.get(declaration_id.into_local_typed::<dir::Expression>());
-            match expression {
-                dir::Expression::Let { declarators, .. }
-                | dir::Expression::Using { declarators, .. } => declarators.iter().find_map(|id| {
-                    let declarator = tree.get(*id);
-                    let pattern = tree.get(declarator.pattern);
-                    (pattern.symbol() == Some(symbol_id))
-                        .then_some(declarator.value)
-                        .flatten()
-                }),
-                _ => None,
-            }
-        }
-        _ => None,
-    }
-}
-
-/// Find the nearest declarator parent for a node id.
-fn enclosing_declarator(
-    tree: &dir::NodeTree,
-    mut node_id: u32,
-) -> Option<dir::LocalNodeId<dir::Declarator>> {
-    loop {
-        let parent = tree.get_parent(node_id)?;
-        if parent.ty == dir::NodeType::Declarator {
-            return Some(parent.into_typed());
-        }
-        node_id = parent.id;
-    }
 }

@@ -299,6 +299,122 @@ pub fn symbol_primary_declaration_for(
     symbol.primary_declaration
 }
 
+/// Resolve one local initializer expression for a symbol when available.
+pub fn symbol_initializer_expression(
+    program: &Program,
+    profile_id: ProfileId,
+    local_module_id: ModuleId,
+    local_symbols: &dir::SymbolTable,
+    tree: &dir::NodeTree,
+    symbol_id: dir::GlobalSymbolId,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    // resolve the primary declaration for this symbol
+    let declaration_id = symbol_primary_declaration_for(
+        program,
+        profile_id,
+        local_module_id,
+        local_symbols,
+        symbol_id,
+    )?;
+    if declaration_id.module_id != local_module_id {
+        return None;
+    }
+
+    // resolve the declaration initializer in the local tree
+    primary_declaration_initializer_expression(tree, declaration_id, symbol_id.local_id)
+}
+
+/// Resolve one initializer expression from a symbol primary declaration node.
+pub fn primary_declaration_initializer_expression(
+    tree: &dir::NodeTree,
+    declaration_id: dir::GlobalNodeIdAny,
+    symbol_id: dir::LocalSymbolId,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    match declaration_id.local_id.ty {
+        // read direct declarator initializers
+        dir::NodeType::Declarator => {
+            let declarator = tree.get(declaration_id.into_local_typed::<dir::Declarator>());
+            declarator.value
+        }
+
+        // resolve pattern and pattern-field declarations through their declarator
+        dir::NodeType::Pattern | dir::NodeType::PatternField => {
+            let declarator_id = enclosing_declarator(tree, declaration_id.local_id.id)?;
+            let declarator = tree.get(declarator_id);
+            declarator.value
+        }
+
+        // map property declarations to value or default initializers
+        dir::NodeType::Property => {
+            let property = tree.get(declaration_id.into_local_typed::<dir::Property>());
+            match property {
+                dir::Property::Field { value, default, .. } => value.or(*default),
+                dir::Property::Method { .. } => None,
+                dir::Property::Spread { value, .. } => Some(*value),
+            }
+        }
+
+        // map member declarations to value-like initializers
+        dir::NodeType::Member => {
+            let member = tree.get(declaration_id.into_local_typed::<dir::Member>());
+            match member {
+                dir::Member::Field { value, default, .. } => value.or(*default),
+                dir::Member::ComptimeConst { value, .. } => *value,
+                dir::Member::Method { .. }
+                | dir::Member::Type { .. }
+                | dir::Member::Embed { .. }
+                | dir::Member::StaticBlock { .. }
+                | dir::Member::ComptimeBlock { .. } => None,
+            }
+        }
+
+        // map parameters to default value expressions
+        dir::NodeType::Parameter => {
+            let parameter = tree.get(declaration_id.into_local_typed::<dir::Parameter>());
+            match parameter {
+                dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => {
+                    *default
+                }
+                dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => {
+                    None
+                }
+            }
+        }
+
+        // handle let and using declarations that point at the root expression node
+        dir::NodeType::Expression => {
+            let expression = tree.get(declaration_id.into_local_typed::<dir::Expression>());
+            match expression {
+                dir::Expression::Let { declarators, .. }
+                | dir::Expression::Using { declarators, .. } => declarators.iter().find_map(|id| {
+                    let declarator = tree.get(*id);
+                    let pattern = tree.get(declarator.pattern);
+                    (pattern.symbol() == Some(symbol_id))
+                        .then_some(declarator.value)
+                        .flatten()
+                }),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Find the nearest declarator parent for one node id.
+fn enclosing_declarator(
+    tree: &dir::NodeTree,
+    mut node_id: u32,
+) -> Option<dir::LocalNodeId<dir::Declarator>> {
+    loop {
+        let parent = tree.get_parent(node_id)?;
+        if parent.ty == dir::NodeType::Declarator {
+            return Some(parent.into_typed());
+        }
+
+        node_id = parent.id;
+    }
+}
+
 /// Read the value type id for a symbol after canonicalization.
 pub fn symbol_value_type_id_for(
     program: &Program,

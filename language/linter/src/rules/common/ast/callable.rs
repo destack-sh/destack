@@ -1,0 +1,154 @@
+use destack_ast as ast;
+use destack_source::Span;
+
+/// The callable owner node that holds one function signature.
+#[derive(Debug, Copy, Clone)]
+pub enum CallableOwnerId {
+    /// A function declaration owner.
+    Declaration(ast::LocalNodeId<ast::Declaration>),
+    /// A class or interface method owner.
+    Member(ast::LocalNodeId<ast::Member>),
+    /// An object or type literal method owner.
+    Property(ast::LocalNodeId<ast::Property>),
+}
+
+/// Controls how `this` parameters contribute to effective parameter counts.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ThisParameterCount {
+    /// Never count the `this` parameter.
+    Never,
+    /// Count `this` unless it is explicitly typed as `void`.
+    ExceptVoid,
+    /// Always count the `this` parameter.
+    Always,
+}
+
+/// Visit each callable function signature in one AST module.
+pub fn for_each_callable_signature(
+    tree: &ast::NodeTree,
+    mut callback: impl FnMut(
+        CallableOwnerId,
+        &ast::FunctionSignature,
+        Option<ast::LocalNodeId<ast::Expression>>,
+    ),
+) {
+    // visit declaration functions
+    for declaration_id in tree.iter_nodes::<ast::Declaration>() {
+        let declaration = tree.get(declaration_id);
+        let ast::Declaration::Function {
+            signature, body, ..
+        } = declaration
+        else {
+            continue;
+        };
+
+        callback(
+            CallableOwnerId::Declaration(declaration_id),
+            signature,
+            *body,
+        );
+    }
+
+    // visit class and interface methods
+    for member_id in tree.iter_nodes::<ast::Member>() {
+        let member = tree.get(member_id);
+        let ast::Member::Method {
+            signature, body, ..
+        } = member
+        else {
+            continue;
+        };
+
+        callback(CallableOwnerId::Member(member_id), signature, *body);
+    }
+
+    // visit object and type literal methods
+    for property_id in tree.iter_nodes::<ast::Property>() {
+        let property = tree.get(property_id);
+        let ast::Property::Method {
+            signature, body, ..
+        } = property
+        else {
+            continue;
+        };
+
+        callback(CallableOwnerId::Property(property_id), signature, *body);
+    }
+}
+
+/// Return the source span of one callable owner node.
+pub fn callable_owner_span(tree: &ast::NodeTree, owner_id: CallableOwnerId) -> Span {
+    match owner_id {
+        CallableOwnerId::Declaration(declaration_id) => tree.get_span(declaration_id),
+        CallableOwnerId::Member(member_id) => tree.get_span(member_id),
+        CallableOwnerId::Property(property_id) => tree.get_span(property_id),
+    }
+}
+
+/// Return the type expression id of one parameter when it exists.
+pub fn parameter_type_expression_id(
+    parameter: &ast::Parameter,
+) -> Option<ast::LocalNodeId<ast::Expression>> {
+    match parameter {
+        ast::Parameter::Named { ty, .. }
+        | ast::Parameter::Pattern { ty, .. }
+        | ast::Parameter::VariadicNamed { ty, .. }
+        | ast::Parameter::VariadicPattern { ty, .. } => *ty,
+    }
+}
+
+/// Return true when one parameter is explicitly typed as `void`.
+pub fn parameter_is_void_type(tree: &ast::NodeTree, parameter: &ast::Parameter) -> bool {
+    // resolve one parameter type annotation
+    let Some(type_expression_id) = parameter_type_expression_id(parameter) else {
+        return false;
+    };
+
+    // only exact `void` type literals are treated as void-this parameters
+    let type_expression = tree.get(type_expression_id);
+    matches!(
+        type_expression,
+        ast::Expression::TypeLiteral(ast::TypeLiteral::Void)
+    )
+}
+
+/// Return one effective parameter count for a function signature.
+pub fn function_signature_parameter_count(
+    tree: &ast::NodeTree,
+    signature: &ast::FunctionSignature,
+    this_parameter_count: ThisParameterCount,
+) -> usize {
+    // start from dynamic parameters
+    let dynamic_parameter_count = signature.dynamic_parameters.len();
+
+    // resolve optional this-parameter contribution
+    let this_parameter_count = signature
+        .this_parameter
+        .map(|this_parameter_id| {
+            let this_parameter = tree.get(this_parameter_id);
+            match this_parameter_count {
+                ThisParameterCount::Never => 0,
+                ThisParameterCount::ExceptVoid => {
+                    if parameter_is_void_type(tree, this_parameter) {
+                        0
+                    } else {
+                        1
+                    }
+                }
+                ThisParameterCount::Always => 1,
+            }
+        })
+        .unwrap_or(0);
+
+    dynamic_parameter_count + this_parameter_count
+}
+
+/// Return static parameter count for one function signature.
+pub fn function_signature_static_parameter_count(signature: &ast::FunctionSignature) -> usize {
+    signature
+        .generics
+        .as_ref()
+        .and_then(|generics| generics.static_parameters.as_ref())
+        .map(|static_parameters| static_parameters.len())
+        .unwrap_or(0)
+}
