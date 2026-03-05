@@ -2,8 +2,6 @@
 
 use std::cell::Cell;
 
-use crate::runtime::random::RandomStreamId;
-
 use super::{MicrotaskId, TaskId};
 
 thread_local! {
@@ -69,23 +67,6 @@ impl EventLoopScope {
     /// Return the current microtask nesting depth.
     pub const fn microtask_depth(self) -> usize {
         self.microtask_depth
-    }
-
-    /// Return the random stream identifier for this scope.
-    pub const fn random_stream_id(self) -> RandomStreamId {
-        // use tagged stream ids to avoid collisions between event loop sources
-        const STREAM_ID_MASK: u64 = (1u64 << 62) - 1;
-        const TASK_TAG: u64 = 1u64 << 62;
-        const MICROTASK_TAG: u64 = 2u64 << 62;
-        match (self.task_id, self.microtask_id) {
-            (_, Some(microtask_id)) => {
-                RandomStreamId::new(MICROTASK_TAG | (microtask_id.get() & STREAM_ID_MASK))
-            }
-            (Some(task_id), None) => {
-                RandomStreamId::new(TASK_TAG | (task_id.get() & STREAM_ID_MASK))
-            }
-            (None, None) => RandomStreamId::DEFAULT,
-        }
     }
 }
 

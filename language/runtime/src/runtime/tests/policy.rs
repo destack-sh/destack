@@ -7,7 +7,7 @@ use crate::runtime::policy::{
 use crate::runtime::random::Random;
 use crate::runtime::world::topology::Topology;
 use crate::runtime::{AgentId, WorldEdgeKind, WorldEntityKind};
-use destack_workspace::{ExecutionMode, RandomMode, RuntimeAccess, RuntimeSelector};
+use destack_workspace::{ExecutionMode, RuntimeAccess, RuntimeSelector};
 
 /// Stable runtime name used by policy tests.
 const TEST_RUNTIME_NAME: &str = "test-runtime";
@@ -33,7 +33,7 @@ fn test_on_event_respects_after_call_count_activation() {
     let policy = Policy {
         rules: vec![effect_rule("after-call-count", trigger)],
     };
-    let random = Random::new(7, RandomMode::Deterministic);
+    let random = Random::new(7);
     let mut state = PolicyState::new(policy);
 
     // first matching call should only advance activation state
@@ -80,7 +80,7 @@ fn test_on_event_respects_after_call_count_per_agent() {
     let policy = Policy {
         rules: vec![effect_rule("after-call-count-per-agent", trigger)],
     };
-    let random = Random::new(11, RandomMode::Deterministic);
+    let random = Random::new(11);
     let mut state = PolicyState::new(policy);
 
     // first call for each agent should only advance that agent activation state
@@ -137,7 +137,7 @@ fn test_on_event_respects_cadence_and_cooldown() {
     let policy = Policy {
         rules: vec![effect_rule("cadence-cooldown", trigger)],
     };
-    let random = Random::new(17, RandomMode::Deterministic);
+    let random = Random::new(17);
     let mut state = PolicyState::new(policy);
 
     // evaluate four matching events across one scope
@@ -202,7 +202,7 @@ fn test_on_event_respects_call_count_lifetime() {
     let policy = Policy {
         rules: vec![effect_rule("lifetime", trigger)],
     };
-    let random = Random::new(23, RandomMode::Deterministic);
+    let random = Random::new(23);
     let mut state = PolicyState::new(policy);
 
     // evaluate three matching events for one scope
@@ -258,7 +258,7 @@ fn test_on_event_emits_policy_decision_payload() {
     let policy = Policy {
         rules: vec![effect_rule("metadata", trigger)],
     };
-    let random = Random::new(41, RandomMode::Deterministic);
+    let random = Random::new(41);
     let mut state = PolicyState::new(policy);
 
     // fire one matching call event

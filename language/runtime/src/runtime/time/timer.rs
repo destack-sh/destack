@@ -9,6 +9,7 @@ use crate::platform::{PlatformError, ResourceTable, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::scheduler::Timer as EventLoopTimer;
 use crate::runtime::time::Clock;
+use destack_workspace::TimeMode;
 
 /// Runtime state for one scheduled timer handle.
 #[derive(Debug)]
@@ -57,16 +58,22 @@ fn invalid_period_error(field: &str) -> Box<RuntimeError> {
 /// Resolve one clock domain into one current nanosecond timestamp.
 fn now_for_clock(context: &BindingCallContext, clock: TimerClock) -> u64 {
     match clock {
-        TimerClock::Wall => context.world().clock().wall_nanos(),
-        TimerClock::Monotonic => context.world().clock().mono_nanos(),
+        TimerClock::Wall => context.world().wall_nanos(),
+        TimerClock::Monotonic => context.world().mono_nanos(),
     }
 }
 
 /// Resolve one timer clock domain into one current nanosecond timestamp.
-fn now_for_timer_clock(clock: &Clock, timer_clock: TimerClock) -> u64 {
+fn now_for_timer_clock(clock: &Clock, time_mode: TimeMode, timer_clock: TimerClock) -> u64 {
     match timer_clock {
-        TimerClock::Wall => clock.wall_nanos(),
-        TimerClock::Monotonic => clock.mono_nanos(),
+        TimerClock::Wall => match time_mode {
+            TimeMode::Host => clock.host_wall_nanos(),
+            TimeMode::Virtual => clock.virtual_wall_nanos(),
+        },
+        TimerClock::Monotonic => match time_mode {
+            TimeMode::Host => clock.host_mono_nanos(),
+            TimeMode::Virtual => clock.virtual_mono_nanos(),
+        },
     }
 }
 
@@ -126,6 +133,7 @@ fn timer_state_for_resources(
 pub(crate) fn on_event_loop_timer_fire(
     resources: &ResourceTable,
     clock: &Clock,
+    time_mode: TimeMode,
     handle: resource::TimerHandle,
 ) -> RuntimeResult<bool> {
     // allow scheduler-managed timers that are not backed by one runtime resource entry
@@ -157,7 +165,7 @@ pub(crate) fn on_event_loop_timer_fire(
     }
 
     state.next_deadline_ns = state.next_deadline_ns.saturating_add(interval_nanos);
-    let now_nanos = now_for_timer_clock(clock, state.clock);
+    let now_nanos = now_for_timer_clock(clock, time_mode, state.clock);
     if state.next_deadline_ns <= now_nanos {
         let elapsed = now_nanos.saturating_sub(state.next_deadline_ns);
         let skipped_periods = elapsed / interval_nanos + 1;

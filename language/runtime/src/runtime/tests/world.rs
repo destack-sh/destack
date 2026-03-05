@@ -595,6 +595,20 @@ fn test_runtime_spawn_agent_aligns_world_scoped_options() {
     assert_eq!(spawned_agent.options.time, options.time);
 }
 
+/// Ensures deterministic worlds reject secure randomness bindings by default.
+#[test]
+fn test_world_deterministic_mode_rejects_secure_randomness() {
+    // construct one deterministic-random world
+    let mut options = RuntimeOptions::default();
+    options.random.mode = RandomMode::Deterministic;
+    let world = World::new(&options, None).expect("world should construct");
+
+    // secure host randomness should fail in deterministic mode
+    let mut bytes = [0u8; 16];
+    assert!(world.fill_secure_bytes(&mut bytes).is_err());
+    assert!(world.try_fill_secure_bytes(&mut bytes).is_err());
+}
+
 /// Ensures capability profiles configure binding policy capability enforcement.
 #[test]
 fn test_agent_capability_profile_configures_binding_policy() {

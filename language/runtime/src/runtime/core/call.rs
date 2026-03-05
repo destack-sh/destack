@@ -292,40 +292,60 @@ impl BindingCallContext {
     }
 
     /// Return the current random stream identifier.
-    pub const fn random_stream_id(&self) -> RandomStreamId {
-        self.scope.random_stream_id()
+    pub fn random_stream_id(&self) -> RandomStreamId {
+        // resolve runtime and agent scoped stream selection policy
+        let agent = self.agent();
+        let is_per_runnable = agent.options.random.per_runnable;
+        let task_id = if is_per_runnable {
+            self.scope.task_id().map(TaskId::get)
+        } else {
+            None
+        };
+        let microtask_id = if is_per_runnable {
+            self.scope.microtask_id().map(MicrotaskId::get)
+        } else {
+            None
+        };
+
+        // resolve one stable world scoped stream id
+        self.world().random().scoped_stream_id(
+            agent.runtime_id.0,
+            agent.id.0,
+            task_id,
+            microtask_id,
+        )
     }
 
     /// Return true when the world clock runs in virtual mode.
     #[inline]
     pub fn is_virtual_clock(&self) -> bool {
-        self.world().clock().mode() == TimeMode::Virtual
+        self.world().time_mode() == TimeMode::Virtual
     }
 
     /// Return one runtime-backed wall clock sample.
     #[inline]
     pub fn wall_nanos(&self) -> u64 {
         self.hooks().on_time_read(Some(self.engine()));
-        self.world().clock().wall_nanos()
+        self.world().wall_nanos()
     }
 
     /// Return one runtime-backed monotonic clock sample.
     #[inline]
     pub fn mono_nanos(&self) -> u64 {
         self.hooks().on_time_read(Some(self.engine()));
-        self.world().clock().mono_nanos()
+        self.world().mono_nanos()
     }
 
     /// Sleep one runtime-backed duration.
     #[inline]
     pub fn sleep_nanos(&self, duration: u64) {
-        self.world().clock().sleep_nanos(duration);
+        self.world().sleep_nanos(duration);
     }
 
     /// Sleep until one runtime-backed wall deadline.
     #[inline]
     pub fn sleep_until_wall_nanos(&self, deadline: u64) {
-        self.world().clock().sleep_until_nanos(deadline);
+        self.world().sleep_until_nanos(deadline);
     }
 
     /// Sleep until one runtime-backed monotonic deadline.

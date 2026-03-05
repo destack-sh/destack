@@ -962,7 +962,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
     let timestamp_ns = if state.timestamp_mode == PacketTimestampMode::Disabled {
         0
     } else {
-        binding.world().clock().mono_nanos()
+        binding.world().mono_nanos()
     };
     let record = PacketCaptureRecord {
         bytes: written as u64,

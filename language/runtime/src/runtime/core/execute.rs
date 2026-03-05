@@ -129,17 +129,13 @@ impl Agent {
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         // capture one monotonic start timestamp for timeout accounting
-        let start_mono_nanos = self.world().clock().mono_nanos();
+        let start_mono_nanos = self.world().mono_nanos();
 
         // run the loop until the target task completes
         loop {
             // stop once the configured timeout elapses
             if let Some(timeout_nanos) = timeout_nanos {
-                let elapsed = self
-                    .world()
-                    .clock()
-                    .mono_nanos()
-                    .saturating_sub(start_mono_nanos);
+                let elapsed = self.world().mono_nanos().saturating_sub(start_mono_nanos);
                 if elapsed >= timeout_nanos {
                     return Ok(None);
                 }
@@ -244,7 +240,7 @@ impl Agent {
 
         // track whether this tick processed any event loop work
         let mut progressed = false;
-        let tick_start_mono_nanos = self.world().clock().mono_nanos();
+        let tick_start_mono_nanos = self.world().mono_nanos();
 
         // poll host events before poller events
         let host_event_count = self.poll_host_events(host, Some(0))?;
@@ -280,8 +276,8 @@ impl Agent {
         }
 
         // run the next scheduled item if available
-        let wall_now = self.world().clock().wall_nanos();
-        let mono_now = self.world().clock().mono_nanos();
+        let wall_now = self.world().wall_nanos();
+        let mono_now = self.world().mono_nanos();
         let max_microtask_depth = self
             .event_loop
             .options()
@@ -308,6 +304,7 @@ impl Agent {
                     let should_dispatch = crate::runtime::time::timer::on_event_loop_timer_fire(
                         &self.resources,
                         self.world().clock(),
+                        self.world().time_mode(),
                         resource::TimerHandle(timer.handle),
                     )?;
                     if should_dispatch {
@@ -576,13 +573,13 @@ impl Agent {
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<bool> {
         // virtual mode never blocks: callers must advance virtual time explicitly
-        if self.world().clock().mode() == TimeMode::Virtual {
+        if self.world().time_mode() == TimeMode::Virtual {
             return Ok(false);
         }
 
         // compute one timeout from the next scheduled timer deadline
-        let wall_now_nanos = self.world().clock().wall_nanos();
-        let mono_now_nanos = self.world().clock().mono_nanos();
+        let wall_now_nanos = self.world().wall_nanos();
+        let mono_now_nanos = self.world().mono_nanos();
         let timeout_nanos = self
             .event_loop
             .timeout_until_next_timer(wall_now_nanos, mono_now_nanos);
@@ -610,7 +607,7 @@ impl Agent {
         // otherwise wait for the next timer deadline when one is scheduled
         if let Some(timeout_nanos) = timeout_nanos {
             if timeout_nanos > 0 {
-                self.world().clock().sleep_nanos(timeout_nanos);
+                self.world().sleep_nanos(timeout_nanos);
             }
 
             return Ok(true);
@@ -659,7 +656,7 @@ impl Agent {
             return false;
         };
 
-        let now = self.world().clock().mono_nanos();
+        let now = self.world().mono_nanos();
         now.saturating_sub(tick_start_mono_nanos) >= tick_budget_nanos
     }
 }
