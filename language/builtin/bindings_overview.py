@@ -31,7 +31,9 @@ ENUM_VARIANT_PATTERN = re.compile(r"^\s*([A-Za-z][A-Za-z0-9]*)\s*,", re.MULTILIN
 def load_canonical_platform_tags() -> set[str]:
     """Load canonical platform tags from workspace target enum variants."""
     root = Path(__file__).resolve().parents[1]
-    target_config_path = root / "workspace" / "src" / "config" / "target.rs"
+    target_config_path = (
+        root / "workspace" / "src" / "config" / "target" / "execution.rs"
+    )
     source = target_config_path.read_text(encoding="utf-8")
     match = PLATFORM_ENUM_PATTERN.search(source)
     if match is None:
