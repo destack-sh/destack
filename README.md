@@ -90,12 +90,12 @@ To get started using Destack, despite our best warnings:
 
 ## Some Questions You Should be Asking
 
-Destack is pretty weird and quite unlike how software development has traditionally worked, with its own new _experimental_ way of thinking about the process of programming. 
+Destack is pretty weird and quite unlike how software development has traditionally worked, with its own new _experimental_ way of thinking about the processes of programming. 
 If you have gotten this far through reading the README, you probably have some, all of, or - maybe, most curiously - none of the following questions:
 
 1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a new JS family language (like Rescript), a JavaScript runtime (like V8), a new Node runtime (like Deno), some NPM library (like vitest), a service, an app, a CLI, ...?** 
-Mechanically, Destack _is_ a TypeScript-family language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
-Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software factory toolkit: your Destack.
+Mechanically, Destack _is_ a ~TSX-like language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
+Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software factory toolkit: a Destack.
 
 2. **Why is Destack built around TypeScript and not some other language like Python or Rust?**
 Both Python and Rust are great languages, and both fail the "universal language" test for surprisingly symmetrical reasons:
@@ -103,9 +103,9 @@ Python is pathological to optimize, but great for scripting, while Rust is great
 Both Python and Rust are bad at "UI stuff", and both are structurally difficult to deploy well in a browser, which is the most popular, most universal software platform.
 
 3. **Which JavaScript/TypeScript features are supported for AOT compilation and the rest of Destack?** 
-Modern strict TypeScript is fully supported, but some dynamic features like `prototype`, `eval`, `Function`, dynamic `class`, etc., are forbidden.
+*Modern strict TypeScript* is fully supported, including all the fun stuff like structural interfaces and mapped types.
+However, while Destack passes ~96% of test262, it is not and does not attempt to be ECMAScript compliant because many dynamic features like `prototype`, `eval` / `Function`, dynamic `class`, are expressly forbidden.
 If you're already used to writing strict modern TypeScript, you're almost certainly already Destack-compliant on the language side. 
-If you're building Node-shaped backend services, you might not even need to change anything (depending on what your dependencies do).
 
 4. **Why not support both a JavaScript "slow mode" and a TypeScript "fast mode"?**
 Language-wise, yes, that would help more of the existing JS-first ecosystem to run on Destack (similar to Static Hermes).
@@ -115,7 +115,7 @@ Modern "backend" code uses TypeScript and Node-ish APIs already, while "frontend
 5. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
 Destack runs TS directly, and "TS++" (`.ds` files) transpiles into `.js`/`.ts` for browsers and regular JS runtimes. 
 On the backend, Destack supports Node APIs, similar to other Node-style runtimes (Bun/Deno).
-However, Destack does _not_ fully support arbitrary JS/TS code *on the native path* (including the VM), and it also does not fully support arbitrary web standards.
+However, Destack does _not_ fully support arbitrary JS/TS code *on the native path* (including the VM), and it also does not fully support _all_ web standards.
 
 6. **Why can't we just use TypeScript/web for front-end and Rust/C++/Go for back-end?** 
 We can and that will continue to work pretty well, though with some friction.
