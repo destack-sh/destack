@@ -18,17 +18,17 @@ Set these settings in your workspace or user settings.
 
 ## Testing
 
-Run grammar and extension host smoke tests.
+Run grammar and VSCode LSP smoke tests.
 
 ```sh
 bun run test:grammar
-bun run test:host
+bun run test:lsp
 ```
 
-Run extension-host tests against a real Destack server binary.
+Run VSCode LSP tests against a real Destack server binary.
 
 ```sh
 DESTACK_VSCODE_REAL_SERVER_COMMAND=/absolute/path/to/destack \
 DESTACK_VSCODE_REAL_SERVER_ARGS='["lsp"]' \
-bun run test:host
+bun run test:lsp
 ```

@@ -2,19 +2,19 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import Mocha from "mocha";
 
-/** Ordered host-suite files loaded by the extension test runner. */
+/** Ordered LSP suite files loaded by the VSCode test runner. */
 const ORDERED_SUITE_FILES = [
-    "smoke.test.js",
-    "diag.test.js",
-    "command.test.js",
-    "flow.test.js",
+    "bootstrap.test.js",
+    "diagnostics.test.js",
+    "commands.test.js",
+    "edits.test.js",
     "rename.test.js",
     "workspace.test.js",
 ];
 
-/** Run the host suite entrypoint for VSCode extension tests. */
+/** Run the LSP suite entrypoint for VSCode integration tests. */
 export async function run(): Promise<void> {
-    // configure mocha for extension host execution
+    // configure mocha for VSCode integration execution
     const mocha = new Mocha({
         ui: "tdd",
         color: true,
@@ -32,7 +32,7 @@ export async function run(): Promise<void> {
         mocha.run((failures) => {
             // reject when at least one test fails
             if (failures > 0) {
-                reject(new Error(`${failures} VSCode host tests failed`));
+                reject(new Error(`${failures} VSCode LSP tests failed`));
                 return;
             }
 
@@ -75,10 +75,10 @@ function orderedSuiteFiles(directory: string): string[] {
     });
 }
 
-/** Parse optional suite filters from DESTACK_VSCODE_HOST_SUITES. */
+/** Parse optional suite filters from DESTACK_VSCODE_LSP_SUITES. */
 function selectedSuiteFileNames(): string[] {
     // parse optional comma-separated file list
-    const rawSelection = process.env.DESTACK_VSCODE_HOST_SUITES?.trim();
+    const rawSelection = process.env.DESTACK_VSCODE_LSP_SUITES?.trim();
     if (!rawSelection) {
         return [];
     }

@@ -7,12 +7,12 @@ import {
     seedDiagnosticLoad,
     withTimeout,
     workspaceRootPath,
-} from "./support";
+} from "./tests";
 
 /** Timeout for workspace command and diagnostic completion checks. */
 const WORKSPACE_DIAGNOSTIC_TIMEOUT_MILLISECONDS = 20_000;
 
-suite("destack real server workspace lifecycle", () => {
+suite("lsp.workspace", () => {
     suiteSetup(async function () {
         // skip this suite outside real server mode
         if (!isRealServerMode()) {

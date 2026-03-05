@@ -4,25 +4,34 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { runTests } from "@vscode/test-electron";
 
-/** Run extension host integration tests in a temporary workspace copy. */
+/** Run VSCode LSP integration tests in a temporary workspace copy. */
 async function main() {
     // resolve workspace and test entry paths
     const extensionDevelopmentPath = path.resolve(__dirname, "..", "..");
+    const repositoryRoot = path.resolve(extensionDevelopmentPath, "..", "..");
     const extensionTestsPath = path.resolve(__dirname, "suite", "index");
     const fixtureWorkspacePath = path.resolve(
         extensionDevelopmentPath,
-        "typescript",
-        "tests-host",
+        "src",
+        "tests-lsp",
         "fixture",
         "workspace",
     );
 
     // allocate isolated runtime directories
     const workspacePath = fs.mkdtempSync(path.join(os.tmpdir(), "destack-vscode-workspace-"));
-    const testDataPath = fs.mkdtempSync(path.join(os.tmpdir(), "destack-vscode-host-test-"));
-    const releaseHostRunLock = acquireHostRunLock();
+    const testDataPath = fs.mkdtempSync(path.join(os.tmpdir(), "destack-vscode-lsp-test-"));
+    const releaseLspRunLock = acquireLspRunLock();
 
     try {
+        // expose canonical lsp fixture root to integration tests
+        process.env.DESTACK_LSP_FIXTURES_ROOT = path.join(
+            repositoryRoot,
+            "service",
+            "lsp",
+            "fixtures",
+        );
+
         // keep real-server runs hermetic by building the local server binary when requested
         await ensureRealServerCommandReady(extensionDevelopmentPath);
 
@@ -30,7 +39,7 @@ async function main() {
         fs.cpSync(fixtureWorkspacePath, workspacePath, { recursive: true });
         prepareWorkspaceSettings(workspacePath);
 
-        // run tests in VSCode extension host
+        // run tests in VSCode VSCode integration
         await runTests({
             extensionDevelopmentPath,
             extensionTestsPath,
@@ -49,7 +58,7 @@ async function main() {
         // clean temporary directories after every run
         fs.rmSync(workspacePath, { recursive: true, force: true });
         fs.rmSync(testDataPath, { recursive: true, force: true });
-        releaseHostRunLock();
+        releaseLspRunLock();
     }
 }
 
@@ -76,16 +85,16 @@ function prepareWorkspaceSettings(workspacePath: string): void {
 
     // expose real server mode to test suites
     if (useRealServer) {
-        process.env.DESTACK_VSCODE_HOST_REAL_SERVER = "1";
+        process.env.DESTACK_VSCODE_LSP_REAL_SERVER = "1";
     } else {
-        delete process.env.DESTACK_VSCODE_HOST_REAL_SERVER;
+        delete process.env.DESTACK_VSCODE_LSP_REAL_SERVER;
     }
 }
 
-/** Acquire an exclusive lock for one host test run process. */
-function acquireHostRunLock(): () => void {
+/** Acquire an exclusive lock for one LSP test run process. */
+function acquireLspRunLock(): () => void {
     // create a stable lock file in the system temp directory
-    const lockPath = path.join(os.tmpdir(), "destack-vscode-host-run.lock");
+    const lockPath = path.join(os.tmpdir(), "destack-vscode-lsp-run.lock");
     let lockFileDescriptor: number;
     try {
         lockFileDescriptor = fs.openSync(lockPath, "wx");
@@ -93,7 +102,7 @@ function acquireHostRunLock(): () => void {
         // reject concurrent runs with a clear actionable message
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(
-            `another VSCode host test run is active; wait for it to finish or remove ${lockPath}: ${message}`,
+            `another VSCode LSP test run is active; wait for it to finish or remove ${lockPath}: ${message}`,
         );
     }
 
@@ -144,7 +153,7 @@ async function ensureRealServerCommandReady(extensionDevelopmentPath: string): P
         buildArguments.push("--release");
     }
 
-    // build the server binary before launching VSCode host tests
+    // build the server binary before launching VSCode LSP tests
     const buildResult = spawnSync("cargo", buildArguments, {
         cwd: repositoryRoot,
         stdio: "inherit",
@@ -185,7 +194,7 @@ function parseServerArgs(rawArgs: string | undefined): string[] {
     return value.split(/\s+/).filter((item) => item.length > 0);
 }
 
-// run the host test process and fail loudly on errors
+// run the LSP test process and fail loudly on errors
 main().catch((error) => {
     console.error(error);
     process.exit(1);

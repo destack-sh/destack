@@ -1,3 +1,4 @@
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -37,6 +38,10 @@ pub struct LspHarness {
     pub root: PathBuf,
     /// Request id counter for typed test requests.
     next_request_id: i64,
+    /// Buffered diagnostics that were received while waiting for another uri.
+    pending_diagnostics: VecDeque<lsp::PublishDiagnosticsParams>,
+    /// Latest diagnostics snapshot by uri.
+    diagnostics_state_by_uri: HashMap<String, lsp::PublishDiagnosticsParams>,
 }
 
 impl LspHarness {
@@ -70,6 +75,8 @@ impl LspHarness {
             client_rx,
             root,
             next_request_id: 10,
+            pending_diagnostics: VecDeque::new(),
+            diagnostics_state_by_uri: HashMap::new(),
         }
     }
 
@@ -161,16 +168,22 @@ impl LspHarness {
 
     /// Receive the next publish diagnostics notification.
     pub async fn next_diagnostics(&mut self) -> lsp::PublishDiagnosticsParams {
+        // return buffered diagnostics first
+        if let Some(diagnostics) = self.pending_diagnostics.pop_front() {
+            return diagnostics;
+        }
+
         // keep draining until diagnostics arrive
         loop {
             let request = self.next_client_request().await;
-            if request.method() == "textDocument/publishDiagnostics" {
-                let params = request
-                    .params()
-                    .cloned()
-                    .expect("missing diagnostics params");
-                let diagnostics = serde_json::from_value(params)
-                    .expect("failed to decode publish diagnostics params");
+
+            // skip non diagnostics notifications
+            if request.method() != "textDocument/publishDiagnostics" {
+                continue;
+            }
+
+            let diagnostics = decode_publish_diagnostics(&request);
+            if self.observe_diagnostics(diagnostics.clone()) {
                 return diagnostics;
             }
         }
@@ -188,6 +201,11 @@ impl LspHarness {
         uri: &lsp::Uri,
         timeout: Duration,
     ) -> lsp::PublishDiagnosticsParams {
+        // return a previously buffered payload when available
+        if let Some(diagnostics) = self.take_pending_diagnostics_for_uri(uri) {
+            return diagnostics;
+        }
+
         // wait until the deadline expires
         let deadline = tokio::time::Instant::now() + timeout;
         loop {
@@ -197,13 +215,38 @@ impl LspHarness {
                 panic!("timeout waiting for diagnostics for uri {uri:?}");
             }
 
-            let diagnostics = tokio::time::timeout(remaining, self.next_diagnostics())
+            let request = tokio::time::timeout(remaining, self.next_client_request())
                 .await
                 .unwrap_or_else(|_| panic!("timeout waiting for diagnostics for uri {uri:?}"));
+
+            // skip non diagnostics notifications
+            if request.method() != "textDocument/publishDiagnostics" {
+                continue;
+            }
+
+            let diagnostics = decode_publish_diagnostics(&request);
+            let accepted = self.observe_diagnostics(diagnostics.clone());
             if &diagnostics.uri == uri {
-                return diagnostics;
+                if accepted {
+                    return diagnostics;
+                }
+                continue;
+            }
+
+            // keep unmatched diagnostics for later assertions
+            if accepted {
+                self.pending_diagnostics.push_back(diagnostics);
             }
         }
+    }
+
+    /// Return the latest observed diagnostics state for a URI.
+    pub fn diagnostics_state_for_uri(
+        &self,
+        uri: &lsp::Uri,
+    ) -> Option<lsp::PublishDiagnosticsParams> {
+        // clone the stored diagnostics payload for snapshot style assertions
+        self.diagnostics_state_by_uri.get(&uri.to_string()).cloned()
     }
 
     /// Send a didOpen notification with full text.
@@ -437,7 +480,8 @@ impl LspHarness {
     ) -> Vec<lsp::PublishDiagnosticsParams> {
         // collect diagnostics until the timeout expires
         let deadline = tokio::time::Instant::now() + timeout;
-        let mut diagnostics = Vec::new();
+        let mut diagnostics: Vec<lsp::PublishDiagnosticsParams> =
+            self.pending_diagnostics.drain(..).collect();
         loop {
             let now = tokio::time::Instant::now();
             let remaining = deadline.checked_duration_since(now).unwrap_or_default();
@@ -453,6 +497,71 @@ impl LspHarness {
 
         diagnostics
     }
+
+    /// Remove and return one buffered diagnostics payload for the requested uri.
+    fn take_pending_diagnostics_for_uri(
+        &mut self,
+        uri: &lsp::Uri,
+    ) -> Option<lsp::PublishDiagnosticsParams> {
+        // keep draining buffered payloads for the uri until a non stale payload appears
+        loop {
+            let index = self
+                .pending_diagnostics
+                .iter()
+                .position(|diagnostics| &diagnostics.uri == uri)?;
+
+            let diagnostics = self.pending_diagnostics.remove(index)?;
+            let uri_key = diagnostics.uri.to_string();
+            if let Some(current) = self.diagnostics_state_by_uri.get(&uri_key)
+                && is_stale_diagnostics_update(current, &diagnostics)
+            {
+                continue;
+            }
+
+            return Some(diagnostics);
+        }
+    }
+
+    /// Apply diagnostics to harness state and return true when accepted.
+    fn observe_diagnostics(&mut self, diagnostics: lsp::PublishDiagnosticsParams) -> bool {
+        let uri_key = diagnostics.uri.to_string();
+
+        // drop stale versioned payloads while allowing unversioned payloads through
+        if let Some(current) = self.diagnostics_state_by_uri.get(&uri_key)
+            && is_stale_diagnostics_update(current, &diagnostics)
+        {
+            return false;
+        }
+
+        self.diagnostics_state_by_uri.insert(uri_key, diagnostics);
+        true
+    }
+}
+
+/// Decode publish diagnostics parameters from a client request.
+fn decode_publish_diagnostics(request: &Request) -> lsp::PublishDiagnosticsParams {
+    let params = request
+        .params()
+        .cloned()
+        .expect("missing diagnostics params");
+
+    serde_json::from_value(params).expect("failed to decode publish diagnostics params")
+}
+
+/// Return true when an incoming diagnostics payload is older than current state.
+fn is_stale_diagnostics_update(
+    current: &lsp::PublishDiagnosticsParams,
+    incoming: &lsp::PublishDiagnosticsParams,
+) -> bool {
+    // compare only versioned payloads: unversioned payloads are treated as authoritative
+    let Some(current_version) = current.version else {
+        return false;
+    };
+    let Some(incoming_version) = incoming.version else {
+        return false;
+    };
+
+    incoming_version < current_version
 }
 
 /// Drain client notifications into a queue for tests.
