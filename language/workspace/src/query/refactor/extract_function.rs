@@ -539,11 +539,19 @@ fn async_return_type(return_type: Option<String>, requires_async: bool) -> Optio
 fn filter_inferred_type(return_type: Option<String>) -> Option<String> {
     // drop unknown return types to avoid misleading annotations
     let return_type = return_type?;
-    if return_type.is_empty() || return_type == "unknown" {
+    if return_type.is_empty()
+        || return_type == "unknown"
+        || is_internal_error_sentinel_type(&return_type)
+    {
         return None;
     }
 
     Some(return_type)
+}
+
+/// Return true when a type text includes the internal error sentinel.
+fn is_internal_error_sentinel_type(return_type: &str) -> bool {
+    return_type.contains("<error>")
 }
 
 /// Format the return expression for output symbols.

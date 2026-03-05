@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_base::StringId;
-use destack_source::{FileId, ModuleId, Span, Uri};
+use destack_source::{FileId, ModuleId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Session;
@@ -11,7 +11,9 @@ use crate::query::common::{
     get_symbol_definition_span, resolve_nominal_symbol_from_type_expression,
     resolve_type_symbol_from_module, type_definition_span_for_symbol,
 };
-use destack_dir::{self as dir, Declarator, Expression, GlobalNodeIdAny, NodeType, Resolution};
+use destack_dir::{
+    self as dir, Declarator, DependencyItem, Expression, GlobalNodeIdAny, NodeType, Resolution,
+};
 
 /// Result of a goto definition query.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -95,6 +97,11 @@ pub struct GotoTypeDefinitionResponse {
 /// Returns the location(s) where the symbol is defined.
 /// For imports, follows to the original definition.
 pub fn goto_definition(session: &Session, file: FileId, offset: u32) -> Option<DefinitionResult> {
+    // resolve import-specifier definitions before generic symbol lookup
+    if let Some(span) = resolve_import_definition_at_offset(session, file, offset) {
+        return Some(DefinitionResult::single(span));
+    }
+
     // find the symbol at the offset
     let Some(symbol_at) = find_symbol_at_offset(session, file, offset) else {
         if let Some(span) = resolve_type_definition_from_imports(session, file, offset) {
@@ -113,6 +120,80 @@ pub fn goto_definition(session: &Session, file: FileId, offset: u32) -> Option<D
     let span = get_symbol_definition_span(session, symbol_at.symbol_id)?;
 
     Some(DefinitionResult::single(span))
+}
+
+/// Resolve a definition span when the cursor is on an import dependency item.
+fn resolve_import_definition_at_offset(
+    session: &Session,
+    file: FileId,
+    offset: u32,
+) -> Option<Span> {
+    // resolve the module and query context for this file
+    let module = get_module_by_file_id(session, file)?;
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+    let dir_tree = ctx.tree();
+
+    // scan dependency items and select the one at the cursor
+    for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
+        let item = dir_tree.get::<DependencyItem>(item_id);
+
+        // resolve the main declaration span for coarse overlap checks
+        let fallback_span = get_dir_node_main_span(ctx.ast, ctx.dir, item_id.into())
+            .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, item_id.into()));
+
+        // skip items that do not cover the cursor
+        if !fallback_span.is_some_and(|span| span.contains(offset)) {
+            continue;
+        }
+
+        // resolve side spans for imported-name and alias positions
+        let source_id = dir_tree.get_source(item_id.id);
+        let imported_name_span = ctx
+            .ast
+            .tree
+            .get_side_span_by_id(source_id, NodeSpanType::Type)
+            .map(|span| Span::new(ctx.file_id, span.start, span.end));
+        let local_alias_span = ctx
+            .ast
+            .tree
+            .get_side_span_by_id(source_id, NodeSpanType::Main)
+            .map(|span| Span::new(ctx.file_id, span.start, span.end));
+
+        // import-side positions should prefer the imported target symbol
+        let prefer_target_symbol = imported_name_span.is_some_and(|span| span.contains(offset))
+            || local_alias_span.is_some_and(|span| span.contains(offset));
+        let target_symbol =
+            resolve_dependency_item_target_symbol_for_definition(session, &ctx, item)?;
+
+        if prefer_target_symbol {
+            return get_symbol_definition_span(session, target_symbol);
+        }
+
+        return get_symbol_definition_span(session, target_symbol);
+    }
+
+    None
+}
+
+/// Resolve a dependency item target symbol for goto-definition.
+fn resolve_dependency_item_target_symbol_for_definition(
+    _session: &Session,
+    ctx: &QueryContext<'_>,
+    item: &DependencyItem,
+) -> Option<dir::GlobalSymbolId> {
+    // resolved items expose direct target symbols
+    if let Some(target_symbol) = item.target_symbol() {
+        return Some(target_symbol);
+    }
+
+    // unresolved items may still expose a local symbol that canonicalizes to the target
+    if let Some(local_symbol) = item.symbol() {
+        return Some(dir::GlobalSymbolId::new(ctx.module_id, local_symbol));
+    }
+
+    // unresolved import targets are treated as not-ready state
+    None
 }
 
 /// Find the declaration of the symbol at the given position.
@@ -560,13 +641,6 @@ fn resolve_type_export_from_namespace_import(
                 target_module,
                 ..
             } => (*mode, *name, *alias, Some(*target_module)),
-            dir::DependencyItem::UnresolvedRemote {
-                mode,
-                name,
-                alias,
-                target_module,
-                ..
-            } => (*mode, *name, *alias, *target_module),
             _ => continue,
         };
 
@@ -619,13 +693,6 @@ fn resolve_type_export_from_imports(
                     target_module,
                     ..
                 } => (*mode, *name, *alias, Some(*target_module)),
-                dir::DependencyItem::UnresolvedRemote {
-                    mode,
-                    name,
-                    alias,
-                    target_module,
-                    ..
-                } => (*mode, *name, *alias, *target_module),
                 _ => continue,
             };
 

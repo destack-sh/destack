@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::query::common::{
     QueryContext, find_symbol_at_offset, get_canonical_symbol, get_module_by_file_id,
-    resolve_member_access_symbol, resolve_module_id_for_import_target, resolve_symbol_name_id,
-    resolve_value_symbol_from_module, span_for_dir_node,
+    resolve_member_access_symbol, resolve_symbol_name_id, resolve_value_symbol_from_module,
+    span_for_dir_node,
 };
 
 /// Placeholder argument text inserted for newly required parameters.
@@ -341,14 +341,6 @@ fn resolve_namespace_alias_symbol(
                 symbol,
                 ..
             } => (*mode, *kind, *name, *alias, *symbol),
-            dir::DependencyItem::UnresolvedRemote {
-                mode,
-                kind,
-                name,
-                alias,
-                symbol,
-                ..
-            } => (*mode, *kind, *name, *alias, *symbol),
             _ => continue,
         };
 
@@ -396,21 +388,13 @@ fn resolve_namespace_member_symbol(
     // resolve the target module for a namespace import
     let dir_tree = alias_ctx.tree();
     let item = dir_tree.get::<dir::DependencyItem>(item_id);
-    let (mode, kind, target, target_module) = match item {
+    let (mode, kind, target_module) = match item {
         dir::DependencyItem::Remote {
             mode,
             kind,
-            target,
             target_module,
             ..
-        } => (*mode, *kind, Some(*target), Some(*target_module)),
-        dir::DependencyItem::UnresolvedRemote {
-            mode,
-            kind,
-            target,
-            target_module,
-            ..
-        } => (*mode, *kind, Some(*target), *target_module),
+        } => (*mode, *kind, Some(*target_module)),
         _ => return None,
     };
 
@@ -418,17 +402,9 @@ fn resolve_namespace_member_symbol(
         return None;
     }
 
-    let mut target_module_id = target_module
+    let target_module_id = target_module
         .and_then(|targets| targets.value.or(targets.ty))
         .and_then(|target| target.module_id());
-    if target_module_id.is_none()
-        && let Some(target) = target
-    {
-        let target_text = session.strings.get(target).to_string();
-        target_module_id =
-            resolve_module_id_for_import_target(session, &alias_ctx, target_text.as_str());
-    }
-
     let target_module_id = target_module_id?;
     let mut visited = HashSet::new();
     resolve_value_symbol_from_module(session, target_module_id, member_name, &mut visited)
@@ -447,32 +423,15 @@ fn resolve_namespace_member_symbol_from_name(
     // scan namespace imports for a matching alias name
     for item_id in dir_tree.iter_node_ids_of_type::<dir::DependencyItem>() {
         let item = dir_tree.get::<dir::DependencyItem>(item_id);
-        let (mode, kind, name, alias, target, target_module) = match item {
+        let (mode, kind, name, alias, target_module) = match item {
             dir::DependencyItem::Remote {
                 mode,
                 kind,
                 name,
                 alias,
-                target,
                 target_module,
                 ..
-            } => (
-                *mode,
-                *kind,
-                *name,
-                *alias,
-                Some(*target),
-                Some(*target_module),
-            ),
-            dir::DependencyItem::UnresolvedRemote {
-                mode,
-                kind,
-                name,
-                alias,
-                target,
-                target_module,
-                ..
-            } => (*mode, *kind, *name, *alias, Some(*target), *target_module),
+            } => (*mode, *kind, *name, *alias, Some(*target_module)),
             _ => continue,
         };
 
@@ -489,17 +448,9 @@ fn resolve_namespace_member_symbol_from_name(
         }
 
         // resolve the target module for the namespace import
-        let mut target_module_id = target_module
+        let target_module_id = target_module
             .and_then(|targets| targets.value.or(targets.ty))
             .and_then(|target| target.module_id());
-        if target_module_id.is_none()
-            && let Some(target) = target
-        {
-            let target_text = session.strings.get(target).to_string();
-            target_module_id =
-                resolve_module_id_for_import_target(session, ctx, target_text.as_str());
-        }
-
         // skip unresolved targets
         let Some(target_module_id) = target_module_id else {
             continue;

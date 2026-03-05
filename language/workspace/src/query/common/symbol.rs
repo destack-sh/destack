@@ -5,10 +5,9 @@ use destack_dir::{
     SymbolSpace,
 };
 use destack_source::{FileId, NodeSpanType, Span};
-use std::collections::HashSet;
 use {destack_ast as ast, destack_dir as dir};
 
-use super::resolve::{global_symbol, resolve_module_id_for_import_target};
+use super::resolve::global_symbol;
 use super::{
     QueryContext, get_dir_node_main_span, get_dir_node_span, get_module_by_file_id,
     token_at_offset, token_span_at_offset,
@@ -20,7 +19,7 @@ pub(crate) use super::resolve::{
     dependency_item_matches_name, matches_symbol_space_filter, owned_scope_for_symbol,
     resolve_member_access_symbol, resolve_nominal_symbol_from_initializer,
     resolve_nominal_symbol_from_type_expression, resolve_type_symbol_from_dependency_symbol,
-    resolve_type_symbol_from_imports, resolve_type_symbol_from_module,
+    resolve_type_symbol_from_module,
 };
 
 /// Result of finding a symbol at an offset.
@@ -536,7 +535,7 @@ fn find_symbol_at_offset_impl(
 
 /// Resolve a dependency item symbol for either local alias or imported name contexts.
 fn resolve_dependency_item_symbol(
-    session: &Session,
+    _session: &Session,
     ctx: &QueryContext<'_>,
     item: &DependencyItem,
     prefer_target_symbol: bool,
@@ -554,50 +553,8 @@ fn resolve_dependency_item_symbol(
         return Some(target_symbol);
     }
 
-    // resolve type-only dependency targets when no symbol is bound
-    let (kind, name, alias, target, target_module) = match item {
-        DependencyItem::Remote {
-            kind,
-            name,
-            alias,
-            target,
-            target_module,
-            ..
-        } => (*kind, *name, *alias, Some(*target), Some(*target_module)),
-        DependencyItem::UnresolvedRemote {
-            kind,
-            name,
-            alias,
-            target,
-            target_module,
-            ..
-        } => (*kind, *name, *alias, Some(*target), *target_module),
-        _ => return None,
-    };
-
-    if kind != DependencyKind::Type {
-        return None;
-    }
-
-    let name_id = if prefer_target_symbol {
-        name.map(|name| name.string()).or(alias)
-    } else {
-        alias.or(name.map(|name| name.string()))
-    }?;
-
-    let mut target_module_id = target_module
-        .and_then(|targets| targets.ty.or(targets.value))
-        .and_then(|target| target.module_id());
-    if target_module_id.is_none()
-        && let Some(target) = target
-    {
-        let target_text = session.strings.get(target).to_string();
-        target_module_id = resolve_module_id_for_import_target(session, ctx, target_text.as_str());
-    }
-
-    let target_module_id = target_module_id?;
-    let mut visited = HashSet::new();
-    resolve_type_symbol_from_module(session, target_module_id, name_id, &mut visited)
+    // unresolved dependency items are treated as not-ready
+    None
 }
 
 /// Resolve a declaration symbol from a declaration modifier keyword.
@@ -690,7 +647,7 @@ fn unresolved_type_symbol_for_expression(
 
 /// Resolve a type symbol from imports with local bindings preferred.
 fn resolve_type_import_symbol_by_name(
-    session: &Session,
+    _session: &Session,
     ctx: &QueryContext<'_>,
     name_id: StringId,
 ) -> Option<GlobalSymbolId> {
@@ -733,8 +690,7 @@ fn resolve_type_import_symbol_by_name(
         }
     }
 
-    // resolve unresolved remote imports through module exports when needed
-    resolve_type_symbol_from_imports(session, ctx, name_id)
+    None
 }
 
 /// Resolve a type import symbol at the cursor when the cursor is in a type context.
