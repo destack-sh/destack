@@ -592,7 +592,7 @@ fn socket_address_from_raw(
 
 #[cfg(unix)]
 fn socket_address_native_from_host_port(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     host: &str,
     port: u16,
     family: SocketFamily,
