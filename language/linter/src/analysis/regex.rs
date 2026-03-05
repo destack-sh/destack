@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use regex_syntax::ast::ErrorKind as AstErrorKind;
 use regex_syntax::hir::{ErrorKind as HirErrorKind, Hir};
-use regex_syntax::{Error as RegexError, Parser};
+use regex_syntax::{Error as RegexError, Parser, ParserBuilder};
 
 /// The kind of error produced while parsing a regex.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,7 +36,12 @@ pub struct LintRegexParse {
 impl LintRegexParse {
     /// Parse a pattern and return cached regex data.
     pub fn parse(pattern: &str) -> Self {
-        let parse_result = Parser::new().parse(pattern);
+        Self::parse_with_flags(pattern, None)
+    }
+
+    /// Parse a pattern with optional flags and return cached regex data.
+    pub fn parse_with_flags(pattern: &str, flags: Option<&str>) -> Self {
+        let parse_result = regex_parser(flags).parse(pattern);
         let (hir, error) = match parse_result {
             Ok(hir) => (Some(Arc::new(hir)), None),
             Err(err) => {
@@ -56,6 +61,21 @@ impl LintRegexParse {
 
         Self { hir, error }
     }
+}
+
+/// Build one regex parser configured from optional flags.
+fn regex_parser(flags: Option<&str>) -> Parser {
+    // use defaults when no flags are known
+    let Some(flags) = flags else {
+        return Parser::new();
+    };
+
+    // align parser mode with unicode-related JS flags
+    let mut parser_builder = ParserBuilder::new();
+    let has_unicode = flags.contains('u') || flags.contains('v');
+    parser_builder.unicode(has_unicode);
+
+    parser_builder.build()
 }
 
 /// Find a control character in a raw pattern string.
@@ -304,79 +324,815 @@ fn is_zero_width(c: char) -> bool {
 /// Find a backreference that cannot resolve to a prior group.
 pub(crate) fn find_useless_backreference(
     regex: &str,
+    flags: Option<&str>,
     error_kind: Option<&LintRegexErrorKind>,
 ) -> Option<String> {
-    let Some(LintRegexErrorKind::Parse(kind)) = error_kind else {
-        return None;
+    // keep parse errors that are not backreference related out of this rule path
+    if let Some(kind) = error_kind {
+        let is_named_backreference_escape = regex.contains("\\k<");
+        let is_backreference_related_error = matches!(
+            kind,
+            LintRegexErrorKind::Parse(AstErrorKind::UnsupportedBackreference)
+                | LintRegexErrorKind::Parse(AstErrorKind::UnsupportedLookAround)
+        ) || matches!(
+            kind,
+            LintRegexErrorKind::Parse(AstErrorKind::EscapeUnrecognized)
+        ) && is_named_backreference_escape;
+        if !is_backreference_related_error {
+            return None;
+        }
     };
-    if matches!(kind, AstErrorKind::UnsupportedBackreference) {
-        return analyze_backreferences(regex);
-    }
-    None
+
+    analyze_backreferences(regex, flags)
+}
+
+/// One lookaround kind in a parsed regex group.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ParsedLookaroundKind {
+    /// One lookahead assertion.
+    Lookahead,
+    /// One lookbehind assertion.
+    Lookbehind,
+}
+
+/// One regex parser node kind used for backreference analysis.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ParsedRegexNodeKind {
+    /// The synthetic pattern root node.
+    Root,
+    /// One alternative branch node.
+    Alternative,
+    /// One group node with optional capture metadata.
+    Group {
+        capture_index: Option<usize>,
+        capture_name: Option<String>,
+        lookaround: Option<ParsedLookaroundKind>,
+        is_negative_lookaround: bool,
+    },
+}
+
+/// One parsed regex node entry for backreference analysis.
+#[derive(Debug, Clone)]
+struct ParsedRegexNode {
+    /// The kind of this node.
+    kind: ParsedRegexNodeKind,
+    /// The parent node id in `ParsedRegexStructure.nodes`.
+    parent: Option<usize>,
+    /// The byte start offset in the pattern.
+    start: usize,
+    /// The byte end offset in the pattern.
+    end: usize,
+}
+
+/// One backreference target.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ParsedBackreferenceTarget {
+    /// One positional numeric backreference.
+    Index(usize),
+    /// One named backreference.
+    Name(String),
+}
+
+/// One backreference occurrence in a parsed regex.
+#[derive(Debug, Clone)]
+struct ParsedBackreference {
+    /// The raw backreference text such as `\1` or `\k<name>`.
+    raw: String,
+    /// The byte start offset in the pattern.
+    start: usize,
+    /// The byte end offset in the pattern.
+    end: usize,
+    /// The parent alternative node id.
+    parent_alternative_id: usize,
+    /// The resolved target shape.
+    target: ParsedBackreferenceTarget,
+}
+
+/// Parsed structure data needed for backreference diagnostics.
+#[derive(Debug, Clone)]
+struct ParsedRegexStructure {
+    /// All parsed nodes.
+    nodes: Vec<ParsedRegexNode>,
+    /// All parsed backreference occurrences in source order.
+    backreferences: Vec<ParsedBackreference>,
+    /// Capture group node ids indexed by capture index minus one.
+    capture_group_ids_by_index: Vec<usize>,
+    /// Capture group node ids grouped by capture name.
+    capture_group_ids_by_name: Vec<(String, Vec<usize>)>,
+}
+
+/// One problem kind for one backreference and one target group.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BackreferenceProblemKind {
+    /// The backreference appears inside its target capture group.
+    Nested,
+    /// The backreference appears before its target capture group.
+    Forward,
+    /// The backreference appears after its target in one lookbehind context.
+    Backward,
+    /// The backreference and target live in sibling alternatives.
+    Disjunctive,
+    /// The target group is inside one negative lookaround.
+    IntoNegativeLookaround,
+}
+
+/// One analyzed problem for one backreference and one target group.
+#[derive(Debug, Clone)]
+struct BackreferenceProblem {
+    /// The selected problem kind.
+    kind: BackreferenceProblemKind,
+    /// The target capture group node id.
+    group_id: usize,
+}
+
+/// One active parser group frame.
+#[derive(Debug, Clone, Copy)]
+struct ParserGroupFrame {
+    /// The current group node id.
+    group_id: usize,
+    /// The current alternative node id for this group.
+    alternative_id: usize,
 }
 
 /// Analyze backreference usage for invalid references.
-fn analyze_backreferences(regex: &str) -> Option<String> {
-    let mut group_count = 0;
-    let mut chars = regex.chars().peekable();
-    let mut in_char_class = false;
+fn analyze_backreferences(regex: &str, flags: Option<&str>) -> Option<String> {
+    // parse one lightweight structure for group and alternative relationships
+    let parsed = parse_regex_structure(regex)?;
+    let has_unicode_mode =
+        flags.is_some_and(|flag_text| flag_text.contains('u') || flag_text.contains('v'));
 
-    while let Some(c) = chars.next() {
-        match c {
-            '\\' => {
-                if let Some(&next) = chars.peek() {
-                    if next.is_ascii_digit() && next != '0' && !in_char_class {
-                        chars.next();
-                        let mut num_str = String::from(next);
+    // inspect backreferences in source order
+    for backreference in &parsed.backreferences {
+        let Some(problem) =
+            first_problem_for_backreference(&parsed, backreference, has_unicode_mode)
+        else {
+            continue;
+        };
 
-                        while let Some(&d) = chars.peek() {
-                            if d.is_ascii_digit() {
-                                num_str.push(d);
-                                chars.next();
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if let Ok(backref_num) = num_str.parse::<usize>()
-                            && backref_num > group_count
-                        {
-                            return Some(format!(
-                                "backreference \\{backref_num} references non-existent group \
-                                     (only {group_count} groups defined so far)"
-                            ));
-                        }
-                    } else {
-                        chars.next();
-                    }
-                }
-            }
-            '[' if !in_char_class => {
-                in_char_class = true;
-            }
-            ']' if in_char_class => {
-                in_char_class = false;
-            }
-            '(' if !in_char_class => {
-                if chars.peek() != Some(&'?') {
-                    group_count += 1;
-                } else {
-                    let mut temp_chars = chars.clone();
-                    temp_chars.next();
-                    if temp_chars.peek() == Some(&'<') {
-                        temp_chars.next();
-                        if let Some(&c) = temp_chars.peek()
-                            && c != '='
-                            && c != '!'
-                        {
-                            group_count += 1;
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
+        return Some(format_backreference_problem(
+            regex,
+            &parsed,
+            backreference,
+            &problem,
+        ));
     }
 
     None
+}
+
+/// Return one first reportable problem for one backreference.
+fn first_problem_for_backreference(
+    parsed: &ParsedRegexStructure,
+    backreference: &ParsedBackreference,
+    has_unicode_mode: bool,
+) -> Option<BackreferenceProblem> {
+    // resolve all target capture groups for this backreference
+    let target_group_ids =
+        resolve_backreference_target_groups(parsed, backreference, has_unicode_mode);
+    if target_group_ids.is_empty() {
+        return None;
+    }
+
+    // collect one problem per target group, or stop when one target is valid
+    let mut problems = Vec::new();
+    for group_id in target_group_ids {
+        let Some(problem_kind) = classify_backreference_problem(parsed, backreference, group_id)
+        else {
+            return None;
+        };
+        problems.push(BackreferenceProblem {
+            kind: problem_kind,
+            group_id,
+        });
+    }
+
+    // report non disjunctive problems first, otherwise report disjunctive
+    for problem in &problems {
+        if problem.kind != BackreferenceProblemKind::Disjunctive {
+            return Some(problem.clone());
+        }
+    }
+
+    problems.into_iter().next()
+}
+
+/// Resolve target capture group ids for one backreference.
+fn resolve_backreference_target_groups(
+    parsed: &ParsedRegexStructure,
+    backreference: &ParsedBackreference,
+    has_unicode_mode: bool,
+) -> Vec<usize> {
+    match &backreference.target {
+        ParsedBackreferenceTarget::Index(backreference_index) => {
+            // keep octal escapes out of this lint unless unicode mode forces backreferences
+            if !has_unicode_mode && *backreference_index > parsed.capture_group_ids_by_index.len() {
+                return Vec::new();
+            }
+
+            parsed
+                .capture_group_ids_by_index
+                .get(backreference_index.saturating_sub(1))
+                .copied()
+                .into_iter()
+                .collect()
+        }
+        ParsedBackreferenceTarget::Name(backreference_name) => parsed
+            .capture_group_ids_by_name
+            .iter()
+            .find(|(name, _)| name == backreference_name)
+            .map(|(_, ids)| ids.clone())
+            .unwrap_or_default(),
+    }
+}
+
+/// Classify one problem for one backreference and one target group.
+fn classify_backreference_problem(
+    parsed: &ParsedRegexStructure,
+    backreference: &ParsedBackreference,
+    group_id: usize,
+) -> Option<BackreferenceProblemKind> {
+    // collect node paths from self to root
+    let backreference_path = node_path_to_root(parsed, backreference.parent_alternative_id);
+    let group_path = node_path_to_root(parsed, group_id);
+
+    // group ancestor references are nested
+    if backreference_path.contains(&group_id) {
+        return Some(BackreferenceProblemKind::Nested);
+    }
+
+    // resolve one lowest common ancestor between both paths
+    let Some((group_lca_index, group_common_path)) =
+        path_lowest_common_ancestor_split(&group_path, &backreference_path)
+    else {
+        return None;
+    };
+
+    // groups in sibling alternatives are disjunctive
+    let group_cut = &group_path[..group_lca_index];
+    if group_cut.last().is_some_and(|node_id| {
+        matches!(
+            parsed.nodes[*node_id].kind,
+            ParsedRegexNodeKind::Alternative
+        )
+    }) {
+        return Some(BackreferenceProblemKind::Disjunctive);
+    }
+
+    // keep the lowest common lookaround semantics
+    let lowest_common_lookaround = group_common_path
+        .iter()
+        .find_map(|node_id| parsed_group_lookaround_kind(parsed, *node_id));
+    let is_matching_backward = lowest_common_lookaround == Some(ParsedLookaroundKind::Lookbehind);
+
+    // forward references are invalid in forward matching contexts
+    let group = &parsed.nodes[group_id];
+    if !is_matching_backward && backreference.end <= group.start {
+        return Some(BackreferenceProblemKind::Forward);
+    }
+
+    // backward references are invalid in the same lookbehind context
+    if is_matching_backward && group.end <= backreference.start {
+        return Some(BackreferenceProblemKind::Backward);
+    }
+
+    // groups inside negative lookarounds are unreachable for this reference
+    if group_cut
+        .iter()
+        .copied()
+        .any(|node_id| parsed_node_is_negative_lookaround(parsed, node_id))
+    {
+        return Some(BackreferenceProblemKind::IntoNegativeLookaround);
+    }
+
+    None
+}
+
+/// Format one diagnostic message for a classified backreference problem.
+fn format_backreference_problem(
+    regex: &str,
+    parsed: &ParsedRegexStructure,
+    backreference: &ParsedBackreference,
+    problem: &BackreferenceProblem,
+) -> String {
+    let group = &parsed.nodes[problem.group_id];
+    let group_text = regex.get(group.start..group.end).unwrap_or("<group>");
+
+    match problem.kind {
+        BackreferenceProblemKind::Nested => format!(
+            "backreference {} references group {} from within that group",
+            backreference.raw, group_text
+        ),
+        BackreferenceProblemKind::Forward => format!(
+            "backreference {} references group {} which appears later in the pattern",
+            backreference.raw, group_text
+        ),
+        BackreferenceProblemKind::Backward => format!(
+            "backreference {} references group {} which appears earlier in the same lookbehind",
+            backreference.raw, group_text
+        ),
+        BackreferenceProblemKind::Disjunctive => format!(
+            "backreference {} references group {} in another alternative",
+            backreference.raw, group_text
+        ),
+        BackreferenceProblemKind::IntoNegativeLookaround => format!(
+            "backreference {} references group {} inside a negative lookaround",
+            backreference.raw, group_text
+        ),
+    }
+}
+
+/// Return one path from a node to the root.
+fn node_path_to_root(parsed: &ParsedRegexStructure, node_id: usize) -> Vec<usize> {
+    let mut path = Vec::new();
+    let mut current = Some(node_id);
+
+    // push current nodes until the root has no parent
+    while let Some(id) = current {
+        path.push(id);
+        current = parsed.nodes[id].parent;
+    }
+
+    path
+}
+
+/// Split one path by the lowest common ancestor with another path.
+fn path_lowest_common_ancestor_split<'path>(
+    group_path: &'path [usize],
+    reference_path: &[usize],
+) -> Option<(usize, &'path [usize])> {
+    let mut group_cursor = group_path.len();
+    let mut reference_cursor = reference_path.len();
+
+    // walk back from root while both paths match
+    while group_cursor > 0
+        && reference_cursor > 0
+        && group_path[group_cursor - 1] == reference_path[reference_cursor - 1]
+    {
+        group_cursor -= 1;
+        reference_cursor -= 1;
+    }
+
+    if group_cursor >= group_path.len() {
+        return None;
+    }
+
+    Some((group_cursor, &group_path[group_cursor..]))
+}
+
+/// Return the lookaround kind for one group node.
+fn parsed_group_lookaround_kind(
+    parsed: &ParsedRegexStructure,
+    node_id: usize,
+) -> Option<ParsedLookaroundKind> {
+    let node = &parsed.nodes[node_id];
+    let ParsedRegexNodeKind::Group { lookaround, .. } = &node.kind else {
+        return None;
+    };
+
+    *lookaround
+}
+
+/// Return true when one node is a negative lookaround group.
+fn parsed_node_is_negative_lookaround(parsed: &ParsedRegexStructure, node_id: usize) -> bool {
+    let node = &parsed.nodes[node_id];
+    let ParsedRegexNodeKind::Group {
+        is_negative_lookaround,
+        ..
+    } = &node.kind
+    else {
+        return false;
+    };
+
+    *is_negative_lookaround
+}
+
+/// Parse one regex pattern into groups, alternatives, and backreferences.
+fn parse_regex_structure(regex: &str) -> Option<ParsedRegexStructure> {
+    let mut nodes = Vec::new();
+    nodes.push(ParsedRegexNode {
+        kind: ParsedRegexNodeKind::Root,
+        parent: None,
+        start: 0,
+        end: regex.len(),
+    });
+
+    let mut capture_group_ids_by_index = Vec::new();
+    let mut capture_group_ids_by_name: Vec<(String, Vec<usize>)> = Vec::new();
+    let mut backreferences = Vec::new();
+    let mut group_frames = Vec::new();
+    let mut capture_count = 0usize;
+
+    // initialize one root alternative for top level parsing
+    let root_alternative_id = parsed_add_alternative_node(&mut nodes, 0, 0);
+    group_frames.push(ParserGroupFrame {
+        group_id: 0,
+        alternative_id: root_alternative_id,
+    });
+
+    // walk pattern characters with one character class state
+    let indexed_characters: Vec<(usize, char)> = regex.char_indices().collect();
+    let mut index = 0;
+    let mut in_character_class = false;
+    while index < indexed_characters.len() {
+        let (character_start, character) = indexed_characters[index];
+
+        // close one character class when `]` is reached
+        if in_character_class {
+            if character == '\\' {
+                index += 2;
+                continue;
+            }
+            if character == ']' {
+                in_character_class = false;
+            }
+            index += 1;
+            continue;
+        }
+
+        // parse escapes and backreferences
+        if character == '\\' {
+            let Some((next_start, next_character)) = indexed_characters.get(index + 1).copied()
+            else {
+                index += 1;
+                continue;
+            };
+
+            if let Some(backreference) = parsed_numeric_backreference(
+                regex,
+                &indexed_characters,
+                index,
+                group_frames.last().copied()?.alternative_id,
+            ) {
+                backreferences.push(backreference.0);
+                index = backreference.1;
+                continue;
+            }
+
+            if next_character == 'k'
+                && let Some(backreference) = parsed_named_backreference(
+                    regex,
+                    &indexed_characters,
+                    index,
+                    group_frames.last().copied()?.alternative_id,
+                )
+            {
+                backreferences.push(backreference.0);
+                index = backreference.1;
+                continue;
+            }
+
+            if next_start > character_start {
+                index += 2;
+                continue;
+            }
+
+            index += 1;
+            continue;
+        }
+
+        // enter one character class
+        if character == '[' {
+            in_character_class = true;
+            index += 1;
+            continue;
+        }
+
+        // split one alternative with `|`
+        if character == '|' {
+            let Some(group_frame) = group_frames.last_mut() else {
+                return None;
+            };
+            nodes[group_frame.alternative_id].end = character_start;
+
+            let alternative_start = character_start + character.len_utf8();
+            group_frame.alternative_id =
+                parsed_add_alternative_node(&mut nodes, group_frame.group_id, alternative_start);
+
+            index += 1;
+            continue;
+        }
+
+        // parse one opening group
+        if character == '(' {
+            let Some(group_frame) = group_frames.last().copied() else {
+                return None;
+            };
+
+            let (group_kind, next_index) =
+                parsed_group_kind(&indexed_characters, index, &mut capture_count)?;
+            let group_id = parsed_add_group_node(
+                &mut nodes,
+                group_frame.alternative_id,
+                character_start,
+                group_kind.clone(),
+            );
+            let group_alternative_start = indexed_characters
+                .get(next_index)
+                .map(|(start, _)| *start)
+                .unwrap_or(regex.len());
+            let alternative_id =
+                parsed_add_alternative_node(&mut nodes, group_id, group_alternative_start);
+            group_frames.push(ParserGroupFrame {
+                group_id,
+                alternative_id,
+            });
+
+            // track capture groups by index and name
+            if let ParsedRegexNodeKind::Group {
+                capture_index: Some(capture_index),
+                capture_name,
+                ..
+            } = group_kind
+            {
+                if capture_group_ids_by_index.len() < capture_index {
+                    capture_group_ids_by_index.push(group_id);
+                } else {
+                    capture_group_ids_by_index[capture_index - 1] = group_id;
+                }
+
+                if let Some(name) = capture_name {
+                    if let Some((_, ids)) = capture_group_ids_by_name
+                        .iter_mut()
+                        .find(|(existing_name, _)| existing_name == &name)
+                    {
+                        ids.push(group_id);
+                    } else {
+                        capture_group_ids_by_name.push((name, vec![group_id]));
+                    }
+                }
+            }
+
+            index = next_index;
+            continue;
+        }
+
+        // parse one closing group
+        if character == ')' {
+            if group_frames.len() <= 1 {
+                return None;
+            }
+
+            let group_frame = group_frames.pop()?;
+            nodes[group_frame.alternative_id].end = character_start;
+            nodes[group_frame.group_id].end = character_start + character.len_utf8();
+            index += 1;
+            continue;
+        }
+
+        index += 1;
+    }
+
+    // reject unclosed groups and close the current alternative
+    if group_frames.len() != 1 || in_character_class {
+        return None;
+    }
+    if let Some(root_frame) = group_frames.last() {
+        nodes[root_frame.alternative_id].end = regex.len();
+    }
+
+    Some(ParsedRegexStructure {
+        nodes,
+        backreferences,
+        capture_group_ids_by_index,
+        capture_group_ids_by_name,
+    })
+}
+
+/// Parse one numeric backreference at one escape position.
+fn parsed_numeric_backreference(
+    regex: &str,
+    indexed_characters: &[(usize, char)],
+    backslash_index: usize,
+    parent_alternative_id: usize,
+) -> Option<(ParsedBackreference, usize)> {
+    let (_, next_character) = indexed_characters.get(backslash_index + 1).copied()?;
+    if !next_character.is_ascii_digit() || next_character == '0' {
+        return None;
+    }
+
+    // consume one decimal backreference index
+    let mut cursor = backslash_index + 1;
+    let mut digits = String::new();
+    while let Some((_, digit_character)) = indexed_characters.get(cursor) {
+        if !digit_character.is_ascii_digit() {
+            break;
+        }
+        digits.push(*digit_character);
+        cursor += 1;
+    }
+    let backreference_index = digits.parse::<usize>().ok()?;
+
+    // resolve one raw text slice
+    let backslash_start = indexed_characters[backslash_index].0;
+    let backreference_end = indexed_characters
+        .get(cursor)
+        .map(|(start, _)| *start)
+        .unwrap_or(regex.len());
+    let raw = regex.get(backslash_start..backreference_end)?.to_string();
+
+    Some((
+        ParsedBackreference {
+            raw,
+            start: backslash_start,
+            end: backreference_end,
+            parent_alternative_id,
+            target: ParsedBackreferenceTarget::Index(backreference_index),
+        },
+        cursor,
+    ))
+}
+
+/// Parse one named backreference at one escape position.
+fn parsed_named_backreference(
+    regex: &str,
+    indexed_characters: &[(usize, char)],
+    backslash_index: usize,
+    parent_alternative_id: usize,
+) -> Option<(ParsedBackreference, usize)> {
+    if indexed_characters.get(backslash_index + 1).map(|(_, c)| *c) != Some('k')
+        || indexed_characters.get(backslash_index + 2).map(|(_, c)| *c) != Some('<')
+    {
+        return None;
+    }
+
+    // consume one named backreference payload
+    let mut cursor = backslash_index + 3;
+    let mut name = String::new();
+    while let Some((_, character)) = indexed_characters.get(cursor).copied() {
+        if character == '>' {
+            let backslash_start = indexed_characters[backslash_index].0;
+            let backreference_end = indexed_characters
+                .get(cursor + 1)
+                .map(|(start, _)| *start)
+                .unwrap_or(regex.len());
+            let raw = regex.get(backslash_start..backreference_end)?.to_string();
+
+            return Some((
+                ParsedBackreference {
+                    raw,
+                    start: backslash_start,
+                    end: backreference_end,
+                    parent_alternative_id,
+                    target: ParsedBackreferenceTarget::Name(name),
+                },
+                cursor + 1,
+            ));
+        }
+
+        name.push(character);
+        cursor += 1;
+    }
+
+    None
+}
+
+/// Parse one opening group header and return its group kind and next content index.
+fn parsed_group_kind(
+    indexed_characters: &[(usize, char)],
+    open_group_index: usize,
+    capture_count: &mut usize,
+) -> Option<(ParsedRegexNodeKind, usize)> {
+    let next_character = indexed_characters
+        .get(open_group_index + 1)
+        .map(|(_, c)| *c);
+    if next_character != Some('?') {
+        *capture_count += 1;
+        let capture_index = *capture_count;
+        return Some((
+            ParsedRegexNodeKind::Group {
+                capture_index: Some(capture_index),
+                capture_name: None,
+                lookaround: None,
+                is_negative_lookaround: false,
+            },
+            open_group_index + 1,
+        ));
+    }
+
+    match indexed_characters
+        .get(open_group_index + 2)
+        .map(|(_, c)| *c)
+    {
+        Some(':') => Some((
+            ParsedRegexNodeKind::Group {
+                capture_index: None,
+                capture_name: None,
+                lookaround: None,
+                is_negative_lookaround: false,
+            },
+            open_group_index + 3,
+        )),
+        Some('=') => Some((
+            ParsedRegexNodeKind::Group {
+                capture_index: None,
+                capture_name: None,
+                lookaround: Some(ParsedLookaroundKind::Lookahead),
+                is_negative_lookaround: false,
+            },
+            open_group_index + 3,
+        )),
+        Some('!') => Some((
+            ParsedRegexNodeKind::Group {
+                capture_index: None,
+                capture_name: None,
+                lookaround: Some(ParsedLookaroundKind::Lookahead),
+                is_negative_lookaround: true,
+            },
+            open_group_index + 3,
+        )),
+        Some('<') => match indexed_characters
+            .get(open_group_index + 3)
+            .map(|(_, c)| *c)
+        {
+            Some('=') => Some((
+                ParsedRegexNodeKind::Group {
+                    capture_index: None,
+                    capture_name: None,
+                    lookaround: Some(ParsedLookaroundKind::Lookbehind),
+                    is_negative_lookaround: false,
+                },
+                open_group_index + 4,
+            )),
+            Some('!') => Some((
+                ParsedRegexNodeKind::Group {
+                    capture_index: None,
+                    capture_name: None,
+                    lookaround: Some(ParsedLookaroundKind::Lookbehind),
+                    is_negative_lookaround: true,
+                },
+                open_group_index + 4,
+            )),
+            Some(_) => {
+                // parse one named capture group
+                let mut cursor = open_group_index + 3;
+                let mut name = String::new();
+                while let Some((_, character)) = indexed_characters.get(cursor).copied() {
+                    if character == '>' {
+                        *capture_count += 1;
+                        let capture_index = *capture_count;
+                        return Some((
+                            ParsedRegexNodeKind::Group {
+                                capture_index: Some(capture_index),
+                                capture_name: Some(name),
+                                lookaround: None,
+                                is_negative_lookaround: false,
+                            },
+                            cursor + 1,
+                        ));
+                    }
+
+                    name.push(character);
+                    cursor += 1;
+                }
+
+                None
+            }
+            None => None,
+        },
+        Some(_) => Some((
+            ParsedRegexNodeKind::Group {
+                capture_index: None,
+                capture_name: None,
+                lookaround: None,
+                is_negative_lookaround: false,
+            },
+            open_group_index + 2,
+        )),
+        None => None,
+    }
+}
+
+/// Add one alternative node and return its node id.
+fn parsed_add_alternative_node(
+    nodes: &mut Vec<ParsedRegexNode>,
+    parent_id: usize,
+    start: usize,
+) -> usize {
+    let node_id = nodes.len();
+    nodes.push(ParsedRegexNode {
+        kind: ParsedRegexNodeKind::Alternative,
+        parent: Some(parent_id),
+        start,
+        end: start,
+    });
+
+    node_id
+}
+
+/// Add one group node and return its node id.
+fn parsed_add_group_node(
+    nodes: &mut Vec<ParsedRegexNode>,
+    parent_id: usize,
+    start: usize,
+    kind: ParsedRegexNodeKind,
+) -> usize {
+    let node_id = nodes.len();
+    nodes.push(ParsedRegexNode {
+        kind,
+        parent: Some(parent_id),
+        start,
+        end: start,
+    });
+
+    node_id
 }

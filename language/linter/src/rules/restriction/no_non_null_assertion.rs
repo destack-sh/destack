@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_trailing_bang_span;
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -57,7 +58,7 @@ impl LintRule for NoNonNullAssertion {
 
             // compute fixes only when requested by the runner
             if ctx.compute_fixes
-                && let Some(bang_span) = non_null_bang_span(ctx, span)
+                && let Some(bang_span) = expression_trailing_bang_span(ctx, node_id)
             {
                 let edits = ctx.edit_builder().delete(bang_span).into_edits();
                 let fix = LintFix::r#unsafe("Remove non-null assertion").with_edits(edits);
@@ -67,22 +68,6 @@ impl LintRule for NoNonNullAssertion {
             ctx.report(diagnostic);
         }
     }
-}
-
-/// Return one span for the last non-null assertion token in one expression span.
-fn non_null_bang_span(
-    ctx: &LintModuleAstContext<'_>,
-    expression_span: destack_source::Span,
-) -> Option<destack_source::Span> {
-    let expression_text = ctx.get_span_text(expression_span);
-    let relative_bang = expression_text.rfind('!')?;
-    let bang_start = expression_span.start + relative_bang as u32;
-    let bang_end = bang_start + 1;
-    Some(destack_source::Span::new(
-        expression_span.file,
-        bang_start,
-        bang_end,
-    ))
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use destack_ast::{self as ast};
+use destack_ast::{self as ast, NodeVisitor};
 use destack_source::Span;
 
 use crate::rules::common::{
@@ -19,6 +19,21 @@ pub fn expression_unwrap_parenthesized_syntax(
         };
 
         expression_id = *expression;
+    }
+}
+
+/// Return the AST expression id with statement wrappers unwrapped.
+pub fn expression_unwrap_statement_syntax(
+    tree: &ast::NodeTree,
+    mut expression_id: ast::LocalNodeId<ast::Expression>,
+) -> ast::LocalNodeId<ast::Expression> {
+    loop {
+        let expression = tree.get(expression_id);
+        let ast::Expression::Statement(inner_expression_id) = expression else {
+            return expression_id;
+        };
+
+        expression_id = *inner_expression_id;
     }
 }
 
@@ -69,6 +84,255 @@ pub fn expression_statement_span(
 
     // return the statement span
     Some(tree.get_span(statement_expression_id))
+}
+
+/// Return the trailing non null assertion span when one expression text ends with `!`.
+pub fn expression_trailing_bang_span(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<Span> {
+    // resolve one text slice for the expression span
+    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_text = ctx.get_span_text(expression_span);
+
+    // require one trailing non whitespace `!` character
+    let trimmed_text = expression_text.trim_end();
+    if !trimmed_text.ends_with('!') {
+        return None;
+    }
+
+    // resolve the byte offset for the trailing `!`
+    let bang_relative_start = trimmed_text.len().checked_sub(1)? as u32;
+    let bang_start = expression_span.start + bang_relative_start;
+    let bang_end = bang_start + 1;
+
+    // return one source span for the assertion token
+    Some(Span::new(expression_span.file, bang_start, bang_end))
+}
+
+/// Build one negated expression string while preserving precedence.
+pub fn expression_negated_source_text(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> String {
+    // keep the original source text for replacement fidelity
+    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_text = ctx.get_span_text(expression_span);
+
+    // normalize the expression shape for precedence checks
+    let normalized_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let normalized_expression = ctx.tree.get(normalized_expression_id);
+
+    // preserve precedence for non-atomic expressions
+    if expression_needs_parentheses_for_prefix_not(normalized_expression) {
+        return format!("!({expression_text})");
+    }
+
+    format!("!{expression_text}")
+}
+
+/// Return true when one expression needs parentheses under prefix `!`.
+fn expression_needs_parentheses_for_prefix_not(expression: &ast::Expression) -> bool {
+    !matches!(
+        expression,
+        ast::Expression::Path { .. }
+            | ast::Expression::Member { .. }
+            | ast::Expression::Index { .. }
+            | ast::Expression::Call { .. }
+            | ast::Expression::New { .. }
+            | ast::Expression::Await { .. }
+            | ast::Expression::Unary { .. }
+            | ast::Expression::Maybe { .. }
+            | ast::Expression::Must { .. }
+            | ast::Expression::ScalarLiteral(_)
+            | ast::Expression::TypeLiteral(_)
+            | ast::Expression::TemplateExpression { .. }
+            | ast::Expression::TaggedTemplateExpression { .. }
+            | ast::Expression::Parenthesized { .. }
+    )
+}
+
+/// Return true when one expression starts a nested declaration scope.
+pub fn expression_starts_nested_declaration_scope(expression: &ast::Expression) -> bool {
+    matches!(expression, ast::Expression::Declaration(_))
+}
+
+/// Return true when one expression subtree contains an assignment expression.
+pub fn expression_contains_assignment(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // visit one expression subtree and stop once assignment is found
+    let expression = tree.get(expression_id);
+    let mut visitor = AssignmentSearchVisitor {
+        options: ast::NodeVisitorOptions::default(),
+        found_assignment: false,
+    };
+    visitor.visit_expression(tree, expression_id, expression);
+
+    visitor.found_assignment
+}
+
+/// Return true when one expression is the target of optional chaining.
+pub fn expression_is_optional_chain_target(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // require one expression parent
+    let Some(parent_id) = parents.get(expression_id) else {
+        return false;
+    };
+    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    // keep optional chain wrappers that reference this expression directly
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = tree.get(parent_expression_id);
+    matches!(
+        parent_expression,
+        ast::Expression::Maybe {
+            position: ast::PostfixPosition::Indirect,
+            left,
+        } if *left == expression_id
+    )
+}
+
+/// One normalized `if` branch chain.
+#[derive(Debug)]
+pub struct IfBranchChain {
+    /// Branch body expressions in source order.
+    pub branch_expressions: Vec<ast::LocalNodeId<ast::Expression>>,
+    /// Whether the chain ends with an explicit `else` branch.
+    pub ends_with_else: bool,
+}
+
+/// Return true when an `if` expression is an `else if` child branch.
+pub fn expression_is_else_if_branch(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // require an expression parent
+    let Some(parent_id) = parents.get(expression_id) else {
+        return false;
+    };
+    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        return false;
+    }
+
+    // keep parent `if` expressions that reference this node as their `else`
+    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression = tree.get(parent_expression_id);
+    matches!(
+        parent_expression,
+        ast::Expression::If {
+            else_expression: Some(else_expression_id),
+            ..
+        } if *else_expression_id == expression_id
+    )
+}
+
+/// Return one normalized branch chain for an `if` expression.
+pub fn if_expression_branch_chain(
+    tree: &ast::NodeTree,
+    if_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<IfBranchChain> {
+    // require one `if` expression entry point
+    let mut current_if_id = if_expression_id;
+    let mut branch_expressions = Vec::new();
+
+    loop {
+        let current_expression = tree.get(current_if_id);
+        let ast::Expression::If {
+            kind: _,
+            then_expression,
+            else_expression,
+            ..
+        } = current_expression
+        else {
+            return None;
+        };
+
+        // track the current then branch body
+        branch_expressions.push(*then_expression);
+
+        // continue into else-if chains or stop on a final else body
+        let Some(else_expression_id) = else_expression else {
+            return Some(IfBranchChain {
+                branch_expressions,
+                ends_with_else: false,
+            });
+        };
+
+        let else_expression = tree.get(*else_expression_id);
+        if matches!(
+            else_expression,
+            ast::Expression::If {
+                kind: ast::IfKind::If,
+                ..
+            }
+        ) {
+            current_if_id = *else_expression_id;
+            continue;
+        }
+
+        branch_expressions.push(*else_expression_id);
+        return Some(IfBranchChain {
+            branch_expressions,
+            ends_with_else: true,
+        });
+    }
+}
+
+/// Return true when one expression is a direct unqualified path to a name.
+pub fn expression_is_unqualified_path_name(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    name: ast::StringId,
+) -> bool {
+    // normalize wrappers and resolve path segments
+    let Some(path_segments) = expression_path_segments(tree, expression_id) else {
+        return false;
+    };
+
+    // match one bare identifier segment
+    path_segments.len() == 1 && path_segments[0] == name
+}
+
+/// Visitor that tracks whether one expression subtree contains assignment.
+struct AssignmentSearchVisitor {
+    /// Traversal options for expression walk.
+    options: ast::NodeVisitorOptions,
+    /// Whether an assignment node has been encountered.
+    found_assignment: bool,
+}
+
+impl ast::NodeVisitor for AssignmentSearchVisitor {
+    fn options(&self) -> &ast::NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &ast::NodeTree,
+        expression_id: ast::LocalNodeId<ast::Expression>,
+        expression: &ast::Expression,
+    ) {
+        // stop traversal after first assignment match
+        if self.found_assignment {
+            return;
+        }
+
+        // record assignment match and stop descending
+        if matches!(expression, ast::Expression::Assign { .. }) {
+            self.found_assignment = true;
+            return;
+        }
+
+        ast::walk_expression(self, tree, expression_id, expression);
+    }
 }
 
 /// Return true when one block has no expressions and no comment trivia.

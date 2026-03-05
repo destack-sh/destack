@@ -9,8 +9,8 @@ use crate::{ConstValue, LintRegexParse};
 pub struct LintAstAnalysisCache {
     /// Cached constant values for AST expressions.
     const_values: HashMap<u32, Option<ConstValue>>,
-    /// Cached regex parse results by string id.
-    regex_parse: HashMap<ast::StringId, LintRegexParse>,
+    /// Cached regex parse results by pattern and optional flags string ids.
+    regex_parse: HashMap<(ast::StringId, Option<ast::StringId>), LintRegexParse>,
 }
 
 impl LintAstAnalysisCache {
@@ -31,13 +31,26 @@ impl LintAstAnalysisCache {
 
     /// Return cached regex parse info for a pattern string.
     pub fn regex_parse(&mut self, strings: &ast::StringPool, id: ast::StringId) -> LintRegexParse {
-        if let Some(parse) = self.regex_parse.get(&id) {
+        self.regex_parse_with_flags(strings, id, None)
+    }
+
+    /// Return cached regex parse info for a pattern string and optional flags.
+    pub fn regex_parse_with_flags(
+        &mut self,
+        strings: &ast::StringPool,
+        pattern_id: ast::StringId,
+        flags_id: Option<ast::StringId>,
+    ) -> LintRegexParse {
+        let cache_key = (pattern_id, flags_id);
+        if let Some(parse) = self.regex_parse.get(&cache_key) {
             return parse.clone();
         }
 
-        let pattern = strings.get(id);
-        let parse = LintRegexParse::parse(pattern.as_ref());
-        self.regex_parse.insert(id, parse.clone());
+        let pattern = strings.get(pattern_id);
+        let flags = flags_id.map(|id| strings.get(id));
+        let flags = flags.as_deref();
+        let parse = LintRegexParse::parse_with_flags(pattern.as_ref(), flags);
+        self.regex_parse.insert(cache_key, parse.clone());
         parse
     }
 }
