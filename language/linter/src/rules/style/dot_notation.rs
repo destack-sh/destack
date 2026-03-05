@@ -2,6 +2,7 @@ use destack_ast::{self as ast, Expression, ScalarLiteral, is_identifier};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -16,7 +17,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -61,34 +62,52 @@ impl LintRule for DotNotation {
                 if !severity.is_enabled() {
                     continue;
                 }
-                // make fix: convert `obj["property"]` to `obj.property`
                 let expression_span = ctx.tree.get_span(node_id);
                 let left_span = ctx.tree.get_span(*left);
                 let bracket_span =
                     Span::new(expression_span.file, left_span.end, expression_span.end);
-                let replacement = format!(".{name_str}");
-                let edits = ctx
-                    .edit_builder()
-                    .replace(bracket_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Convert to dot notation").with_edits(edits);
+                let mut diagnostic = LintDiagnostic::new(
+                    DOT_NOTATION.id,
+                    DOT_NOTATION.code,
+                    DOT_NOTATION.category,
+                    severity,
+                    format!("use `.{name_str}` instead of `[\"{name_str}\"]`"),
+                    ctx.module.file_id,
+                    expression_span,
+                )
+                .with_label("prefer dot notation");
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        DOT_NOTATION.id,
-                        DOT_NOTATION.code,
-                        DOT_NOTATION.category,
-                        severity,
-                        format!("use `.{name_str}` instead of `[\"{name_str}\"]`"),
-                        ctx.module.file_id,
-                        expression_span,
-                    )
-                    .with_label("prefer dot notation")
-                    .with_fix(fix),
-                );
+                // skip fixes with trivia in brackets
+                if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, bracket_span) {
+                    let left_expression = ctx.tree.get(*left);
+                    let dot_prefix = if is_numeric_literal_expression(left_expression) {
+                        " ."
+                    } else {
+                        "."
+                    };
+                    let replacement = format!("{dot_prefix}{name_str}");
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(bracket_span, replacement)
+                        .into_edits();
+                    let fix = LintFix::safe("Convert to dot notation").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// Return true when the expression is one numeric literal.
+fn is_numeric_literal_expression(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::ScalarLiteral(
+            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
+        )
+    )
 }
 
 #[cfg(test)]
@@ -201,6 +220,24 @@ const x = obj["foo"]["bar"]
             .assert_safe_fixed(
                 r#"
 const x = obj.foo.bar;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_numeric_literal_receiver() {
+        let test = TestProgram::for_rule_without_prelude(DotNotation);
+        let result = test.lint_ast(
+            "dot_notation/test_fix_numeric_literal_receiver.ds",
+            r#"
+const x = 1["toString"]
+"#,
+        );
+        test.result(result)
+            .assert_lint("dot-notation")
+            .assert_safe_fixed(
+                r#"
+const x = 1 .toString;
 "#,
             );
     }

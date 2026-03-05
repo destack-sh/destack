@@ -1,4 +1,4 @@
-use destack_ast::{self as ast, LetKind};
+use destack_ast::{self as ast, ForEachBinding, ForEachDeclarationKind, LetKind};
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
@@ -15,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -31,6 +31,7 @@ impl LintRule for NoVar {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // direct `var` declarations
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             if let ast::Expression::Let {
@@ -42,35 +43,87 @@ impl LintRule for NoVar {
                     continue;
                 }
 
-                // make fix: replace var with let
                 let expression_span = ctx.tree.get_span(node_id);
-                let expr_text = ctx.get_span_text(expression_span);
-                let replacement = expr_text
-                    .strip_prefix("var")
-                    .map(|rest| format!("let{rest}"))
-                    .unwrap_or_else(|| expr_text.to_string());
-                let edits = ctx
-                    .edit_builder()
-                    .replace(expression_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Replace `var` with `let`").with_edits(edits);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_VAR.id,
+                    NO_VAR.code,
+                    NO_VAR.category,
+                    severity,
+                    "unexpected `var` declaration",
+                    ctx.module.file_id,
+                    expression_span,
+                )
+                .with_label("use `let` or `const` instead");
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_VAR.id,
-                        NO_VAR.code,
-                        NO_VAR.category,
-                        severity,
-                        "unexpected `var` declaration",
-                        ctx.module.file_id,
-                        expression_span,
-                    )
-                    .with_label("use `let` or `const` instead")
-                    .with_fix(fix),
-                );
+                if ctx.compute_fixes
+                    && let Some(fix) = no_var_fix(ctx, expression_span)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
+
+        // `for (var x of y)` and `for (var x in y)` bindings
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let expression = ctx.tree.get(node_id);
+            let ast::Expression::ForEach { binding, .. } = expression else {
+                continue;
+            };
+
+            let ForEachBinding::Pattern {
+                declaration_kind: Some(ForEachDeclarationKind::Var),
+                ..
+            } = binding
+            else {
+                continue;
+            };
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_VAR.id,
+                    NO_VAR.code,
+                    NO_VAR.category,
+                    severity,
+                    "unexpected `var` declaration",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("use `let` or `const` instead"),
+            );
+        }
     }
+}
+
+/// Build a safe fix that rewrites one `var` keyword to `let`.
+fn no_var_fix(ctx: &LintModuleAstContext<'_>, span: destack_source::Span) -> Option<LintFix> {
+    let text = ctx.get_span_text(span);
+    let trimmed_text = text.trim_start();
+    let leading_whitespace_len = text.len().checked_sub(trimmed_text.len())?;
+
+    if !trimmed_text.starts_with("var") {
+        return None;
+    }
+
+    let suffix = &trimmed_text["var".len()..];
+    if suffix
+        .chars()
+        .next()
+        .is_some_and(|character| character.is_ascii_alphanumeric() || character == '_')
+    {
+        return None;
+    }
+
+    let prefix = &text[..leading_whitespace_len];
+    let replacement = format!("{prefix}let{suffix}");
+    let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+    Some(LintFix::safe("Replace `var` with `let`").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -172,5 +225,19 @@ for (var i = 0; i < 10; i++) { x() }
 for (let i = 0; i < 10; i++) { x() }
 "#,
         );
+    }
+
+    #[test]
+    fn test_detects_var_for_each_binding() {
+        let test = TestProgram::for_rule_without_prelude(NoVar);
+        let result = test.lint_ast(
+            "no_var/test_detects_var_for_each_binding.ds",
+            r#"
+for (var item of items) {
+    sink(item)
+}
+"#,
+        );
+        test.result(result).assert_lint("no-var");
     }
 }

@@ -7,11 +7,13 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_target_symbol;
+use crate::rules::common::{
+    collect_pattern_value_binding_symbols, expression_assignment_target, expression_target_symbol,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Require `const` declarations for never-reassigned variables.
+    /// Require `const` declarations for never reassigned variables.
     ///
     /// Using `const` for variables that are never reassigned helps clarify
     /// intent and can catch accidental reassignments.
@@ -38,7 +40,7 @@ impl LintRule for PreferConst {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        // Phase 1: Collect all mutable (let) declarations
+        // collect mutable declaration symbols by declaration site
         let mut collector = LetDeclarationCollector::new(ctx);
         collector.run();
         let let_declarations = collector.let_declarations;
@@ -47,24 +49,28 @@ impl LintRule for PreferConst {
             return;
         }
 
-        // scan for reassignments to those symbols
+        // collect reassignments for the declared symbols
         let mut scanner = ReassignmentScanner::new(ctx, &let_declarations);
         scanner.run();
         let assigned_symbols = scanner.assigned_symbols;
 
-        // report let declarations that were never assigned
-        for (expression_id, symbol_id) in let_declarations {
-            if assigned_symbols.contains(&symbol_id) {
+        // report declarations when all bound symbols stay immutable
+        for declaration in let_declarations {
+            if declaration
+                .symbols
+                .iter()
+                .any(|symbol_id| assigned_symbols.contains(symbol_id))
+            {
                 continue;
             }
 
             // honor per node severity
-            let severity = ctx.get_effective_severity(meta, expression_id);
+            let severity = ctx.get_effective_severity(meta, declaration.expression_id);
             if !severity.is_enabled() {
                 continue;
             }
 
-            let span = ctx.get_span(expression_id);
+            let span = ctx.get_span(declaration.expression_id);
             let mut diagnostic = LintDiagnostic::new(
                 PREFER_CONST.id,
                 PREFER_CONST.code,
@@ -78,7 +84,7 @@ impl LintRule for PreferConst {
 
             // rewrite mutable declarations to const when possible
             if ctx.include_fixes
-                && let Some(fix) = build_prefer_const_fix(ctx, expression_id)
+                && let Some(fix) = build_prefer_const_fix(ctx, declaration.expression_id)
             {
                 diagnostic = diagnostic.with_fix(fix);
             }
@@ -86,6 +92,14 @@ impl LintRule for PreferConst {
             ctx.report(diagnostic);
         }
     }
+}
+
+/// One mutable declaration and its bound symbols.
+struct LetDeclaration {
+    /// The declaration expression id.
+    expression_id: LocalNodeId<dir::Expression>,
+    /// All value symbols declared in the expression.
+    symbols: Vec<GlobalSymbolId>,
 }
 
 /// Build a safe rewrite from `let` or `var` to `const`.
@@ -119,8 +133,8 @@ struct LetDeclarationCollector<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The module ID for creating GlobalSymbolIds.
     module_id: ModuleId,
-    /// Collected let declarations: (expression_id, symbol_id).
-    let_declarations: Vec<(LocalNodeId<dir::Expression>, GlobalSymbolId)>,
+    /// Collected let declarations with all bound symbols.
+    let_declarations: Vec<LetDeclaration>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -173,14 +187,27 @@ impl NodeVisitor for LetDeclarationCollector<'_, '_> {
             ..
         } = expression
         {
-            // collect symbol IDs from declarators
+            // collect value symbols from all declarator patterns
+            let mut declaration_symbols = HashSet::new();
             for declarator_id in declarators {
                 let declarator = tree.get(*declarator_id);
-                let pattern = tree.get(declarator.pattern);
-                if let Some(local_symbol) = pattern.symbol() {
-                    let global_symbol = self.to_global(local_symbol);
-                    self.let_declarations.push((id, global_symbol));
-                }
+                collect_pattern_value_binding_symbols(
+                    tree,
+                    self.ctx.symbols,
+                    declarator.pattern,
+                    &mut declaration_symbols,
+                );
+            }
+
+            if !declaration_symbols.is_empty() {
+                let symbols = declaration_symbols
+                    .into_iter()
+                    .map(|local_symbol| self.to_global(local_symbol))
+                    .collect();
+                self.let_declarations.push(LetDeclaration {
+                    expression_id: id,
+                    symbols,
+                });
             }
         }
 
@@ -203,11 +230,11 @@ struct ReassignmentScanner<'a, 'b> {
 
 impl<'a, 'b> ReassignmentScanner<'a, 'b> {
     /// Build a scanner for reassignments to specific symbols.
-    fn new(
-        ctx: &'a mut LintModuleDirContext<'b>,
-        let_declarations: &[(LocalNodeId<dir::Expression>, GlobalSymbolId)],
-    ) -> Self {
-        let target_symbols: HashSet<_> = let_declarations.iter().map(|(_, s)| *s).collect();
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, let_declarations: &[LetDeclaration]) -> Self {
+        let target_symbols = let_declarations
+            .iter()
+            .flat_map(|declaration| declaration.symbols.iter().copied())
+            .collect();
 
         Self {
             ctx,
@@ -249,19 +276,9 @@ impl NodeVisitor for ReassignmentScanner<'_, '_> {
         id: LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // check for assignment expressions
-        match expression {
-            dir::Expression::Assign { left, .. } => self.check_assignment_target(*left),
-            dir::Expression::AssignBinary { left, .. } => self.check_assignment_target(*left),
-            dir::Expression::Unary {
-                operator:
-                    dir::UnaryOperator::PreIncrement
-                    | dir::UnaryOperator::PostIncrement
-                    | dir::UnaryOperator::PreDecrement
-                    | dir::UnaryOperator::PostDecrement,
-                right,
-            } => self.check_assignment_target(*right),
-            _ => {}
+        // record assignment targets for tracked symbols
+        if let Some(target_id) = expression_assignment_target(expression) {
+            self.check_assignment_target(target_id);
         }
 
         // walk expression children
@@ -370,7 +387,7 @@ x++;
         test.result(result).assert_no_lint("prefer-const");
     }
 
-    /// Allow let with pre-increment.
+    /// Allow let with pre increment.
     #[test]
     fn test_allows_pre_increment() {
         let test = TestProgram::for_rule_with_prelude(PreferConst);
@@ -477,5 +494,39 @@ c /= 1;
 "#,
         );
         test.result(result).assert_no_lint("prefer-const");
+    }
+
+    /// Avoid mixed declaration fixes when one declarator is reassigned.
+    #[test]
+    fn test_allows_mixed_mutability_in_one_declaration() {
+        let test = TestProgram::for_rule_with_prelude(PreferConst);
+        let result = test.lint_dir(
+            "prefer_const/test_allows_mixed_mutability_in_one_declaration.ds",
+            r#"
+let a = 1, b = 2;
+b = 3;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-const");
+    }
+
+    /// Flag destructured let declarations that are never reassigned.
+    #[test]
+    fn test_flags_destructured_let() {
+        let test = TestProgram::for_rule_with_prelude(PreferConst);
+        let result = test.lint_dir(
+            "prefer_const/test_flags_destructured_let.ds",
+            r#"
+let { a, b } = value;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-const")
+            .assert_has_fix("prefer-const")
+            .assert_safe_fixed(
+                r#"
+const { a, b } = value;
+"#,
+            );
     }
 }

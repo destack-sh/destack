@@ -4,7 +4,9 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{const_i64, flip_binary_operator, is_array_type};
+use crate::rules::common::{
+    const_i64, flip_binary_operator, is_array_type, strip_dot_member_suffix,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -82,6 +84,8 @@ struct PreferArraySomeVisitor<'a, 'b> {
     filter_name: StringId,
     /// The string id for the findIndex method name.
     find_index_name: StringId,
+    /// The string id for the findLastIndex method name.
+    find_last_index_name: StringId,
     /// The string id for the some method name.
     some_name: StringId,
     /// The string id for the length property name.
@@ -96,6 +100,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let filter_name = ctx.program.strings.intern("filter");
         let find_index_name = ctx.program.strings.intern("findIndex");
+        let find_last_index_name = ctx.program.strings.intern("findLastIndex");
         let some_name = ctx.program.strings.intern("some");
         let length_name = ctx.program.strings.intern("length");
 
@@ -105,6 +110,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             array_symbol,
             filter_name,
             find_index_name,
+            find_last_index_name,
             some_name,
             length_name,
             options: NodeVisitorOptions::default(),
@@ -171,8 +177,8 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             });
         }
 
-        // check for findIndex comparisons
-        if self.is_find_index_call(candidate_id) {
+        // check for findIndex and findLastIndex comparisons
+        if self.is_find_index_like_call(candidate_id) {
             let check = check_find_index_comparison(operator, constant)?;
             return Some(ArraySomeMatch {
                 kind: ArraySomeKind::FindIndex,
@@ -270,9 +276,13 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         else {
             return None;
         };
-        if *name != self.find_index_name {
+        let method_name = if *name == self.find_index_name {
+            "findIndex"
+        } else if *name == self.find_last_index_name {
+            "findLastIndex"
+        } else {
             return None;
-        }
+        };
         if static_arguments
             .as_ref()
             .is_some_and(|arguments| !arguments.is_empty())
@@ -284,7 +294,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let member_span = self.ctx.get_span(*left);
         let member_text = self.ctx.get_span_text(member_span);
         let member_text = member_text.as_ref();
-        let receiver_text = strip_dot_member_suffix(member_text, "findIndex")?;
+        let receiver_text = strip_dot_member_suffix(member_text, method_name)?;
 
         // preserve callback and optional this-arg source range
         let first_argument_id = *dynamic_arguments.first()?;
@@ -351,8 +361,11 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         self.is_array_receiver(*left)
     }
 
-    /// Return true when the expression is an array findIndex() call.
-    fn is_find_index_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+    /// Return true when the expression is an array findIndex or findLastIndex call.
+    fn is_find_index_like_call(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
         let expression = self.ctx.tree.get(expression_id);
 
         // match call expression
@@ -373,7 +386,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };
-        if *name != self.find_index_name {
+        if *name != self.find_index_name && *name != self.find_last_index_name {
             return false;
         }
 
@@ -389,12 +402,6 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         is_array_type(self.ctx.types, type_id, Some(self.array_symbol))
     }
-}
-
-/// Strip one `.member` suffix from a member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for PreferArraySomeVisitor<'_, '_> {
@@ -541,6 +548,50 @@ let has = items.some((item) => item > 1);
             r#"
 let items = [1, 2, 3];
 let missing = items.findIndex(item => item > 5) === -1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-some")
+            .assert_has_fix("prefer-array-some")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let missing = !items.some((item) => item > 5);
+"#,
+            );
+    }
+
+    /// Safely rewrite findLastIndex any-match checks.
+    #[test]
+    fn test_fix_find_last_index_any_match() {
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
+            "prefer_array_some/test_fix_find_last_index_any_match.ds",
+            r#"
+let items = [1, 2, 3];
+let has = items.findLastIndex(item => item > 1) !== -1;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-some")
+            .assert_has_fix("prefer-array-some")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let has = items.some((item) => item > 1);
+"#,
+            );
+    }
+
+    /// Safely rewrite findLastIndex no-match checks.
+    #[test]
+    fn test_fix_find_last_index_no_match() {
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
+            "prefer_array_some/test_fix_find_last_index_no_match.ds",
+            r#"
+let items = [1, 2, 3];
+let missing = items.findLastIndex(item => item > 5) == -1;
 "#,
         );
         test.result(result)

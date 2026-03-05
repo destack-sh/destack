@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_negated_source_text;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -93,7 +94,7 @@ impl LintRule for NoBooleanLiteralCompare {
                     )
             );
             let replacement = if need_negate {
-                format!("!{other_text}")
+                expression_negated_source_text(ctx, other_id)
             } else {
                 other_text.to_string()
             };
@@ -393,6 +394,24 @@ const result = x !== false
             .assert_safe_fixed(
                 r#"
 const result = x;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_preserves_precedence_for_compound_expression() {
+        let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
+        let result = test.lint_ast(
+            "no_boolean_literal_compare/test_fix_preserves_precedence_for_compound_expression.ds",
+            r#"
+const x = (a && b) == false
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-boolean-literal-compare")
+            .assert_safe_fixed(
+                r#"
+const x = !((a && b));
 "#,
             );
     }

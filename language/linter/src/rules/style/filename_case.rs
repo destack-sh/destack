@@ -31,26 +31,37 @@ impl LintRule for FilenameCaseRule {
         let meta = self.meta();
         let expected_case = ctx.options.filename_case;
 
-        // get the filename without extension
+        // keep filesystem paths only
         let Some(path) = &ctx.module.path else {
             return;
         };
 
+        // keep one report anchor
+        let root_expression_id = match ctx.roots.first() {
+            Some(root_expression_id) => *root_expression_id,
+            None => return,
+        };
+        let severity = ctx.get_effective_severity(meta, root_expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
         let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) else {
             return;
         };
+        let base_name = file_stem.split('.').next().unwrap_or(file_stem);
+        let normalized_name = base_name.trim_start_matches('_');
+        if normalized_name.is_empty() {
+            return;
+        }
 
         // skip index files
-        if file_stem == "index" || file_stem == "mod" {
+        if normalized_name == "index" || normalized_name == "mod" {
             return;
         }
 
         // check if filename matches expected case
-        if !matches_case(file_stem, expected_case) {
-            let severity = ctx.get_effective_severity(meta, ctx.roots[0]);
-            if !severity.is_enabled() {
-                return;
-            }
+        if !matches_case(normalized_name, expected_case) {
             let expected = case_name(expected_case);
             ctx.report(
                 LintDiagnostic::new(
@@ -58,9 +69,9 @@ impl LintRule for FilenameCaseRule {
                     FILENAME_CASE_RULE.code,
                     FILENAME_CASE_RULE.category,
                     severity,
-                    format!("filename `{file_stem}` should be {expected}"),
+                    format!("filename `{base_name}` should be {expected}"),
                     ctx.module.file_id,
-                    ctx.tree.get_span(ctx.roots[0]),
+                    ctx.tree.get_span(root_expression_id),
                 )
                 .with_label(format!("rename to {expected}")),
             );
@@ -171,6 +182,20 @@ mod tests {
     fn test_allows_mod_file() {
         let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
         let result = test.lint_ast("mod.ds", "const x = 1");
+        test.result(result).assert_no_lint("filename-case");
+    }
+
+    #[test]
+    fn test_allows_leading_underscore() {
+        let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
+        let result = test.lint_ast("_my-component.ds", "const x = 1");
+        test.result(result).assert_no_lint("filename-case");
+    }
+
+    #[test]
+    fn test_allows_multiple_extensions_when_basename_matches() {
+        let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
+        let result = test.lint_ast("my-component.test.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }
 

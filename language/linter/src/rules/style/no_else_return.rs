@@ -2,6 +2,7 @@ use destack_ast::{self as ast, Block};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_else_if_branch;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -44,66 +45,143 @@ impl LintRule for NoElseReturn {
                 continue;
             };
 
-            // check if the then block ends with a return
+            // skip else if chain members for default eslint parity
+            if expression_is_else_if_branch(ctx.tree, &ctx.parents, node_id) {
+                continue;
+            }
+
+            // align with eslint: skip else if chains by default
+            if expression_is_else_if(ctx, *else_id) {
+                continue;
+            }
+
+            // report when the then branch is terminal return
             if ends_with_return(ctx, *then_expression) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
                 }
 
-                let if_span = ctx.tree.get_span(node_id);
-                let then_span = ctx.tree.get_span(*then_expression);
                 let else_span = ctx.tree.get_span(*else_id);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_ELSE_RETURN.id,
+                    NO_ELSE_RETURN.code,
+                    NO_ELSE_RETURN.category,
+                    severity,
+                    "unnecessary `else` after `return`",
+                    ctx.module.file_id,
+                    else_span,
+                )
+                .with_label("remove the `else` and un-indent this code");
 
-                // make fix: if-then on one line, else content on next
-                let if_then_span = Span::new(if_span.file, if_span.start, then_span.end);
-                let if_then_text = ctx.get_span_text(if_then_span);
-                let else_text = get_block_span_str(ctx, *else_id);
-                let replacement = format!("{if_then_text}\n{else_text}");
-                let edits = ctx
-                    .edit_builder()
-                    .replace(if_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Remove unnecessary else").with_edits(edits);
+                // only apply safe fixes for block else branches without binding declarations
+                if ctx.compute_fixes
+                    && let Some(fix) = no_else_return_fix(ctx, node_id, *then_expression, *else_id)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_ELSE_RETURN.id,
-                        NO_ELSE_RETURN.code,
-                        NO_ELSE_RETURN.category,
-                        severity,
-                        "unnecessary `else` after `return`",
-                        ctx.module.file_id,
-                        else_span,
-                    )
-                    .with_label("remove the `else` and un-indent this code")
-                    .with_fix(fix),
-                );
+                ctx.report(diagnostic);
             }
         }
     }
 }
 
-/// Get the content of a block expression, stripping outer braces if present.
-fn get_block_span_str(
+/// Return true when one expression is an else if branch.
+fn expression_is_else_if(
     ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> String {
-    let expr = ctx.tree.get(expr_id);
-
-    // if it's a block, get the content inside the braces
-    if let ast::Expression::Block(block_id) = expr {
-        let block: &ast::Block = ctx.tree.get(*block_id);
-        if let (Some(&first), Some(&last)) = (block.expressions.first(), block.expressions.last()) {
-            let first_span = ctx.tree.get_span(first);
-            let last_span = ctx.tree.get_span(last);
-            let content_span = Span::new(first_span.file, first_span.start, last_span.end);
-            return ctx.get_span_text(content_span).to_string();
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    matches!(
+        ctx.tree.get(expression_id),
+        ast::Expression::If {
+            kind: ast::IfKind::If,
+            ..
         }
+    )
+}
+
+/// Build a conservative no else return fix.
+fn no_else_return_fix(
+    ctx: &LintModuleAstContext<'_>,
+    if_expression_id: ast::LocalNodeId<ast::Expression>,
+    then_expression_id: ast::LocalNodeId<ast::Expression>,
+    else_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    // only rewrite else blocks
+    let ast::Expression::Block(else_block_id) = ctx.tree.get(else_expression_id) else {
+        return None;
+    };
+
+    // avoid lexical binding collisions from lifted else block bindings
+    if block_contains_binding_declaration(ctx, *else_block_id) {
+        return None;
     }
 
-    // otherwise just return the whole expression text
-    ctx.get_span_text(ctx.tree.get_span(expr_id)).to_string()
+    // rewrite if then section followed by else block contents
+    let if_span = ctx.tree.get_span(if_expression_id);
+    let then_span = ctx.tree.get_span(then_expression_id);
+    let if_then_span = Span::new(if_span.file, if_span.start, then_span.end);
+    let if_then_text = ctx.get_span_text(if_then_span);
+    let else_text = block_inner_text(ctx, *else_block_id)?;
+    let replacement = format!("{if_then_text}\n{else_text}");
+    let edits = ctx
+        .edit_builder()
+        .replace(if_span, replacement)
+        .into_edits();
+
+    Some(LintFix::safe("Remove unnecessary else").with_edits(edits))
+}
+
+/// Return true when one block contains binding declarations at top level.
+fn block_contains_binding_declaration(
+    ctx: &LintModuleAstContext<'_>,
+    block_id: ast::LocalNodeId<ast::Block>,
+) -> bool {
+    let block = ctx.tree.get(block_id);
+    block
+        .expressions
+        .iter()
+        .any(|expression_id| expression_contains_binding_declaration(ctx, *expression_id))
+}
+
+/// Return true when one expression declares bindings in local scope.
+fn expression_contains_binding_declaration(
+    ctx: &LintModuleAstContext<'_>,
+    expr_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let expr = ctx.tree.get(expr_id);
+    match expr {
+        ast::Expression::Let { .. }
+        | ast::Expression::Using { .. }
+        | ast::Expression::Declaration(_) => true,
+        ast::Expression::Statement(inner_id) => {
+            expression_contains_binding_declaration(ctx, *inner_id)
+        }
+        ast::Expression::Parenthesized { expression } => {
+            expression_contains_binding_declaration(ctx, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Return the source text inside one block expression.
+fn block_inner_text(
+    ctx: &LintModuleAstContext<'_>,
+    block_id: ast::LocalNodeId<ast::Block>,
+) -> Option<String> {
+    let block = ctx.tree.get(block_id);
+    let (&first_expression_id, &last_expression_id) =
+        (block.expressions.first()?, block.expressions.last()?);
+
+    let first_span = ctx.tree.get_span(first_expression_id);
+    let last_span = ctx.tree.get_span(last_expression_id);
+    if first_span.file != last_span.file {
+        return None;
+    }
+
+    let block_content_span = Span::new(first_span.file, first_span.start, last_span.end);
+    Some(ctx.get_span_text(block_content_span).to_string())
 }
 
 fn ends_with_return(
@@ -211,5 +289,46 @@ function foo(x: bool): int32 {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_allows_else_if_chain_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
+        let result = test.lint_ast(
+            "no_else_return/test_allows_else_if_chain_by_default.ds",
+            r#"
+function foo(x: int32): int32 {
+    if (x > 0) {
+        return 1
+    } else if (x == 0) {
+        return 0
+    } else {
+        return -1
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-else-return");
+    }
+
+    #[test]
+    fn test_no_fix_when_else_declares_bindings() {
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
+        let result = test.lint_ast(
+            "no_else_return/test_no_fix_when_else_declares_bindings.ds",
+            r#"
+function foo(flag: bool): int32 {
+    if (flag) {
+        return 1
+    } else {
+        let value = 2
+        return value
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-else-return")
+            .assert_has_no_fix("no-else-return");
     }
 }

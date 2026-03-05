@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{expression_unwrap_parenthesized_syntax, span_has_comment_trivia};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -29,7 +30,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -94,38 +95,109 @@ impl LintRule for NoCollapsibleIf {
                 continue;
             }
 
-            // build the fix: if (a) { if (b) { body } } -> if (a && b) { body }
             let outer_span = ctx.tree.get_span(node_id);
-            let outer_cond_span = ctx.tree.get_span(outer_condition_id);
-            let outer_cond_text = ctx.get_span_text(outer_cond_span);
-            let inner_cond_span = ctx.tree.get_span(inner_condition_id);
-            let inner_cond_text = ctx.get_span_text(inner_cond_span);
-            let inner_then_span = ctx.tree.get_span(*inner_then_id);
-            let inner_then_text = ctx.get_span_text(inner_then_span);
+            let mut diagnostic = LintDiagnostic::new(
+                NO_COLLAPSIBLE_IF.id,
+                NO_COLLAPSIBLE_IF.code,
+                NO_COLLAPSIBLE_IF.category,
+                severity,
+                "nested `if` statements can be merged",
+                ctx.module.file_id,
+                outer_span,
+            )
+            .with_label("combine conditions using `&&`");
 
-            let replacement =
-                format!("if ({outer_cond_text} && {inner_cond_text}) {inner_then_text}");
-            let edits = ctx
-                .edit_builder()
-                .replace(outer_span, replacement)
-                .into_edits();
-            let fix = LintFix::safe("Merge nested if statements").with_edits(edits);
+            // skip fixes when nested if range includes comment trivia
+            if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, outer_span) {
+                let outer_cond_text = and_condition_operand_text(ctx, outer_condition_id);
+                let inner_cond_text = and_condition_operand_text(ctx, inner_condition_id);
+                let inner_then_span = ctx.tree.get_span(*inner_then_id);
+                let inner_then_text = ctx.get_span_text(inner_then_span);
 
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_COLLAPSIBLE_IF.id,
-                    NO_COLLAPSIBLE_IF.code,
-                    NO_COLLAPSIBLE_IF.category,
-                    severity,
-                    "nested `if` statements can be merged",
-                    ctx.module.file_id,
-                    outer_span,
-                )
-                .with_label("combine conditions using `&&`")
-                .with_fix(fix),
-            );
+                // preserve precedence for both condition sub-expressions
+                let replacement =
+                    format!("if ({outer_cond_text} && {inner_cond_text}) {inner_then_text}");
+                let edits = ctx
+                    .edit_builder()
+                    .replace(outer_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Merge nested if statements").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
+}
+
+/// Return one `&&` operand text with minimal precedence-preserving wrapping.
+fn and_condition_operand_text(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> String {
+    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_text = ctx.get_span_text(expression_span);
+    let expression_text = strip_one_outer_parentheses(expression_text);
+    let normalized_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
+    let normalized_expression = ctx.tree.get(normalized_expression_id);
+    if expression_needs_parentheses_for_and_operand(normalized_expression) {
+        return format!("({expression_text})");
+    }
+
+    expression_text.to_string()
+}
+
+/// Strip one outer parenthesis pair when it wraps the full expression text.
+fn strip_one_outer_parentheses(text: &str) -> &str {
+    let trimmed = text.trim();
+    if !(trimmed.starts_with('(') && trimmed.ends_with(')')) {
+        return trimmed;
+    }
+
+    let mut depth: i32 = 0;
+    for (offset, character) in trimmed.char_indices() {
+        if character == '(' {
+            depth += 1;
+            continue;
+        }
+
+        if character == ')' {
+            depth -= 1;
+            if depth == 0 && offset + 1 != trimmed.len() {
+                return trimmed;
+            }
+        }
+    }
+
+    if depth != 0 || trimmed.len() < 2 {
+        return trimmed;
+    }
+
+    &trimmed[1..trimmed.len() - 1]
+}
+
+/// Return true when an expression needs wrapping as one `&&` operand.
+fn expression_needs_parentheses_for_and_operand(expression: &ast::Expression) -> bool {
+    matches!(
+        expression,
+        ast::Expression::If {
+            kind: ast::IfKind::Ternary,
+            ..
+        } | ast::Expression::Assign { .. }
+            | ast::Expression::Binary {
+                operator: ast::BinaryOperator::Equal
+                    | ast::BinaryOperator::NotEqual
+                    | ast::BinaryOperator::EqualStrict
+                    | ast::BinaryOperator::NotEqualStrict
+                    | ast::BinaryOperator::LessThan
+                    | ast::BinaryOperator::LessThanOrEqual
+                    | ast::BinaryOperator::GreaterThan
+                    | ast::BinaryOperator::GreaterThanOrEqual
+                    | ast::BinaryOperator::Or
+                    | ast::BinaryOperator::Coalesce,
+                ..
+            }
+    )
 }
 
 /// Check if a then expression contains only a single if statement without else.
@@ -349,11 +421,60 @@ function foo(a: bool, b: bool) {
             .assert_safe_fixed(
                 r#"
 function foo(a: bool, b: bool) {
-    if ((a) && (b)) {
+    if (a && b) {
         doSomething()
     }
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_fix_wraps_conditions_to_preserve_precedence() {
+        let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
+        let result = test.lint_ast(
+            "no_collapsible_if/test_fix_wraps_conditions_to_preserve_precedence.ds",
+            r#"
+function foo(a: bool, b: bool, c: bool) {
+    if (a || b) {
+        if (c) {
+            doSomething()
+        }
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-collapsible-if")
+            .assert_safe_fixed(
+                r#"
+function foo(a: bool, b: bool, c: bool) {
+    if ((a || b) && c) {
+        doSomething()
+    }
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_when_nested_if_has_comments() {
+        let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
+        let result = test.lint_ast(
+            "no_collapsible_if/test_no_fix_when_nested_if_has_comments.ds",
+            r#"
+function foo(a: bool, b: bool) {
+    if (a) {
+        // keep nested branch note
+        if (b) {
+            doSomething()
+        }
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-collapsible-if")
+            .assert_has_no_fix("no-collapsible-if");
     }
 }

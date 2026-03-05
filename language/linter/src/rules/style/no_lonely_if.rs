@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -15,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -96,26 +97,28 @@ impl LintRule for NoLonelyIf {
                 let else_span = ctx.tree.get_span(*else_id);
                 let lonely_span = ctx.tree.get_span(lonely_id);
                 let lonely_text = ctx.get_span_text(lonely_span);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_LONELY_IF.id,
+                    NO_LONELY_IF.code,
+                    NO_LONELY_IF.category,
+                    severity,
+                    "lonely `if` in `else` block",
+                    ctx.module.file_id,
+                    lonely_span,
+                )
+                .with_label("use `else if` instead");
 
-                let edits = ctx
-                    .edit_builder()
-                    .replace(else_span, lonely_text)
-                    .into_edits();
-                let fix = LintFix::safe("Convert to `else if`").with_edits(edits);
+                // avoid rewrites when else block contains trivia
+                if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, else_span) {
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(else_span, lonely_text)
+                        .into_edits();
+                    let fix = LintFix::safe("Convert to `else if`").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_LONELY_IF.id,
-                        NO_LONELY_IF.code,
-                        NO_LONELY_IF.category,
-                        severity,
-                        "lonely `if` in `else` block",
-                        ctx.module.file_id,
-                        lonely_span,
-                    )
-                    .with_label("use `else if` instead")
-                    .with_fix(fix),
-                );
+                ctx.report(diagnostic);
             }
         }
     }
@@ -205,5 +208,26 @@ if (a) {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_no_fix_when_else_contains_comment_trivia() {
+        let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
+        let result = test.lint_ast(
+            "no_lonely_if/test_no_fix_when_else_contains_comment_trivia.ds",
+            r#"
+if (a) {
+    foo()
+} else {
+    // keep branch note
+    if (b) {
+        bar()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-lonely-if")
+            .assert_has_no_fix("no-lonely-if");
     }
 }

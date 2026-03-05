@@ -5,7 +5,11 @@ use destack_base::StringId;
 use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_statement_ancestor;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+
+const MIN_DUPLICATE_STRING_LENGTH: usize = 10;
+const IGNORED_DUPLICATE_STRINGS: [&str; 1] = ["application/json"];
 
 declare_lint! {
     /// Disallow duplicate string literals.
@@ -45,14 +49,15 @@ impl LintRule for NoDuplicateString {
             if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) =
                 expression
             {
-                // skip very short strings (likely intentional repetition like "", " ", etc.)
                 let string_value = ctx.strings.get(*string_id);
-                if string_value.len() >= 3 {
-                    string_occurrences
-                        .entry(*string_id)
-                        .or_default()
-                        .push(node_id);
+                if !string_value_is_reportable(ctx, node_id, string_value.as_ref()) {
+                    continue;
                 }
+
+                string_occurrences
+                    .entry(*string_id)
+                    .or_default()
+                    .push(node_id);
             }
         }
 
@@ -97,6 +102,30 @@ impl LintRule for NoDuplicateString {
             }
         }
     }
+}
+
+/// Return true when one string literal should be considered for duplication checks.
+fn string_value_is_reportable(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    string_value: &str,
+) -> bool {
+    let trimmed_value = string_value.trim();
+    if trimmed_value.len() < MIN_DUPLICATE_STRING_LENGTH {
+        return false;
+    }
+
+    if IGNORED_DUPLICATE_STRINGS.contains(&trimmed_value) {
+        return false;
+    }
+
+    if expression_statement_ancestor(ctx.tree, ctx.parents, expression_id).is_some() {
+        return false;
+    }
+
+    trimmed_value
+        .chars()
+        .any(|character| !character.is_ascii_alphanumeric() && character != '_')
 }
 
 #[cfg(test)]
@@ -147,6 +176,48 @@ let c = "";
 let d = "a";
 let e = "a";
 let f = "a";
+"#,
+        );
+        test.result(result).assert_no_lint("no-duplicate-string");
+    }
+
+    #[test]
+    fn test_ignores_string_without_separators() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
+            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+        let result = test.lint_ast(
+            "no_duplicate_string/test_ignores_string_without_separators.ds",
+            r#"
+let a = "helloworld";
+let b = "helloworld";
+"#,
+        );
+        test.result(result).assert_no_lint("no-duplicate-string");
+    }
+
+    #[test]
+    fn test_ignores_application_json_literal() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
+            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+        let result = test.lint_ast(
+            "no_duplicate_string/test_ignores_application_json_literal.ds",
+            r#"
+let a = "application/json";
+let b = "application/json";
+"#,
+        );
+        test.result(result).assert_no_lint("no-duplicate-string");
+    }
+
+    #[test]
+    fn test_ignores_standalone_expression_statements() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
+            .with_options(|options| options.max_duplicate_string_occurrences = 1);
+        let result = test.lint_ast(
+            "no_duplicate_string/test_ignores_standalone_expression_statements.ds",
+            r#"
+"hello world";
+"hello world";
 "#,
         );
         test.result(result).assert_no_lint("no-duplicate-string");

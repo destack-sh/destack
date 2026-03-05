@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Key, Name};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -15,7 +16,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -66,27 +67,29 @@ impl LintRule for ObjectShorthand {
                 let key_str = ctx.strings.get(*key_name);
                 let property_span = ctx.tree.get_span(node_id);
 
-                // make fix: replace `x: x` with just `x`
-                let replacement = key_str.as_ref().to_string();
-                let edits = ctx
-                    .edit_builder()
-                    .replace(property_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Use shorthand syntax").with_edits(edits);
+                let mut diagnostic = LintDiagnostic::new(
+                    OBJECT_SHORTHAND.id,
+                    OBJECT_SHORTHAND.code,
+                    OBJECT_SHORTHAND.category,
+                    severity,
+                    format!("property `{}` can use shorthand syntax", key_str.as_ref()),
+                    ctx.module.file_id,
+                    property_span,
+                )
+                .with_label("use shorthand `{ x }` instead of `{ x: x }`");
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        OBJECT_SHORTHAND.id,
-                        OBJECT_SHORTHAND.code,
-                        OBJECT_SHORTHAND.category,
-                        severity,
-                        format!("property `{}` can use shorthand syntax", key_str.as_ref()),
-                        ctx.module.file_id,
-                        property_span,
-                    )
-                    .with_label("use shorthand `{ x }` instead of `{ x: x }`")
-                    .with_fix(fix),
-                );
+                // keep comment sensitive fields out of autofix paths
+                if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, property_span) {
+                    let replacement = key_str.as_ref().to_string();
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(property_span, replacement)
+                        .into_edits();
+                    let fix = LintFix::safe("Use shorthand syntax").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
@@ -167,5 +170,22 @@ const x = 1;
 const obj = { x };
 "#,
             );
+    }
+
+    #[test]
+    fn test_no_fix_when_property_contains_comment_trivia() {
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
+        let result = test.lint_ast(
+            "object_shorthand/test_no_fix_when_property_contains_comment_trivia.ds",
+            r#"
+const x = 1
+const obj = {
+    x /* keep */: x
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("object-shorthand")
+            .assert_has_no_fix("object-shorthand");
     }
 }

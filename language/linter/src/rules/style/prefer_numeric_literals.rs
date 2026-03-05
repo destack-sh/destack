@@ -3,7 +3,11 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{const_i64, expression_is_global_qualified_member};
+use crate::rules::common::{
+    const_i64, expression_is_global_qualified_member, expression_static_property_access,
+    expression_static_string_literal, expression_target_symbol, expression_unwrap_transparent,
+    span_has_comment_trivia,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -48,6 +52,10 @@ struct PreferNumericLiteralsVisitor<'a, 'b> {
     number_symbol: dir::GlobalSymbolId,
     /// The string id for the parseInt method name.
     parse_int_name: StringId,
+    /// The string id for the Number global name.
+    number_name: StringId,
+    /// The global qualifier symbols.
+    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -57,11 +65,15 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let number_symbol = ctx.well_known_symbol(WellKnownSymbol::Number);
         let parse_int_name = ctx.program.strings.intern("parseInt");
+        let number_name = ctx.program.strings.intern("Number");
+        let global_qualifiers = ctx.global_qualifier_symbols();
         Self {
             ctx,
             meta,
             number_symbol,
             parse_int_name,
+            number_name,
+            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -91,14 +103,8 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             return;
         };
 
-        // check if this is Number.parseInt
-        let is_number_parse_int = expression_is_global_qualified_member(
-            self.ctx.tree,
-            *left,
-            &[self.number_symbol],
-            self.parse_int_name,
-        );
-        if !is_number_parse_int {
+        // check if this is Number.parseInt or a global parseInt
+        if !self.is_parse_int_callee(*left) {
             return;
         }
 
@@ -107,13 +113,10 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             return;
         }
 
-        // check if first argument is a string literal
+        // check if first argument is a static string
         let string_arg = self.ctx.tree.get(dynamic_arguments[0]);
         let string_expr_id = string_arg.value();
-        let string_expr = self.ctx.tree.get(string_expr_id);
-        let dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::String(string_value),
-        } = string_expr
+        let Some(string_value) = expression_static_string_literal(self.ctx.tree, string_expr_id)
         else {
             return;
         };
@@ -158,7 +161,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             expression_id,
             static_arguments.as_deref(),
             dynamic_arguments.as_slice(),
-            *string_value,
+            string_value,
             radix,
             prefix,
         ) {
@@ -202,6 +205,10 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
 
         // replace the full parseInt expression
         let expression_span = self.ctx.get_span(expression_id);
+        if span_has_comment_trivia(self.ctx.ast, expression_span) {
+            return None;
+        }
+
         let edits = self
             .ctx
             .edit_builder()
@@ -209,6 +216,42 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             .into_edits();
 
         Some(LintFix::safe("Replace parseInt call with numeric literal").with_edits(edits))
+    }
+
+    /// Return true when a callee expression is parseInt or Number.parseInt.
+    fn is_parse_int_callee(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        // match Number.parseInt and globalThis.Number.parseInt
+        if let Some((base_id, property_name)) =
+            expression_static_property_access(self.ctx.tree, expression_id)
+            && property_name == self.parse_int_name
+        {
+            if expression_target_symbol(self.ctx.tree, base_id) == Some(self.number_symbol) {
+                return true;
+            }
+
+            if expression_is_global_qualified_member(
+                self.ctx.tree,
+                base_id,
+                &self.global_qualifiers,
+                self.number_name,
+            ) {
+                return true;
+            }
+        }
+
+        // match bare global parseInt but skip local shadowed symbols
+        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+        match expression {
+            dir::Expression::GlobalReference { path, .. }
+            | dir::Expression::UnresolvedPath { path, .. } => {
+                path.segments.len() == 1 && path.segments[0] == self.parse_int_name
+            }
+            dir::Expression::LocalReference { .. } | dir::Expression::ModuleReference { .. } => {
+                false
+            }
+            _ => false,
+        }
     }
 }
 
@@ -317,6 +360,46 @@ let hex = 0xFF;
             );
     }
 
+    /// Flag global parseInt with hex radix.
+    #[test]
+    fn test_flags_global_parseint_hex() {
+        let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
+        let result = test.lint_dir(
+            "prefer_numeric_literals/test_flags_global_parseint_hex.ds",
+            r#"
+let hex = parseInt("FF", 16);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_fix("prefer-numeric-literals")
+            .assert_safe_fixed(
+                r#"
+let hex = 0xFF;
+"#,
+            );
+    }
+
+    /// Flag globalThis.Number.parseInt with binary radix.
+    #[test]
+    fn test_flags_global_qualified_number_parseint_binary() {
+        let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
+        let result = test.lint_dir(
+            "prefer_numeric_literals/test_flags_global_qualified_number_parseint_binary.ds",
+            r#"
+let bin = globalThis.Number.parseInt("1010", 2);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_fix("prefer-numeric-literals")
+            .assert_safe_fixed(
+                r#"
+let bin = 0b1010;
+"#,
+            );
+    }
+
     /// Flag Number.parseInt with binary radix.
     #[test]
     fn test_flags_parseint_binary() {
@@ -407,6 +490,24 @@ let value = Number.parseInt("0xFF", 16);
             .assert_has_no_fix("prefer-numeric-literals");
     }
 
+    /// Keep lint without fix when call contains comments.
+    #[test]
+    fn test_no_fix_when_parseint_contains_comments() {
+        let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
+        let result = test.lint_dir(
+            "prefer_numeric_literals/test_no_fix_when_parseint_contains_comments.ds",
+            r#"
+let value = parseInt(
+  /* radix string */ "FF",
+  16,
+);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_no_fix("prefer-numeric-literals");
+    }
+
     /// Allow Number.parseInt with radix 10.
     #[test]
     fn test_allows_parseint_decimal() {
@@ -434,6 +535,41 @@ let value = Number.parseInt(hex, 16);
         );
         test.result(result)
             .assert_no_lint("prefer-numeric-literals");
+    }
+
+    /// Allow shadowed parseInt symbols.
+    #[test]
+    fn test_allows_shadowed_parseint() {
+        let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
+        let result = test.lint_dir(
+            "prefer_numeric_literals/test_allows_shadowed_parseint.ds",
+            r#"
+let parseInt = (value: string, radix: number): number => 0;
+let value = parseInt("FF", 16);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-numeric-literals");
+    }
+
+    /// Flag template string parseInt with static content.
+    #[test]
+    fn test_flags_template_parseint_hex() {
+        let test = TestProgram::for_rule_with_prelude(PreferNumericLiterals);
+        let result = test.lint_dir(
+            "prefer_numeric_literals/test_flags_template_parseint_hex.ds",
+            r#"
+let value = parseInt(`FF`, 16);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-numeric-literals")
+            .assert_has_fix("prefer-numeric-literals")
+            .assert_safe_fixed(
+                r#"
+let value = 0xFF;
+"#,
+            );
     }
 
     /// Allow Number.parseInt with variable radix.

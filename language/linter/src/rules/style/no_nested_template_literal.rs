@@ -34,72 +34,103 @@ impl LintRule for NoNestedTemplateLiteral {
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
-            let is_template = matches!(
-                expression,
-                ast::Expression::TemplateExpression { .. }
-                    | ast::Expression::TaggedTemplateExpression { .. }
-            );
-            if !is_template {
+            if !is_template_expression(expression) {
                 continue;
             }
 
-            // check if nested inside another template
-            if is_nested_in_template(ctx, node_id) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
+            let Some(parent_template_id) = template_parent_expression(ctx, node_id) else {
+                continue;
+            };
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_NESTED_TEMPLATE_LITERAL.id,
-                        NO_NESTED_TEMPLATE_LITERAL.code,
-                        NO_NESTED_TEMPLATE_LITERAL.category,
-                        severity,
-                        "nested template literal",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("consider extracting to a variable"),
-                );
+            if !is_same_line_nested_template(ctx, node_id, parent_template_id) {
+                continue;
             }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_NESTED_TEMPLATE_LITERAL.id,
+                    NO_NESTED_TEMPLATE_LITERAL.code,
+                    NO_NESTED_TEMPLATE_LITERAL.category,
+                    severity,
+                    "nested template literal",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("consider extracting to a variable"),
+            );
         }
     }
 }
 
-/// Check if a template expression is nested inside another template.
-fn is_nested_in_template(
+/// Return true when one expression is a template literal expression.
+fn is_template_expression(expression: &ast::Expression) -> bool {
+    matches!(
+        expression,
+        ast::Expression::TemplateExpression { .. }
+            | ast::Expression::TaggedTemplateExpression { .. }
+    )
+}
+
+/// Resolve the nearest parent template expression for one template node.
+fn template_parent_expression(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
+) -> Option<ast::LocalNodeId<ast::Expression>> {
     let mut current = expr_id.id;
     while let Some(parent_raw_id) = ctx.parents.get_by_id(current) {
-        let parent_type = ctx.tree.get_node_type(parent_raw_id);
+        if ctx.tree.get_node_type(parent_raw_id) != ast::NodeType::Expression {
+            current = parent_raw_id;
+            continue;
+        }
 
-        // check Expression nodes
-        if parent_type == ast::NodeType::Expression {
-            let parent_id = ast::LocalNodeId::<ast::Expression>::new(parent_raw_id);
-            let parent = ctx.tree.get(parent_id);
-
-            // check if parent is a template expression
-            if matches!(
-                parent,
-                ast::Expression::TemplateExpression { .. }
-                    | ast::Expression::TaggedTemplateExpression { .. }
-            ) {
-                return true;
-            }
-
-            // stop at function boundaries
-            if let ast::Expression::Declaration(decl_id) = parent {
-                let decl = ctx.tree.get(*decl_id);
-                if matches!(decl, ast::Declaration::Function { .. }) {
-                    return false;
-                }
-            }
+        let parent_id = ast::LocalNodeId::<ast::Expression>::new(parent_raw_id);
+        let parent = ctx.tree.get(parent_id);
+        if is_template_expression(parent) {
+            return Some(parent_id);
         }
 
         current = parent_raw_id;
+    }
+
+    None
+}
+
+/// Return true when nested and parent templates share one boundary line.
+fn is_same_line_nested_template(
+    ctx: &LintModuleAstContext<'_>,
+    nested_template_id: ast::LocalNodeId<ast::Expression>,
+    parent_template_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let nested_span = ctx.tree.get_span(nested_template_id);
+    let parent_span = ctx.tree.get_span(parent_template_id);
+
+    let nested_end = nested_span.end.saturating_sub(1);
+    let parent_end = parent_span.end.saturating_sub(1);
+
+    let Some((nested_start_line, _)) = ctx.file.get_position(nested_span.start) else {
+        return false;
+    };
+    let Some((nested_end_line, _)) = ctx.file.get_position(nested_end) else {
+        return false;
+    };
+    let Some((parent_start_line, _)) = ctx.file.get_position(parent_span.start) else {
+        return false;
+    };
+    let Some((parent_end_line, _)) = ctx.file.get_position(parent_end) else {
+        return false;
+    };
+
+    if nested_start_line == parent_start_line {
+        return true;
+    }
+
+    if nested_end_line == parent_end_line {
+        return true;
     }
 
     false
@@ -144,6 +175,21 @@ let greeting = `hello ${name}`;
             r#"
 let a = `hello ${name}`;
 let b = `goodbye ${name}`;
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-nested-template-literal");
+    }
+
+    #[test]
+    fn test_allows_multiline_nested_template() {
+        let test = TestProgram::for_rule_without_prelude(NoNestedTemplateLiteral);
+        let result = test.lint_ast(
+            "no_nested_template_literal/test_allows_multiline_nested_template.ds",
+            r#"
+let message = `I have
+${color ? `${count} ${color}` : count}
+apples`;
 "#,
         );
         test.result(result)

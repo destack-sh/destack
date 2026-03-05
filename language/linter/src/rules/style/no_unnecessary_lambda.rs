@@ -1,6 +1,10 @@
-use destack_ast::{self as ast, Argument, Declaration, Expression, FunctionKind, Parameter};
+use destack_ast::{
+    self as ast, Argument, Asynchrony, Declaration, Expression, FunctionCardinality, FunctionKind,
+    Parameter,
+};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{expression_path_segments, expression_unwrap_statement_syntax};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -28,7 +32,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Strict,
         stability = Stable
     )]
@@ -62,6 +66,13 @@ impl LintRule for NoUnnecessaryLambda {
                 continue;
             }
 
+            // skip async and generator lambdas: function reference changes behavior
+            if signature.asynchrony != Asynchrony::Sync
+                || signature.cardinality != FunctionCardinality::Scalar
+            {
+                continue;
+            }
+
             // must have a body
             let Some(body_id) = body else {
                 continue;
@@ -91,7 +102,7 @@ impl LintRule for NoUnnecessaryLambda {
             }
 
             // body must be a call expression (possibly wrapped in Statement)
-            let call_expression_id = unwrap_statement(ctx, *body_id);
+            let call_expression_id = expression_unwrap_statement_syntax(ctx.tree, *body_id);
             let body_expression = ctx.tree.get(call_expression_id);
             let Expression::Call {
                 left: callee_id,
@@ -110,6 +121,13 @@ impl LintRule for NoUnnecessaryLambda {
 
             // same number of arguments as parameters
             if dynamic_arguments.len() != parameter_names.len() {
+                continue;
+            }
+
+            // only rewrite direct function references, not member calls that rely on receiver binding
+            if expression_path_segments(ctx.tree, *callee_id)
+                .is_none_or(|segments| segments.len() != 1)
+            {
                 continue;
             }
 
@@ -178,19 +196,6 @@ impl LintRule for NoUnnecessaryLambda {
                 .with_fix(fix),
             );
         }
-    }
-}
-
-/// Unwrap Statement expressions to get the inner expression.
-fn unwrap_statement(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<Expression>,
-) -> ast::LocalNodeId<Expression> {
-    let expr = ctx.tree.get(expr_id);
-    if let Expression::Statement(inner_id) = expr {
-        unwrap_statement(ctx, *inner_id)
-    } else {
-        expr_id
     }
 }
 
@@ -311,5 +316,29 @@ items.map(x => foo(x));
 items.map(foo);
 "#,
             );
+    }
+
+    #[test]
+    fn test_allows_lambda_wrapping_member_call() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
+        let result = test.lint_ast(
+            "no_unnecessary_lambda/test_allows_lambda_wrapping_member_call.ds",
+            r#"
+items.map(x => formatter.format(x));
+"#,
+        );
+        test.result(result).assert_no_lint("no-unnecessary-lambda");
+    }
+
+    #[test]
+    fn test_allows_async_lambda_wrapping_call() {
+        let test = TestProgram::for_rule_without_prelude(NoUnnecessaryLambda);
+        let result = test.lint_ast(
+            "no_unnecessary_lambda/test_allows_async_lambda_wrapping_call.ds",
+            r#"
+items.map(async x => foo(x));
+"#,
+        );
+        test.result(result).assert_no_lint("no-unnecessary-lambda");
     }
 }

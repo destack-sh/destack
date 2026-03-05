@@ -3,7 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
+use crate::rules::common::{
+    expression_is_symbol_or_global_qualified_member, expression_static_property_access,
+    span_has_comment_trivia,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -154,15 +157,19 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
             return None;
         };
 
-        // preserve source text and add parentheses for precedence safety
+        // preserve source text and parenthesize the whole replacement for precedence safety
         let base_span = self.ctx.get_span(*base_id);
         let base_text = self.ctx.get_span_text(base_span);
         let exponent_span = self.ctx.get_span(*exponent_id);
         let exponent_text = self.ctx.get_span_text(exponent_span);
-        let replacement = format!("({base_text}) ** ({exponent_text})");
+        let replacement = format!("(({base_text}) ** ({exponent_text}))");
 
         // replace the full call expression
         let expression_span = self.ctx.get_span(expression_id);
+        if span_has_comment_trivia(self.ctx.ast, expression_span) {
+            return None;
+        }
+
         let edits = self
             .ctx
             .edit_builder()
@@ -174,30 +181,25 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
 
     /// Return true when the expression is Math.pow.
     fn is_math_pow(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match member expressions
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Member { left, name, .. } = expression else {
+        // match static property access with `pow`
+        let Some((receiver_id, property_name)) =
+            expression_static_property_access(self.ctx.tree, expression_id)
+        else {
             return false;
         };
-        if *name != self.pow_name {
+        if property_name != self.pow_name {
             return false;
         }
 
-        self.is_math_object(*left)
+        self.is_math_object(receiver_id)
     }
 
     /// Return true when the expression is a Math object reference.
     fn is_math_object(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match direct symbol references
-        let target_symbol = expression_target_symbol(self.ctx.tree, expression_id);
-        if target_symbol == Some(self.math_symbol) {
-            return true;
-        }
-
-        // match global qualified references
-        expression_is_global_qualified_member(
+        expression_is_symbol_or_global_qualified_member(
             self.ctx.tree,
             expression_id,
+            self.math_symbol,
             &self.global_qualifiers,
             self.math_name,
         )
@@ -262,6 +264,48 @@ let value = globalThis.Math.pow(2, 3);
     }
 
     #[test]
+    fn test_flags_computed_math_pow() {
+        let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
+        let result = test.lint_dir(
+            "prefer_exponentiation_operator/test_flags_computed_math_pow.ds",
+            r#"
+let value = Math["pow"](2, 3);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-exponentiation-operator")
+            .assert_has_fix("prefer-exponentiation-operator");
+    }
+
+    #[test]
+    fn test_flags_computed_global_math_pow() {
+        let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
+        let result = test.lint_dir(
+            "prefer_exponentiation_operator/test_flags_computed_global_math_pow.ds",
+            r#"
+let value = globalThis.Math[`pow`](2, 3);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-exponentiation-operator")
+            .assert_has_fix("prefer-exponentiation-operator");
+    }
+
+    #[test]
+    fn test_allows_shadowed_math_pow() {
+        let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
+        let result = test.lint_dir(
+            "prefer_exponentiation_operator/test_allows_shadowed_math_pow.ds",
+            r#"
+let Math = { pow: (x: number, y: number): number => x + y };
+let value = Math.pow(2, 3);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-exponentiation-operator");
+    }
+
+    #[test]
     fn test_allows_exponentiation_operator() {
         let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
         let result = test.lint_dir(
@@ -301,7 +345,7 @@ let value = Math.pow(2, 3);
             .assert_has_fix("prefer-exponentiation-operator")
             .assert_safe_fixed(
                 r#"
-let value = (2) ** (3);
+let value = ((2) ** (3));
 "#,
             );
     }
@@ -313,6 +357,57 @@ let value = (2) ** (3);
             "prefer_exponentiation_operator/test_no_fix_math_pow_single_argument.ds",
             r#"
 let value = Math.pow(2);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-exponentiation-operator")
+            .assert_has_no_fix("prefer-exponentiation-operator");
+    }
+
+    #[test]
+    fn test_no_fix_math_pow_spread_argument() {
+        let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
+        let result = test.lint_dir(
+            "prefer_exponentiation_operator/test_no_fix_math_pow_spread_argument.ds",
+            r#"
+let values = [2, 3];
+let value = Math.pow(...values);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-exponentiation-operator")
+            .assert_has_no_fix("prefer-exponentiation-operator");
+    }
+
+    #[test]
+    fn test_fix_wraps_unary_parent_context() {
+        let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
+        let result = test.lint_dir(
+            "prefer_exponentiation_operator/test_fix_wraps_unary_parent_context.ds",
+            r#"
+let value = +Math.pow(a, b);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-exponentiation-operator")
+            .assert_has_fix("prefer-exponentiation-operator")
+            .assert_safe_fixed(
+                r#"
+let value = +((a) ** (b));
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_math_pow_with_comments() {
+        let test = TestProgram::for_rule_with_prelude(PreferExponentiationOperator);
+        let result = test.lint_dir(
+            "prefer_exponentiation_operator/test_no_fix_math_pow_with_comments.ds",
+            r#"
+let value = Math.pow(
+  /* base */ a,
+  b,
+);
 "#,
         );
         test.result(result)
