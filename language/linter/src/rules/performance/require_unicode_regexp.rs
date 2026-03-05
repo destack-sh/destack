@@ -2,9 +2,9 @@ use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    ast_expression_unwrap_parenthesized, ast_regex_pattern_info, expression_path_segments,
+    expression_path_segments, expression_unwrap_parenthesized_syntax, regex_pattern_info,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `u` or `v` flag on regular expressions.
@@ -12,7 +12,7 @@ declare_lint! {
     /// The `u` (unicode) flag enables correct handling of Unicode characters
     /// in regular expressions. Without it, patterns may not match characters
     /// outside the Basic Multilingual Plane correctly, and character classes
-    /// like `\w` won't match non-ASCII letters.
+    /// like `\w` won't match non ASCII letters.
     ///
     /// The `v` flag (unicodeSets) is a more powerful alternative that also
     /// enables set notation and properties of strings.
@@ -35,7 +35,7 @@ declare_lint! {
 }
 
 impl LintRule for RequireUnicodeRegexp {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         RequireUnicodeRegexp::meta()
     }
 
@@ -43,9 +43,10 @@ impl LintRule for RequireUnicodeRegexp {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // resolve regex literals and static RegExp constructor patterns
-            let Some(regex_info) = ast_regex_pattern_info(ctx.tree, node_id, regexp_name) else {
+            let Some(regex_info) = regex_pattern_info(ctx.tree, node_id, regexp_name) else {
                 continue;
             };
 
@@ -97,7 +98,7 @@ fn has_unknown_constructor_flags_argument(
     expression_id: ast::LocalNodeId<Expression>,
     regexp_name: ast::StringId,
 ) -> bool {
-    let expression_id = ast_expression_unwrap_parenthesized(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
     let (callee_id, arguments) = match expression {
         Expression::Call {
@@ -113,6 +114,7 @@ fn has_unknown_constructor_flags_argument(
         _ => return false,
     };
 
+    // require optional structure
     let Some(path_segments) = expression_path_segments(ctx.tree, callee_id) else {
         return false;
     };
@@ -120,10 +122,12 @@ fn has_unknown_constructor_flags_argument(
         return false;
     }
 
+    // enforce this lint guard
     if arguments.len() < 2 {
         return false;
     }
 
+    // resolve second argument
     let second_argument = ctx.tree.get(arguments[1]);
     let ast::Argument::Positional { value, .. } = second_argument else {
         return true;
@@ -141,7 +145,7 @@ fn unicode_regex_fix(
     expression_id: ast::LocalNodeId<Expression>,
     regexp_name: ast::StringId,
 ) -> Option<LintFix> {
-    let expression_id = ast_expression_unwrap_parenthesized(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
     let expression = ctx.tree.get(expression_id);
 
     // fix regex literals by appending `u`
@@ -156,6 +160,7 @@ fn unicode_regex_fix(
             return None;
         }
 
+        // build replacement text
         let replacement = format!("{expression_text}u");
         let edits = ctx
             .edit_builder()
@@ -202,6 +207,7 @@ fn unicode_regex_fix(
             return None;
         }
 
+        // append the unicode flag to the existing flags literal
         let flags_span = ctx.tree.get_span(*flags_expression_id);
         let flags_text = ctx.get_span_text(flags_span);
         let replacement_flags = append_flag_to_string_literal(flags_text.as_ref(), 'u')?;
@@ -229,6 +235,7 @@ fn append_flag_to_string_literal(text: &str, flag: char) -> Option<String> {
         return None;
     }
 
+    // keep the original quote style when appending the new flag
     let inner = &text[1..text.len() - 1];
     Some(format!("{first}{inner}{flag}{last}"))
 }
