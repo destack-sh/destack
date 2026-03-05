@@ -2,7 +2,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::expression_target_symbol;
+use crate::rules::common::{
+    CallLikeExpressionInfo, expression_call_like, expression_target_symbol,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -83,14 +85,18 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
     fn check_array_constructor(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        constructor_call: ArrayConstructorCall<'_>,
+        call_like: CallLikeExpressionInfo<'_>,
     ) {
         // ignore non array references
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, constructor_call.left)
-        else {
+        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, call_like.left) else {
             return;
         };
         if target_symbol != self.array_symbol {
+            return;
+        }
+
+        // skip single non-spread arguments to match source semantics
+        if call_like_has_single_non_spread_argument(self.ctx.tree, call_like) {
             return;
         }
 
@@ -113,10 +119,14 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
         )
         .with_label(format!(
             "replace this {} with an array literal",
-            constructor_call.kind
+            if call_like.is_new {
+                "constructor"
+            } else {
+                "call"
+            }
         ));
         if self.ctx.include_fixes
-            && let Some(fix) = self.array_constructor_fix(expression_id, constructor_call)
+            && let Some(fix) = self.array_constructor_fix(expression_id, call_like)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -128,10 +138,10 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
     fn array_constructor_fix(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        constructor_call: ArrayConstructorCall<'_>,
+        call_like: CallLikeExpressionInfo<'_>,
     ) -> Option<LintFix> {
         // skip static arguments until we support rendering them
-        if constructor_call
+        if call_like
             .static_arguments
             .is_some_and(|arguments| !arguments.is_empty())
         {
@@ -139,8 +149,8 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
         }
 
         // skip single non spread constructors: `Array(3)` is not `[3]`
-        if constructor_call.dynamic_arguments.len() == 1 {
-            let argument = self.ctx.tree.get(constructor_call.dynamic_arguments[0]);
+        if call_like.dynamic_arguments.len() == 1 {
+            let argument = self.ctx.tree.get(call_like.dynamic_arguments[0]);
             if !matches!(argument, dir::Argument::Spread { .. }) {
                 return None;
             }
@@ -148,7 +158,7 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
 
         // collect positional and spread arguments in order
         let mut elements = Vec::new();
-        for argument_id in constructor_call.dynamic_arguments {
+        for argument_id in call_like.dynamic_arguments {
             let argument = self.ctx.tree.get(*argument_id);
             let element = match argument {
                 dir::Argument::Positional { value, .. } => {
@@ -185,6 +195,19 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
     }
 }
 
+/// Return true when one call-like expression has exactly one non-spread argument.
+fn call_like_has_single_non_spread_argument(
+    tree: &dir::NodeTree,
+    call_like: CallLikeExpressionInfo<'_>,
+) -> bool {
+    if call_like.dynamic_arguments.len() != 1 {
+        return false;
+    }
+
+    let argument = tree.get(call_like.dynamic_arguments[0]);
+    !matches!(argument, dir::Argument::Spread { .. })
+}
+
 impl NodeVisitor for ArrayConstructorVisitor<'_, '_> {
     /// Return visitor options.
     fn options(&self) -> &NodeVisitorOptions {
@@ -199,54 +222,13 @@ impl NodeVisitor for ArrayConstructorVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check for array constructor calls
-        if let Some(constructor_call) = array_constructor_reference(expression) {
-            self.check_array_constructor(id, constructor_call);
+        if let Some(call_like) = expression_call_like(expression) {
+            self.check_array_constructor(id, call_like);
         }
 
         // walk expression children
         walk_expression(self, tree, id, expression);
     }
-}
-
-/// Identify Array constructor call forms.
-fn array_constructor_reference(expression: &dir::Expression) -> Option<ArrayConstructorCall<'_>> {
-    // match call and constructor expressions
-    match expression {
-        dir::Expression::Call {
-            left,
-            static_arguments,
-            dynamic_arguments,
-        } => Some(ArrayConstructorCall {
-            kind: "call",
-            left: *left,
-            static_arguments: static_arguments.as_deref(),
-            dynamic_arguments,
-        }),
-        dir::Expression::New {
-            left,
-            static_arguments,
-            dynamic_arguments,
-        } => Some(ArrayConstructorCall {
-            kind: "constructor",
-            left: *left,
-            static_arguments: static_arguments.as_deref(),
-            dynamic_arguments,
-        }),
-        _ => None,
-    }
-}
-
-/// Constructor call data normalized across call and new expressions.
-#[derive(Clone, Copy)]
-struct ArrayConstructorCall<'a> {
-    /// The call form used for diagnostics.
-    kind: &'static str,
-    /// The constructor reference expression.
-    left: dir::LocalNodeId<dir::Expression>,
-    /// Optional static arguments.
-    static_arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
-    /// Dynamic arguments.
-    dynamic_arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
 #[cfg(test)]
@@ -275,7 +257,7 @@ let items = Array(1, 2);
 let items = new Array(1);
 "#,
         );
-        test.result(result).assert_lint("no-array-constructor");
+        test.result(result).assert_no_lint("no-array-constructor");
     }
 
     #[test]
@@ -375,17 +357,34 @@ let items = [];
     }
 
     #[test]
-    fn test_no_fix_array_constructor_single_argument() {
+    fn test_fix_array_constructor_new_without_parentheses() {
         let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
         let result = test.lint_dir(
-            "no_array_constructor/test_no_fix_array_constructor_single_argument.ds",
+            "no_array_constructor/test_fix_array_constructor_new_without_parentheses.ds",
             r#"
-let items = Array(3);
+let items = new Array;
 "#,
         );
         test.result(result)
             .assert_lint("no-array-constructor")
-            .assert_has_no_fix("no-array-constructor");
+            .assert_has_fix("no-array-constructor")
+            .assert_safe_fixed(
+                r#"
+let items = [];
+"#,
+            );
+    }
+
+    #[test]
+    fn test_allows_array_constructor_single_argument() {
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
+            "no_array_constructor/test_allows_array_constructor_single_argument.ds",
+            r#"
+let items = Array(3);
+"#,
+        );
+        test.result(result).assert_no_lint("no-array-constructor");
     }
 
     #[test]

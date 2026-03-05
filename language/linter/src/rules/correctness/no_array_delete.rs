@@ -346,4 +346,33 @@ let items = [1, 2, 3];
 "#,
             );
     }
+
+    #[test]
+    fn test_fix_rewrites_sequence_index_delete_array_element() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
+        let result = test.lint_dir(
+            "no_array_delete/test_fix_rewrites_sequence_index_delete_array_element.ds",
+            r#"
+function compute(): number {
+    return 1;
+}
+
+let items = [1, 2, 3];
+delete items[(compute(), 1)];
+"#,
+        );
+        test.check_clean();
+        test.result(result)
+            .assert_lint("no-array-delete")
+            .assert_unsafe_fixed(
+                r#"
+function compute(): number {
+    return 1;
+}
+
+let items = [1, 2, 3];
+items.splice((compute(), 1), 1);
+"#,
+            );
+    }
 }

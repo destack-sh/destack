@@ -1,6 +1,11 @@
-use destack_dir::{self as dir, UnaryOperator};
+use destack_dir::{
+    self as dir, BinaryOperator, NodeVisitor, NodeVisitorOptions, UnaryOperator, walk_expression,
+};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    expression_outer_transparent_ancestor, expression_parent_id, is_void_or_never_type,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -34,59 +39,149 @@ impl LintRule for NoConfusingVoidExpression {
 
     /// Check module DIR nodes for nested `void` expressions.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        let meta = self.meta();
-
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            if !is_void_unary_expression(ctx.tree, expression_id) {
-                continue;
-            }
-
-            if is_statement_void_discard(ctx.tree, expression_id) {
-                continue;
-            }
-            if is_non_tail_sequence_operand(ctx.tree, expression_id) {
-                continue;
-            }
-
-            let severity = ctx.get_effective_severity(meta, expression_id);
-            if !severity.is_enabled() {
-                continue;
-            }
-
-            let span = ctx.get_span(expression_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_CONFUSING_VOID_EXPRESSION.id,
-                    NO_CONFUSING_VOID_EXPRESSION.code,
-                    NO_CONFUSING_VOID_EXPRESSION.category,
-                    severity,
-                    "confusing void expression in value position",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("use `void` as a standalone statement or refactor this expression"),
-            );
-        }
+        // walk expression roots with one visitor pass
+        let mut visitor = NoConfusingVoidExpressionVisitor::new(ctx, self.meta());
+        visitor.run();
     }
 }
 
-/// Return true when this void expression is a non-tail sequence operand.
-fn is_non_tail_sequence_operand(
-    tree: &dir::NodeTree,
+/// Node visitor that reports nested void-like expressions in value position.
+struct NoConfusingVoidExpressionVisitor<'a, 'b> {
+    /// The lint context.
+    ctx: &'a mut LintModuleDirContext<'b>,
+    /// The lint metadata.
+    meta: &'a LintMeta,
+    /// Whether explicit `void` unary wrappers are ignored.
+    ignore_void_operator: bool,
+    /// The visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
+    /// Build a visitor for no-confusing-void-expression checks.
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+        let ignore_void_operator = ctx
+            .options
+            .no_confusing_void_expression_ignore_void_operator;
+
+        Self {
+            ctx,
+            meta,
+            ignore_void_operator,
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Walk the DIR tree roots.
+    fn run(&mut self) {
+        let roots = self.ctx.roots.clone();
+        let tree = self.ctx.tree;
+
+        for root_id in roots {
+            let expression = tree.get(root_id);
+            self.visit_expression(tree, root_id, expression);
+        }
+    }
+
+    /// Check one expression for confusing value-position void behavior.
+    fn check_expression(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        // keep only void-like expression candidates
+        if !is_void_expression_candidate(self.ctx, expression_id, self.ignore_void_operator) {
+            return;
+        }
+
+        // keep only value-position usage
+        if invalid_ancestor_expression_id(self.ctx.tree, expression_id).is_none() {
+            return;
+        }
+
+        // honor per-node severity configuration
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // report one diagnostic
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                NO_CONFUSING_VOID_EXPRESSION.id,
+                NO_CONFUSING_VOID_EXPRESSION.code,
+                NO_CONFUSING_VOID_EXPRESSION.category,
+                severity,
+                "confusing void expression in value position",
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("use `void` as a standalone statement or refactor this expression"),
+        );
+    }
+}
+
+impl NodeVisitor for NoConfusingVoidExpressionVisitor<'_, '_> {
+    /// Return visitor options.
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    /// Visit one expression node.
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // check the current expression node
+        self.check_expression(id);
+
+        // walk expression children
+        walk_expression(self, tree, id, expression);
+    }
+}
+
+/// Return true when one expression is a candidate void-like expression.
+fn is_void_expression_candidate(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    ignore_void_operator: bool,
+) -> bool {
+    // allow explicit `void` wrappers when configured
+    if ignore_void_operator && is_void_unary_expression(ctx.tree, expression_id) {
+        return false;
+    }
+
+    // keep explicit `void expr` expressions
+    if is_void_unary_expression(ctx.tree, expression_id) {
+        return true;
+    }
+
+    // keep only call-like expressions that type-check to void or never
+    if !is_void_or_never_expression(ctx, expression_id) {
+        return false;
+    }
+
+    let expression = ctx.tree.get(expression_id);
+    matches!(
+        expression,
+        dir::Expression::Call { .. }
+            | dir::Expression::Await { .. }
+            | dir::Expression::AwaitMaybe { .. }
+            | dir::Expression::TaggedTemplateExpression { .. }
+    )
+}
+
+/// Return true when one expression is typed as void or never.
+fn is_void_or_never_expression(
+    ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let outer_expression_id = outer_passthrough_expression_id(tree, expression_id);
-    let Some(parent_id) = parent_expression_id(tree, outer_expression_id) else {
-        return false;
-    };
-    let parent_expression = tree.get(parent_id);
-    let dir::Expression::SequenceExpression { expressions } = parent_expression else {
+    // resolve expression type id from typed DIR
+    let Some(type_id) = ctx.expression_type_id(expression_id) else {
         return false;
     };
 
-    expressions
-        .last()
-        .is_some_and(|last_expression_id| *last_expression_id != outer_expression_id)
+    // accept void-like expression types
+    is_void_or_never_type(ctx.types, type_id)
 }
 
 /// Return true when the expression is a `void` unary expression.
@@ -103,85 +198,88 @@ fn is_void_unary_expression(
     )
 }
 
-/// Return true when this `void` expression is used as a standalone statement discard.
-fn is_statement_void_discard(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let outer_expression_id = outer_passthrough_expression_id(tree, expression_id);
-    let Some(parent_expression_id) = parent_expression_id(tree, outer_expression_id) else {
-        return false;
-    };
-
-    let parent_expression = tree.get(parent_expression_id);
-    matches!(
-        parent_expression,
-        dir::Expression::Statement { statement } if *statement == outer_expression_id
-    )
-}
-
-/// Return the outermost passthrough expression that still wraps this node.
-fn outer_passthrough_expression_id(
-    tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    let mut current_expression_id = expression_id;
-
-    loop {
-        let Some(parent_expression_id) = parent_expression_id(tree, current_expression_id) else {
-            return current_expression_id;
-        };
-        let parent_expression = tree.get(parent_expression_id);
-        if !is_passthrough_parent(parent_expression, current_expression_id) {
-            return current_expression_id;
-        }
-
-        current_expression_id = parent_expression_id;
-    }
-}
-
-/// Return one parent expression id when the parent node is an expression.
-fn parent_expression_id(
+/// Return one nearest invalid ancestor when a void-like expression is in value position.
+fn invalid_ancestor_expression_id(
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let parent_id = tree.get_parent(expression_id.id)?;
-    if parent_id.ty != dir::NodeType::Expression {
-        return None;
-    }
+    // start from outer transparent wrappers around the candidate
+    let mut current_expression_id = expression_outer_transparent_ancestor(tree, expression_id);
 
-    Some(parent_id.into_typed::<dir::Expression>())
+    // walk ancestor expressions until we hit a valid or invalid boundary
+    loop {
+        let Some(parent_expression_id) = expression_parent_id(tree, current_expression_id) else {
+            return Some(current_expression_id);
+        };
+
+        let parent_expression = tree.get(parent_expression_id);
+
+        // allow standalone expression statements
+        if is_statement_parent(parent_expression, current_expression_id) {
+            return None;
+        }
+
+        // allow non-tail sequence operands
+        if is_non_tail_sequence_parent(parent_expression, current_expression_id) {
+            return None;
+        }
+
+        // recurse through short-circuiting wrappers
+        if is_short_circuiting_parent(parent_expression, current_expression_id) {
+            current_expression_id =
+                expression_outer_transparent_ancestor(tree, parent_expression_id);
+            continue;
+        }
+
+        return Some(parent_expression_id);
+    }
 }
 
-/// Return true when this parent expression is a transparent wrapper for the child expression.
-fn is_passthrough_parent(
+/// Return true when the parent expression is a standalone statement wrapper.
+fn is_statement_parent(
     parent_expression: &dir::Expression,
     child_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     matches!(
         parent_expression,
-        dir::Expression::Parenthesized { expression } if *expression == child_expression_id
+        dir::Expression::Statement { statement } if *statement == child_expression_id
+    )
+}
+
+/// Return true when the parent is a non-tail sequence wrapper.
+fn is_non_tail_sequence_parent(
+    parent_expression: &dir::Expression,
+    child_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let dir::Expression::SequenceExpression { expressions } = parent_expression else {
+        return false;
+    };
+
+    expressions
+        .last()
+        .is_some_and(|last_expression_id| *last_expression_id != child_expression_id)
+}
+
+/// Return true when the parent is a short-circuit wrapper around the child.
+fn is_short_circuiting_parent(
+    parent_expression: &dir::Expression,
+    child_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    matches!(
+        parent_expression,
+        dir::Expression::Binary {
+            operator: BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
+            right,
+            ..
+        } if *right == child_expression_id
     ) || matches!(
         parent_expression,
-        dir::Expression::Maybe { left } if *left == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::Must { left } if *left == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::Cast { value, .. } if *value == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::OwnershipCast { value, .. } if *value == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::ValueOf { right, .. } if *right == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::ReferenceOf { right, .. } if *right == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::PointerOf { right, .. } if *right == child_expression_id
+        dir::Expression::If {
+            then_expression,
+            else_expression,
+            ..
+        } if *then_expression == child_expression_id
+            || else_expression.is_some_and(|expression_id| expression_id == child_expression_id)
     )
 }
 
@@ -286,6 +384,28 @@ consume(void sideEffect());
             .assert_lint("no-confusing-void-expression");
     }
 
+    /// Allow explicit `void` wrappers in nested positions when configured.
+    #[test]
+    fn test_allows_explicit_void_operator_when_ignored() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression).with_options(
+            |options| {
+                options.no_confusing_void_expression_ignore_void_operator = true;
+            },
+        );
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_allows_explicit_void_operator_when_ignored.ds",
+            r#"
+function sideEffect(): unknown {
+    return 1;
+}
+
+const value = !void sideEffect();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-confusing-void-expression");
+    }
+
     /// Allow void in non-tail sequence positions.
     #[test]
     fn test_allows_void_in_non_tail_sequence() {
@@ -372,6 +492,72 @@ function sideEffect(): unknown {
 }
 
 const value = (void sideEffect()) as unknown;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-void-expression");
+    }
+
+    /// Allow void-typed calls used as standalone statements.
+    #[test]
+    fn test_allows_void_typed_call_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression);
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_allows_void_typed_call_statement.ds",
+            r#"
+function sideEffect(): void {}
+
+sideEffect();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-confusing-void-expression");
+    }
+
+    /// Flag void-typed calls in value-producing initializers.
+    #[test]
+    fn test_flags_void_typed_call_in_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression);
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_flags_void_typed_call_in_initializer.ds",
+            r#"
+function sideEffect(): void {}
+
+const value = sideEffect();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-confusing-void-expression");
+    }
+
+    /// Allow short-circuiting statement usage for void-typed calls.
+    #[test]
+    fn test_allows_void_typed_call_in_short_circuit_statement() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression);
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_allows_void_typed_call_in_short_circuit_statement.ds",
+            r#"
+function sideEffect(): void {}
+
+let enabled = true;
+enabled && sideEffect();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-confusing-void-expression");
+    }
+
+    /// Flag short-circuiting value usage when void-typed call contributes to a value.
+    #[test]
+    fn test_flags_void_typed_call_in_short_circuit_initializer() {
+        let test = TestProgram::for_rule_without_prelude(NoConfusingVoidExpression);
+        let result = test.lint_dir(
+            "no_confusing_void_expression/test_flags_void_typed_call_in_short_circuit_initializer.ds",
+            r#"
+function sideEffect(): void {}
+
+let enabled = true;
+const value = enabled && sideEffect();
 "#,
         );
         test.result(result)
