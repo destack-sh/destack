@@ -1,3 +1,4 @@
+mod diagnostic;
 mod gc;
 mod options;
 mod platform;
@@ -8,6 +9,7 @@ mod scheduler;
 mod selectors;
 mod time;
 
+pub use diagnostic::*;
 pub use gc::*;
 pub use options::*;
 pub use platform::*;

@@ -57,7 +57,7 @@ pub enum PollerBackend {
     Epoll,
     /// Use kqueue (BSD/macOS only).
     Kqueue,
-    /// Use poll (portable Unix fallback).
+    /// Use poll (portable Unix backend).
     Poll,
     /// Use the Windows readiness backend.
     Windows,
@@ -181,7 +181,7 @@ pub enum PollerBackendJson {
     Epoll,
     /// Use kqueue (BSD/macOS only).
     Kqueue,
-    /// Use poll (portable Unix fallback).
+    /// Use poll (portable Unix backend).
     Poll,
     /// Use the Windows readiness backend.
     Windows,
