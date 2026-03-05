@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_ast::{self as ast, Parameter};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce default parameters to be last.
@@ -18,7 +18,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Sometimes,
+        fixable = No,
         recommended = Strict,
         stability = Stable
     )]
@@ -88,117 +88,63 @@ fn check_parameters(
     meta: &'static crate::LintMeta,
     parameters: &[ast::LocalNodeId<Parameter>],
 ) {
-    let mut seen_default = false;
-    let mut has_reported_reorder_fix = false;
+    let mut has_seen_required_parameter = false;
 
-    for param_id in parameters {
-        let param = ctx.tree.get(*param_id);
+    for parameter_id in parameters.iter().rev() {
+        let parameter = ctx.tree.get(*parameter_id);
+        let is_required_parameter = parameter_is_required(parameter);
 
-        let has_default = parameter_has_default(param);
-
-        if has_default {
-            seen_default = true;
-        } else if seen_default {
-            // found a param without default after one with default
-            // variadic parameters are allowed after defaults
-            if !matches!(
-                param,
-                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
-            ) {
-                let severity = ctx.get_effective_severity(meta, *param_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                let mut diagnostic = LintDiagnostic::new(
-                    DEFAULT_PARAM_LAST.id,
-                    DEFAULT_PARAM_LAST.code,
-                    DEFAULT_PARAM_LAST.category,
-                    severity,
-                    "parameter without default follows parameter with default",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(*param_id),
-                )
-                .with_label("move this parameter before parameters with defaults");
-                if ctx.compute_fixes && !has_reported_reorder_fix {
-                    if let Some(fix) = default_param_last_fix(ctx, parameters) {
-                        diagnostic = diagnostic.with_fix(fix);
-                    }
-                    has_reported_reorder_fix = true;
-                }
-
-                ctx.report(diagnostic);
-            }
+        if is_required_parameter {
+            has_seen_required_parameter = true;
+            continue;
         }
+
+        if !has_seen_required_parameter {
+            continue;
+        }
+
+        let severity = ctx.get_effective_severity(meta, *parameter_id);
+        if !severity.is_enabled() {
+            continue;
+        }
+
+        ctx.report(
+            LintDiagnostic::new(
+                DEFAULT_PARAM_LAST.id,
+                DEFAULT_PARAM_LAST.code,
+                DEFAULT_PARAM_LAST.category,
+                severity,
+                "default parameter should be last",
+                ctx.module.file_id,
+                ctx.tree.get_span(*parameter_id),
+            )
+            .with_label("move default parameters after required parameters"),
+        );
     }
 }
 
-/// Return true when one parameter declares a default value.
+/// Return true when one parameter is required.
+fn parameter_is_required(parameter: &Parameter) -> bool {
+    !parameter_has_default(parameter)
+}
+
+/// Return true when one parameter has a default or optional form.
 fn parameter_has_default(parameter: &Parameter) -> bool {
     match parameter {
-        Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => default.is_some(),
-        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
-    }
-}
-
-/// Build a conservative parameter reorder fix.
-fn default_param_last_fix(
-    ctx: &LintModuleAstContext<'_>,
-    parameters: &[ast::LocalNodeId<Parameter>],
-) -> Option<LintFix> {
-    // keep at least two parameters
-    let first_parameter_id = *parameters.first()?;
-    let last_parameter_id = *parameters.last()?;
-
-    // keep comment-free parameter slices
-    let first_span = ctx.tree.get_span(first_parameter_id);
-    let last_span = ctx.tree.get_span(last_parameter_id);
-    let full_span = destack_source::Span::new(first_span.file, first_span.start, last_span.end);
-    let full_text = ctx.get_span_text(full_span);
-    if full_text.contains("//") || full_text.contains("/*") {
-        return None;
-    }
-
-    // reorder: non-default first, default next, variadic last
-    let mut non_default_ids = Vec::new();
-    let mut default_ids = Vec::new();
-    let mut variadic_ids = Vec::new();
-
-    for parameter_id in parameters {
-        let parameter = ctx.tree.get(*parameter_id);
-        match parameter {
-            Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => {
-                variadic_ids.push(*parameter_id);
-            }
-            _ if parameter_has_default(parameter) => default_ids.push(*parameter_id),
-            _ => non_default_ids.push(*parameter_id),
+        Parameter::Named {
+            modifiers, default, ..
         }
+        | Parameter::Pattern {
+            modifiers, default, ..
+        } => {
+            default.is_some()
+                || modifiers
+                    .as_ref()
+                    .and_then(|modifier| modifier.kind)
+                    .is_some_and(|kind| kind == ast::BindingKind::Maybe)
+        }
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => true,
     }
-
-    let mut ordered_ids = Vec::new();
-    ordered_ids.extend(non_default_ids);
-    ordered_ids.extend(default_ids);
-    ordered_ids.extend(variadic_ids);
-
-    // skip when already ordered
-    if ordered_ids.as_slice() == parameters {
-        return None;
-    }
-
-    let replacement = ordered_ids
-        .iter()
-        .map(|parameter_id| {
-            ctx.get_span_text(ctx.tree.get_span(*parameter_id))
-                .to_string()
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let edits = ctx
-        .edit_builder()
-        .replace(full_span, replacement)
-        .into_edits();
-    Some(LintFix::r#unsafe("Reorder parameters so defaults come last").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -217,11 +163,7 @@ function foo(a: int32 = 1, b: int32) {}
         );
         test.result(result)
             .assert_lint("default-param-last")
-            .assert_unsafe_fixed(
-                r#"
-function foo(b: int32, a: int32 = 1) {}
-"#,
-            );
+            .assert_has_no_fix("default-param-last");
     }
 
     #[test]
@@ -235,11 +177,21 @@ let foo = (a: int32 = 1, b: int32) => {}
         );
         test.result(result)
             .assert_lint("default-param-last")
-            .assert_unsafe_fixed(
-                r#"
-let foo = (b: int32, a: int32 = 1) => {};
+            .assert_has_no_fix("default-param-last");
+    }
+
+    #[test]
+    fn test_reports_multiple_defaults_before_required_parameters() {
+        let test = TestProgram::for_rule_without_prelude(DefaultParamLast);
+        let result = test.lint_ast(
+            "default_param_last/test_reports_multiple_defaults_before_required_parameters.ds",
+            r#"
+function foo(a: int32 = 1, b: int32 = 2, c: int32) {}
 "#,
-            );
+        );
+        test.result(result)
+            .assert_lint_count("default-param-last", 2)
+            .assert_has_no_fix("default-param-last");
     }
 
     #[test]
@@ -291,19 +243,14 @@ function foo(a: int32 = 1, ...rest: int32[]) {}
     }
 
     #[test]
-    fn test_no_fix_when_parameter_list_contains_comments() {
+    fn test_reports_optional_parameter_before_required_parameter() {
         let test = TestProgram::for_rule_without_prelude(DefaultParamLast);
         let result = test.lint_ast(
-            "default_param_last/test_no_fix_when_parameter_list_contains_comments.ds",
+            "default_param_last/test_reports_optional_parameter_before_required_parameter.ds",
             r#"
-function foo(
-    a: int32 = 1, // keep near a
-    b: int32
-) {}
+function foo(a?: int32, b: int32) {}
 "#,
         );
-        test.result(result)
-            .assert_lint("default-param-last")
-            .assert_has_no_fix("default-param-last");
+        test.result(result).assert_lint("default-param-last");
     }
 }

@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_negated_source_text;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -89,7 +90,7 @@ impl LintRule for NoUnneededTernary {
                 }
 
                 // make fix: replace `x ? false : true` with `!x`
-                let replacement = format!("!{condition_text}");
+                let replacement = expression_negated_source_text(ctx, condition_id);
                 let edits = ctx
                     .edit_builder()
                     .replace(expression_span, replacement)
@@ -207,6 +208,24 @@ const result = x ? false : true
             .assert_safe_fixed(
                 r#"
 const result = !x;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_false_true_with_compound_condition() {
+        let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
+        let result = test.lint_ast(
+            "no_unneeded_ternary/test_fix_false_true_with_compound_condition.ds",
+            r#"
+const result = a && b ? false : true
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-unneeded-ternary")
+            .assert_safe_fixed(
+                r#"
+const result = !(a && b);
 "#,
             );
     }

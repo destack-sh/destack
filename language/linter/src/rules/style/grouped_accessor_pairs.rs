@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use destack_ast::{self as ast, Declaration, FunctionMode, Key, Member, Name};
+use destack_ast::{self as ast, BindingAnchor, Declaration, FunctionMode, Key, Member};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{expression_structural_signature, span_has_comment_trivia};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -75,17 +76,74 @@ impl LintRule for GroupedAccessorPairs {
     }
 }
 
+/// Member owner partition for accessor grouping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum AccessorOwner {
+    /// Instance member accessor.
+    Instance,
+    /// Static member accessor.
+    Static,
+}
+
+/// Key identity for accessor pairing.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum AccessorKey {
+    /// Named key identity.
+    Name(ast::StringId),
+    /// Private key identity.
+    Private(ast::StringId),
+    /// Computed key signature.
+    Computed(Vec<u64>),
+}
+
+/// Accessor index buckets for one key.
+#[derive(Debug, Default)]
+struct AccessorIndices {
+    /// Getter member indices.
+    getters: Vec<usize>,
+    /// Setter member indices.
+    setters: Vec<usize>,
+}
+
+/// Return key identity for one AST key.
+fn accessor_key(ctx: &LintModuleAstContext<'_>, key: &Key) -> Option<AccessorKey> {
+    match key {
+        Key::Name(name) => Some(AccessorKey::Name(name.string())),
+        Key::Private(name) => Some(AccessorKey::Private(*name)),
+        Key::Expression(expression_id) => Some(AccessorKey::Computed(
+            expression_structural_signature(ctx.tree, ctx.strings, *expression_id),
+        )),
+        Key::NamedExpression { key, .. } => Some(AccessorKey::Computed(
+            expression_structural_signature(ctx.tree, ctx.strings, *key),
+        )),
+    }
+}
+
+/// Return owner partition for one member.
+fn member_owner(member: &Member) -> AccessorOwner {
+    let modifiers = match member {
+        Member::Method { modifiers, .. } => modifiers,
+        _ => return AccessorOwner::Instance,
+    };
+
+    if modifiers.as_ref().and_then(|modifier| modifier.anchor) == Some(BindingAnchor::Static) {
+        return AccessorOwner::Static;
+    }
+
+    AccessorOwner::Instance
+}
+
 /// Check members in object-like declarations for ungrouped accessor pairs.
 fn check_members_for_ungrouped_accessors(
     ctx: &mut LintModuleAstContext<'_>,
     meta: &'static crate::LintMeta,
     members: &[ast::LocalNodeId<Member>],
 ) {
-    // map property name to (getter_index, setter_index)
-    let mut accessor_indices: HashMap<ast::StringId, (Option<usize>, Option<usize>)> =
+    // collect getter and setter indices per owner partition and key
+    let mut accessor_indices: HashMap<(AccessorOwner, AccessorKey), AccessorIndices> =
         HashMap::new();
+
     for (index, member_id) in members.iter().enumerate() {
-        // find the method member
         let member = ctx.tree.get(*member_id);
         let Member::Method {
             key: Some(key),
@@ -100,29 +158,30 @@ fn check_members_for_ungrouped_accessors(
             continue;
         };
 
-        let name_id = match key {
-            Key::Name(Name::Identifier(id)) | Key::Name(Name::String(id)) => *id,
-            _ => continue,
+        let Some(key) = accessor_key(ctx, key) else {
+            continue;
         };
+
+        let owner = member_owner(member);
+        let entry = accessor_indices.entry((owner, key)).or_default();
+
         match mode {
-            FunctionMode::Getter => {
-                accessor_indices.entry(name_id).or_insert((None, None)).0 = Some(index);
-            }
-            FunctionMode::Setter => {
-                accessor_indices.entry(name_id).or_insert((None, None)).1 = Some(index);
-            }
+            FunctionMode::Getter => entry.getters.push(index),
+            FunctionMode::Setter => entry.setters.push(index),
             _ => {}
         }
     }
 
-    // check for non-adjacent pairs
+    // report one accessor pair only when exactly one getter and one setter exist
     let mut has_reported_reorder_fix = false;
-    for (name_id, (getter_idx, setter_idx)) in accessor_indices {
-        let (Some(getter_idx), Some(setter_idx)) = (getter_idx, setter_idx) else {
+    for ((_, key), indices) in accessor_indices {
+        if indices.getters.len() != 1 || indices.setters.len() != 1 {
             continue;
-        };
+        }
 
-        // check if they are adjacent (difference of 1)
+        let getter_idx = indices.getters[0];
+        let setter_idx = indices.setters[0];
+
         let diff = getter_idx.abs_diff(setter_idx);
         if diff != 1 {
             let later_idx = getter_idx.max(setter_idx);
@@ -131,18 +190,25 @@ fn check_members_for_ungrouped_accessors(
             if !severity.is_enabled() {
                 continue;
             }
-            let name = ctx.strings.get(name_id);
+
+            let accessor_name = match key {
+                AccessorKey::Name(name) | AccessorKey::Private(name) => {
+                    ctx.strings.get(name).as_ref().to_string()
+                }
+                AccessorKey::Computed(_) => "<computed>".to_string(),
+            };
 
             let mut diagnostic = LintDiagnostic::new(
                 GROUPED_ACCESSOR_PAIRS.id,
                 GROUPED_ACCESSOR_PAIRS.code,
                 GROUPED_ACCESSOR_PAIRS.category,
                 severity,
-                format!("getter and setter for `{}` are not adjacent", name.as_ref()),
+                format!("getter and setter for `{accessor_name}` are not adjacent"),
                 ctx.module.file_id,
                 ctx.tree.get_span(later_member_id),
             )
             .with_label("move to be adjacent to its counterpart");
+
             if ctx.compute_fixes && !has_reported_reorder_fix {
                 if let Some(fix) = grouped_member_accessor_fix(ctx, members, getter_idx, setter_idx)
                 {
@@ -162,9 +228,8 @@ fn check_properties_for_ungrouped_accessors(
     meta: &'static crate::LintMeta,
     properties: &[ast::LocalNodeId<ast::Property>],
 ) {
-    // map property name to (getter_index, setter_index)
-    let mut accessor_indices: HashMap<ast::StringId, (Option<usize>, Option<usize>)> =
-        HashMap::new();
+    // collect getter and setter indices per key
+    let mut accessor_indices: HashMap<AccessorKey, AccessorIndices> = HashMap::new();
 
     for (index, property_id) in properties.iter().enumerate() {
         let property = ctx.tree.get(*property_id);
@@ -181,30 +246,29 @@ fn check_properties_for_ungrouped_accessors(
             continue;
         };
 
-        let name_id = match key {
-            Key::Name(Name::Identifier(id)) | Key::Name(Name::String(id)) => *id,
-            _ => continue,
+        let Some(key) = accessor_key(ctx, key) else {
+            continue;
         };
 
+        let entry = accessor_indices.entry(key).or_default();
+
         match mode {
-            FunctionMode::Getter => {
-                accessor_indices.entry(name_id).or_insert((None, None)).0 = Some(index);
-            }
-            FunctionMode::Setter => {
-                accessor_indices.entry(name_id).or_insert((None, None)).1 = Some(index);
-            }
+            FunctionMode::Getter => entry.getters.push(index),
+            FunctionMode::Setter => entry.setters.push(index),
             _ => {}
         }
     }
 
-    // check for non-adjacent pairs
+    // report one accessor pair only when exactly one getter and one setter exist
     let mut has_reported_reorder_fix = false;
-    for (name_id, (getter_idx, setter_idx)) in accessor_indices {
-        let (Some(getter_idx), Some(setter_idx)) = (getter_idx, setter_idx) else {
+    for (key, indices) in accessor_indices {
+        if indices.getters.len() != 1 || indices.setters.len() != 1 {
             continue;
-        };
+        }
 
-        // check if they are adjacent (difference of 1)
+        let getter_idx = indices.getters[0];
+        let setter_idx = indices.setters[0];
+
         let diff = getter_idx.abs_diff(setter_idx);
         if diff != 1 {
             let later_idx = getter_idx.max(setter_idx);
@@ -213,18 +277,25 @@ fn check_properties_for_ungrouped_accessors(
             if !severity.is_enabled() {
                 continue;
             }
-            let name = ctx.strings.get(name_id);
+
+            let accessor_name = match key {
+                AccessorKey::Name(name) | AccessorKey::Private(name) => {
+                    ctx.strings.get(name).as_ref().to_string()
+                }
+                AccessorKey::Computed(_) => "<computed>".to_string(),
+            };
 
             let mut diagnostic = LintDiagnostic::new(
                 GROUPED_ACCESSOR_PAIRS.id,
                 GROUPED_ACCESSOR_PAIRS.code,
                 GROUPED_ACCESSOR_PAIRS.category,
                 severity,
-                format!("getter and setter for `{}` are not adjacent", name.as_ref()),
+                format!("getter and setter for `{accessor_name}` are not adjacent"),
                 ctx.module.file_id,
                 ctx.tree.get_span(later_prop_id),
             )
             .with_label("move to be adjacent to its counterpart");
+
             if ctx.compute_fixes && !has_reported_reorder_fix {
                 if let Some(fix) =
                     grouped_property_accessor_fix(ctx, properties, getter_idx, setter_idx)
@@ -257,8 +328,7 @@ fn grouped_member_accessor_fix(
         first_member_span.start,
         last_member_span.end,
     );
-    let full_text = ctx.get_span_text(full_span);
-    if full_text.contains("//") || full_text.contains("/*") {
+    if span_has_comment_trivia(ctx.tree, full_span) {
         return None;
     }
 
@@ -297,8 +367,7 @@ fn grouped_property_accessor_fix(
         first_property_span.start,
         last_property_span.end,
     );
-    let full_text = ctx.get_span_text(full_span);
-    if full_text.contains("//") || full_text.contains("/*") {
+    if span_has_comment_trivia(ctx.tree, full_span) {
         return None;
     }
 
@@ -532,6 +601,38 @@ struct Example {
 "#,
         );
         test.result(result).assert_lint("grouped-accessor-pairs");
+    }
+
+    #[test]
+    fn test_ignores_cross_static_instance_pairs() {
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_ignores_cross_static_instance_pairs.ds",
+            r#"
+class Example {
+    static get foo() { return 1 }
+    set foo(value) { this._foo = value }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("grouped-accessor-pairs");
+    }
+
+    #[test]
+    fn test_ignores_duplicate_getter_or_setter_pairs() {
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
+        let result = test.lint_ast(
+            "grouped_accessor_pairs/test_ignores_duplicate_getter_or_setter_pairs.ds",
+            r#"
+const value = {
+    get foo() { return 1 },
+    x: 1,
+    get foo() { return 2 },
+    set foo(next) { sink(next) }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("grouped-accessor-pairs");
     }
 
     #[test]

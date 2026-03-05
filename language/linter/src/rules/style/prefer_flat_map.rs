@@ -4,7 +4,9 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{const_i64, expression_method_call, is_array_type};
+use crate::rules::common::{
+    const_i64, expression_method_call, is_array_type, strip_dot_member_suffix,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -159,6 +161,11 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
             return;
         }
 
+        // keep React children mapping shape unchanged
+        if self.is_ignored_map_receiver(map_call.receiver_id) {
+            return;
+        }
+
         // check map() member static arguments
         let map_call_expression = self.ctx.tree.get(flat_call.receiver_id);
         let dir::Expression::Call { left, .. } = map_call_expression else {
@@ -222,6 +229,18 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         };
 
         is_array_type(self.ctx.types, type_id, Some(self.array_symbol))
+    }
+
+    /// Return true when the receiver is one ignored React children helper.
+    fn is_ignored_map_receiver(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let expression_span = self.ctx.get_span(expression_id);
+        let expression_text = self.ctx.get_span_text(expression_span);
+        let normalized_text: String = expression_text
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect();
+
+        normalized_text == "Children" || normalized_text == "React.Children"
     }
 
     /// Report a prefer-flat-map match.
@@ -321,12 +340,6 @@ impl NodeVisitor for PreferFlatMapVisitor<'_, '_> {
         // walk expression children
         walk_expression(self, tree, id, expression);
     }
-}
-
-/// Strip one `.member` suffix from a member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 #[cfg(test)]
@@ -471,6 +484,32 @@ let flat = items.map(x => x).flat(0);
             r#"
 let items = [[1, 2], [3, 4]];
 let flat = items.flatMap(x => x);
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-flat-map");
+    }
+
+    /// Allow Children.map(...).flat() helper usage.
+    #[test]
+    fn test_allows_children_map_flat() {
+        let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
+        let result = test.lint_dir(
+            "prefer_flat_map/test_allows_children_map_flat.ds",
+            r#"
+let flat = Children.map(children, fn).flat();
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-flat-map");
+    }
+
+    /// Allow React.Children.map(...).flat() helper usage.
+    #[test]
+    fn test_allows_react_children_map_flat() {
+        let test = TestProgram::for_rule_with_prelude(PreferFlatMap);
+        let result = test.lint_dir(
+            "prefer_flat_map/test_allows_react_children_map_flat.ds",
+            r#"
+let flat = React.Children.map(children, fn).flat();
 "#,
         );
         test.result(result).assert_no_lint("prefer-flat-map");

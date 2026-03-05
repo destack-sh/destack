@@ -3,7 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
+use crate::rules::common::{
+    expression_is_global_qualified_member, expression_is_standalone_statement,
+    expression_target_symbol,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -142,12 +145,19 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
             return None;
         }
 
+        // select a context-safe literal replacement form
+        let replacement = if expression_is_standalone_statement(self.ctx.tree, expression_id) {
+            "{}"
+        } else {
+            "({})"
+        };
+
         // replace the full constructor expression
         let expression_span = self.ctx.get_span(expression_id);
         let edits = self
             .ctx
             .edit_builder()
-            .replace(expression_span, "({})")
+            .replace(expression_span, replacement)
             .into_edits();
 
         Some(LintFix::safe("Replace Object constructor with object literal").with_edits(edits))
@@ -320,6 +330,44 @@ let value = new Object();
             .assert_safe_fixed(
                 r#"
 let value = ({});
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_object_constructor_statement_prefers_block_literal_form() {
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
+            "no_object_constructor/test_fix_object_constructor_statement_prefers_block_literal_form.ds",
+            r#"
+Object();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-object-constructor")
+            .assert_has_fix("no-object-constructor")
+            .assert_safe_fixed(
+                r#"
+{};
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_object_constructor_in_arrow_keeps_expression_literal() {
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
+            "no_object_constructor/test_fix_object_constructor_in_arrow_keeps_expression_literal.ds",
+            r#"
+let make = () => Object();
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-object-constructor")
+            .assert_has_fix("no-object-constructor")
+            .assert_safe_fixed(
+                r#"
+let make = () => ({});
 "#,
             );
     }

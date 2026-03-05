@@ -1,11 +1,14 @@
 use destack_base::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{
+    self as dir, FunctionMode, IfKind, NodeVisitor, NodeVisitorOptions, Property, WellKnownSymbol,
+    walk_expression,
+};
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol,
-    expression_unwrap_parenthesized,
+    expression_is_global_qualified_member, expression_static_property_access,
+    expression_target_symbol, expression_unwrap_parenthesized, span_has_comment_trivia,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -103,16 +106,26 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
             return;
         }
 
-        // require at least two arguments
-        if dynamic_arguments.len() < 2 {
+        // require at least one argument
+        if dynamic_arguments.is_empty() {
             return;
         }
 
-        // require an empty object literal as the first argument
+        // require an object literal as the first argument
         let first_argument_id = dynamic_arguments[0];
         let argument = self.ctx.tree.get(first_argument_id);
         let value_id = argument.value();
-        if !self.is_empty_object_literal(value_id) {
+        if !self.is_object_literal(value_id) {
+            return;
+        }
+
+        // ignore calls with spread arguments, match ESLint behavior
+        if self.has_spread_argument(dynamic_arguments) {
+            return;
+        }
+
+        // ignore accessor merges with multiple arguments, spread can change getter and setter timing
+        if dynamic_arguments.len() > 1 && self.has_accessor_object_argument(dynamic_arguments) {
             return;
         }
 
@@ -157,44 +170,55 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         }
 
         // skip static member arguments for Object.assign<T>(...)
-        let member_expression = self.ctx.tree.get(member_id);
-        let dir::Expression::Member {
+        if let dir::Expression::Member {
             static_arguments, ..
-        } = member_expression
-        else {
-            return None;
-        };
-        if static_arguments
-            .as_ref()
-            .is_some_and(|arguments| !arguments.is_empty())
+        } = self.ctx.tree.get(member_id)
+            && static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
         {
             return None;
         }
 
-        // require at least one source argument after the empty target literal
-        if dynamic_arguments.len() < 2 {
+        // require at least one argument
+        if dynamic_arguments.is_empty() {
             return None;
         }
 
-        // build spread entries from positional arguments only
-        let mut spread_entries = Vec::new();
-        for argument_id in dynamic_arguments.iter().skip(1) {
+        // build literal entries from positional arguments only
+        let mut literal_entries = Vec::new();
+        for argument_id in dynamic_arguments {
             let argument = self.ctx.tree.get(*argument_id);
             let dir::Argument::Positional { value, .. } = argument else {
                 return None;
             };
 
-            let value_span = self.ctx.get_span(*value);
+            if let Some(object_literal_entries) = self.object_literal_entries(*value) {
+                literal_entries.extend(object_literal_entries);
+                continue;
+            }
+
+            let value_id = expression_unwrap_parenthesized(self.ctx.tree, *value);
+            let value_span = self.ctx.get_span(value_id);
             let value_text = self.ctx.get_span_text(value_span);
-            spread_entries.push(format!("...{value_text}"));
-        }
-        if spread_entries.is_empty() {
-            return None;
+            if self.spread_argument_needs_parentheses(value_id) {
+                literal_entries.push(format!("...({value_text})"));
+            } else {
+                literal_entries.push(format!("...{value_text}"));
+            }
         }
 
         // replace the full call with an object spread literal
-        let replacement = format!("{{ {} }}", spread_entries.join(", "));
+        let replacement = if literal_entries.is_empty() {
+            "{}".to_owned()
+        } else {
+            format!("{{ {} }}", literal_entries.join(", "))
+        };
         let expression_span = self.ctx.get_span(expression_id);
+        if span_has_comment_trivia(self.ctx.ast, expression_span) {
+            return None;
+        }
+
         let edits = self
             .ctx
             .edit_builder()
@@ -209,16 +233,17 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         &self,
         member_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
-        // match member access for assign
-        let member_expression = self.ctx.tree.get(member_id);
-        let dir::Expression::Member { left, name, .. } = member_expression else {
+        // match member or static index access for assign
+        let Some((receiver_id, property_name)) =
+            expression_static_property_access(self.ctx.tree, member_id)
+        else {
             return None;
         };
-        if *name != self.assign_name {
+        if property_name != self.assign_name {
             return None;
-        }
+        };
 
-        Some(*left)
+        Some(receiver_id)
     }
 
     /// Return true when the expression is Object.assign or global qualified Object.assign.
@@ -244,18 +269,98 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         )
     }
 
-    /// Return true when the expression is an empty object literal.
-    fn is_empty_object_literal(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+    /// Return true when the expression is an object literal.
+    fn is_object_literal(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // unwrap parenthesized expressions
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
 
-        // match empty object literals
+        // match object literals
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::ObjectExpression { .. } = expression else {
+            return false;
+        };
+
+        true
+    }
+
+    /// Return true when call arguments include spread.
+    fn has_spread_argument(&self, arguments: &[dir::LocalNodeId<dir::Argument>]) -> bool {
+        arguments.iter().any(|argument_id| {
+            let argument = self.ctx.tree.get(*argument_id);
+            matches!(argument, dir::Argument::Spread { .. })
+        })
+    }
+
+    /// Return true when one object argument contains accessors.
+    fn has_accessor_object_argument(&self, arguments: &[dir::LocalNodeId<dir::Argument>]) -> bool {
+        arguments.iter().any(|argument_id| {
+            let argument = self.ctx.tree.get(*argument_id);
+            let expression_id = argument.value();
+            self.is_object_literal_with_accessors(expression_id)
+        })
+    }
+
+    /// Return true when one object literal expression contains getter or setter properties.
+    fn is_object_literal_with_accessors(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::ObjectExpression { properties } = expression else {
             return false;
         };
 
-        properties.is_empty()
+        properties.iter().any(|property_id| {
+            let property = self.ctx.tree.get(*property_id);
+            let Property::Method { signature, .. } = property else {
+                return false;
+            };
+
+            matches!(
+                signature.mode,
+                Some(FunctionMode::Getter | FunctionMode::Setter)
+            )
+        })
+    }
+
+    /// Return one flattened object literal entry list, or None when the expression is not object literal.
+    fn object_literal_entries(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<Vec<String>> {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::ObjectExpression { properties } = expression else {
+            return None;
+        };
+
+        let mut entries = Vec::new();
+        for property_id in properties {
+            let property_span = self.ctx.get_span(*property_id);
+            let property_text = self.ctx.get_span_text(property_span);
+            entries.push(property_text.to_owned());
+        }
+
+        Some(entries)
+    }
+
+    /// Return true when one spread argument expression needs parentheses for valid syntax.
+    fn spread_argument_needs_parentheses(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let expression = self.ctx.tree.get(expression_id);
+        matches!(
+            expression,
+            dir::Expression::Assign { .. } | dir::Expression::AssignBinary { .. }
+        ) || matches!(
+            expression,
+            dir::Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+        )
     }
 }
 
@@ -312,6 +417,26 @@ let merged = { ...base };
             );
     }
 
+    /// Fix Object.assign with one object literal argument.
+    #[test]
+    fn test_fix_object_assign_single_object_literal() {
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
+            "prefer_object_spread/test_fix_object_assign_single_object_literal.ds",
+            r#"
+let merged = Object.assign({ a: 1, b: 2 });
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-object-spread")
+            .assert_has_fix("prefer-object-spread")
+            .assert_safe_fixed(
+                r#"
+let merged = { a: 1, b: 2 };
+"#,
+            );
+    }
+
     /// Report global Object.assign with empty object.
     #[test]
     fn test_flags_global_object_assign_with_empty_object() {
@@ -358,16 +483,94 @@ let merged = { ...base, ...extra };
             );
     }
 
-    /// Keep lint without fix when call arguments include spread.
+    /// Ignore Object.assign calls with spread arguments.
     #[test]
-    fn test_no_fix_for_spread_argument_call() {
+    fn test_allows_spread_argument_call() {
         let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
         let result = test.lint_dir(
-            "prefer_object_spread/test_no_fix_for_spread_argument_call.ds",
+            "prefer_object_spread/test_allows_spread_argument_call.ds",
             r#"
 let base = { a: 1 };
 let sources = [base];
 let merged = Object.assign({}, ...sources);
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-object-spread");
+    }
+
+    /// Ignore Object.assign with accessor object arguments.
+    #[test]
+    fn test_allows_object_assign_with_accessor_argument() {
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
+            "prefer_object_spread/test_allows_object_assign_with_accessor_argument.ds",
+            r#"
+let merged = Object.assign({}, {
+  get value() {
+    return 1;
+  },
+});
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-object-spread");
+    }
+
+    /// Fix Object.assign with non empty target and one source.
+    #[test]
+    fn test_fix_object_assign_with_non_empty_target() {
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
+            "prefer_object_spread/test_fix_object_assign_with_non_empty_target.ds",
+            r#"
+let base = { a: 1 };
+let merged = Object.assign({ b: 2 }, base);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-object-spread")
+            .assert_has_fix("prefer-object-spread")
+            .assert_safe_fixed(
+                r#"
+let base = { a: 1 };
+let merged = { b: 2, ...base };
+"#,
+            );
+    }
+
+    /// Fix computed Object.assign property access.
+    #[test]
+    fn test_fix_computed_object_assign() {
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
+            "prefer_object_spread/test_fix_computed_object_assign.ds",
+            r#"
+let base = { a: 1 };
+let merged = Object["assign"]({}, base);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-object-spread")
+            .assert_has_fix("prefer-object-spread")
+            .assert_safe_fixed(
+                r#"
+let base = { a: 1 };
+let merged = { ...base };
+"#,
+            );
+    }
+
+    /// Keep lint without fix when Object.assign call contains comments.
+    #[test]
+    fn test_no_fix_when_object_assign_contains_comments() {
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
+            "prefer_object_spread/test_no_fix_when_object_assign_contains_comments.ds",
+            r#"
+let base = { a: 1 };
+let merged = Object.assign(
+  {},
+  /* spread source */ base,
+);
 "#,
         );
         test.result(result)
@@ -375,16 +578,27 @@ let merged = Object.assign({}, ...sources);
             .assert_has_no_fix("prefer-object-spread");
     }
 
+    /// Parenthesize assignment sources when converting to spread entries.
     #[test]
-    fn test_allows_object_assign_with_non_empty_target() {
+    fn test_fix_wraps_assignment_source_in_spread() {
         let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
         let result = test.lint_dir(
-            "prefer_object_spread/test_allows_object_assign_with_non_empty_target.ds",
+            "prefer_object_spread/test_fix_wraps_assignment_source_in_spread.ds",
             r#"
 let base = { a: 1 };
-let merged = Object.assign({ b: 2 }, base);
+let other = { b: 2 };
+let merged = Object.assign({}, base = other);
 "#,
         );
-        test.result(result).assert_no_lint("prefer-object-spread");
+        test.result(result)
+            .assert_lint("prefer-object-spread")
+            .assert_has_fix("prefer-object-spread")
+            .assert_safe_fixed(
+                r#"
+let base = { a: 1 };
+let other = { b: 2 };
+let merged = { ...(base = other) };
+"#,
+            );
     }
 }

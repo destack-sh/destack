@@ -5,6 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expand_span_to_statement_terminator, expression_method_call, is_array_type,
+    strip_dot_member_suffix,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -535,12 +536,6 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
     }
 }
 
-/// Strip one `.member` suffix from member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
-}
-
 impl NodeVisitor for PreferArrayFilterVisitor<'_, '_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
@@ -695,7 +690,7 @@ let result = items.filter(x => x > 1);
         test.result(result).assert_no_lint("prefer-array-filter");
     }
 
-    /// keep no fix when pushed value is not the callback parameter
+    /// Keep no fix when pushed value is not the callback parameter.
     #[test]
     fn test_no_fix_when_push_value_is_transformed() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFilter);
@@ -714,7 +709,7 @@ items.forEach((x) => {
         test.result(result).assert_no_lint("prefer-array-filter");
     }
 
-    /// keep no fix without an adjacent empty array declaration
+    /// Keep no fix without an adjacent empty array declaration.
     #[test]
     fn test_no_fix_without_adjacent_empty_array_declaration() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFilter);
@@ -736,7 +731,7 @@ items.forEach((x) => {
             .assert_has_no_fix("prefer-array-filter");
     }
 
-    /// keep no fix when callback pushes into a different target
+    /// Keep no fix when callback pushes into a different target.
     #[test]
     fn test_no_fix_for_mismatched_push_target() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFilter);

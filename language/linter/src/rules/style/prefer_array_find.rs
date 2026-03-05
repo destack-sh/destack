@@ -35,6 +35,10 @@ enum FirstElementAccess {
     Shift,
     /// At method: `.filter(...).at(0)`
     At,
+    /// Pop method: `.filter(...).pop()`
+    Pop,
+    /// At method with negative index: `.filter(...).at(-1)`
+    AtNegativeOne,
 }
 
 impl LintRule for PreferArrayFind {
@@ -63,6 +67,8 @@ struct PreferArrayFindVisitor<'a, 'b> {
     shift_name: StringId,
     /// The string id for the at method name.
     at_name: StringId,
+    /// The string id for the pop method name.
+    pop_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -74,6 +80,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         let filter_name = ctx.program.strings.intern("filter");
         let shift_name = ctx.program.strings.intern("shift");
         let at_name = ctx.program.strings.intern("at");
+        let pop_name = ctx.program.strings.intern("pop");
 
         Self {
             ctx,
@@ -82,6 +89,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             filter_name,
             shift_name,
             at_name,
+            pop_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -151,14 +159,45 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             return;
         }
 
-        // check for .at(0)
+        // check for .at(0) and .at(-1)
         if call.method_name == self.at_name {
-            if !self.is_at_zero(expression_id) {
+            let Some(index_value) = self.at_index_value(expression_id) else {
+                return;
+            };
+
+            if self.is_array_filter_call(call.receiver_id) {
+                if index_value == 0 {
+                    self.report(expression_id, call.receiver_id, FirstElementAccess::At);
+                    return;
+                }
+
+                if index_value == -1 {
+                    self.report(
+                        expression_id,
+                        call.receiver_id,
+                        FirstElementAccess::AtNegativeOne,
+                    );
+                }
+            }
+
+            return;
+        }
+
+        // check for .pop() with no arguments
+        if call.method_name == self.pop_name {
+            let expression = self.ctx.tree.get(expression_id);
+            let dir::Expression::Call {
+                dynamic_arguments, ..
+            } = expression
+            else {
+                return;
+            };
+            if !dynamic_arguments.is_empty() {
                 return;
             }
 
             if self.is_array_filter_call(call.receiver_id) {
-                self.report(expression_id, call.receiver_id, FirstElementAccess::At);
+                self.report(expression_id, call.receiver_id, FirstElementAccess::Pop);
             }
         }
     }
@@ -167,6 +206,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
     fn build_find_replacement(
         &self,
         filter_call_id: dir::LocalNodeId<dir::Expression>,
+        method_name: &str,
     ) -> Option<String> {
         let filter_call = expression_method_call(self.ctx.tree, filter_call_id)?;
         if filter_call.method_name != self.filter_name {
@@ -176,7 +216,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         // rewrite the matched call text itself to preserve receiver and arguments
         let filter_span = self.ctx.get_span(filter_call_id);
         let filter_text = self.ctx.get_span_text(filter_span);
-        let replacement = filter_text.replacen(".filter(", ".find(", 1);
+        let replacement = filter_text.replacen(".filter(", &format!(".{method_name}("), 1);
         if replacement == filter_text {
             return None;
         }
@@ -184,32 +224,32 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         Some(replacement)
     }
 
-    /// Check if this is a .at(0) call.
-    fn is_at_zero(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+    /// Return the literal numeric index for one `.at(index)` call.
+    fn at_index_value(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> Option<i64> {
         let expression = self.ctx.tree.get(expression_id);
         let dir::Expression::Call {
             dynamic_arguments, ..
         } = expression
         else {
-            return false;
+            return None;
         };
 
         // must have exactly one argument
         if dynamic_arguments.len() != 1 {
-            return false;
+            return None;
         }
 
         // argument must be literal 0
         let argument = self.ctx.tree.get(dynamic_arguments[0]);
         let expression_id = argument.value();
         let Some(const_value) = self.ctx.const_value(expression_id) else {
-            return false;
+            return None;
         };
         let Some(index_value) = const_i64(&const_value) else {
-            return false;
+            return None;
         };
 
-        index_value == 0
+        Some(index_value)
     }
 
     /// Check if expression is a filter() call on an array.
@@ -266,8 +306,16 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             FirstElementAccess::Index => "filter()[0]",
             FirstElementAccess::Shift => "filter().shift()",
             FirstElementAccess::At => "filter().at(0)",
+            FirstElementAccess::Pop => "filter().pop()",
+            FirstElementAccess::AtNegativeOne => "filter().at(-1)",
         };
         let span = self.ctx.get_span(expression_id);
+        let preferred_method = match access {
+            FirstElementAccess::Index | FirstElementAccess::Shift | FirstElementAccess::At => {
+                "find"
+            }
+            FirstElementAccess::Pop | FirstElementAccess::AtNegativeOne => "findLast",
+        };
 
         // attach a fix when the replacement is well-formed
         let mut diagnostic = LintDiagnostic::new(
@@ -275,13 +323,13 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             PREFER_ARRAY_FIND.code,
             PREFER_ARRAY_FIND.category,
             severity,
-            format!("prefer find() over {pattern}"),
+            format!("prefer {preferred_method}() over {pattern}"),
             self.ctx.module.file_id,
             span,
         )
-        .with_label("use array.find(...) instead");
+        .with_label(format!("use array.{preferred_method}(...) instead"));
         if self.ctx.include_fixes
-            && let Some(replacement) = self.build_find_replacement(filter_call_id)
+            && let Some(replacement) = self.build_find_replacement(filter_call_id, preferred_method)
         {
             let edits = self
                 .ctx
@@ -447,15 +495,57 @@ let second = items.filter(x => x > 0).at(1);
         test.result(result).assert_no_lint("prefer-array-find");
     }
 
-    /// Allow filter().at(-1) for last element access.
+    /// Flag filter().at(-1) and rewrite to findLast.
     #[test]
-    fn test_allows_filter_at_negative() {
+    fn test_flags_filter_at_negative_one() {
         let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
         let result = test.lint_dir(
-            "prefer_array_find/test_allows_filter_at_negative.ds",
+            "prefer_array_find/test_flags_filter_at_negative_one.ds",
             r#"
 let items = [1, 2, 3];
 let last = items.filter(x => x > 0).at(-1);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-find")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let last = items.findLast((x) => x > 0);
+"#,
+            );
+    }
+
+    /// Flag filter().pop() and rewrite to findLast.
+    #[test]
+    fn test_flags_filter_pop() {
+        let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
+        let result = test.lint_dir(
+            "prefer_array_find/test_flags_filter_pop.ds",
+            r#"
+let items = [1, 2, 3];
+let last = items.filter(x => x > 0).pop();
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-find")
+            .assert_safe_fixed(
+                r#"
+let items = [1, 2, 3];
+let last = items.findLast((x) => x > 0);
+"#,
+            );
+    }
+
+    /// Allow filter().at(-2) since it is not a first or last shorthand pattern.
+    #[test]
+    fn test_allows_filter_at_negative_two() {
+        let test = TestProgram::for_rule_with_prelude(PreferArrayFind);
+        let result = test.lint_dir(
+            "prefer_array_find/test_allows_filter_at_negative_two.ds",
+            r#"
+let items = [1, 2, 3];
+let value = items.filter(x => x > 0).at(-2);
 "#,
         );
         test.result(result).assert_no_lint("prefer-array-find");
