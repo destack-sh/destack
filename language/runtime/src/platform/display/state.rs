@@ -3,10 +3,10 @@ use std::sync::{Arc, OnceLock};
 #[cfg(target_os = "linux")]
 use std::sync::{Arc, OnceLock};
 
-#[cfg(target_os = "linux")]
-use super::host::X11RuntimeState;
 #[cfg(windows)]
 use super::host::{DisplayEventRuntimeState, WindowRuntimeState};
+#[cfg(target_os = "linux")]
+use super::host::{WaylandRuntimeState, X11RuntimeState};
 
 /// Runtime-owned display module state.
 #[derive(Default)]
@@ -20,6 +20,9 @@ pub(crate) struct PlatformDisplayState {
     /// Runtime-owned linux x11 state.
     #[cfg(target_os = "linux")]
     x11_runtime_state: OnceLock<Arc<X11RuntimeState>>,
+    /// Runtime-owned linux wayland state.
+    #[cfg(target_os = "linux")]
+    wayland_runtime_state: OnceLock<Arc<WaylandRuntimeState>>,
 }
 
 impl std::fmt::Debug for PlatformDisplayState {
@@ -63,6 +66,18 @@ impl PlatformDisplayState {
     ) -> Arc<X11RuntimeState> {
         Arc::clone(
             self.x11_runtime_state
+                .get_or_init(|| Arc::new(initialize())),
+        )
+    }
+
+    /// Return runtime-owned linux wayland display state.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn wayland_runtime_state(
+        &self,
+        initialize: impl FnOnce() -> WaylandRuntimeState,
+    ) -> Arc<WaylandRuntimeState> {
+        Arc::clone(
+            self.wayland_runtime_state
                 .get_or_init(|| Arc::new(initialize())),
         )
     }

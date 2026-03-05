@@ -2,7 +2,7 @@ use super::*;
 
 /// Open one global monitor-event stream.
 pub(crate) unsafe fn monitor_event_open(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut resource::DisplayEventHandle,
     options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
@@ -10,10 +10,10 @@ pub(crate) unsafe fn monitor_event_open(
     core_platform::ensure_out(out, "out")?;
     let filter = unsafe { MonitorEventFilterState::from_open_options(options)? };
 
-    // allocate stream resolved_binding with configured queue state
-    let resolved_binding = Arc::new(MonitorEventBinding {
+    // allocate stream binding with configured queue state
+    let binding = Arc::new(MonitorEventBinding {
         state: Mutex::new(MonitorEventState {
-            queue_capacity: core::resolved_queue_capacity(binding, options.queue.queue_capacity),
+            queue_capacity: core::resolved_queue_capacity(context, options.queue.queue_capacity),
             overflow_policy: options.queue.overflow_policy,
             overflow_error_pending: false,
             next_sequence: 1,
@@ -26,21 +26,21 @@ pub(crate) unsafe fn monitor_event_open(
 
     // seed stream with current monitor topology snapshot
     let seeded_snapshots = {
-        let mut state = resolved_binding
+        let mut state = binding
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        seed_monitor_event_stream(&mut state, &resolved_binding.filter)?
+        seed_monitor_event_stream(&mut state, &binding.filter)?
     };
 
     // register resource and subscriber entry
-    let resource_id = binding.agent().resources.insert(
+    let resource_id = context.runtime().resources.insert(
         ResourceEntry::new(ResourceKind::Display)
             .with_label(display_resource::DISPLAY_EVENT_RESOURCE_LABEL)
-            .with_payload(Arc::clone(&resolved_binding)),
-        Some(binding.engine()),
+            .with_payload(Arc::clone(&binding)),
+        Some(context.engine()),
     );
-    let runtime_state = display_event_runtime_state(binding);
+    let runtime_state = display_event_runtime_state(context);
     {
         let mut topology_snapshot = runtime_state
             .monitor_topology_snapshot
@@ -55,7 +55,7 @@ pub(crate) unsafe fn monitor_event_open(
         .monitor_event_registry
         .lock()
         .unwrap_or_else(|error| error.into_inner())
-        .push(Arc::downgrade(&resolved_binding));
+        .push(Arc::downgrade(&binding));
 
     // write stream handle
     unsafe {
@@ -67,18 +67,18 @@ pub(crate) unsafe fn monitor_event_open(
 
 /// Close one global monitor-event stream.
 pub(crate) unsafe fn monitor_event_close(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    // resolve stream resolved_binding and remove it from subscriber registry
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
-        binding,
+    // resolve stream binding and remove it from subscriber registry
+    let binding = display_resource::resolve_monitor_event_binding(
+        context,
         handle,
         "destack.display.monitor.eventClose",
     )?;
 
-    let identity = Arc::as_ptr(&resolved_binding) as usize;
-    let runtime_state = display_event_runtime_state(binding);
+    let identity = Arc::as_ptr(&binding) as usize;
+    let runtime_state = display_event_runtime_state(context);
     {
         let mut registry = runtime_state
             .monitor_event_registry
@@ -88,10 +88,10 @@ pub(crate) unsafe fn monitor_event_close(
     }
 
     // remove stream resource entry
-    let removed = binding
-        .agent()
+    let removed = context
+        .runtime()
         .resources
-        .remove(handle.0, Some(binding.engine()))
+        .remove(handle.0, Some(context.engine()))
         .is_some();
     // evaluate this condition
     if !removed {
@@ -106,23 +106,23 @@ pub(crate) unsafe fn monitor_event_close(
 
 /// Wait for one monitor event.
 pub(crate) unsafe fn monitor_event_read(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    // validate out pointer and resolve stream resolved_binding
+    // validate out pointer and resolve stream binding
     core_platform::ensure_out(out, "out")?;
 
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
-        binding,
+    let binding = display_resource::resolve_monitor_event_binding(
+        context,
         handle,
         "destack.display.monitor.eventRead",
     )?;
 
     // wait until one event is available or timeout expires
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
-    let mut state = resolved_binding
+    let mut state = binding
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -134,7 +134,7 @@ pub(crate) unsafe fn monitor_event_read(
         // return next pending event when available
         if let Some(record) = state.pending.pop_front() {
             unsafe {
-                *out = display_event_from_record(binding, record);
+                *out = display_event_from_record(context, record);
             }
             return Ok(());
         }
@@ -152,7 +152,7 @@ pub(crate) unsafe fn monitor_event_read(
         // wait for the remaining timeout slice
         let remaining = deadline.saturating_sub(now);
         let wait_duration = wait_duration(remaining);
-        let (next_state, _) = resolved_binding
+        let (next_state, _) = binding
             .signal
             .wait_timeout(state, wait_duration)
             .unwrap_or_else(|error| error.into_inner());
@@ -162,7 +162,7 @@ pub(crate) unsafe fn monitor_event_read(
 
 /// Wait for one batch of monitor events.
 pub(crate) unsafe fn monitor_event_read_batch(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
@@ -172,16 +172,16 @@ pub(crate) unsafe fn monitor_event_read_batch(
     core_platform::ensure_out(out, "out")?;
     let maxevents = core::validate_max_events(maxevents, "maxevents")?;
 
-    // resolve stream resolved_binding
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
-        binding,
+    // resolve stream binding
+    let binding = display_resource::resolve_monitor_event_binding(
+        context,
         handle,
         "destack.display.monitor.eventReadBatch",
     )?;
 
     // wait until one or more events are available or timeout expires
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
-    let mut state = resolved_binding
+    let mut state = binding
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -198,12 +198,12 @@ pub(crate) unsafe fn monitor_event_read_batch(
             for _ in 0..take {
                 // evaluate this condition
                 if let Some(record) = state.pending.pop_front() {
-                    events.push(display_event_from_record(binding, record));
+                    events.push(display_event_from_record(context, record));
                 }
             }
 
             unsafe {
-                *out = binding.store_array(events);
+                *out = context.store_array(events);
             }
             return Ok(());
         }
@@ -221,7 +221,7 @@ pub(crate) unsafe fn monitor_event_read_batch(
         // wait for the remaining timeout slice
         let remaining = deadline.saturating_sub(now);
         let wait_duration = wait_duration(remaining);
-        let (next_state, _) = resolved_binding
+        let (next_state, _) = binding
             .signal
             .wait_timeout(state, wait_duration)
             .unwrap_or_else(|error| error.into_inner());
@@ -231,19 +231,19 @@ pub(crate) unsafe fn monitor_event_read_batch(
 
 /// Poll one monitor event without blocking.
 pub(crate) unsafe fn monitor_event_try_read(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    // validate out pointer and resolve stream resolved_binding
+    // validate out pointer and resolve stream binding
     core_platform::ensure_out(out, "out")?;
 
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
-        binding,
+    let binding = display_resource::resolve_monitor_event_binding(
+        context,
         handle,
         "destack.display.monitor.eventTryRead",
     )?;
-    let mut state = resolved_binding
+    let mut state = binding
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -257,7 +257,7 @@ pub(crate) unsafe fn monitor_event_try_read(
 
     // write decoded event payload
     unsafe {
-        *out = display_event_from_record(binding, record);
+        *out = display_event_from_record(context, record);
     }
 
     Ok(())
@@ -265,7 +265,7 @@ pub(crate) unsafe fn monitor_event_try_read(
 
 /// Poll one batch of monitor events without blocking.
 pub(crate) unsafe fn monitor_event_try_read_batch(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
@@ -274,13 +274,13 @@ pub(crate) unsafe fn monitor_event_try_read_batch(
     core_platform::ensure_out(out, "out")?;
     let maxevents = core::validate_max_events(maxevents, "maxevents")?;
 
-    // resolve stream resolved_binding and pop pending batch without blocking
-    let resolved_binding = display_resource::resolve_monitor_event_binding(
-        binding,
+    // resolve stream binding and pop pending batch without blocking
+    let binding = display_resource::resolve_monitor_event_binding(
+        context,
         handle,
         "destack.display.monitor.eventTryReadBatch",
     )?;
-    let mut state = resolved_binding
+    let mut state = binding
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -295,12 +295,12 @@ pub(crate) unsafe fn monitor_event_try_read_batch(
     let mut events = Vec::with_capacity(records.len());
     // iterate this sequence
     for record in records {
-        events.push(display_event_from_record(binding, record));
+        events.push(display_event_from_record(context, record));
     }
 
     // write event batch payload
     unsafe {
-        *out = binding.store_array(events);
+        *out = context.store_array(events);
     }
 
     Ok(())
@@ -308,7 +308,7 @@ pub(crate) unsafe fn monitor_event_try_read_batch(
 
 /// Open one global window-event stream.
 pub(crate) unsafe fn window_event_open(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut resource::WindowEventHandle,
     options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
@@ -316,10 +316,10 @@ pub(crate) unsafe fn window_event_open(
     core_platform::ensure_out(out, "out")?;
     let filter = WindowEventFilterState::from_open_options(options)?;
 
-    // allocate stream resolved_binding with configured queue state
-    let resolved_binding = Arc::new(WindowEventBinding {
+    // allocate stream binding with configured queue state
+    let binding = Arc::new(WindowEventBinding {
         state: Mutex::new(WindowEventState {
-            queue_capacity: core::resolved_queue_capacity(binding, options.queue.queue_capacity),
+            queue_capacity: core::resolved_queue_capacity(context, options.queue.queue_capacity),
             overflow_policy: options.queue.overflow_policy,
             overflow_error_pending: false,
             next_sequence: 1,
@@ -332,18 +332,18 @@ pub(crate) unsafe fn window_event_open(
     });
 
     // register resource and subscriber entry
-    let resource_id = binding.agent().resources.insert(
+    let resource_id = context.runtime().resources.insert(
         ResourceEntry::new(ResourceKind::Window)
             .with_label(display_resource::WINDOW_EVENT_RESOURCE_LABEL)
-            .with_payload(Arc::clone(&resolved_binding)),
-        Some(binding.engine()),
+            .with_payload(Arc::clone(&binding)),
+        Some(context.engine()),
     );
-    let runtime_state = display_event_runtime_state(binding);
+    let runtime_state = display_event_runtime_state(context);
     runtime_state
         .window_event_registry
         .lock()
         .unwrap_or_else(|error| error.into_inner())
-        .push(Arc::downgrade(&resolved_binding));
+        .push(Arc::downgrade(&binding));
 
     // write stream handle
     unsafe {
@@ -355,18 +355,18 @@ pub(crate) unsafe fn window_event_open(
 
 /// Close one global window-event stream.
 pub(crate) unsafe fn window_event_close(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
-    // resolve stream resolved_binding and remove it from subscriber registry
-    let resolved_binding = display_resource::resolve_window_event_binding(
-        binding,
+    // resolve stream binding and remove it from subscriber registry
+    let binding = display_resource::resolve_window_event_binding(
+        context,
         handle,
         "destack.display.window.eventClose",
     )?;
 
-    let identity = Arc::as_ptr(&resolved_binding) as usize;
-    let runtime_state = display_event_runtime_state(binding);
+    let identity = Arc::as_ptr(&binding) as usize;
+    let runtime_state = display_event_runtime_state(context);
     {
         let mut registry = runtime_state
             .window_event_registry
@@ -376,10 +376,10 @@ pub(crate) unsafe fn window_event_close(
     }
 
     // remove stream resource entry
-    let removed = binding
-        .agent()
+    let removed = context
+        .runtime()
         .resources
-        .remove(handle.0, Some(binding.engine()))
+        .remove(handle.0, Some(context.engine()))
         .is_some();
     // evaluate this condition
     if !removed {
@@ -394,31 +394,31 @@ pub(crate) unsafe fn window_event_close(
 
 /// Wait for one window event.
 pub(crate) unsafe fn window_event_read(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    // validate out pointer and resolve stream resolved_binding
+    // validate out pointer and resolve stream binding
     core_platform::ensure_out(out, "out")?;
 
-    let resolved_binding = display_resource::resolve_window_event_binding(
-        binding,
+    let binding = display_resource::resolve_window_event_binding(
+        context,
         handle,
         "destack.display.window.eventRead",
     )?;
 
     // enforce owner-thread affinity for window message pumping
-    ensure_window_event_thread(&resolved_binding, "destack.display.window.eventRead")?;
+    ensure_window_event_thread(&binding, "destack.display.window.eventRead")?;
 
     // wait until one event is available or timeout expires
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
     // loop until one branch exits
     loop {
         // pump native window messages before reading queue state
-        window::pump_window_messages(binding)?;
+        window::pump_window_messages(context)?;
 
-        let mut state = resolved_binding
+        let mut state = binding
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
@@ -429,7 +429,7 @@ pub(crate) unsafe fn window_event_read(
         // return next pending event when available
         if let Some(record) = state.pending.pop_front() {
             unsafe {
-                *out = window_event_from_record(record, binding);
+                *out = window_event_from_record(record, context);
             }
             return Ok(());
         }
@@ -445,19 +445,20 @@ pub(crate) unsafe fn window_event_read(
         }
 
         // wait for one bounded timeout slice
-        let wait_slice_ns = core::window_event_wait_slice_ns(binding);
+        let wait_slice_ns = core::window_event_wait_slice_ns(context);
         let remaining_ns = deadline.saturating_sub(now).min(wait_slice_ns);
         let wait_duration = wait_duration(remaining_ns);
-        let _ = resolved_binding
+        let state_guard = binding
             .signal
             .wait_timeout(state, wait_duration)
             .unwrap_or_else(|error| error.into_inner());
+        drop(state_guard);
     }
 }
 
 /// Wait for one batch of window events.
 pub(crate) unsafe fn window_event_read_batch(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -467,22 +468,22 @@ pub(crate) unsafe fn window_event_read_batch(
     core_platform::ensure_out(out, "out")?;
     let maxevents = core::validate_max_events(maxevents, "maxevents")?;
 
-    // resolve stream resolved_binding and enforce owner-thread affinity
-    let resolved_binding = display_resource::resolve_window_event_binding(
-        binding,
+    // resolve stream binding and enforce owner-thread affinity
+    let binding = display_resource::resolve_window_event_binding(
+        context,
         handle,
         "destack.display.window.eventReadBatch",
     )?;
-    ensure_window_event_thread(&resolved_binding, "destack.display.window.eventReadBatch")?;
+    ensure_window_event_thread(&binding, "destack.display.window.eventReadBatch")?;
 
     // wait until one or more events are available or timeout expires
     let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
     // loop until one branch exits
     loop {
         // pump native window messages before reading queue state
-        window::pump_window_messages(binding)?;
+        window::pump_window_messages(context)?;
 
-        let mut state = resolved_binding
+        let mut state = binding
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
@@ -498,12 +499,12 @@ pub(crate) unsafe fn window_event_read_batch(
             for _ in 0..take {
                 // evaluate this condition
                 if let Some(record) = state.pending.pop_front() {
-                    events.push(window_event_from_record(record, binding));
+                    events.push(window_event_from_record(record, context));
                 }
             }
 
             unsafe {
-                *out = binding.store_array(events);
+                *out = context.store_array(events);
             }
             return Ok(());
         }
@@ -519,37 +520,38 @@ pub(crate) unsafe fn window_event_read_batch(
         }
 
         // wait for one bounded timeout slice
-        let wait_slice_ns = core::window_event_wait_slice_ns(binding);
+        let wait_slice_ns = core::window_event_wait_slice_ns(context);
         let remaining_ns = deadline.saturating_sub(now).min(wait_slice_ns);
         let wait_duration = wait_duration(remaining_ns);
-        let _ = resolved_binding
+        let state_guard = binding
             .signal
             .wait_timeout(state, wait_duration)
             .unwrap_or_else(|error| error.into_inner());
+        drop(state_guard);
     }
 }
 
 /// Poll one window event without blocking.
 pub(crate) unsafe fn window_event_try_read(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
-    // validate out pointer and resolve stream resolved_binding
+    // validate out pointer and resolve stream binding
     core_platform::ensure_out(out, "out")?;
 
-    let resolved_binding = display_resource::resolve_window_event_binding(
-        binding,
+    let binding = display_resource::resolve_window_event_binding(
+        context,
         handle,
         "destack.display.window.eventTryRead",
     )?;
 
     // enforce owner-thread affinity for window message pumping
-    ensure_window_event_thread(&resolved_binding, "destack.display.window.eventTryRead")?;
+    ensure_window_event_thread(&binding, "destack.display.window.eventTryRead")?;
 
     // pump native window messages before non-blocking read
-    window::pump_window_messages(binding)?;
-    let mut state = resolved_binding
+    window::pump_window_messages(context)?;
+    let mut state = binding
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -563,7 +565,7 @@ pub(crate) unsafe fn window_event_try_read(
 
     // write decoded event payload
     unsafe {
-        *out = window_event_from_record(record, binding);
+        *out = window_event_from_record(record, context);
     }
 
     Ok(())
@@ -571,7 +573,7 @@ pub(crate) unsafe fn window_event_try_read(
 
 /// Poll one batch of window events without blocking.
 pub(crate) unsafe fn window_event_try_read_batch(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -580,20 +582,17 @@ pub(crate) unsafe fn window_event_try_read_batch(
     core_platform::ensure_out(out, "out")?;
     let maxevents = core::validate_max_events(maxevents, "maxevents")?;
 
-    // resolve stream resolved_binding and enforce owner-thread affinity
-    let resolved_binding = display_resource::resolve_window_event_binding(
-        binding,
+    // resolve stream binding and enforce owner-thread affinity
+    let binding = display_resource::resolve_window_event_binding(
+        context,
         handle,
         "destack.display.window.eventTryReadBatch",
     )?;
-    ensure_window_event_thread(
-        &resolved_binding,
-        "destack.display.window.eventTryReadBatch",
-    )?;
+    ensure_window_event_thread(&binding, "destack.display.window.eventTryReadBatch")?;
 
     // pump native window messages before non-blocking read
-    window::pump_window_messages(binding)?;
-    let mut state = resolved_binding
+    window::pump_window_messages(context)?;
+    let mut state = binding
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
@@ -610,12 +609,12 @@ pub(crate) unsafe fn window_event_try_read_batch(
     let mut events = Vec::with_capacity(records.len());
     // iterate this sequence
     for record in records {
-        events.push(window_event_from_record(record, binding));
+        events.push(window_event_from_record(record, context));
     }
 
     // write event batch payload
     unsafe {
-        *out = binding.store_array(events);
+        *out = context.store_array(events);
     }
 
     Ok(())

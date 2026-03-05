@@ -73,7 +73,7 @@ use crate::platform::display::{
     WindowPositionChangedEventReplayRecord, WindowPositionChangedEventVm, WindowPositionPayload,
     WindowPositionPayloadVm, WindowPositionVm, WindowRefreshRequestedEvent,
     WindowRefreshRequestedEventReplayRecord, WindowRefreshRequestedEventVm, WindowResizeEdge,
-    WindowSafeAreaChangedEvent, WindowSafeAreaChangedEventReplayRecord,
+    WindowRole, WindowSafeAreaChangedEvent, WindowSafeAreaChangedEventReplayRecord,
     WindowSafeAreaChangedEventVm, WindowSafeAreaInsets, WindowSafeAreaInsetsVm,
     WindowSafeAreaPayload, WindowSafeAreaPayloadVm, WindowScaleFactorChangedEvent,
     WindowScaleFactorChangedEventReplayRecord, WindowScaleFactorChangedEventVm,
@@ -1864,6 +1864,28 @@ fn encode_destack_display_window_begin_resize_drag_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.display.window.capabilities.
+#[inline]
+fn decode_destack_display_window_capabilities_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle,)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    Ok((window,))
+}
+
+/// Encode the result for destack.display.window.capabilities.
+#[inline]
+fn encode_destack_display_window_capabilities_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<DisplayBackendCapabilityFlags>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0, 64))
+}
+
 /// Decode arguments for destack.display.window.close.
 #[inline]
 fn decode_destack_display_window_close_args(
@@ -1909,7 +1931,8 @@ fn encode_destack_display_window_descriptor_result(
         let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
         let field_1 = value.id.value();
         let field_2 = value.title.value();
-        let field_3 = match value.mode {
+        let field_3 = vm::Value::uint(value.role as u8 as u64, 8);
+        let field_4 = match value.mode {
             WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
                 let tag_value = vm::Value::uint(3607132193u64, 32);
                 let payload_value = {
@@ -1953,28 +1976,28 @@ fn encode_destack_display_window_descriptor_result(
                 context.allocate_aggregate(vec![tag_value, payload_value])
             }
         };
-        let field_4 = match value.display {
+        let field_5 = match value.display {
             Some(value) => vm::Value::uint(value.0.0, 64),
             None => vm::Value::VOID,
         };
-        let field_5 = vm::Value::bool(value.resizable);
-        let field_6 = vm::Value::bool(value.decorated);
-        let field_7 = vm::Value::uint(value.chrome as u8 as u64, 8);
-        let field_8 = vm::Value::bool(value.taskbar_visible);
-        let field_9 = vm::Value::bool(value.transparent);
-        let field_10 = vm::Value::float64(value.opacity);
-        let field_11 = vm::Value::bool(value.always_on_top);
-        let field_12 = match value.parent {
+        let field_6 = vm::Value::bool(value.resizable);
+        let field_7 = vm::Value::bool(value.decorated);
+        let field_8 = vm::Value::uint(value.chrome as u8 as u64, 8);
+        let field_9 = vm::Value::bool(value.taskbar_visible);
+        let field_10 = vm::Value::bool(value.transparent);
+        let field_11 = vm::Value::float64(value.opacity);
+        let field_12 = vm::Value::bool(value.always_on_top);
+        let field_13 = match value.parent {
             Some(value) => vm::Value::uint(value.0.0, 64),
             None => vm::Value::VOID,
         };
-        let field_13 = match value.transient_for {
+        let field_14 = match value.transient_for {
             Some(value) => vm::Value::uint(value.0.0, 64),
             None => vm::Value::VOID,
         };
-        let field_14 = vm::Value::bool(value.modal);
-        let field_15 = vm::Value::bool(value.mouse_passthrough);
-        let field_16 = match value.aspect_ratio {
+        let field_15 = vm::Value::bool(value.modal);
+        let field_16 = vm::Value::bool(value.mouse_passthrough);
+        let field_17 = match value.aspect_ratio {
             Some(value) => {
                 let field_0 = vm::Value::uint(value.numerator as u64, 32);
                 let field_1 = vm::Value::uint(value.denominator as u64, 32);
@@ -1985,6 +2008,7 @@ fn encode_destack_display_window_descriptor_result(
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
             field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17,
         ])
     })
 }
@@ -4071,10 +4095,10 @@ fn decode_destack_display_window_open_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 22 {
+        if slots.len() != 23 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 22 fields",
+                "expected 23 fields",
             ))
             .boxed());
         }
@@ -4110,8 +4134,21 @@ fn decode_destack_display_window_open_args(
             }
         };
         let options_title = decode_string(slots[2], "options_title", "title")?;
+        let options_role_raw = decode_uint8(slots[3], "options_role_raw", "role")?;
+        let options_role = match options_role_raw {
+            1u8 => WindowRole::Toplevel,
+            2u8 => WindowRole::Popup,
+            3u8 => WindowRole::Overlay,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_role",
+                    "unknown WindowRole value",
+                ))
+                .boxed());
+            }
+        };
         let options_size_logical = {
-            if slots[3].tag() != vm::ValueTag::Aggregate {
+            if slots[4].tag() != vm::ValueTag::Aggregate {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_type(
                     "options_size_logical",
                     "sizeLogical",
@@ -4119,7 +4156,7 @@ fn decode_destack_display_window_open_args(
                 .boxed());
             }
             let slots = context
-                .aggregate_slots(slots[3])
+                .aggregate_slots(slots[4])
                 .map_err(|error| RuntimeError::from(error).boxed())?;
             if slots.len() != 2 {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -4137,11 +4174,11 @@ fn decode_destack_display_window_open_args(
                 height: options_size_logical_height,
             }
         };
-        let options_position = if slots[4].tag() == vm::ValueTag::Void {
+        let options_position = if slots[5].tag() == vm::ValueTag::Void {
             None
         } else {
             let options_position_inner = {
-                if slots[4].tag() != vm::ValueTag::Aggregate {
+                if slots[5].tag() != vm::ValueTag::Aggregate {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_type(
                         "options_position_inner",
                         "position",
@@ -4149,7 +4186,7 @@ fn decode_destack_display_window_open_args(
                     .boxed());
                 }
                 let slots = context
-                    .aggregate_slots(slots[4])
+                    .aggregate_slots(slots[5])
                     .map_err(|error| RuntimeError::from(error).boxed())?;
                 if slots.len() != 2 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -4169,11 +4206,11 @@ fn decode_destack_display_window_open_args(
             };
             Some(options_position_inner)
         };
-        let options_constraints = if slots[5].tag() == vm::ValueTag::Void {
+        let options_constraints = if slots[6].tag() == vm::ValueTag::Void {
             None
         } else {
             let options_constraints_inner = {
-                if slots[5].tag() != vm::ValueTag::Aggregate {
+                if slots[6].tag() != vm::ValueTag::Aggregate {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_type(
                         "options_constraints_inner",
                         "constraints",
@@ -4181,7 +4218,7 @@ fn decode_destack_display_window_open_args(
                     .boxed());
                 }
                 let slots = context
-                    .aggregate_slots(slots[5])
+                    .aggregate_slots(slots[6])
                     .map_err(|error| RuntimeError::from(error).boxed())?;
                 if slots.len() != 2 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -4273,20 +4310,20 @@ fn decode_destack_display_window_open_args(
             };
             Some(options_constraints_inner)
         };
-        let options_display = if slots[6].tag() == vm::ValueTag::Void {
+        let options_display = if slots[7].tag() == vm::ValueTag::Void {
             None
         } else {
             let options_display_inner_inner_inner =
-                decode_uint64(slots[6], "options_display_inner_inner_inner", "display")?;
+                decode_uint64(slots[7], "options_display_inner_inner_inner", "display")?;
             let options_display_inner_inner =
                 resource::ResourceId(options_display_inner_inner_inner);
             let options_display_inner = resource::DisplayHandle(options_display_inner_inner);
             Some(options_display_inner)
         };
         let options_mode =
-            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let options_visibility_raw =
-            decode_uint8(slots[8], "options_visibility_raw", "visibility")?;
+            decode_uint8(slots[9], "options_visibility_raw", "visibility")?;
         let options_visibility = match options_visibility_raw {
             1u8 => WindowVisibility::Hidden,
             2u8 => WindowVisibility::Visible,
@@ -4300,10 +4337,10 @@ fn decode_destack_display_window_open_args(
                 .boxed());
             }
         };
-        let options_resizable = decode_bool(slots[9], "options_resizable", "resizable")?;
-        let options_decorated = decode_bool(slots[10], "options_decorated", "decorated")?;
-        let options_transparent = decode_bool(slots[11], "options_transparent", "transparent")?;
-        let options_chrome_raw = decode_uint8(slots[12], "options_chrome_raw", "chrome")?;
+        let options_resizable = decode_bool(slots[10], "options_resizable", "resizable")?;
+        let options_decorated = decode_bool(slots[11], "options_decorated", "decorated")?;
+        let options_transparent = decode_bool(slots[12], "options_transparent", "transparent")?;
+        let options_chrome_raw = decode_uint8(slots[13], "options_chrome_raw", "chrome")?;
         let options_chrome = match options_chrome_raw {
             1u8 => WindowChromeKind::Standard,
             2u8 => WindowChromeKind::Tool,
@@ -4317,30 +4354,30 @@ fn decode_destack_display_window_open_args(
             }
         };
         let options_taskbar_visible =
-            decode_bool(slots[13], "options_taskbar_visible", "taskbarVisible")?;
-        let options_opacity = if slots[14].tag() == vm::ValueTag::Void {
+            decode_bool(slots[14], "options_taskbar_visible", "taskbarVisible")?;
+        let options_opacity = if slots[15].tag() == vm::ValueTag::Void {
             None
         } else {
             let options_opacity_inner =
-                decode_float64(slots[14], "options_opacity_inner", "opacity")?;
+                decode_float64(slots[15], "options_opacity_inner", "opacity")?;
             Some(options_opacity_inner)
         };
-        let options_focus_on_show = decode_bool(slots[15], "options_focus_on_show", "focusOnShow")?;
-        let options_always_on_top = decode_bool(slots[16], "options_always_on_top", "alwaysOnTop")?;
-        let options_parent = if slots[17].tag() == vm::ValueTag::Void {
+        let options_focus_on_show = decode_bool(slots[16], "options_focus_on_show", "focusOnShow")?;
+        let options_always_on_top = decode_bool(slots[17], "options_always_on_top", "alwaysOnTop")?;
+        let options_parent = if slots[18].tag() == vm::ValueTag::Void {
             None
         } else {
             let options_parent_inner_inner_inner =
-                decode_uint64(slots[17], "options_parent_inner_inner_inner", "parent")?;
+                decode_uint64(slots[18], "options_parent_inner_inner_inner", "parent")?;
             let options_parent_inner_inner = resource::ResourceId(options_parent_inner_inner_inner);
             let options_parent_inner = resource::WindowHandle(options_parent_inner_inner);
             Some(options_parent_inner)
         };
-        let options_transient_for = if slots[18].tag() == vm::ValueTag::Void {
+        let options_transient_for = if slots[19].tag() == vm::ValueTag::Void {
             None
         } else {
             let options_transient_for_inner_inner_inner = decode_uint64(
-                slots[18],
+                slots[19],
                 "options_transient_for_inner_inner_inner",
                 "transientFor",
             )?;
@@ -4350,27 +4387,27 @@ fn decode_destack_display_window_open_args(
                 resource::WindowHandle(options_transient_for_inner_inner);
             Some(options_transient_for_inner)
         };
-        let options_modal = if slots[19].tag() == vm::ValueTag::Void {
+        let options_modal = if slots[20].tag() == vm::ValueTag::Void {
             None
         } else {
-            let options_modal_inner = decode_bool(slots[19], "options_modal_inner", "modal")?;
+            let options_modal_inner = decode_bool(slots[20], "options_modal_inner", "modal")?;
             Some(options_modal_inner)
         };
-        let options_mouse_passthrough = if slots[20].tag() == vm::ValueTag::Void {
+        let options_mouse_passthrough = if slots[21].tag() == vm::ValueTag::Void {
             None
         } else {
             let options_mouse_passthrough_inner = decode_bool(
-                slots[20],
+                slots[21],
                 "options_mouse_passthrough_inner",
                 "mousePassthrough",
             )?;
             Some(options_mouse_passthrough_inner)
         };
-        let options_aspect_ratio = if slots[21].tag() == vm::ValueTag::Void {
+        let options_aspect_ratio = if slots[22].tag() == vm::ValueTag::Void {
             None
         } else {
             let options_aspect_ratio_inner = {
-                if slots[21].tag() != vm::ValueTag::Aggregate {
+                if slots[22].tag() != vm::ValueTag::Aggregate {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_type(
                         "options_aspect_ratio_inner",
                         "aspectRatio",
@@ -4378,7 +4415,7 @@ fn decode_destack_display_window_open_args(
                     .boxed());
                 }
                 let slots = context
-                    .aggregate_slots(slots[21])
+                    .aggregate_slots(slots[22])
                     .map_err(|error| RuntimeError::from(error).boxed())?;
                 if slots.len() != 2 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -4408,6 +4445,7 @@ fn decode_destack_display_window_open_args(
             backend: options_backend,
             backend_policy: options_backend_policy,
             title: options_title,
+            role: options_role,
             size_logical: options_size_logical,
             position: options_position,
             constraints: options_constraints,
@@ -5462,30 +5500,31 @@ fn encode_destack_display_window_state_result(
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_1 = {
+        let field_1 = vm::Value::uint(value.role as u8 as u64, 8);
+        let field_2 = {
             let field_0 = vm::Value::int(value.position.x as i64, 32);
             let field_1 = vm::Value::int(value.position.y as i64, 32);
             context.allocate_aggregate(vec![field_0, field_1])
         };
-        let field_2 = {
+        let field_3 = {
             let field_0 = vm::Value::float64(value.size_logical.width);
             let field_1 = vm::Value::float64(value.size_logical.height);
             context.allocate_aggregate(vec![field_0, field_1])
         };
-        let field_3 = {
+        let field_4 = {
             let field_0 = vm::Value::uint(value.size_physical.width as u64, 32);
             let field_1 = vm::Value::uint(value.size_physical.height as u64, 32);
             context.allocate_aggregate(vec![field_0, field_1])
         };
-        let field_4 = vm::Value::uint(value.scale_factor_milli as u64, 32);
-        let field_5 = vm::Value::uint(value.visibility as u8 as u64, 8);
-        let field_6 = match value.display {
+        let field_5 = vm::Value::uint(value.scale_factor_milli as u64, 32);
+        let field_6 = vm::Value::uint(value.visibility as u8 as u64, 8);
+        let field_7 = match value.display {
             Some(value) => vm::Value::uint(value.0.0, 64),
             None => vm::Value::VOID,
         };
-        let field_7 = vm::Value::bool(value.focused);
-        let field_8 = vm::Value::uint(value.occlusion as u8 as u64, 8);
-        let field_9 = match value.safe_area_insets {
+        let field_8 = vm::Value::bool(value.focused);
+        let field_9 = vm::Value::uint(value.occlusion as u8 as u64, 8);
+        let field_10 = match value.safe_area_insets {
             Some(value) => {
                 let field_0 = vm::Value::uint(value.left_px as u64, 32);
                 let field_1 = vm::Value::uint(value.top_px as u64, 32);
@@ -5495,22 +5534,22 @@ fn encode_destack_display_window_state_result(
             }
             None => vm::Value::VOID,
         };
-        let field_10 = vm::Value::uint(value.theme as u8 as u64, 8);
-        let field_11 = vm::Value::uint(value.chrome as u8 as u64, 8);
-        let field_12 = vm::Value::bool(value.taskbar_visible);
-        let field_13 = vm::Value::float64(value.opacity);
-        let field_14 = vm::Value::bool(value.always_on_top);
-        let field_15 = match value.parent {
+        let field_11 = vm::Value::uint(value.theme as u8 as u64, 8);
+        let field_12 = vm::Value::uint(value.chrome as u8 as u64, 8);
+        let field_13 = vm::Value::bool(value.taskbar_visible);
+        let field_14 = vm::Value::float64(value.opacity);
+        let field_15 = vm::Value::bool(value.always_on_top);
+        let field_16 = match value.parent {
             Some(value) => vm::Value::uint(value.0.0, 64),
             None => vm::Value::VOID,
         };
-        let field_16 = match value.transient_for {
+        let field_17 = match value.transient_for {
             Some(value) => vm::Value::uint(value.0.0, 64),
             None => vm::Value::VOID,
         };
-        let field_17 = vm::Value::bool(value.modal);
-        let field_18 = vm::Value::bool(value.mouse_passthrough);
-        let field_19 = match value.aspect_ratio {
+        let field_18 = vm::Value::bool(value.modal);
+        let field_19 = vm::Value::bool(value.mouse_passthrough);
+        let field_20 = match value.aspect_ratio {
             Some(value) => {
                 let field_0 = vm::Value::uint(value.numerator as u64, 32);
                 let field_1 = vm::Value::uint(value.denominator as u64, 32);
@@ -5521,7 +5560,7 @@ fn encode_destack_display_window_state_result(
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
             field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
-            field_17, field_18, field_19,
+            field_17, field_18, field_19, field_20,
         ])
     })
 }
@@ -5671,6 +5710,13 @@ struct DisplayWindowBeginMoveDragReplay {
 struct DisplayWindowBeginResizeDragReplay {
     /// Replay result payload.
     pub result: Result<(), ReplayError>,
+}
+
+/// Replay payload for destack.display.window.capabilities.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowCapabilitiesReplay {
+    /// Replay result payload.
+    pub result: Result<DisplayBackendCapabilityFlags, ReplayError>,
 }
 
 /// Replay payload for destack.display.window.close.
@@ -6287,6 +6333,18 @@ pub const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDescripto
     &["display.window"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.capabilities.
+pub const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.capabilities",
+    "export function windowCapabilities(window: WindowHandle): Result<DisplayBackendCapabilityFlags, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
@@ -6962,6 +7020,7 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     DISPLAY_MONITOR_SET_MODE,
     DISPLAY_WINDOW_BEGIN_MOVE_DRAG,
     DISPLAY_WINDOW_BEGIN_RESIZE_DRAG,
+    DISPLAY_WINDOW_CAPABILITIES,
     DISPLAY_WINDOW_CLOSE,
     DISPLAY_WINDOW_DESCRIPTOR,
     DISPLAY_WINDOW_EVENT_CLOSE,
@@ -7128,6 +7187,11 @@ pub const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             DISPLAY_WINDOW_BEGIN_RESIZE_DRAG,
             "destack.display.window.beginResizeDrag",
             destack_display_window_begin_resize_drag as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_CAPABILITIES,
+            "destack.display.window.capabilities",
+            destack_display_window_capabilities as *const (),
         ),
         NativeBinding::new(
             DISPLAY_WINDOW_CLOSE,
@@ -11905,6 +11969,69 @@ fn destack_display_window_begin_resize_drag_replay(
 }
 
 #[inline]
+fn destack_display_window_capabilities_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut DisplayBackendCapabilityFlags,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = &window;
+
+    binding.replay().run_binding_without_context(
+        DISPLAY_WINDOW_CAPABILITIES,
+        binding.replay_payload_for(DISPLAY_WINDOW_CAPABILITIES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_capabilities(binding, out, window)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_capabilities(
+                    binding, out, window,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = DisplayWindowCapabilitiesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(ReplayError::from(error.as_ref()));
+                    DisplayWindowCapabilitiesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_display_window_close_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -11977,6 +12104,7 @@ fn destack_display_window_descriptor_replay(
                 let result_recorded_backend = result_value.backend;
                 let result_recorded_id = unsafe { result_value.id.as_str()? }.to_string();
                 let result_recorded_title = unsafe { result_value.title.as_str()? }.to_string();
+                let result_recorded_role = result_value.role;
                 let result_recorded_mode = match result_value.mode {
                     WindowModeOptions::WindowBorderlessModeOptions(value) => {
                         let result_recorded_mode_window_borderless_mode_options_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -12069,6 +12197,7 @@ fn destack_display_window_descriptor_replay(
                     backend: result_recorded_backend,
                     id: result_recorded_id,
                     title: result_recorded_title,
+                    role: result_recorded_role,
                     mode: result_recorded_mode,
                     display: result_recorded_display,
                     resizable: result_recorded_resizable,
@@ -12109,6 +12238,7 @@ fn destack_display_window_descriptor_replay(
                     let value_native_backend = value.backend;
                     let value_native_id = binding.store_string(&value.id);
                     let value_native_title = binding.store_string(&value.title);
+                    let value_native_role = value.role;
                     let value_native_mode = match value.mode {
                         WindowModeOptionsReplayRecord::WindowBorderlessModeOptions(value) => {
                             let value_native_mode_window_borderless_mode_options_kind = binding.store_string(&value.kind);
@@ -12201,6 +12331,7 @@ fn destack_display_window_descriptor_replay(
                         backend: value_native_backend,
                         id: value_native_id,
                         title: value_native_title,
+                        role: value_native_role,
                         mode: value_native_mode,
                         display: value_native_display,
                         resizable: value_native_resizable,
@@ -23013,6 +23144,7 @@ fn destack_display_window_state_replay(
                     *out
                 };
                 let result_recorded_backend = result_value.backend;
+                let result_recorded_role = result_value.role;
                 let result_recorded_position_x = result_value.position.x;
                 let result_recorded_position_y = result_value.position.y;
                 let result_recorded_position = WindowPosition {
@@ -23090,6 +23222,7 @@ fn destack_display_window_state_replay(
                 };
                 let result_recorded = WindowState {
                     backend: result_recorded_backend,
+                    role: result_recorded_role,
                     position: result_recorded_position,
                     size_logical: result_recorded_size_logical,
                     size_physical: result_recorded_size_physical,
@@ -23131,6 +23264,7 @@ fn destack_display_window_state_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_backend = value.backend;
+                    let value_native_role = value.role;
                     let value_native_position_x = value.position.x;
                     let value_native_position_y = value.position.y;
                     let value_native_position = WindowPosition {
@@ -23207,6 +23341,7 @@ fn destack_display_window_state_replay(
                     };
                     let value_native = WindowState {
                         backend: value_native_backend,
+                        role: value_native_role,
                         position: value_native_position,
                         size_logical: value_native_size_logical,
                         size_physical: value_native_size_physical,
@@ -23660,6 +23795,23 @@ pub unsafe extern "C" fn destack_display_window_begin_resize_drag(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DISPLAY_WINDOW_BEGIN_RESIZE_DRAG)?;
         destack_display_window_begin_resize_drag_replay(context, world, window, edge)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.capabilities")]
+pub unsafe extern "C" fn destack_display_window_capabilities(
+    out: *mut DisplayBackendCapabilityFlags,
+    window: resource::WindowHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &window);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_WINDOW_CAPABILITIES)?;
+        destack_display_window_capabilities_replay(context, world, out, window)
     })
 }
 
@@ -29535,6 +29687,64 @@ fn destack_display_window_begin_resize_drag_vm_replay(
 }
 
 #[inline]
+fn destack_display_window_capabilities_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.replay().run_binding(
+        DISPLAY_WINDOW_CAPABILITIES,
+        binding.replay_payload_for(DISPLAY_WINDOW_CAPABILITIES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_capabilities(binding, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_capabilities(
+                    binding, context, window,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: DisplayBackendCapabilityFlags = value.clone();
+                let result_recorded = result_value;
+                let payload = DisplayWindowCapabilitiesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(ReplayError::from(error.as_ref()));
+                    DisplayWindowCapabilitiesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_window_capabilities_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_display_window_close_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -29616,6 +29826,7 @@ fn destack_display_window_descriptor_vm_replay(
                     let result_recorded_title_ref = context.string_ref(result_value.title).map_err(|error| RuntimeError::from(error).boxed())?;
                     result_recorded_title_ref.as_str().to_string()
                 };
+                let result_recorded_role = result_value.role;
                 let result_recorded_mode = match result_value.mode {
                     WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
                         let result_recorded_mode_window_borderless_mode_options_kind = {
@@ -29717,6 +29928,7 @@ fn destack_display_window_descriptor_vm_replay(
                     backend: result_recorded_backend,
                     id: result_recorded_id,
                     title: result_recorded_title,
+                    role: result_recorded_role,
                     mode: result_recorded_mode,
                     display: result_recorded_display,
                     resizable: result_recorded_resizable,
@@ -29760,6 +29972,7 @@ fn destack_display_window_descriptor_vm_replay(
                     let vm_result_id = vm::StringHandle::new(vm_result_id_value);
                     let vm_result_title_value = context.intern_string(value.title.as_str());
                     let vm_result_title = vm::StringHandle::new(vm_result_title_value);
+                    let vm_result_role = value.role;
                     let vm_result_mode = match value.mode {
                         WindowModeOptionsReplayRecord::WindowBorderlessModeOptions(value) => {
                             let vm_result_mode_window_borderless_mode_options_kind_value = context.intern_string(value.kind.as_str());
@@ -29855,6 +30068,7 @@ fn destack_display_window_descriptor_vm_replay(
                         backend: vm_result_backend,
                         id: vm_result_id,
                         title: vm_result_title,
+                        role: vm_result_role,
                         mode: vm_result_mode,
                         display: vm_result_display,
                         resizable: vm_result_resizable,
@@ -41350,6 +41564,7 @@ fn destack_display_window_state_vm_replay(
             if let Ok(value) = result {
                 let result_value: WindowStateVm = value.clone();
                 let result_recorded_backend = result_value.backend;
+                let result_recorded_role = result_value.role;
                 let result_recorded_position_x = result_value.position.x;
                 let result_recorded_position_y = result_value.position.y;
                 let result_recorded_position = WindowPosition {
@@ -41427,6 +41642,7 @@ fn destack_display_window_state_vm_replay(
                 };
                 let result_recorded = WindowState {
                     backend: result_recorded_backend,
+                    role: result_recorded_role,
                     position: result_recorded_position,
                     size_logical: result_recorded_size_logical,
                     size_physical: result_recorded_size_physical,
@@ -41469,6 +41685,7 @@ fn destack_display_window_state_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_backend = value.backend;
+                    let vm_result_role = value.role;
                     let vm_result_position_x = value.position.x;
                     let vm_result_position_y = value.position.y;
                     let vm_result_position = WindowPositionVm {
@@ -41544,6 +41761,7 @@ fn destack_display_window_state_vm_replay(
                     };
                     let vm_result = WindowStateVm {
                         backend: vm_result_backend,
+                        role: vm_result_role,
                         position: vm_result_position,
                         size_logical: vm_result_size_logical,
                         size_physical: vm_result_size_physical,
@@ -42090,6 +42308,25 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     destack_display_window_begin_resize_drag_vm_replay(
                         binding, context, world, window, edge,
                     )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_CAPABILITIES,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window,) = decode_destack_display_window_capabilities_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_WINDOW_CAPABILITIES)?;
+                    destack_display_window_capabilities_vm_replay(binding, context, world, window)
                 })
                 .map_err(Into::into)
             }

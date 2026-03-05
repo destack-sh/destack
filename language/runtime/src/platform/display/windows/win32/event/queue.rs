@@ -138,7 +138,7 @@ where
         // resolve this variant
         match state.overflow_policy() {
             DisplayEventOverflowPolicy::DropOldest => {
-                let _ = state.pending().pop_front();
+                state.pending().pop_front();
                 let dropped_count = state.dropped_count().saturating_add(1);
                 *state.dropped_count() = dropped_count;
             }

@@ -8,33 +8,31 @@ mod unix;
 #[cfg(windows)]
 mod windows;
 
-#[cfg(any(windows, target_os = "linux"))]
 use std::sync::OnceLock;
-#[cfg(any(windows, target_os = "linux"))]
 use std::time::Instant;
 
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
+#[allow(unused_imports)]
 pub(crate) use convert::u32_to_nonzero_usize;
+#[allow(unused_imports)]
 pub(crate) use convert::{
-    duration_from_option_ns, option_u64_to_u32, option_u64_to_usize, u64_to_usize,
-    u64_to_usize_with_message, usize_to_u64,
+    duration_from_option_ns, option_u64_or_min, option_u64_to_u32, option_u64_to_usize,
+    option_u64_to_usize_or_min, u64_to_usize, u64_to_usize_with_message, usize_to_u64,
 };
-#[cfg(any(windows, target_os = "linux"))]
-pub(crate) use convert::{option_u64_or_min, option_u64_to_usize_or_min};
 #[cfg(target_os = "linux")]
 pub(crate) use dll::load_dll_api_named;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use dll::{DynamicLibrary, load_dll_api_bytes, load_library_with_api};
 #[cfg(unix)]
 pub(crate) use errno::{get_errno, set_errno};
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
+#[allow(unused_imports)]
 pub(crate) use error::invalid_state;
+#[allow(unused_imports)]
 pub(crate) use error::{
-    ensure_out, ensure_zero_flags, invalid_argument, io_not_found, io_operation_error,
-    not_supported, unknown_handle, unsupported_flags,
+    ensure_out, ensure_zero_flags, invalid_argument, io_busy, io_not_found, io_operation_error,
+    io_would_block, not_supported, unknown_handle, unsupported_flags,
 };
-#[cfg(any(windows, target_os = "linux"))]
-pub(crate) use error::{io_busy, io_would_block};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::io_error_with_errno;
 #[cfg(target_os = "linux")]
@@ -56,7 +54,8 @@ pub(crate) use windows::{
 };
 
 /// Return one process-monotonic timestamp in nanoseconds.
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(unix, windows))]
+#[allow(dead_code)]
 pub(crate) fn monotonic_now_ns() -> u64 {
     static MONO_EPOCH: OnceLock<Instant> = OnceLock::new();
 

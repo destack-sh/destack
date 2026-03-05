@@ -136,6 +136,10 @@ export const DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS: DisplayBackendCapabilityFla
 export const DISPLAY_BACKEND_CAP_WINDOW_CHROME: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x400000000);
 /// Backend capability flag bit for taskbar and dock visibility control.
 export const DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x800000000);
+/// Backend capability flag bit for popup window role support.
+export const DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x1000000000);
+/// Backend capability flag bit for overlay window role support.
+export const DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x2000000000);
 
 /// Display backend bindings.
 declare namespace display {

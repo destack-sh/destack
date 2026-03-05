@@ -1,14 +1,15 @@
 use super::{
     HarnessValue, HarnessWindowMode, decode_harness_value, default_window_options, error_code,
-    harness_window_logical_size, harness_window_mode_options, harness_window_physical_size,
-    is_not_supported_code, open_window_or_skip_not_supported, with_harness_context,
+    harness_window_icon_set, harness_window_icon_set_none, harness_window_logical_size,
+    harness_window_mode_options, harness_window_physical_size, is_not_supported_code,
+    open_window_or_skip_not_supported, with_harness_context,
 };
-#[cfg(windows)]
-use super::{harness_window_icon_set, harness_window_icon_set_none};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::display::WindowVisibility;
 #[cfg(windows)]
 use crate::platform::display::{WindowAspectRatio, WindowAspectRatioVm};
+use crate::platform::display::{
+    WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowRole, WindowVisibility,
+};
 use crate::platform::resource::{DisplayHandle, ResourceId};
 
 #[cfg(windows)]
@@ -122,6 +123,79 @@ fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
 
 #[cfg(any(unix, windows))]
 #[test]
+fn test_window_failed_mode_change_preserves_previous_mode() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "mode-rollback")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let initial_descriptor = context.destack_display_window_descriptor(window)?;
+        let initial_is_windowed = match initial_descriptor {
+            HarnessValue::Native(value) => matches!(
+                value.mode,
+                crate::platform::display::WindowModeOptions::WindowWindowedModeOptions(_)
+            ),
+            HarnessValue::Vm(value) => matches!(
+                value.mode,
+                crate::platform::display::WindowModeOptionsVm::WindowWindowedModeOptions(_)
+            ),
+        };
+        assert!(initial_is_windowed);
+
+        let invalid_mode = harness_window_mode_options(
+            &context,
+            HarnessWindowMode::ExclusiveFullscreen {
+                display: DisplayHandle(ResourceId(0)),
+                display_mode: None,
+            },
+        );
+        let result = context.destack_display_window_set_mode(window, invalid_mode);
+        let error = result.expect_err("mode change with invalid display should fail");
+        if is_not_supported_code(error_code(&error)) {
+            let next_descriptor = context.destack_display_window_descriptor(window)?;
+            let next_is_windowed = match next_descriptor {
+                HarnessValue::Native(value) => matches!(
+                    value.mode,
+                    crate::platform::display::WindowModeOptions::WindowWindowedModeOptions(_)
+                ),
+                HarnessValue::Vm(value) => matches!(
+                    value.mode,
+                    crate::platform::display::WindowModeOptionsVm::WindowWindowedModeOptions(_)
+                ),
+            };
+            assert!(next_is_windowed);
+            context.destack_display_window_close(window)?;
+            return Ok(());
+        }
+
+        assert!(matches!(
+            error_code(&error),
+            Some(PlatformErrorCode::InvalidArgument)
+                | Some(PlatformErrorCode::IoNotFound)
+                | Some(PlatformErrorCode::InvalidArgumentValue)
+        ));
+
+        let next_descriptor = context.destack_display_window_descriptor(window)?;
+        let next_is_windowed = match next_descriptor {
+            HarnessValue::Native(value) => matches!(
+                value.mode,
+                crate::platform::display::WindowModeOptions::WindowWindowedModeOptions(_)
+            ),
+            HarnessValue::Vm(value) => matches!(
+                value.mode,
+                crate::platform::display::WindowModeOptionsVm::WindowWindowedModeOptions(_)
+            ),
+        };
+        assert!(next_is_windowed);
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
 fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "exclusive-open")?;
@@ -172,6 +246,91 @@ fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
 
 #[cfg(any(unix, windows))]
 #[test]
+fn test_window_open_rejects_unusable_popup_role_configuration() {
+    with_harness_context(|mut context| {
+        let mut options = default_window_options(&mut context, "role-popup-open")?;
+        match &mut options {
+            HarnessValue::Native(options) => {
+                options.role = WindowRole::Popup;
+            }
+            HarnessValue::Vm(options) => {
+                options.role = WindowRole::Popup;
+            }
+        }
+
+        let result = context.destack_display_window_open(options);
+        let error = result.expect_err("popup role without owner relation should fail");
+
+        if is_not_supported_code(error_code(&error)) {
+            return Ok(());
+        }
+
+        assert!(matches!(
+            error_code(&error),
+            Some(PlatformErrorCode::InvalidArgument)
+                | Some(PlatformErrorCode::InvalidArgumentValue)
+        ));
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_cursor_policy_transitions_keep_close_path_operational() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "cursor-policy-close")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        // apply icon lane when supported by this backend
+        let icon_result =
+            context.destack_display_window_set_cursor_icon(window, WindowCursorIcon::Pointer);
+        if let Err(error) = icon_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
+
+        // apply explicit visibility lane when supported by this backend
+        let hide_result = context.destack_display_window_set_cursor_visible(window, false);
+        if let Err(error) = hide_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
+        context.destack_display_window_set_cursor_visible(window, true)?;
+
+        // apply hidden and normal mode transitions without breaking close behavior
+        let mode_result =
+            context.destack_display_window_set_cursor_mode(window, WindowCursorMode::Hidden);
+        if let Err(error) = mode_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
+        context.destack_display_window_set_cursor_mode(window, WindowCursorMode::Normal)?;
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
 fn test_window_visibility_roundtrip_and_double_close_error() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "visibility")?;
@@ -179,10 +338,25 @@ fn test_window_visibility_roundtrip_and_double_close_error() {
             return Ok(());
         };
 
-        context.destack_display_window_set_visibility(window, WindowVisibility::Hidden)?;
-        let hidden_state = context.destack_display_window_state(window)?;
-        let hidden_state = decode_harness_value(hidden_state);
-        assert_eq!(hidden_state.visibility, WindowVisibility::Hidden);
+        // request hidden visibility when supported
+        let hidden_result =
+            context.destack_display_window_set_visibility(window, WindowVisibility::Hidden);
+        if let Err(error) = hidden_result {
+            if !is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Err(error);
+            }
+        } else {
+            let hidden_state = context.destack_display_window_state(window)?;
+            let hidden_state = decode_harness_value(hidden_state);
+            assert_eq!(hidden_state.visibility, WindowVisibility::Hidden);
+        }
+
+        // minimized visibility should stay available across implemented backends
+        context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
+        let minimized_state = context.destack_display_window_state(window)?;
+        let minimized_state = decode_harness_value(minimized_state);
+        assert_eq!(minimized_state.visibility, WindowVisibility::Minimized);
 
         context.destack_display_window_set_visibility(window, WindowVisibility::Visible)?;
         let visible_state = context.destack_display_window_state(window)?;
@@ -227,6 +401,74 @@ fn test_window_set_modal_requires_owner_relationship() {
 
 #[cfg(any(unix, windows))]
 #[test]
+fn test_window_modal_owner_removal_requires_explicit_transition() {
+    with_harness_context(|mut context| {
+        let owner_options = default_window_options(&mut context, "modal-owner-removal-owner")?;
+        let Some(owner) = open_window_or_skip_not_supported(&mut context, owner_options)? else {
+            return Ok(());
+        };
+
+        let child_options = default_window_options(&mut context, "modal-owner-removal-child")?;
+        let Some(child) = open_window_or_skip_not_supported(&mut context, child_options)? else {
+            context.destack_display_window_close(owner)?;
+            return Ok(());
+        };
+
+        let parent_result = context.destack_display_window_set_parent(child, Some(owner));
+        if let Err(error) = parent_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(child)?;
+                context.destack_display_window_close(owner)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(child)?;
+            context.destack_display_window_close(owner)?;
+            return Err(error);
+        }
+
+        let modal_result = context.destack_display_window_set_modal(child, true);
+        if let Err(error) = modal_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_set_parent(child, None)?;
+                context.destack_display_window_close(child)?;
+                context.destack_display_window_close(owner)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_set_parent(child, None)?;
+            context.destack_display_window_close(child)?;
+            context.destack_display_window_close(owner)?;
+            return Err(error);
+        }
+
+        // verify behavior when removing the final owner while modal is active
+        let removal_result = context.destack_display_window_set_parent(child, None);
+        match removal_result {
+            Ok(()) => {
+                let state = decode_harness_value(context.destack_display_window_state(child)?);
+                assert_eq!(state.parent, None);
+                assert!(!state.modal);
+            }
+            Err(error) => {
+                assert!(matches!(
+                    error_code(&error),
+                    Some(PlatformErrorCode::InvalidArgument)
+                        | Some(PlatformErrorCode::InvalidArgumentValue)
+                ));
+                context.destack_display_window_set_modal(child, false)?;
+                context.destack_display_window_set_parent(child, None)?;
+            }
+        }
+
+        context.destack_display_window_close(child)?;
+        context.destack_display_window_close(owner)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
 fn test_window_set_parent_rejects_self_relationship() {
     with_harness_context(|mut context| {
         let options = default_window_options(&mut context, "parent-self-invalid")?;
@@ -245,6 +487,156 @@ fn test_window_set_parent_rejects_self_relationship() {
             Some(PlatformErrorCode::InvalidArgument)
                 | Some(PlatformErrorCode::InvalidArgumentValue)
         ));
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_parent_and_transient_relationship_roundtrip() {
+    with_harness_context(|mut context| {
+        let owner_options = default_window_options(&mut context, "relation-owner")?;
+        let Some(owner) = open_window_or_skip_not_supported(&mut context, owner_options)? else {
+            return Ok(());
+        };
+
+        let child_options = default_window_options(&mut context, "relation-child")?;
+        let Some(child) = open_window_or_skip_not_supported(&mut context, child_options)? else {
+            context.destack_display_window_close(owner)?;
+            return Ok(());
+        };
+
+        let parent_result = context.destack_display_window_set_parent(child, Some(owner));
+        if let Err(error) = parent_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(child)?;
+                context.destack_display_window_close(owner)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(child)?;
+            context.destack_display_window_close(owner)?;
+            return Err(error);
+        }
+
+        let state = decode_harness_value(context.destack_display_window_state(child)?);
+        assert_eq!(state.parent, Some(owner));
+        assert_eq!(state.transient_for, None);
+
+        context.destack_display_window_set_parent(child, None)?;
+        let state = decode_harness_value(context.destack_display_window_state(child)?);
+        assert_eq!(state.parent, None);
+
+        let transient_result = context.destack_display_window_set_transient_for(child, Some(owner));
+        if let Err(error) = transient_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(child)?;
+                context.destack_display_window_close(owner)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(child)?;
+            context.destack_display_window_close(owner)?;
+            return Err(error);
+        }
+
+        let state = decode_harness_value(context.destack_display_window_state(child)?);
+        assert_eq!(state.transient_for, Some(owner));
+        assert_eq!(state.parent, None);
+
+        context.destack_display_window_set_transient_for(child, None)?;
+        let state = decode_harness_value(context.destack_display_window_state(child)?);
+        assert_eq!(state.transient_for, None);
+
+        context.destack_display_window_close(child)?;
+        context.destack_display_window_close(owner)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_opacity_roundtrip() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "opacity-roundtrip")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let first_result = context.destack_display_window_set_opacity(window, 0.67);
+        if let Err(error) = first_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
+
+        let state = decode_harness_value(context.destack_display_window_state(window)?);
+        assert!((state.opacity - 0.67).abs() <= 0.05);
+
+        context.destack_display_window_set_opacity(window, 1.0)?;
+        let state = decode_harness_value(context.destack_display_window_state(window)?);
+        assert!((state.opacity - 1.0).abs() <= 0.05);
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_window_chrome_and_decoration_roundtrip() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "chrome-roundtrip")?;
+        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
+            return Ok(());
+        };
+
+        let chrome_result =
+            context.destack_display_window_set_chrome(window, WindowChromeKind::Popup);
+        if let Err(error) = chrome_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
+
+        let state = decode_harness_value(context.destack_display_window_state(window)?);
+        assert_eq!(state.chrome, WindowChromeKind::Popup);
+
+        let undecorated_result = context.destack_display_window_set_decorated(window, false);
+        if let Err(error) = undecorated_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
+
+        let descriptor = context.destack_display_window_descriptor(window)?;
+        let decorated = match descriptor {
+            HarnessValue::Native(value) => value.decorated,
+            HarnessValue::Vm(value) => value.decorated,
+        };
+        assert!(!decorated);
+
+        context.destack_display_window_set_decorated(window, true)?;
+        let descriptor = context.destack_display_window_descriptor(window)?;
+        let decorated = match descriptor {
+            HarnessValue::Native(value) => value.decorated,
+            HarnessValue::Vm(value) => value.decorated,
+        };
+        assert!(decorated);
 
         context.destack_display_window_close(window)?;
         Ok(())
@@ -448,7 +840,7 @@ fn test_window_close_restores_cursor_visibility() {
     });
 }
 
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 #[test]
 fn test_window_icons_set_and_clear() {
     with_harness_context(|mut context| {
@@ -458,8 +850,23 @@ fn test_window_icons_set_and_clear() {
         };
 
         let icons = harness_window_icon_set(&mut context)?;
-        context.destack_display_window_set_icons(window, icons)?;
-        context.destack_display_window_set_icons(window, harness_window_icon_set_none(&context))?;
+        let set_result = context.destack_display_window_set_icons(window, icons);
+        if let Err(error) = set_result {
+            if is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Ok(());
+            }
+
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
+
+        let clear_result = context
+            .destack_display_window_set_icons(window, harness_window_icon_set_none(&context));
+        if let Err(error) = clear_result {
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
 
         context.destack_display_window_close(window)?;
         Ok(())

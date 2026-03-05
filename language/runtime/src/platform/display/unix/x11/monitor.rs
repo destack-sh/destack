@@ -10,9 +10,9 @@ use x11rb::protocol::xproto::{AtomEnum, ConnectionExt as XprotoConnectionExt};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayBackend, DisplayColorSpace, DisplayColorState, DisplayDescriptor, DisplayGammaRamp,
-    DisplayHdrMode, DisplayMode, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
-    DisplayOrientation, DisplaySupportStatus,
+    DisplayColorSpace, DisplayColorState, DisplayDescriptor, DisplayGammaRamp, DisplayHdrMode,
+    DisplayMode, DisplayMonitorListRequest, DisplayMonitorOpenOptions, DisplayOrientation,
+    DisplaySupportStatus,
 };
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
@@ -24,8 +24,15 @@ use super::{core, event, resource as display_resource};
 const X11_DEFAULT_BITS_PER_CHANNEL: u16 = 8;
 /// Fallback refresh-rate used when one mode payload omits timing information.
 const X11_DEFAULT_REFRESH_MILLI_HZ: u32 = 60_000;
-/// Stable display-id prefix used for x11 randr outputs.
-const X11_DISPLAY_ID_PREFIX: &str = "x11-output-";
+
+/// Return one stable display-id prefix for the active x11-compatible backend.
+fn display_id_prefix() -> &'static str {
+    match core::selected_backend_name() {
+        "wayland" => "wayland-output-",
+        "appkit" => "appkit-output-",
+        _ => "x11-output-",
+    }
+}
 
 /// Runtime snapshot for one active x11 randr output lane.
 #[derive(Debug, Clone)]
@@ -58,12 +65,12 @@ struct RandrOutputState {
 
 /// Build one stable display id from one randr output id.
 fn display_id_for_output(output: Output) -> String {
-    format!("{X11_DISPLAY_ID_PREFIX}{output}")
+    format!("{}{output}", display_id_prefix())
 }
 
 /// Parse one randr output id from one display id.
 fn output_from_display_id(display_id: &str) -> Option<Output> {
-    let value = display_id.strip_prefix(X11_DISPLAY_ID_PREFIX)?;
+    let value = display_id.strip_prefix(display_id_prefix())?;
     value.parse::<u32>().ok()
 }
 
@@ -134,6 +141,54 @@ fn builtin_panel_support(name: &str) -> DisplaySupportStatus {
     DisplaySupportStatus::Unknown
 }
 
+/// Resolve variable-refresh support from one randr output property when available.
+fn variable_refresh_support(
+    connection_state: &core::X11ConnectionState,
+    output: Output,
+) -> DisplaySupportStatus {
+    // read one optional vrr-capable property value
+    let property_cookie = match connection_state.connection.randr_get_output_property(
+        output,
+        connection_state.atoms.vrr_capable,
+        AtomEnum::INTEGER,
+        0,
+        1,
+        false,
+        false,
+    ) {
+        Ok(value) => value,
+        Err(_) => return DisplaySupportStatus::Unknown,
+    };
+    let property_reply = match property_cookie.reply() {
+        Ok(value) => value,
+        Err(_) => return DisplaySupportStatus::Unknown,
+    };
+
+    // decode one first cardinal payload value when present
+    if property_reply.format != 32 {
+        return DisplaySupportStatus::Unknown;
+    }
+
+    if property_reply.data.len() < std::mem::size_of::<u32>() {
+        return DisplaySupportStatus::Unknown;
+    }
+
+    let value_bytes = [
+        property_reply.data[0],
+        property_reply.data[1],
+        property_reply.data[2],
+        property_reply.data[3],
+    ];
+    let value = u32::from_ne_bytes(value_bytes);
+
+    // map zero and non-zero property payloads to support status
+    if value == 0 {
+        return DisplaySupportStatus::Unsupported;
+    }
+
+    DisplaySupportStatus::Supported
+}
+
 /// Read one root cardinal property payload from the selected x11 root window.
 fn root_cardinal_property(
     connection_state: &core::X11ConnectionState,
@@ -192,8 +247,14 @@ fn root_work_area(
     let selected_desktop = current_desktop.min(desktop_count.saturating_sub(1));
     let offset = selected_desktop.saturating_mul(4);
 
-    let x = i32::try_from(work_area[offset]).unwrap_or(i32::MAX);
-    let y = i32::try_from(work_area[offset + 1]).unwrap_or(i32::MAX);
+    let x = match i32::try_from(work_area[offset]) {
+        Ok(value) => value,
+        Err(_) => i32::MAX,
+    };
+    let y = match i32::try_from(work_area[offset + 1]) {
+        Ok(value) => value,
+        Err(_) => i32::MAX,
+    };
     let width = work_area[offset + 2].max(1);
     let height = work_area[offset + 3].max(1);
 
@@ -227,8 +288,14 @@ fn monitor_work_area(
         return (monitor_x, monitor_y, monitor_width, monitor_height);
     }
 
-    let width = u32::try_from(intersection_right - intersection_left).unwrap_or(monitor_width);
-    let height = u32::try_from(intersection_bottom - intersection_top).unwrap_or(monitor_height);
+    let width = match u32::try_from(intersection_right - intersection_left) {
+        Ok(value) => value,
+        Err(_) => monitor_width,
+    };
+    let height = match u32::try_from(intersection_bottom - intersection_top) {
+        Ok(value) => value,
+        Err(_) => monitor_height,
+    };
 
     (intersection_left, intersection_top, width, height)
 }
@@ -712,7 +779,7 @@ fn enumerate_randr_output_states(
         let desktop_mode = desktop_mode_from_catalog(&output_info, &modes_by_id, current_mode);
         let output_name = String::from_utf8_lossy(&output_info.name).to_string();
         let output_name = if output_name.trim().is_empty() {
-            format!("x11-output-{output}")
+            format!("{}-output-{output}", core::selected_backend_name())
         } else {
             output_name
         };
@@ -738,7 +805,7 @@ fn enumerate_randr_output_states(
         );
 
         let descriptor = DisplayDescriptorSnapshot {
-            backend: DisplayBackend::X11,
+            backend: core::selected_backend(),
             id: display_id_for_output(output),
             name: output_name,
             primary,
@@ -755,7 +822,7 @@ fn enumerate_randr_output_states(
             scale_factor_milli: 1000,
             orientation: orientation_from_rotation(crtc_info.rotation),
             builtin_panel,
-            variable_refresh_support: DisplaySupportStatus::Unknown,
+            variable_refresh_support: variable_refresh_support(connection_state, output),
             hdr_support: DisplaySupportStatus::Unsupported,
         };
 
@@ -816,9 +883,14 @@ fn enumerate_fallback_monitor_snapshots(
         bit_depth: screen.root_depth as u16,
     };
     let descriptor = DisplayDescriptorSnapshot {
-        backend: DisplayBackend::X11,
-        id: format!("x11-screen-{}", connection_state.screen_index),
-        name: std::env::var("DISPLAY").unwrap_or_else(|_| "x11-display".to_string()),
+        backend: core::selected_backend(),
+        id: format!(
+            "{}screen-{}",
+            core::selected_backend_name(),
+            connection_state.screen_index
+        ),
+        name: std::env::var("DISPLAY")
+            .unwrap_or_else(|_| format!("{}-display", core::selected_backend_name())),
         primary: true,
         x: 0,
         y: 0,
@@ -1382,35 +1454,26 @@ pub(crate) unsafe fn monitor_color_state(
         connection_state.as_ref(),
         &display_id,
         "destack.display.monitor.colorState",
-    )?;
+    )?
+    .ok_or_else(|| core_platform::not_supported("destack.display.monitor.colorState"))?;
 
-    // report a concrete SDR state when one randr gamma lane exists
-    let state = if let Some(crtc) = crtc {
-        let gamma_size = read_randr_gamma_size(
-            connection_state.as_ref(),
-            crtc,
+    // require one randr gamma lane for color-state support
+    let gamma_size = read_randr_gamma_size(
+        connection_state.as_ref(),
+        crtc,
+        "destack.display.monitor.colorState",
+    )?;
+    // evaluate this condition
+    if gamma_size == 0 {
+        return Err(core_platform::not_supported(
             "destack.display.monitor.colorState",
-        )?;
-        // evaluate this condition
-        if gamma_size > 0 {
-            DisplayColorState {
-                hdr_mode: DisplayHdrMode::Unknown,
-                color_space: DisplayColorSpace::Srgb,
-                bits_per_channel: Some(X11_DEFAULT_BITS_PER_CHANNEL),
-            }
-        } else {
-            DisplayColorState {
-                hdr_mode: DisplayHdrMode::Unknown,
-                color_space: DisplayColorSpace::Unknown,
-                bits_per_channel: None,
-            }
-        }
-    } else {
-        DisplayColorState {
-            hdr_mode: DisplayHdrMode::Unknown,
-            color_space: DisplayColorSpace::Unknown,
-            bits_per_channel: None,
-        }
+        ));
+    }
+
+    let state = DisplayColorState {
+        hdr_mode: DisplayHdrMode::Unknown,
+        color_space: DisplayColorSpace::Srgb,
+        bits_per_channel: Some(X11_DEFAULT_BITS_PER_CHANNEL),
     };
 
     unsafe {

@@ -192,6 +192,28 @@ fn publish_window_visibility_event(
     );
 }
 
+/// Publish one occlusion-changed window event.
+fn publish_window_occlusion_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+    previous_occlusion: WindowOcclusionState,
+    current_occlusion: WindowOcclusionState,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core_platform::monotonic_now_ns(),
+            sequence: 0,
+            dropped_count: 0,
+            kind: WindowEventRecordKind::OcclusionChanged {
+                window,
+                previous_occlusion,
+                current_occlusion,
+            },
+        },
+    );
+}
+
 /// Publish one position-changed window event.
 fn publish_window_position_event(
     runtime_state: &Arc<DisplayEventRuntimeState>,
@@ -676,6 +698,18 @@ pub(in super::super::super) fn publish_state_deltas(
             window,
             previous.visibility,
             next.visibility,
+        );
+    }
+
+    let previous_occlusion = window::occlusion_from_visibility(previous.visibility);
+    let current_occlusion = window::occlusion_from_visibility(next.visibility);
+    // evaluate this condition
+    if previous_occlusion != current_occlusion {
+        publish_window_occlusion_event(
+            runtime_state,
+            window,
+            previous_occlusion,
+            current_occlusion,
         );
     }
 

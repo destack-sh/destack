@@ -20,13 +20,15 @@ pub(crate) fn option_u64_or_min(value: Option<u64>, default: u64, min: u64) -> u
 }
 
 /// Resolve one optional u64 value into one defaulted usize with one lower bound.
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(unix, windows))]
+#[allow(dead_code)]
 pub(crate) fn option_u64_to_usize_or_min(value: Option<u64>, default: usize, min: usize) -> usize {
     option_u64_to_usize(value).unwrap_or(default).max(min)
 }
 
 /// Convert one non-zero u32 value into one host usize.
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
+#[allow(dead_code)]
 pub(crate) fn u32_to_nonzero_usize(field: &'static str, value: u32) -> RuntimeResult<usize> {
     if value == 0 {
         return Err(invalid_argument(field, "value must be greater than zero"));

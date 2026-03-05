@@ -3,8 +3,8 @@ use windows_sys::Win32::Foundation::HWND;
 use crate::platform::display::{
     DisplayBackend, DisplayMode, DisplayOrientation, DisplaySupportStatus, WindowAspectRatio,
     WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowModeOptions,
-    WindowPhysicalSize, WindowPosition, WindowSafeAreaInsets, WindowSizeConstraints, WindowTheme,
-    WindowVisibility,
+    WindowPhysicalSize, WindowPosition, WindowRole, WindowSafeAreaInsets, WindowSizeConstraints,
+    WindowTheme, WindowVisibility,
 };
 use crate::platform::resource;
 
@@ -91,6 +91,8 @@ pub(super) struct Win32WindowBinding {
     pub(super) owner_thread_id: u32,
     /// Current host-visible title.
     pub(super) title: String,
+    /// Current window role.
+    pub(super) role: WindowRole,
     /// Current mode configuration.
     pub(super) mode: WindowModeOptions,
     /// Current display association.

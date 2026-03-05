@@ -14,18 +14,10 @@ use crate::platform::resource::{
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
+use super::constants::*;
 use super::core;
 use super::event::{MonitorEventBinding, WindowEventBinding};
 use super::model::{Win32DisplayBinding, Win32WindowBinding};
-
-/// Resource-table label for opened display monitor handles.
-pub(super) const DISPLAY_RESOURCE_LABEL: &str = "display.monitor";
-/// Resource-table label for opened window handles.
-pub(super) const WINDOW_RESOURCE_LABEL: &str = "display.window";
-/// Resource-table label for opened monitor-event stream handles.
-pub(super) const DISPLAY_EVENT_RESOURCE_LABEL: &str = "display.monitor.event";
-/// Resource-table label for opened window-event stream handles.
-pub(super) const WINDOW_EVENT_RESOURCE_LABEL: &str = "display.window.event";
 
 /// Finalizer payload that destroys one Win32 window handle.
 #[derive(Debug)]
@@ -112,6 +104,17 @@ pub(super) fn resolve_window_binding(
             format!("window handle {} was not found", window.0.0),
         )
     })
+}
+
+/// Validate that one window handle resolves to one win32 window binding.
+pub(crate) fn ensure_window_binding_exists(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    resolve_window_binding(context, window, operation)?;
+
+    Ok(())
 }
 
 /// Resolve one monitor-event binding payload from one opened monitor-event handle.

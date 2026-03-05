@@ -49,19 +49,22 @@ pub(crate) fn io_not_found(operation: &str, message: impl Into<String>) -> Box<R
 }
 
 /// Build one io-would-block runtime error scoped to one binding operation.
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(unix, windows))]
+#[allow(dead_code)]
 pub(crate) fn io_would_block(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
     io_operation_error(operation, Some(PlatformErrorCode::IoWouldBlock), message)
 }
 
 /// Build one io-busy runtime error scoped to one binding operation.
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(unix, windows))]
+#[allow(dead_code)]
 pub(crate) fn io_busy(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
     io_operation_error(operation, Some(PlatformErrorCode::IoBusy), message)
 }
 
 /// Build one invalid-state runtime error.
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
+#[allow(dead_code)]
 pub(crate) fn invalid_state(message: impl Into<String>) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),

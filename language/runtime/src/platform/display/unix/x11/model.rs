@@ -5,8 +5,8 @@ use x11rb::protocol::xproto::Window;
 use crate::platform::display::{
     DisplayBackend, DisplayMode, DisplayOrientation, DisplaySupportStatus, WindowAspectRatio,
     WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowModeOptions,
-    WindowPhysicalSize, WindowPosition, WindowSafeAreaInsets, WindowSizeConstraints, WindowTheme,
-    WindowVisibility,
+    WindowPhysicalSize, WindowPosition, WindowRole, WindowSafeAreaInsets, WindowSizeConstraints,
+    WindowTheme, WindowVisibility,
 };
 use crate::platform::resource;
 
@@ -95,6 +95,8 @@ pub(super) struct X11WindowBinding {
     pub(super) owner_thread_id: ThreadId,
     /// Current host-visible title.
     pub(super) title: String,
+    /// Current window role.
+    pub(super) role: WindowRole,
     /// Current mode configuration.
     pub(super) mode: WindowModeOptions,
     /// Captured restore payload for active exclusive fullscreen transitions.

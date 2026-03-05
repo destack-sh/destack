@@ -1,3 +1,4 @@
+use super::constants::XDND_ACCEPTED;
 use super::*;
 
 /// Clear one window-local xdnd session state.

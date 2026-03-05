@@ -22,28 +22,26 @@ fn apply_aspect_ratio_lock(
 
 /// Set one window position.
 pub(crate) unsafe fn window_set_position(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setPosition",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setPosition")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setPosition")?;
 
     // capture previous state for delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // apply host position update
     let status = unsafe {
         SetWindowPos(
-            resolved_binding.hwnd,
+            binding.hwnd,
             0,
             position.x,
             position.y,
@@ -62,12 +60,12 @@ pub(crate) unsafe fn window_set_position(
     }
 
     // refresh cached state and publish deltas
-    resolved_binding.position = position;
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    binding.position = position;
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -75,35 +73,33 @@ pub(crate) unsafe fn window_set_position(
 
 /// Set one logical window size.
 pub(crate) unsafe fn window_set_size_logical(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     size: WindowLogicalSize,
 ) -> RuntimeResult<()> {
     // validate logical size payload
     let size = normalize_logical_size(size, "size")?;
 
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setSizeLogical",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setSizeLogical")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setSizeLogical")?;
 
     // capture previous state for delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // resolve constrained target size and host outer rectangle
-    let locked_size = apply_aspect_ratio_lock(size, resolved_binding.aspect_ratio);
-    let clamped_size = clamp_logical_size(locked_size, resolved_binding.constraints);
-    let size_physical = logical_to_physical(clamped_size, resolved_binding.scale_factor_milli);
-    let style = window_style_for_binding(&resolved_binding);
-    let ex_style = window_ex_style_for_binding(&resolved_binding);
+    let locked_size = apply_aspect_ratio_lock(size, binding.aspect_ratio);
+    let clamped_size = clamp_logical_size(locked_size, binding.constraints);
+    let size_physical = logical_to_physical(clamped_size, binding.scale_factor_milli);
+    let style = window_style_for_binding(&binding);
+    let ex_style = window_ex_style_for_binding(&binding);
     let (outer_width, outer_height) = outer_size_from_client_size(
-        resolved_binding.hwnd,
+        binding.hwnd,
         size_physical,
         style,
         ex_style,
@@ -113,7 +109,7 @@ pub(crate) unsafe fn window_set_size_logical(
     // apply host size update
     let status = unsafe {
         SetWindowPos(
-            resolved_binding.hwnd,
+            binding.hwnd,
             0,
             0,
             0,
@@ -132,13 +128,13 @@ pub(crate) unsafe fn window_set_size_logical(
     }
 
     // refresh cached state and publish deltas
-    resolved_binding.size_logical = clamped_size;
-    resolved_binding.size_physical = size_physical;
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    binding.size_logical = clamped_size;
+    binding.size_physical = size_physical;
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -146,37 +142,34 @@ pub(crate) unsafe fn window_set_size_logical(
 
 /// Set one physical window size.
 pub(crate) unsafe fn window_set_size_physical(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     size: WindowPhysicalSize,
 ) -> RuntimeResult<()> {
     // validate physical size payload
     let size = normalize_physical_size(size, "size")?;
 
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setSizePhysical",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setSizePhysical")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setSizePhysical")?;
 
     // capture previous state for delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // resolve constrained target size and host outer rectangle
-    let size_logical = physical_to_logical(size, resolved_binding.scale_factor_milli);
-    let size_logical = apply_aspect_ratio_lock(size_logical, resolved_binding.aspect_ratio);
-    let clamped_logical = clamp_logical_size(size_logical, resolved_binding.constraints);
-    let clamped_physical =
-        logical_to_physical(clamped_logical, resolved_binding.scale_factor_milli);
-    let style = window_style_for_binding(&resolved_binding);
-    let ex_style = window_ex_style_for_binding(&resolved_binding);
+    let size_logical = physical_to_logical(size, binding.scale_factor_milli);
+    let size_logical = apply_aspect_ratio_lock(size_logical, binding.aspect_ratio);
+    let clamped_logical = clamp_logical_size(size_logical, binding.constraints);
+    let clamped_physical = logical_to_physical(clamped_logical, binding.scale_factor_milli);
+    let style = window_style_for_binding(&binding);
+    let ex_style = window_ex_style_for_binding(&binding);
     let (outer_width, outer_height) = outer_size_from_client_size(
-        resolved_binding.hwnd,
+        binding.hwnd,
         clamped_physical,
         style,
         ex_style,
@@ -186,7 +179,7 @@ pub(crate) unsafe fn window_set_size_physical(
     // apply host size update
     let status = unsafe {
         SetWindowPos(
-            resolved_binding.hwnd,
+            binding.hwnd,
             0,
             0,
             0,
@@ -205,13 +198,13 @@ pub(crate) unsafe fn window_set_size_physical(
     }
 
     // refresh cached state and publish deltas
-    resolved_binding.size_logical = clamped_logical;
-    resolved_binding.size_physical = clamped_physical;
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    binding.size_logical = clamped_logical;
+    binding.size_physical = clamped_physical;
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -219,83 +212,87 @@ pub(crate) unsafe fn window_set_size_physical(
 
 /// Set logical size constraints.
 pub(crate) unsafe fn window_set_size_constraints(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setSizeConstraints",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(
-        &resolved_binding,
-        "destack.display.window.setSizeConstraints",
-    )?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setSizeConstraints")?;
 
     // update cached constraints
-    resolved_binding.constraints = constraints;
+    binding.constraints = constraints;
 
     Ok(())
 }
 
 /// Set one window mode payload.
 pub(crate) unsafe fn window_set_mode(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     mode: WindowModeOptions,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setMode",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setMode")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setMode")?;
 
     // short circuit no-op mode transitions
-    if same_window_mode(resolved_binding.mode, mode) {
+    if same_window_mode(binding.mode, mode) {
         return Ok(());
     }
 
     // apply transition and rollback in-memory state on host failure
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
     // evaluate this condition
     if let Err(error) = apply_mode_options(
-        binding,
-        &mut resolved_binding,
+        context,
+        &mut binding,
         mode,
         "destack.display.window.setMode",
         true,
     ) {
-        let _ = apply_mode_options(
-            binding,
-            &mut resolved_binding,
+        let rollback = apply_mode_options(
+            context,
+            &mut binding,
             previous.mode,
             "destack.display.window.setMode.rollback",
             false,
         );
-        resolved_binding.mode = previous.mode;
-        resolved_binding.display = previous.display;
-        resolved_binding.exclusive_restore = previous.exclusive_restore.clone();
-        refresh_window_snapshot(&mut resolved_binding);
+
+        // preserve the primary transition error, log rollback failure for diagnostics
+        if let Err(rollback_error) = rollback {
+            context.warn(
+                "display",
+                "destack.display.window.setMode.rollback",
+                rollback_error.message(),
+                Some(rollback_error.sub_code()),
+            );
+        }
+
+        binding.mode = previous.mode;
+        binding.display = previous.display;
+        binding.exclusive_restore = previous.exclusive_restore.clone();
+        refresh_window_snapshot(&mut binding);
 
         return Err(error);
     }
 
     // refresh cached state and publish semantic deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     // evaluate this condition
     if !same_window_mode(previous.mode, next.mode) {
         event::publish_window_mode_event(&event_runtime_state, window, previous.mode, next.mode);
@@ -316,7 +313,7 @@ pub(crate) unsafe fn window_set_mode(
 
 /// Set one window aspect-ratio lock.
 pub(crate) unsafe fn window_set_aspect_ratio(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     aspectratio: Option<WindowAspectRatio>,
 ) -> RuntimeResult<()> {
@@ -330,27 +327,25 @@ pub(crate) unsafe fn window_set_aspect_ratio(
         ));
     }
 
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setAspectRatio",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setAspectRatio")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setAspectRatio")?;
 
     // capture previous state and apply aspect ratio update
-    let previous = resolved_binding.clone();
-    resolved_binding.aspect_ratio = aspectratio;
+    let previous = binding.clone();
+    binding.aspect_ratio = aspectratio;
 
     // refresh cached state and publish deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -358,35 +353,33 @@ pub(crate) unsafe fn window_set_aspect_ratio(
 
 /// Minimize one window.
 pub(crate) unsafe fn window_minimize(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.minimize",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.minimize")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.minimize")?;
 
     // capture previous state for delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // apply host minimize transition
     unsafe {
-        ShowWindow(resolved_binding.hwnd, SW_MINIMIZE);
-        UpdateWindow(resolved_binding.hwnd);
+        ShowWindow(binding.hwnd, SW_MINIMIZE);
+        UpdateWindow(binding.hwnd);
     }
 
     // refresh cached state and publish deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -394,35 +387,33 @@ pub(crate) unsafe fn window_minimize(
 
 /// Maximize one window.
 pub(crate) unsafe fn window_maximize(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.maximize",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.maximize")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.maximize")?;
 
     // capture previous state for delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // apply host maximize transition
     unsafe {
-        ShowWindow(resolved_binding.hwnd, SW_MAXIMIZE);
-        UpdateWindow(resolved_binding.hwnd);
+        ShowWindow(binding.hwnd, SW_MAXIMIZE);
+        UpdateWindow(binding.hwnd);
     }
 
     // refresh cached state and publish deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -430,35 +421,33 @@ pub(crate) unsafe fn window_maximize(
 
 /// Restore one window from minimized or maximized state.
 pub(crate) unsafe fn window_restore(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.restore",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.restore")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.restore")?;
 
     // capture previous state for delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // apply host restore transition
     unsafe {
-        ShowWindow(resolved_binding.hwnd, SW_RESTORE);
-        UpdateWindow(resolved_binding.hwnd);
+        ShowWindow(binding.hwnd, SW_RESTORE);
+        UpdateWindow(binding.hwnd);
     }
 
     // refresh cached state and publish deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())

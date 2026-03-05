@@ -1,6 +1,7 @@
 pub(crate) use super::backend::{
     destack_display_window_begin_move_drag, destack_display_window_begin_resize_drag,
-    destack_display_window_close, destack_display_window_descriptor, destack_display_window_focus,
+    destack_display_window_capabilities, destack_display_window_close,
+    destack_display_window_descriptor, destack_display_window_focus,
     destack_display_window_maximize, destack_display_window_minimize,
     destack_display_window_opacity, destack_display_window_open, destack_display_window_raise,
     destack_display_window_request_attention, destack_display_window_request_refresh,
