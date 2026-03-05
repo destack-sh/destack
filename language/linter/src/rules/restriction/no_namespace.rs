@@ -1,13 +1,13 @@
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow namespace declarations.
     ///
     /// TypeScript namespaces are a legacy feature. Use ES modules (import/export)
-    /// instead for better tree-shaking and standard module semantics.
+    /// instead for better tree shaking and standard module semantics.
     #[lint(
         id = "no-namespace",
         code = "LR017",
@@ -17,26 +17,29 @@ declare_lint! {
         requires_any = [],
         fixable = No,
         recommended = Off,
-        stability = Stable
+        stability = Stable,
+        declarations = Exclude
     )]
     pub NoNamespace,
     "Disallow namespace declarations"
 }
 
 impl LintRule for NoNamespace {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoNamespace::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate declarations
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
             if !matches!(declaration, Declaration::Namespace { .. }) {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
@@ -88,5 +91,35 @@ export function bar() {}
 "#,
         );
         test.result(result).assert_no_lint("no-namespace");
+    }
+
+    #[test]
+    fn test_skips_declaration_file_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoNamespace);
+        let result = test.lint_ast(
+            "no_namespace/test_skips_declaration_file_by_default.d.ts",
+            r#"
+declare namespace External {
+    const value: number;
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-namespace");
+    }
+
+    #[test]
+    fn test_includes_declaration_file_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
+            options.include_declaration_files = true;
+        });
+        let result = test.lint_ast(
+            "no_namespace/test_includes_declaration_file_when_enabled.d.ts",
+            r#"
+declare namespace External {
+    const value: number;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-namespace");
     }
 }

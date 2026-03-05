@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow wildcard imports.
@@ -18,20 +18,22 @@ declare_lint! {
         requires_any = [],
         fixable = Sometimes,
         recommended = Off,
-        stability = Stable
+        stability = Stable,
+        declarations = Exclude
     )]
     pub NoWildcardImports,
     "Disallow wildcard imports"
 }
 
 impl LintRule for NoWildcardImports {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoWildcardImports::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let ast::Expression::Import { items, .. } = expression else {
@@ -84,6 +86,7 @@ fn no_wildcard_imports_fix(
         return None;
     }
 
+    // build fix edits
     let edits = ctx.edit_builder().delete(remove_span).into_edits();
     Some(LintFix::r#unsafe("Remove wildcard import").with_edits(edits))
 }
@@ -165,5 +168,28 @@ mod tests {
         test.result(result)
             .assert_lint("no-wildcard-imports")
             .assert_has_no_fix("no-wildcard-imports");
+    }
+
+    #[test]
+    fn test_skips_declaration_file_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
+        let result = test.lint_ast(
+            "no_wildcard_imports/test_skips_declaration_file_by_default.d.ts",
+            r#"import * as foo from "foo";"#,
+        );
+        test.result(result).assert_no_lint("no-wildcard-imports");
+    }
+
+    #[test]
+    fn test_includes_declaration_file_when_enabled() {
+        let test =
+            TestProgram::for_rule_without_prelude(NoWildcardImports).with_options(|options| {
+                options.include_declaration_files = true;
+            });
+        let result = test.lint_ast(
+            "no_wildcard_imports/test_includes_declaration_file_when_enabled.d.ts",
+            r#"import * as foo from "foo";"#,
+        );
+        test.result(result).assert_lint("no-wildcard-imports");
     }
 }

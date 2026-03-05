@@ -1,9 +1,10 @@
-use std::collections::HashSet;
-
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{collect_parameter_value_binding_symbols, expression_target_symbol};
+use crate::rules::common::{
+    collect_callable_parameter_value_binding_symbols, expression_assignment_target,
+    expression_is_standalone_statement, expression_target_symbol, fresh_name_in_expression_scope,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -34,34 +35,45 @@ impl LintRule for NoParameterReassignment {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        // collect all value-space parameter symbols for callable bodies
-        let parameter_symbols = collect_callable_parameter_symbols(ctx);
+        // collect all value space parameter symbols for callable bodies
+        let parameter_symbols = collect_callable_parameter_value_binding_symbols(
+            ctx.module_id(),
+            ctx.tree,
+            ctx.symbols,
+        );
+
+        // skip when there are no callable parameter symbols
         if parameter_symbols.is_empty() {
             return;
         }
-        let statement_expression_ids = collect_statement_expression_ids(ctx);
 
         // inspect assignment expressions and match direct reference targets
         for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
-            let assigned_expression_id = match expression {
-                dir::Expression::Assign { left, .. }
-                | dir::Expression::AssignBinary { left, .. } => *left,
-                _ => continue,
+            // require an assignment-style target expression
+            let Some(assigned_expression_id) = expression_assignment_target(expression) else {
+                continue;
             };
 
+            // resolve the assigned symbol from the target
             let Some(target_symbol) = expression_target_symbol(ctx.tree, assigned_expression_id)
             else {
                 continue;
             };
+
+            // keep only symbols that belong to callable parameters
             if !parameter_symbols.contains(&target_symbol) {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, expression_id);
+
+            // skip disabled diagnostics
             if !severity.is_enabled() {
                 continue;
             }
 
+            // build the parameter reassignment diagnostic
             let span = ctx.get_span(expression_id);
             let mut diagnostic = LintDiagnostic::new(
                 NO_PARAMETER_REASSIGNMENT.id,
@@ -76,17 +88,13 @@ impl LintRule for NoParameterReassignment {
 
             // rewrite standalone assignments to local shadow declarations when redeclaration policy allows it
             if ctx.include_fixes
-                && let Some(fix) = no_parameter_reassignment_fix(
-                    ctx,
-                    expression_id,
-                    expression,
-                    target_symbol,
-                    &statement_expression_ids,
-                )
+                && let Some(fix) =
+                    no_parameter_reassignment_fix(ctx, expression_id, expression, target_symbol)
             {
                 diagnostic = diagnostic.with_fix(fix);
             }
 
+            // report the diagnostic
             ctx.report(diagnostic);
         }
     }
@@ -98,36 +106,46 @@ fn no_parameter_reassignment_fix(
     assignment_expression_id: dir::LocalNodeId<dir::Expression>,
     assignment_expression: &dir::Expression,
     target_symbol: dir::GlobalSymbolId,
-    statement_expression_ids: &HashSet<u32>,
 ) -> Option<LintFix> {
+    // keep only local module parameter symbols
     if target_symbol.module_id != ctx.module_id() {
         return None;
     }
-    if !statement_expression_ids.contains(&assignment_expression_id.id) {
+
+    // keep only standalone statement assignments
+    if !expression_is_standalone_statement(ctx.tree, assignment_expression_id) {
         return None;
     }
 
+    // keep assignments where the parameter is not read later
     let assignment_span = ctx.get_span(assignment_expression_id);
+
+    // skip fixes when the parameter is still used later
     if parameter_is_used_after_span(ctx, target_symbol, assignment_span.end) {
         return None;
     }
 
+    // keep direct assignment expressions
     let dir::Expression::Assign { right, .. } = assignment_expression else {
         return None;
     };
 
+    // resolve the parameter symbol name
     let symbol = ctx.symbols.get_symbol(target_symbol.local_id);
     let symbol_name_id = symbol.name()?;
     let symbol_name = ctx.program.strings.get(symbol_name_id).to_string();
-    if !is_simple_identifier(&symbol_name) {
-        return None;
-    }
 
+    // resolve non-empty replacement text from the right side
     let right_text = ctx.get_span_text(ctx.get_span(*right)).trim().to_string();
+
+    // keep only assignments with non-empty right side text
     if right_text.is_empty() {
         return None;
     }
-    let shadow_name = unique_shadow_name(ctx, assignment_expression_id, &symbol_name);
+
+    // build a unique local shadow assignment replacement
+    let shadow_name =
+        fresh_name_in_expression_scope(ctx, assignment_expression_id, &symbol_name, "Shadow")?;
     let replacement_text = format!("let {shadow_name} = {right_text}");
     let edits = ctx
         .edit_builder()
@@ -145,141 +163,23 @@ fn parameter_is_used_after_span(
     parameter_symbol: dir::GlobalSymbolId,
     offset: u32,
 ) -> bool {
+    // scan resolved expression targets for the same parameter symbol
     for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        // keep only expressions targeting the same parameter symbol
         if expression.target_symbol() != Some(parameter_symbol) {
             continue;
         }
 
+        // report usage when it occurs after the assignment offset
         let span = ctx.get_span(expression_id);
+
+        // flag a later parameter read/write usage
         if span.start >= offset {
             return true;
         }
     }
 
     false
-}
-
-/// Collect expression ids that appear directly as block statements.
-fn collect_statement_expression_ids(ctx: &LintModuleDirContext<'_>) -> HashSet<u32> {
-    let mut expression_ids = HashSet::new();
-    for (_, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
-        if let dir::Expression::Statement { statement } = expression {
-            expression_ids.insert(statement.id);
-        }
-    }
-    expression_ids
-}
-
-/// Return true when one text is a simple identifier.
-fn is_simple_identifier(text: &str) -> bool {
-    let mut chars = text.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
-        return false;
-    }
-    chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
-}
-
-/// Build one unique local shadow name for a reassigned parameter.
-fn unique_shadow_name(
-    ctx: &LintModuleDirContext<'_>,
-    insertion_expression_id: dir::LocalNodeId<dir::Expression>,
-    parameter_name: &str,
-) -> String {
-    let (_, scope, mark) = ctx.symbols.get_scope(insertion_expression_id, ctx.tree);
-
-    let base_name = format!("{parameter_name}Shadow");
-    let base_name_id = ctx.program.strings.intern(&base_name);
-    let base_name_key = dir::StaticKey::Name(base_name_id);
-    if ctx
-        .symbols
-        .find_active_symbol_up_to(scope, base_name_key, mark)
-        .is_none()
-    {
-        return base_name;
-    }
-
-    let mut suffix = 2_u32;
-    loop {
-        let candidate = format!("{base_name}{suffix}");
-        let candidate_id = ctx.program.strings.intern(&candidate);
-        let candidate_key = dir::StaticKey::Name(candidate_id);
-        if ctx
-            .symbols
-            .find_active_symbol_up_to(scope, candidate_key, mark)
-            .is_none()
-        {
-            return candidate;
-        }
-        suffix += 1;
-        if suffix > 1024 {
-            return base_name;
-        }
-    }
-}
-
-/// Collect parameter symbols for function and method bodies.
-fn collect_callable_parameter_symbols(
-    ctx: &LintModuleDirContext<'_>,
-) -> HashSet<dir::GlobalSymbolId> {
-    let mut symbols = HashSet::new();
-
-    // inspect function declarations
-    for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
-        let declaration = ctx.tree.get(declaration_id);
-        let dir::Declaration::Function {
-            signature,
-            body: Some(_),
-            ..
-        } = declaration
-        else {
-            continue;
-        };
-
-        collect_signature_parameter_symbols(ctx, signature, &mut symbols);
-    }
-
-    // inspect class and extension methods
-    for member_id in ctx.tree.iter_node_ids_of_type::<dir::Member>() {
-        let member = ctx.tree.get(member_id);
-        let dir::Member::Method {
-            signature,
-            body: Some(_),
-            ..
-        } = member
-        else {
-            continue;
-        };
-
-        collect_signature_parameter_symbols(ctx, signature, &mut symbols);
-    }
-
-    symbols
-}
-
-/// Collect parameter symbols for one function signature.
-fn collect_signature_parameter_symbols(
-    ctx: &LintModuleDirContext<'_>,
-    signature: &dir::FunctionSignature,
-    symbols: &mut HashSet<dir::GlobalSymbolId>,
-) {
-    for parameter_id in &signature.dynamic_parameters {
-        let mut local_symbols = HashSet::new();
-
-        // include named symbols and nested pattern binding symbols
-        collect_parameter_value_binding_symbols(
-            ctx.tree,
-            ctx.symbols,
-            *parameter_id,
-            &mut local_symbols,
-        );
-
-        for local_symbol in local_symbols {
-            symbols.insert(local_symbol.into_global(ctx.module_id()));
-        }
-    }
 }
 
 #[cfg(test)]
@@ -317,6 +217,24 @@ function run(value: int32): int32 {
 "#,
         );
         test.result(result).assert_lint("no-parameter-reassignment");
+    }
+
+    /// Flag unary updates on parameters.
+    #[test]
+    fn test_flags_unary_parameter_update() {
+        let test = TestProgram::for_rule_without_prelude(NoParameterReassignment);
+        let result = test.lint_dir(
+            "no_parameter_reassignment/test_flags_unary_parameter_update.ds",
+            r#"
+function run(value: int32): int32 {
+    value++;
+    return value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-parameter-reassignment")
+            .assert_has_no_fix("no-parameter-reassignment");
     }
 
     /// Flag reassignment of bindings introduced by parameter patterns.

@@ -1,7 +1,8 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{expression_path_segments, expression_static_property_access_syntax};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow the use of `null`.
@@ -24,19 +25,25 @@ declare_lint! {
 }
 
 impl LintRule for NoNull {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoNull::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             if matches!(
                 expression,
                 ast::Expression::TypeLiteral(ast::TypeLiteral::Null)
             ) {
+                if is_allowed_null_usage(ctx, node_id) {
+                    continue;
+                }
+
+                // resolve effective lint severity
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
@@ -65,6 +72,179 @@ impl LintRule for NoNull {
             }
         }
     }
+}
+
+/// Return true when one null usage should be allowed for runtime semantics.
+fn is_allowed_null_usage(
+    ctx: &LintModuleAstContext<'_>,
+    null_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // resolve one call argument usage for this null literal
+    let Some((callee_expression_id, argument_index)) =
+        find_call_argument_usage(ctx, null_expression_id)
+    else {
+        return false;
+    };
+
+    // allow Object.create(null)
+    if argument_index == 0 && expression_is_object_create(ctx, callee_expression_id) {
+        return true;
+    }
+
+    // allow useRef(null) and React.useRef(null)
+    if argument_index == 0 && expression_is_use_ref(ctx, callee_expression_id) {
+        return true;
+    }
+
+    // allow node.insertBefore(child, null)
+    argument_index == 1 && expression_is_insert_before(ctx, callee_expression_id)
+}
+
+/// Return one call callee and argument index for one null argument usage.
+fn find_call_argument_usage(
+    ctx: &LintModuleAstContext<'_>,
+    null_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<(ast::LocalNodeId<ast::Expression>, usize)> {
+    // start from the null expression
+    let mut current_expression_id = null_expression_id;
+
+    // walk through parenthesized wrappers before argument matching
+    loop {
+        let parent_id = ctx.parents.get(current_expression_id)?;
+        if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+            break;
+        }
+
+        // resolve parent expression id
+        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        let parent_expression = ctx.tree.get(parent_expression_id);
+        let ast::Expression::Parenthesized { expression } = parent_expression else {
+            break;
+        };
+        if *expression != current_expression_id {
+            break;
+        }
+
+        current_expression_id = parent_expression_id;
+    }
+
+    // require one argument parent
+    let argument_node_id = ctx.parents.get(current_expression_id)?;
+    if ctx.tree.get_node_type(argument_node_id) != ast::NodeType::Argument {
+        return None;
+    }
+    let argument_id = ast::LocalNodeId::<ast::Argument>::new(argument_node_id);
+
+    // require one call expression parent
+    let call_node_id = ctx.parents.get(argument_id)?;
+    if ctx.tree.get_node_type(call_node_id) != ast::NodeType::Expression {
+        return None;
+    }
+    let call_expression_id = ast::LocalNodeId::<ast::Expression>::new(call_node_id);
+    let call_expression = ctx.tree.get(call_expression_id);
+    let ast::Expression::Call {
+        left,
+        dynamic_arguments,
+        ..
+    } = call_expression
+    else {
+        return None;
+    };
+
+    dynamic_arguments
+        .iter()
+        .position(|current_argument_id| *current_argument_id == argument_id)
+        .map(|argument_index| (*left, argument_index))
+}
+
+/// Return true when one expression resolves to Object.create.
+fn expression_is_object_create(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let object_name = ctx.strings.intern("Object");
+    let create_name = ctx.strings.intern("create");
+
+    // match path calls like Object.create(...)
+    if let Some(path_segments) = expression_path_segments(ctx.tree, expression_id)
+        && path_segments.as_slice() == [object_name, create_name]
+    {
+        return true;
+    }
+
+    // match computed member calls like Object["create"](...)
+    let Some((receiver_id, property_name)) =
+        expression_static_property_access_syntax(ctx.tree, expression_id)
+    else {
+        return false;
+    };
+    if property_name != create_name {
+        return false;
+    }
+
+    matches!(
+        expression_path_segments(ctx.tree, receiver_id),
+        Some(segments) if segments.len() == 1 && segments[0] == object_name
+    )
+}
+
+/// Return true when one expression resolves to useRef.
+fn expression_is_use_ref(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let use_ref_name = ctx.strings.intern("useRef");
+    let react_name = ctx.strings.intern("React");
+
+    // match path calls like useRef(...) and React.useRef(...)
+    if let Some(path_segments) = expression_path_segments(ctx.tree, expression_id) {
+        if path_segments.as_slice() == [use_ref_name] {
+            return true;
+        }
+        if path_segments.as_slice() == [react_name, use_ref_name] {
+            return true;
+        }
+    }
+
+    // match computed member calls like React["useRef"](...)
+    let Some((receiver_id, property_name)) =
+        expression_static_property_access_syntax(ctx.tree, expression_id)
+    else {
+        return false;
+    };
+    if property_name != use_ref_name {
+        return false;
+    }
+
+    matches!(
+        expression_path_segments(ctx.tree, receiver_id),
+        Some(segments) if segments.len() == 1 && segments[0] == react_name
+    )
+}
+
+/// Return true when one expression resolves to an insertBefore member call.
+fn expression_is_insert_before(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let insert_before_name = ctx.strings.intern("insertBefore");
+
+    // match path calls like parent.insertBefore(...)
+    if let Some(path_segments) = expression_path_segments(ctx.tree, expression_id)
+        && path_segments.len() >= 2
+        && path_segments.last().copied() == Some(insert_before_name)
+    {
+        return true;
+    }
+
+    // match computed member calls like parent["insertBefore"](...)
+    let Some((_, property_name)) =
+        expression_static_property_access_syntax(ctx.tree, expression_id)
+    else {
+        return false;
+    };
+
+    property_name == insert_before_name
 }
 
 #[cfg(test)]
@@ -143,5 +323,65 @@ if (value === undefined) {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_allows_object_create_null() {
+        let test = TestProgram::for_rule_without_prelude(NoNull);
+        let result = test.lint_ast(
+            "no_null/test_allows_object_create_null.ts",
+            "const value = Object.create(null);",
+        );
+        test.result(result).assert_no_lint("no-null");
+    }
+
+    #[test]
+    fn test_allows_use_ref_null() {
+        let test = TestProgram::for_rule_without_prelude(NoNull);
+        let result = test.lint_ast(
+            "no_null/test_allows_use_ref_null.ts",
+            "const ref = useRef(null);",
+        );
+        test.result(result).assert_no_lint("no-null");
+    }
+
+    #[test]
+    fn test_allows_react_use_ref_null() {
+        let test = TestProgram::for_rule_without_prelude(NoNull);
+        let result = test.lint_ast(
+            "no_null/test_allows_react_use_ref_null.ts",
+            "const ref = React.useRef(null);",
+        );
+        test.result(result).assert_no_lint("no-null");
+    }
+
+    #[test]
+    fn test_allows_insert_before_null() {
+        let test = TestProgram::for_rule_without_prelude(NoNull);
+        let result = test.lint_ast(
+            "no_null/test_allows_insert_before_null.ts",
+            "parent.insertBefore(child, null);",
+        );
+        test.result(result).assert_no_lint("no-null");
+    }
+
+    #[test]
+    fn test_allows_parenthesized_object_create_null() {
+        let test = TestProgram::for_rule_without_prelude(NoNull);
+        let result = test.lint_ast(
+            "no_null/test_allows_parenthesized_object_create_null.ts",
+            "const value = Object.create((null));",
+        );
+        test.result(result).assert_no_lint("no-null");
+    }
+
+    #[test]
+    fn test_allows_parenthesized_insert_before_null() {
+        let test = TestProgram::for_rule_without_prelude(NoNull);
+        let result = test.lint_ast(
+            "no_null/test_allows_parenthesized_insert_before_null.ts",
+            "parent.insertBefore(child, (null));",
+        );
+        test.result(result).assert_no_lint("no-null");
     }
 }

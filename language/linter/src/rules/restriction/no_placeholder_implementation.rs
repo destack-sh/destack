@@ -1,7 +1,8 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{argument_value_expression_id, expression_path_segments};
+use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow placeholder implementations.
@@ -35,53 +36,27 @@ const PLACEHOLDER_PATTERNS: &[&str] = &[
 ];
 
 impl LintRule for NoPlaceholderImplementation {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoPlaceholderImplementation::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let ast::Expression::Throw { value } = expression else {
                 continue;
             };
 
-            // check if the thrown value is a string literal with placeholder message
-            let thrown = ctx.tree.get(*value);
-            let message = match thrown {
-                ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(s)) => {
-                    Some(ctx.strings.get(*s).to_lowercase())
-                }
-                // also check `new Error("...")`
-                ast::Expression::New {
-                    dynamic_arguments, ..
-                } => {
-                    if dynamic_arguments.len() == 1 {
-                        let arg = ctx.tree.get(dynamic_arguments[0]);
-                        if let ast::Argument::Positional { value, .. } = arg {
-                            let value_expr = ctx.tree.get(*value);
-                            if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(s)) =
-                                value_expr
-                            {
-                                Some(ctx.strings.get(*s).to_lowercase())
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
+            // check if the thrown value has one placeholder message
+            let message = extract_placeholder_message(ctx, *value);
             let Some(message) = message else {
                 continue;
             };
 
+            // resolve is placeholder
             let is_placeholder = PLACEHOLDER_PATTERNS
                 .iter()
                 .any(|pattern| message.contains(pattern));
@@ -105,6 +80,80 @@ impl LintRule for NoPlaceholderImplementation {
             }
         }
     }
+}
+
+/// Return one lowercase placeholder message from a throw payload expression.
+fn extract_placeholder_message(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<String> {
+    let expression = ctx.tree.get(expression_id);
+
+    // match direct string literals
+    if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(value)) = expression {
+        return Some(ctx.strings.get(*value).to_ascii_lowercase());
+    }
+
+    // match static template literals
+    if let ast::Expression::TemplateExpression { value } = expression
+        && let ast::TemplateLiteral::String { string } = value
+    {
+        return Some(ctx.strings.get(*string).to_ascii_lowercase());
+    }
+
+    // match Error constructor or call payloads
+    let (callee_id, dynamic_arguments) = match expression {
+        ast::Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        }
+        | ast::Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } => (left, dynamic_arguments),
+        _ => return None,
+    };
+    if !expression_is_error_constructor(ctx, *callee_id) {
+        return None;
+    }
+    let first_argument_id = dynamic_arguments.first().copied()?;
+    let first_value_expression_id = argument_value_expression_id(ctx.tree, first_argument_id);
+    let first_value_expression = ctx.tree.get(first_value_expression_id);
+
+    // enforce this lint guard
+    if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(value)) =
+        first_value_expression
+    {
+        return Some(ctx.strings.get(*value).to_ascii_lowercase());
+    }
+    if let ast::Expression::TemplateExpression { value } = first_value_expression
+        && let ast::TemplateLiteral::String { string } = value
+    {
+        return Some(ctx.strings.get(*string).to_ascii_lowercase());
+    }
+
+    None
+}
+
+/// Return true when one expression names one error constructor or helper.
+fn expression_is_error_constructor(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let Some(segments) = expression_path_segments(ctx.tree, expression_id) else {
+        return false;
+    };
+    let Some(last_segment) = segments.last().copied() else {
+        return false;
+    };
+    let last_name = ctx.strings.get(last_segment);
+    if last_name == "Error" {
+        return true;
+    }
+
+    last_name.ends_with("Error")
 }
 
 #[cfg(test)]
@@ -165,5 +214,27 @@ mod tests {
         );
         test.result(result)
             .assert_no_lint("no-placeholder-implementation");
+    }
+
+    #[test]
+    fn test_detects_throw_type_error_placeholder() {
+        let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
+        let result = test.lint_ast(
+            "no_placeholder_implementation/test_detects_throw_type_error_placeholder.ts",
+            r#"throw new TypeError("TODO: add implementation");"#,
+        );
+        test.result(result)
+            .assert_lint("no-placeholder-implementation");
+    }
+
+    #[test]
+    fn test_detects_throw_error_call_placeholder() {
+        let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
+        let result = test.lint_ast(
+            "no_placeholder_implementation/test_detects_throw_error_call_placeholder.ts",
+            r#"throw Error("not yet implemented");"#,
+        );
+        test.result(result)
+            .assert_lint("no-placeholder-implementation");
     }
 }

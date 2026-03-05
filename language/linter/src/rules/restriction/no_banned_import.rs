@@ -1,14 +1,13 @@
-use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_static_string_literal, glob_matches};
+use crate::rules::common::{expression_import_target_specifier, glob_matches};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow imports from configured banned module specifiers.
     ///
-    /// This rule checks import and re-export targets against
+    /// This rule checks import and reexport targets against
     /// `linter.restrictedImports` patterns.
     #[lint(
         id = "no-banned-import",
@@ -97,7 +96,8 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
         expression: &dir::Expression,
     ) {
         // resolve the static module specifier
-        let Some(specifier_id) = expression_target_specifier(self.ctx.tree, expression) else {
+        let Some(specifier_id) = expression_import_target_specifier(self.ctx.tree, expression)
+        else {
             return;
         };
         let specifier_text = self.ctx.program.strings.get(specifier_id).to_string();
@@ -194,42 +194,6 @@ impl TargetSurface {
     }
 }
 
-/// Return the static target module specifier text for an import-like expression.
-fn expression_target_static_specifier(expression: &dir::Expression) -> Option<StringId> {
-    let target = match expression {
-        dir::Expression::Import { target, .. }
-        | dir::Expression::ReExport { target, .. }
-        | dir::Expression::UnresolvedReExport { target, .. } => *target,
-        dir::Expression::UnresolvedImport { target, .. } => match target {
-            dir::ImportTarget::String(target) => *target,
-            dir::ImportTarget::Expression { .. } => return None,
-        },
-        _ => return None,
-    };
-
-    Some(target)
-}
-
-/// Return the target module specifier text for an import-like expression.
-fn expression_target_specifier(
-    tree: &dir::NodeTree,
-    expression: &dir::Expression,
-) -> Option<StringId> {
-    // match direct static module targets
-    if let Some(target) = expression_target_static_specifier(expression) {
-        return Some(target);
-    }
-
-    // match dynamic import targets when the expression is a static string
-    let dir::Expression::UnresolvedImport { target, .. } = expression else {
-        return None;
-    };
-    let dir::ImportTarget::Expression { target } = target else {
-        return None;
-    };
-    expression_static_string_literal(tree, *target)
-}
-
 /// Return the resolved module target for an import like expression.
 fn expression_target_module(expression: &dir::Expression) -> Option<dir::ModuleTarget> {
     match expression {
@@ -263,6 +227,7 @@ fn matching_target(
         });
     }
 
+    // resolve target module
     let target_module = expression_target_module(expression)?;
     match target_module {
         dir::ModuleTarget::Module(module_id) => {

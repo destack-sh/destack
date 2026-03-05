@@ -1,7 +1,8 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::{comment_contains_warning_term, is_directive_comment};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow specified warning terms in comments.
@@ -24,7 +25,7 @@ declare_lint! {
 }
 
 impl LintRule for NoWarningComments {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoWarningComments::meta()
     }
 
@@ -35,11 +36,15 @@ impl LintRule for NoWarningComments {
         // iterate over all comment trivia records
         for trivia in ctx.tree.comment_trivia().iter().copied() {
             let comment_text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
-            let comment_upper = comment_text.to_uppercase();
+            if is_directive_comment(&comment_text)
+                && comment_contains_warning_term(&comment_text, "no-warning-comments")
+            {
+                continue;
+            }
 
             // check for warning terms in the comment
             for term in warning_terms {
-                if comment_upper.contains(&term.to_uppercase()) {
+                if comment_contains_warning_term(&comment_text, term) {
                     let severity = ctx.get_effective_severity(meta, trivia.comment);
                     if !severity.is_enabled() {
                         break;
@@ -169,5 +174,44 @@ const value = 1
 const value = 1;
 "#,
             );
+    }
+
+    #[test]
+    fn test_skips_substring_warning_terms() {
+        let test = TestProgram::for_rule_without_prelude(NoWarningComments);
+        let result = test.lint_ast(
+            "no_warning_comments/test_skips_substring_warning_terms.ts",
+            r#"
+// TodoMVC integration documentation
+const value = 1;
+"#,
+        );
+        test.result(result).assert_no_lint("no-warning-comments");
+    }
+
+    #[test]
+    fn test_skips_no_warning_comments_directive_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoWarningComments);
+        let result = test.lint_ast(
+            "no_warning_comments/test_skips_no_warning_comments_directive_comment.ts",
+            r#"
+// eslint-disable-next-line no-warning-comments TODO
+const value = 1;
+"#,
+        );
+        test.result(result).assert_no_lint("no-warning-comments");
+    }
+
+    #[test]
+    fn test_does_not_skip_non_directive_comment_with_rule_name() {
+        let test = TestProgram::for_rule_without_prelude(NoWarningComments);
+        let result = test.lint_ast(
+            "no_warning_comments/test_does_not_skip_non_directive_comment_with_rule_name.ts",
+            r#"
+// this mentions no-warning-comments but still has TODO
+const value = 1;
+"#,
+        );
+        test.result(result).assert_lint("no-warning-comments");
     }
 }

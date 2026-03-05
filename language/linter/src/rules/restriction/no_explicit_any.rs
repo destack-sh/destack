@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, TypeLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow explicit `any` type annotations.
@@ -24,39 +24,45 @@ declare_lint! {
 }
 
 impl LintRule for NoExplicitAny {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoExplicitAny::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             if !matches!(expression, ast::Expression::TypeLiteral(TypeLiteral::Any)) {
                 continue;
             }
 
+            // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
             if !severity.is_enabled() {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
-            let edits = ctx.edit_builder().replace(span, "unknown").into_edits();
-            let fix = LintFix::safe("Replace `any` with `unknown`").with_edits(edits);
-            ctx.report(
-                LintDiagnostic::new(
-                    NO_EXPLICIT_ANY.id,
-                    NO_EXPLICIT_ANY.code,
-                    NO_EXPLICIT_ANY.category,
-                    severity,
-                    "`any` type is not allowed",
-                    ctx.module.file_id,
-                    span,
-                )
-                .with_label("use `unknown` or a specific type instead")
-                .with_fix(fix),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                NO_EXPLICIT_ANY.id,
+                NO_EXPLICIT_ANY.code,
+                NO_EXPLICIT_ANY.category,
+                severity,
+                "`any` type is not allowed",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("use `unknown` or a specific type instead");
+
+            // compute fixes only when requested by the runner
+            if ctx.compute_fixes {
+                let edits = ctx.edit_builder().replace(span, "unknown").into_edits();
+                let fix = LintFix::safe("Replace `any` with `unknown`").with_edits(edits);
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }

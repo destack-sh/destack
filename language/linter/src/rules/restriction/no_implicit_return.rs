@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require explicit return statements.
@@ -24,13 +24,14 @@ declare_lint! {
 }
 
 impl LintRule for NoImplicitReturn {
-    fn meta(&self) -> &'static crate::LintMeta {
+    fn meta(&self) -> &'static LintMeta {
         NoImplicitReturn::meta()
     }
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inspect candidate declarations
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
             let ast::Declaration::Function {
@@ -41,6 +42,7 @@ impl LintRule for NoImplicitReturn {
                 continue;
             };
 
+            // resolve body
             let body = ctx.tree.get(*body_id);
 
             // flag functions with expression bodies (implicit return)
@@ -50,30 +52,33 @@ impl LintRule for NoImplicitReturn {
                     continue;
                 }
 
-                // build explicit return replacement from the current body expression
+                // resolve diagnostic span
                 let body_span = ctx.tree.get_span(*body_id);
-                let body_text = ctx.get_span_text(body_span);
-                let replacement = format!("{{ return {body_text}; }}");
-                let edits = ctx
-                    .edit_builder()
-                    .replace(body_span, replacement)
-                    .into_edits();
-                let fix =
-                    LintFix::safe("Wrap implicit return in an explicit block").with_edits(edits);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_IMPLICIT_RETURN.id,
+                    NO_IMPLICIT_RETURN.code,
+                    NO_IMPLICIT_RETURN.category,
+                    severity,
+                    "implicit return in function",
+                    ctx.module.file_id,
+                    body_span,
+                )
+                .with_label("use explicit `return` statement");
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_IMPLICIT_RETURN.id,
-                        NO_IMPLICIT_RETURN.code,
-                        NO_IMPLICIT_RETURN.category,
-                        severity,
-                        "implicit return in function",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(*body_id),
-                    )
-                    .with_label("use explicit `return` statement")
-                    .with_fix(fix),
-                );
+                // compute fixes only when requested by the runner
+                if ctx.compute_fixes {
+                    let body_text = ctx.get_span_text(body_span);
+                    let replacement = format!("{{ return {body_text}; }}");
+                    let edits = ctx
+                        .edit_builder()
+                        .replace(body_span, replacement)
+                        .into_edits();
+                    let fix = LintFix::safe("Wrap implicit return in an explicit block")
+                        .with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
