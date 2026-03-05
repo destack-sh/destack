@@ -6,7 +6,7 @@ use destack_workspace::Session;
 use serde_json::{from_value, json, to_value};
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
-use crate::uri::lsp_uri_for_file;
+use crate::uri::{lsp_uri_for_file, lsp_uri_for_path};
 
 /// Resolve a typed symbol id from LSP item data.
 fn symbol_id_from_lsp_data(session: &Session, data: &serde_json::Value) -> Option<GlobalSymbolId> {
@@ -117,15 +117,11 @@ pub fn selection_range_to_lsp(file: &File, range: query::SelectionRange) -> lsp:
 pub fn document_link_to_lsp(file: &File, link: &query::DocumentLink) -> Option<lsp::DocumentLink> {
     let range = byte_span_to_range(file, link.range);
     let target = match &link.target {
-        query::DocumentLinkTarget::File { path } => {
-            let uri_str = format!("file://{path}");
-            uri_str.parse::<lsp::Uri>().ok()
-        }
+        query::DocumentLinkTarget::File { path } => lsp_uri_for_path(path),
         query::DocumentLinkTarget::Url { url } => url.parse::<lsp::Uri>().ok(),
         query::DocumentLinkTarget::Position { path, line, column } => {
             // encode position in fragment, e.g. file:///path#L10,5
-            let uri_str = format!("file://{path}#L{},{column}", line + 1);
-            uri_str.parse::<lsp::Uri>().ok()
+            file_position_uri_from_path_string(path, *line, *column)
         }
     };
     Some(lsp::DocumentLink {
@@ -134,6 +130,13 @@ pub fn document_link_to_lsp(file: &File, link: &query::DocumentLink) -> Option<l
         tooltip: link.tooltip.clone(),
         data: None,
     })
+}
+
+/// Build a file URI with a line and column fragment.
+fn file_position_uri_from_path_string(path: &str, line: u32, column: u32) -> Option<lsp::Uri> {
+    let uri = lsp_uri_for_path(path)?;
+    let uri = format!("{}#L{},{column}", uri.as_str(), line + 1);
+    uri.parse::<lsp::Uri>().ok()
 }
 
 /// Convert a call hierarchy item to an LSP call hierarchy item.

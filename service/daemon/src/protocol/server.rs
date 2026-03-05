@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use destack_service::{
     LanguageServiceError as ServiceLanguageServiceError,
-    WorkspaceHandleId as ServiceWorkspaceHandleId,
+    WorkspaceHandleId as ServiceWorkspaceHandleId, query,
 };
 use destack_workspace::{
     FileUpdate as WorkspaceFileUpdate, ModuleGraphKey, ModuleSignatureKey, Program,
@@ -776,11 +776,23 @@ impl ProtocolServer {
         let request_method_id = request.request.method_id();
 
         // execute the semantic query through the workspace service
-        let response = self
-            .daemon
-            .workspace_service
-            .execute_query_envelope_for_workspace_handle(self.service_handle_id(handle), request)
-            .map_err(|error| self.protocol_error_from_service("workspace query", error))?;
+        let response = match request.request.execution_mode() {
+            query::QueryExecutionMode::Read => self
+                .daemon
+                .workspace_service
+                .execute_read_query_envelope_for_workspace_handle(
+                    self.service_handle_id(handle),
+                    request,
+                ),
+            query::QueryExecutionMode::Write => self
+                .daemon
+                .workspace_service
+                .execute_write_query_envelope_for_workspace_handle(
+                    self.service_handle_id(handle),
+                    request,
+                ),
+        }
+        .map_err(|error| self.protocol_error_from_service("workspace query", error))?;
 
         // keep query response variants aligned with query request variants
         if response.response.method_id() != request_method_id {
@@ -944,8 +956,13 @@ impl ProtocolServer {
             ServiceLanguageServiceError::MissingExpectedRevision => {
                 ProtocolErrorCode::InvalidRequest
             }
+            ServiceLanguageServiceError::UnexpectedExpectedRevisionOnRead { .. }
+            | ServiceLanguageServiceError::QueryExecutionModeMismatch { .. } => {
+                ProtocolErrorCode::InvalidRequest
+            }
             ServiceLanguageServiceError::StaleRevision { .. } => ProtocolErrorCode::Conflict,
-            ServiceLanguageServiceError::SemanticQueryNotReady { .. }
+            ServiceLanguageServiceError::QueryBusy { .. }
+            | ServiceLanguageServiceError::SemanticQueryNotReady { .. }
             | ServiceLanguageServiceError::AnalyzeFailed { .. } => ProtocolErrorCode::NotReady,
             ServiceLanguageServiceError::CacheClearFailed { .. }
             | ServiceLanguageServiceError::ResolvePathFailed { .. }

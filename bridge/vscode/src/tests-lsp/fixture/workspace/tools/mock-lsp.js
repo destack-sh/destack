@@ -1,4 +1,4 @@
-// fixture lsp: minimal stdio json rpc server for extension host tests
+// fixture lsp: minimal stdio json rpc server for extension LSP tests
 let inputBuffer = Buffer.alloc(0);
 
 // append new bytes and parse complete frames

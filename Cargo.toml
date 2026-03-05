@@ -58,7 +58,6 @@ members = [
 	"bridge/napi",
 	"bridge/python/rust",
 	"bridge/rust",
-	"bridge/vscode",
 	"bridge/wasm",
 	"bridge/zed",
 ]
@@ -116,7 +115,6 @@ destack_napi = { path = "bridge/napi" }
 destack_wasm = { path = "bridge/wasm" }
 destack = { path = "bridge/rust" }
 destack_python = { path = "bridge/python/rust" }
-destack_vscode = { path = "bridge/vscode" }
 destack_zed = { path = "bridge/zed" }
 
 # codegen

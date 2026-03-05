@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -11,16 +11,17 @@ use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_service::{
-    LanguageService as LspLanguageService, RescanReason, WorkspaceMessage,
+    LanguageService as LspLanguageService, LanguageServiceError, RescanReason, WorkspaceMessage,
     WorkspaceMessageKind as ProtocolMessageKind, WorkspaceUpdateRecord, query,
 };
 use destack_source::{
-    BatchEdit, Diagnostic, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind,
-    OverlayFileSystem, PhysicalFileSystem, Uri,
+    BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
+    PhysicalFileSystem, Uri,
 };
 use destack_workspace::{Session, Workspace, WorkspaceKind};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
+use tokio::sync::mpsc;
 
 use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
@@ -47,15 +48,74 @@ const WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE: usize = 128;
 const AUTO_IMPORT_DETAIL_PREFIX: &str = "Auto import from ";
 const SLOW_DIAGNOSTIC_WARN_DURATION: Duration = Duration::from_secs(2);
 
+/// Recover a document snapshot after a failed incremental change application.
+fn recover_failed_did_change_text(
+    previous_text: &str,
+    changes: &[lsp::TextDocumentContentChangeEvent],
+) -> String {
+    // prefer the latest full document payload when available
+    if let Some(full_change) = changes.iter().rev().find(|change| change.range.is_none()) {
+        return normalize_line_endings(full_change.text.clone());
+    }
+
+    // otherwise keep the previous known-good snapshot
+    previous_text.to_string()
+}
+
+/// Canonicalize a workspace path for stable dedupe comparisons.
+fn canonical_workspace_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Return true when a root list already contains the path after canonicalization.
+fn contains_workspace_root(roots: &[PathBuf], path: &Path) -> bool {
+    let path = canonical_workspace_path(path);
+    roots
+        .iter()
+        .any(|root| canonical_workspace_path(root) == path)
+}
+
 /// State for an open document.
 #[derive(Debug)]
 struct OpenDocument {
-    /// The file id in the session registry.
-    file_id: FileId,
+    /// The normalized filesystem path for this document.
+    path: PathBuf,
     /// The current in editor document text normalized to LF.
     text: String,
     /// The current LSP version for the document.
     version: i32,
+}
+
+/// One queued mutation lane task for the server lifecycle loop.
+#[derive(Debug)]
+enum MutationTask {
+    /// Update one virtual file snapshot through the workspace service.
+    UpdateVirtualFile {
+        /// Path for the virtual file.
+        path: PathBuf,
+        /// Full virtual file content.
+        content: String,
+        /// Open-document versions captured at enqueue time.
+        open_versions: HashMap<String, i32>,
+        /// Primary version to publish for the updated path when available.
+        primary_version: Option<i32>,
+    },
+    /// Apply one watched-file batch through the workspace service.
+    ApplyWatchEvents {
+        /// Watched-file events to apply.
+        events: Vec<FileWatchEvent>,
+        /// Open-document versions captured at enqueue time.
+        open_versions: HashMap<String, i32>,
+    },
+    /// Run one explicit workspace command mutation.
+    ExecuteWorkspaceCommand {
+        /// Command label for tracing.
+        command: String,
+        /// True when this command clears cache before rescanning.
+        clear_cache: bool,
+        /// Open-document versions captured at enqueue time.
+        open_versions: HashMap<String, i32>,
+    },
 }
 
 /// Additional information used when resolving completion items.
@@ -138,10 +198,10 @@ pub struct DestackLanguageServer {
     session: OnceLock<Arc<Session>>,
     /// The workspace service.
     workspace_service: OnceLock<Arc<LspLanguageService>>,
+    /// Sender for queued mutation lane tasks.
+    mutation_sender: OnceLock<mpsc::UnboundedSender<MutationTask>>,
     /// The open documents.
     open_documents: DashMap<String, OpenDocument>,
-    /// The latest diagnostics for open virtual documents.
-    virtual_diagnostics: DashMap<FileId, Vec<Diagnostic>>,
     /// Cached semantic tokens per document.
     semantic_tokens_cache: DashMap<String, SemanticTokensCache>,
     /// Monotonic counter for semantic token result ids.
@@ -181,8 +241,8 @@ impl DestackLanguageServer {
             overlay_fs,
             session: OnceLock::new(),
             workspace_service: OnceLock::new(),
+            mutation_sender: OnceLock::new(),
             open_documents: DashMap::new(),
-            virtual_diagnostics: DashMap::new(),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),
             cancelled_progress_tokens: DashSet::new(),
@@ -207,6 +267,12 @@ impl DestackLanguageServer {
         self.workspace_service
             .get()
             .expect("workspace service not initialized")
+    }
+
+    /// Get the queued mutation sender when initialized.
+    #[inline]
+    fn mutation_sender(&self) -> Option<&mpsc::UnboundedSender<MutationTask>> {
+        self.mutation_sender.get()
     }
 
     /// Allocate the next semantic tokens result id.
@@ -392,8 +458,11 @@ impl DestackLanguageServer {
     }
 
     /// Load a file snapshot for an open document.
-    fn get_query_file_for_open_document(&self, doc: &OpenDocument) -> Option<Arc<File>> {
-        self.get_query_file(doc.file_id)
+    fn get_query_file_for_open_document(&self, doc: &OpenDocument) -> Option<(FileId, Arc<File>)> {
+        let file_id = self.session().files.get_id_by_path(&doc.path)?;
+        let file = self.get_query_file(file_id)?;
+
+        Some((file_id, file))
     }
 
     /// Execute a workspace query through the workspace for a filesystem path.
@@ -422,11 +491,21 @@ impl DestackLanguageServer {
         path: &Path,
         envelope: query::QueryRequestEnvelope,
     ) -> Option<query::QueryResponse> {
-        match self
-            .workspace_service()
-            .execute_query_envelope_for_path(path, envelope)
-        {
+        let result = match envelope.request.execution_mode() {
+            query::QueryExecutionMode::Read => self
+                .workspace_service()
+                .execute_read_query_envelope_for_path(path, envelope),
+            query::QueryExecutionMode::Write => self
+                .workspace_service()
+                .execute_write_query_envelope_for_path(path, envelope),
+        };
+
+        match result {
             Ok(response) => Some(response.response),
+            Err(LanguageServiceError::QueryBusy { .. }) => {
+                tracing::trace!(path = ?path, "lsp.query.workspace_busy");
+                None
+            }
             Err(error) => {
                 tracing::debug!(?error, path = ?path, "lsp.query.workspace_failed");
                 None
@@ -465,6 +544,25 @@ impl DestackLanguageServer {
         }
 
         Uri::from_string(uri.to_string())
+    }
+
+    /// Return true when the uri or path belongs to an open editor document.
+    fn is_open_document_uri_or_path(&self, uri: &lsp::Uri, path: &Path) -> bool {
+        // check direct uri membership first
+        let uri_string = uri.to_string();
+        if self.open_documents.contains_key(&uri_string) {
+            return true;
+        }
+
+        // check overlays because opened untracked files may not have a file id yet
+        if self.overlay_fs.has_overlay(path) {
+            return true;
+        }
+
+        // fall back to path matching for normalized path variants
+        self.open_documents
+            .iter()
+            .any(|entry| entry.value().path == path)
     }
 
     /// Convert an LSP code action kind into workspace query kinds.
@@ -594,47 +692,29 @@ impl DestackLanguageServer {
         }
     }
 
-    /// Apply watch events and publish diagnostics.
-    async fn apply_watch_events(&self, events: Vec<FileWatchEvent>) {
-        // skip empty batches
-        if events.is_empty() {
-            return;
+    /// Snapshot open-document versions by file id.
+    fn snapshot_open_document_versions(&self) -> HashMap<String, i32> {
+        let mut versions = HashMap::new();
+        for entry in self.open_documents.iter() {
+            let document = entry.value();
+            versions.insert(entry.key().to_string(), document.version);
         }
 
-        // apply updates through the workspace
-        let workspace_service = self.workspace_service().clone();
-        let result = match workspace_service.apply_watch_events(events) {
-            Ok(result) => result,
-            Err(error) => {
-                tracing::debug!(?error, "lsp.watch.apply_failed");
-                return;
-            }
-        };
-
-        tracing::trace!(
-            updates = result.updates.len(),
-            rescan = false,
-            "lsp.watch.apply"
-        );
-
-        // publish diagnostics for updates
-        self.publish_watch_updates(result.updates).await;
-        self.publish_watch_messages(result.messages).await;
-
-        if let Err(error) = self.client.workspace_diagnostic_refresh().await {
-            tracing::debug!(?error, "lsp.watch.refresh_diagnostics_failed");
-        }
-        if let Err(error) = self.client.semantic_tokens_refresh().await {
-            tracing::debug!(?error, "lsp.watch.refresh_semantic_tokens_failed");
-        }
+        versions
     }
 
-    /// Publish diagnostics for a batch of workspace updates.
-    async fn publish_watch_updates(&self, updates: Vec<WorkspaceUpdateRecord>) {
+    /// Publish workspace updates using explicit session and version snapshots.
+    async fn publish_workspace_updates_static(
+        client: &Client,
+        session: &Session,
+        open_versions: &HashMap<String, i32>,
+        updates: Vec<WorkspaceUpdateRecord>,
+        primary_path: Option<&Path>,
+        primary_version: Option<i32>,
+    ) {
         // publish diagnostics per updated file
-        let session = self.session().clone();
         for update in updates {
-            let Some(file) = upsert_file_from_snapshot(session.as_ref(), &update.file) else {
+            let Some(file) = upsert_file_from_snapshot(session, &update.file) else {
                 continue;
             };
             let Some(uri) = lsp_uri_for_file(&file) else {
@@ -645,21 +725,264 @@ impl DestackLanguageServer {
                 .into_iter()
                 .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &file))
                 .collect();
-            self.client
-                .publish_diagnostics(uri, diagnostics, None)
-                .await;
+            let is_primary = primary_path.is_some_and(|path| {
+                update
+                    .file
+                    .path
+                    .as_ref()
+                    .is_some_and(|update_path| update_path == path)
+            });
+            let uri_string = uri.to_string();
+            let version = if is_primary {
+                primary_version.or_else(|| open_versions.get(&uri_string).copied())
+            } else {
+                open_versions.get(&uri_string).copied()
+            };
+            client.publish_diagnostics(uri, diagnostics, version).await;
         }
     }
 
-    /// Publish watch warnings for a batch.
-    async fn publish_watch_messages(&self, messages: Vec<WorkspaceMessage>) {
+    /// Publish workspace messages with an explicit client handle.
+    async fn publish_watch_messages_for_command(client: &Client, messages: Vec<WorkspaceMessage>) {
         for message in messages {
             let message_type = match message.kind {
                 ProtocolMessageKind::Info => lsp::MessageType::INFO,
                 ProtocolMessageKind::Warning => lsp::MessageType::WARNING,
                 ProtocolMessageKind::Error => lsp::MessageType::ERROR,
             };
-            self.client.log_message(message_type, message.message).await;
+            client.log_message(message_type, message.message).await;
+        }
+    }
+
+    /// Start the queued mutation dispatcher loop.
+    fn start_mutation_dispatcher(&self) -> bool {
+        let (mutation_tx, mutation_rx) = mpsc::unbounded_channel();
+        if self.mutation_sender.set(mutation_tx).is_err() {
+            tracing::warn!("lsp.mutation_dispatcher.already_started");
+            return false;
+        }
+
+        let workspace_service = self.workspace_service().clone();
+        let client = self.client.clone();
+        let session = self.session().clone();
+        tokio::spawn(async move {
+            Self::run_mutation_dispatcher_loop(mutation_rx, workspace_service, client, session)
+                .await;
+        });
+
+        true
+    }
+
+    /// Enqueue one mutation task on the dispatcher lane.
+    fn enqueue_mutation_task(&self, task: MutationTask) {
+        let Some(mutation_sender) = self.mutation_sender() else {
+            tracing::warn!("lsp.mutation_dispatcher.not_initialized");
+            return;
+        };
+
+        if mutation_sender.send(task).is_err() {
+            tracing::warn!("lsp.mutation_dispatcher.send_failed");
+        }
+    }
+
+    /// Enqueue one workspace command mutation.
+    fn enqueue_workspace_command_task(&self, command: String, clear_cache: bool) {
+        let open_versions = self.snapshot_open_document_versions();
+        let task = MutationTask::ExecuteWorkspaceCommand {
+            command,
+            clear_cache,
+            open_versions,
+        };
+        self.enqueue_mutation_task(task);
+    }
+
+    /// Enqueue one virtual file mutation.
+    fn enqueue_virtual_update_task(
+        &self,
+        path: PathBuf,
+        content: String,
+        primary_version: Option<i32>,
+    ) {
+        let open_versions = self.snapshot_open_document_versions();
+        let task = MutationTask::UpdateVirtualFile {
+            path,
+            content,
+            open_versions,
+            primary_version,
+        };
+        self.enqueue_mutation_task(task);
+    }
+
+    /// Enqueue one watched-file mutation batch.
+    fn enqueue_watch_events_task(&self, events: Vec<FileWatchEvent>) {
+        if events.is_empty() {
+            return;
+        }
+
+        let open_versions = self.snapshot_open_document_versions();
+        let task = MutationTask::ApplyWatchEvents {
+            events,
+            open_versions,
+        };
+        self.enqueue_mutation_task(task);
+    }
+
+    /// Run the queued mutation dispatcher loop.
+    async fn run_mutation_dispatcher_loop(
+        mut mutation_rx: mpsc::UnboundedReceiver<MutationTask>,
+        workspace_service: Arc<LspLanguageService>,
+        client: Client,
+        session: Arc<Session>,
+    ) {
+        while let Some(task) = mutation_rx.recv().await {
+            Self::run_mutation_task(&workspace_service, &client, session.as_ref(), task).await;
+        }
+    }
+
+    /// Run one blocking workspace operation for the queued mutation lane.
+    async fn run_blocking_workspace_operation<T, F>(
+        workspace_service: &Arc<LspLanguageService>,
+        operation: F,
+    ) -> Result<T, LanguageServiceError>
+    where
+        T: Send + 'static,
+        F: FnOnce(&LspLanguageService) -> Result<T, LanguageServiceError> + Send + 'static,
+    {
+        // clone service for blocking runtime execution
+        let workspace_service = workspace_service.clone();
+        let join_result =
+            tokio::task::spawn_blocking(move || operation(workspace_service.as_ref())).await;
+        match join_result {
+            Ok(result) => result,
+            Err(error) => Err(LanguageServiceError::Internal {
+                detail: format!("mutation lane task join failed: {error}"),
+            }),
+        }
+    }
+
+    /// Run one queued mutation task.
+    async fn run_mutation_task(
+        workspace_service: &Arc<LspLanguageService>,
+        client: &Client,
+        session: &Session,
+        task: MutationTask,
+    ) {
+        match task {
+            MutationTask::UpdateVirtualFile {
+                path,
+                content,
+                open_versions,
+                primary_version,
+            } => {
+                // run virtual update in blocking service context
+                let path_for_update = path.clone();
+                let result = match Self::run_blocking_workspace_operation(
+                    workspace_service,
+                    move |service| service.update_virtual_file(&path_for_update, content),
+                )
+                .await
+                {
+                    Ok(result) => result,
+                    Err(error) => {
+                        tracing::debug!(?error, path = %path.display(), "lsp.invalidate.file");
+                        return;
+                    }
+                };
+
+                Self::publish_workspace_updates_static(
+                    client,
+                    session,
+                    &open_versions,
+                    result.updates,
+                    Some(path.as_path()),
+                    primary_version,
+                )
+                .await;
+                Self::publish_watch_messages_for_command(client, result.messages).await;
+            }
+            MutationTask::ApplyWatchEvents {
+                events,
+                open_versions,
+            } => {
+                // run watch-event application in blocking service context
+                let result = match Self::run_blocking_workspace_operation(
+                    workspace_service,
+                    move |service| service.apply_watch_events(events),
+                )
+                .await
+                {
+                    Ok(result) => result,
+                    Err(error) => {
+                        tracing::debug!(?error, "lsp.watch.apply_failed");
+                        return;
+                    }
+                };
+
+                tracing::trace!(
+                    updates = result.updates.len(),
+                    rescan = false,
+                    "lsp.watch.apply"
+                );
+                Self::publish_workspace_updates_static(
+                    client,
+                    session,
+                    &open_versions,
+                    result.updates,
+                    None,
+                    None,
+                )
+                .await;
+                Self::publish_watch_messages_for_command(client, result.messages).await;
+            }
+            MutationTask::ExecuteWorkspaceCommand {
+                command,
+                clear_cache,
+                open_versions,
+            } => {
+                let started_at = Instant::now();
+                // run command-driven rescan operations in blocking service context
+                let result = match Self::run_blocking_workspace_operation(
+                    workspace_service,
+                    move |service| {
+                        if clear_cache {
+                            service
+                                .clear_cache_all()
+                                .and_then(|()| service.rescan_all(RescanReason::Manual))
+                        } else {
+                            service.rescan_all(RescanReason::Manual)
+                        }
+                    },
+                )
+                .await
+                {
+                    Ok(result) => result,
+                    Err(error) => {
+                        tracing::debug!(?error, command = command.as_str(), "lsp.command.failed");
+                        return;
+                    }
+                };
+
+                let update_count = result.updates.len();
+                let message_count = result.messages.len();
+                Self::publish_workspace_updates_static(
+                    client,
+                    session,
+                    &open_versions,
+                    result.updates,
+                    None,
+                    None,
+                )
+                .await;
+                Self::publish_watch_messages_for_command(client, result.messages).await;
+
+                tracing::info!(
+                    command = command.as_str(),
+                    updates = update_count,
+                    messages = message_count,
+                    elapsed_ms = started_at.elapsed().as_millis(),
+                    "lsp.command.completed_background"
+                );
+            }
         }
     }
 
@@ -703,70 +1026,6 @@ impl DestackLanguageServer {
         self.publish_partial_result(token, report, "diagnostic")
             .await;
     }
-
-    /// Invalidate a module at the given path and publish diagnostics.
-    async fn invalidate_and_publish(
-        &self,
-        uri: &lsp::Uri,
-        path: &std::path::Path,
-        content: String,
-    ) {
-        // apply the virtual file update through the workspace
-        let result = match self.workspace_service().update_virtual_file(path, content) {
-            Ok(updates) => updates,
-            Err(error) => {
-                tracing::debug!(?error, "lsp.invalidate.file");
-                return;
-            }
-        };
-
-        // gather diagnostics for updated files
-        let session = self.session().clone();
-        let Some(program) = session.find_program_for_path_maybe(path) else {
-            tracing::debug!(path = %path.display(), "lsp.invalidate.path_not_in_workspace");
-            return;
-        };
-        let mut diagnostics_by_file = program.diagnostic_store.snapshot_by_file();
-
-        // publish diagnostics for the updated files
-        let primary_path = path;
-        for mut update in result.updates {
-            let Some(file) = upsert_file_from_snapshot(session.as_ref(), &update.file) else {
-                continue;
-            };
-            if update.diagnostics.is_empty() {
-                update.diagnostics = diagnostics_by_file.remove(&file.id).unwrap_or_default();
-            }
-
-            // cache diagnostics for pull based clients while the document is open
-            self.virtual_diagnostics
-                .insert(file.id, update.diagnostics.clone());
-
-            let uri = if update
-                .file
-                .path
-                .as_ref()
-                .is_some_and(|update_path| update_path == primary_path)
-            {
-                Some(uri.clone())
-            } else {
-                lsp_uri_for_file(&file)
-            };
-            let Some(uri) = uri else {
-                continue;
-            };
-            let diagnostics: Vec<lsp::Diagnostic> = update
-                .diagnostics
-                .into_iter()
-                .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &file))
-                .collect();
-            self.client
-                .publish_diagnostics(uri, diagnostics, None)
-                .await;
-        }
-
-        self.publish_watch_messages(result.messages).await;
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -799,6 +1058,23 @@ impl LanguageServer for DestackLanguageServer {
                 ))
             })?
         };
+
+        // collect initialization roots from workspace folders
+        let mut initialize_roots = Vec::new();
+        if let Some(workspace_folders) = params.workspace_folders.as_ref() {
+            for folder in workspace_folders {
+                let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) else {
+                    continue;
+                };
+
+                if !contains_workspace_root(&initialize_roots, &path) {
+                    initialize_roots.push(path);
+                }
+            }
+        }
+        if initialize_roots.is_empty() {
+            initialize_roots.push(cwd.clone());
+        }
 
         // create session with overlay filesystem
         let session = Session::new(cwd.clone()).with_fs(self.overlay_fs.clone());
@@ -849,8 +1125,19 @@ impl LanguageServer for DestackLanguageServer {
                 )
                 .await;
         }
+
+        // merge discovery root with initialize roots
+        let mut opened_roots = vec![root.clone()];
+        for initialize_root in initialize_roots {
+            if !contains_workspace_root(&opened_roots, &initialize_root) {
+                opened_roots.push(initialize_root);
+            }
+        }
+
         let session = Arc::new(session.with_workspace(workspace));
-        session.add_root(root.clone());
+        for opened_root in &opened_roots {
+            session.add_root(opened_root.clone());
+        }
         if self.session.set(session.clone()).is_err() {
             tracing::warn!("lsp.initialize.session_already_set");
             return Err(jsonrpc::Error::internal_error());
@@ -859,7 +1146,7 @@ impl LanguageServer for DestackLanguageServer {
         // create workspace service for the session
         let workspace_service = match create_workspace_service(
             session.clone(),
-            root.clone(),
+            opened_roots,
             self.workspace_compiler_options.clone(),
         ) {
             Ok(workspace_service) => Arc::new(workspace_service),
@@ -870,6 +1157,9 @@ impl LanguageServer for DestackLanguageServer {
         };
         if self.workspace_service.set(workspace_service).is_err() {
             tracing::warn!("lsp.initialize.workspace_already_set");
+            return Err(jsonrpc::Error::internal_error());
+        }
+        if !self.start_mutation_dispatcher() {
             return Err(jsonrpc::Error::internal_error());
         }
 
@@ -1059,21 +1349,8 @@ impl LanguageServer for DestackLanguageServer {
     async fn did_change_configuration(&self, _: lsp::DidChangeConfigurationParams) {
         self.refresh_configuration().await;
 
-        let Some(workspace_service) = self.workspace_service.get() else {
-            return;
-        };
-
-        // rescan workspaces so config changes refresh diagnostics
-        let result = match workspace_service.rescan_all(RescanReason::Manual) {
-            Ok(result) => result,
-            Err(error) => {
-                tracing::debug!(?error, "lsp.config.rescan_failed");
-                return;
-            }
-        };
-
-        self.publish_watch_updates(result.updates).await;
-        self.publish_watch_messages(result.messages).await;
+        // enqueue a full rescan so config changes refresh diagnostics
+        self.enqueue_workspace_command_task("destack.configRescan".to_string(), false);
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
@@ -1099,7 +1376,6 @@ impl LanguageServer for DestackLanguageServer {
             .log_message(lsp::MessageType::INFO, format!("did_open: {uri_str}"))
             .await;
 
-        let session = self.session();
         let Some(path) = params
             .text_document
             .uri
@@ -1112,18 +1388,14 @@ impl LanguageServer for DestackLanguageServer {
         // set overlay so subsequent reads use editor content
         self.overlay_fs.set_overlay(&path, content.clone());
 
-        // invalidate and publish diagnostics
-        self.invalidate_and_publish(&params.text_document.uri, &path, content.clone())
-            .await;
+        // always enqueue open-document updates so service state sees opened files and versions
+        self.enqueue_virtual_update_task(path.clone(), content.clone(), Some(version));
 
-        // track open document after the file registry is updated
-        let Some(file_id) = session.files.get_id_by_path(&path) else {
-            return;
-        };
+        // track open document immediately so didChange does not race file-id registration
         self.open_documents.insert(
             uri_str,
             OpenDocument {
-                file_id,
+                path,
                 text: content,
                 version,
             },
@@ -1136,6 +1408,7 @@ impl LanguageServer for DestackLanguageServer {
             return;
         };
         let uri_str = params.text_document.uri.to_string();
+        let mut recovered_desync = false;
         let content = {
             let Some(mut entry) = self.open_documents.get_mut(&uri_str) else {
                 return;
@@ -1149,13 +1422,21 @@ impl LanguageServer for DestackLanguageServer {
                 );
                 return;
             }
+
+            // preserve the previous snapshot so failed incremental edits can be rebuilt from patch context
+            let previous_text = entry.text.clone();
             let applied = apply_text_changes(&mut entry.text, &params.content_changes);
             if !applied {
-                tracing::debug!(uri = %uri_str, "lsp.did_change.apply_failed");
-                return;
+                let recovered_text =
+                    recover_failed_did_change_text(&previous_text, &params.content_changes);
+                entry.text = recovered_text.clone();
+                entry.version = params.text_document.version;
+                recovered_desync = true;
+                recovered_text
+            } else {
+                entry.version = params.text_document.version;
+                entry.text.clone()
             }
-            entry.version = params.text_document.version;
-            entry.text.clone()
         };
         let Some(path) = params
             .text_document
@@ -1166,12 +1447,25 @@ impl LanguageServer for DestackLanguageServer {
             return;
         };
 
+        // report explicit desync recovery instead of silently keeping stale overlays
+        if recovered_desync {
+            tracing::warn!(uri = %uri_str, "lsp.did_change.recovered_desync");
+            self.client
+                .log_message(
+                    lsp::MessageType::WARNING,
+                    format!(
+                        "destack.did_change.recovered_desync uri={uri_str} version={}",
+                        params.text_document.version
+                    ),
+                )
+                .await;
+        }
+
         // update overlay with new content
         self.overlay_fs.set_overlay(&path, content.clone());
 
         // invalidate and publish diagnostics
-        self.invalidate_and_publish(&params.text_document.uri, &path, content)
-            .await;
+        self.enqueue_virtual_update_task(path, content, Some(params.text_document.version));
     }
 
     async fn did_save(&self, params: lsp::DidSaveTextDocumentParams) {
@@ -1198,19 +1492,27 @@ impl LanguageServer for DestackLanguageServer {
             return;
         };
 
-        if let Some(mut entry) = self.open_documents.get_mut(&uri_str) {
+        // skip duplicate invalidation when didChange already applied this snapshot
+        let should_invalidate = if let Some(mut entry) = self.open_documents.get_mut(&uri_str) {
+            let is_changed = entry.text != content;
             entry.text = content.clone();
-        }
+            is_changed
+        } else {
+            true
+        };
 
         self.overlay_fs.set_overlay(&path, content.clone());
-        self.invalidate_and_publish(&params.text_document.uri, &path, content)
-            .await;
+
+        if should_invalidate {
+            self.enqueue_virtual_update_task(path, content, None);
+        }
     }
 
     async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
         let uri_str = params.text_document.uri.to_string();
+        let mut closed_document_version = None;
         if let Some((_, document)) = self.open_documents.remove(&uri_str) {
-            self.virtual_diagnostics.remove(&document.file_id);
+            closed_document_version = Some(document.version);
         }
         self.semantic_tokens_cache.remove(&uri_str);
 
@@ -1226,17 +1528,30 @@ impl LanguageServer for DestackLanguageServer {
 
         // clear diagnostics for closed file
         self.client
-            .publish_diagnostics(params.text_document.uri, vec![], None)
+            .publish_diagnostics(params.text_document.uri, vec![], closed_document_version)
             .await;
     }
 
     async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
-        let session = self.session();
-        let workspace_service = self.workspace_service();
+        let session = self.session().clone();
+        let workspace_service = self.workspace_service().clone();
 
         for folder in params.event.added {
             if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
-                if let Err(error) = workspace_service.open_workspace_root(path) {
+                let open_result = {
+                    let workspace_service = workspace_service.clone();
+                    tokio::task::spawn_blocking(move || workspace_service.open_workspace_root(path))
+                        .await
+                };
+
+                let open_result = match open_result {
+                    Ok(result) => result,
+                    Err(error) => {
+                        tracing::debug!(?error, "lsp.workspace.add_join_failed");
+                        continue;
+                    }
+                };
+                if let Err(error) = open_result {
                     tracing::debug!(?error, "lsp.workspace.add_failed");
                 }
             }
@@ -1245,7 +1560,23 @@ impl LanguageServer for DestackLanguageServer {
         for folder in params.event.removed {
             if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
                 let _ = session.remove_root(&path);
-                if let Err(error) = workspace_service.close_workspace_root(&path) {
+                let close_result = {
+                    let workspace_service = workspace_service.clone();
+                    let path_for_close = path.clone();
+                    tokio::task::spawn_blocking(move || {
+                        workspace_service.close_workspace_root(&path_for_close)
+                    })
+                    .await
+                };
+
+                let close_result = match close_result {
+                    Ok(result) => result,
+                    Err(error) => {
+                        tracing::debug!(?error, "lsp.workspace.remove_join_failed");
+                        continue;
+                    }
+                };
+                if let Err(error) = close_result {
                     tracing::debug!(?error, "lsp.workspace.remove_failed");
                 }
             }
@@ -1261,9 +1592,8 @@ impl LanguageServer for DestackLanguageServer {
                 continue;
             };
 
-            // skip updates for open documents
-            let uri_str = change.uri.to_string();
-            if self.open_documents.contains_key(&uri_str) {
+            // skip updates for files that are still open in the editor
+            if self.is_open_document_uri_or_path(&change.uri, &path) {
                 continue;
             }
 
@@ -1285,16 +1615,19 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         // apply watch updates
-        self.apply_watch_events(events).await;
+        self.enqueue_watch_events_task(events);
     }
 
     async fn will_rename_files(
         &self,
         params: lsp::RenameFilesParams,
     ) -> jsonrpc::Result<Option<lsp::WorkspaceEdit>> {
+        let session = self.session();
+
         // collect rename targets from uris
         let mut renames = Vec::new();
-        let mut query_path = None;
+        let mut query_root: Option<PathBuf> = None;
+        let mut expected_revision: Option<u64> = None;
         for file in params.files {
             let Ok(old_uri) = file.old_uri.parse::<lsp::Uri>() else {
                 continue;
@@ -1310,33 +1643,65 @@ impl LanguageServer for DestackLanguageServer {
                 continue;
             };
 
-            if query_path.is_none() {
-                query_path = Some(old_path.clone());
+            // enforce a single workspace root for rename write consistency
+            let old_root = session
+                .find_program_for_path_maybe(&old_path)
+                .map(|program| program.cwd.clone());
+            let new_root = session
+                .find_program_for_path_maybe(&new_path)
+                .map(|program| program.cwd.clone());
+            let root = old_root.or(new_root);
+            let Some(root) = root else {
+                continue;
+            };
+
+            if let Some(existing_root) = query_root.as_ref() {
+                if existing_root != &root {
+                    self.client
+                        .log_message(
+                            lsp::MessageType::WARNING,
+                            format!(
+                                "destack.will_rename_files.multi_root_rejected first_root={} next_root={}",
+                                existing_root.display(),
+                                root.display()
+                            ),
+                        )
+                        .await;
+                    tracing::warn!(
+                        first_root = %existing_root.display(),
+                        next_root = %root.display(),
+                        "lsp.will_rename_files.multi_root_rejected"
+                    );
+                    return Ok(None);
+                }
+            } else {
+                let Some(revision) = self.revision_for_path(&root) else {
+                    return Ok(None);
+                };
+                query_root = Some(root);
+                expected_revision = Some(revision);
             }
+
             renames.push(query::FileRenameEntry { old_path, new_path });
         }
+        if renames.is_empty() {
+            return Ok(None);
+        }
+        let Some(query_root) = query_root else {
+            return Ok(None);
+        };
+        let Some(expected_revision) = expected_revision else {
+            return Ok(None);
+        };
 
         // build workspace edits for import specifiers
         let request = query::QueryRequest::RenameFiles(query::RenameFilesRequest { renames });
-        let response = if let Some(path) = query_path.as_ref() {
-            let Some(expected_revision) = self.revision_for_path(path) else {
-                return Ok(None);
-            };
+        let response = {
             let envelope = query::QueryRequestEnvelope {
                 expected_revision: Some(expected_revision),
                 request,
             };
-            self.execute_query_envelope_for_path(path, envelope)
-        } else {
-            let root = self.session().workspace_root();
-            let Some(expected_revision) = self.revision_for_path(&root) else {
-                return Ok(None);
-            };
-            let envelope = query::QueryRequestEnvelope {
-                expected_revision: Some(expected_revision),
-                request,
-            };
-            self.execute_query_envelope_for_path(&root, envelope)
+            self.execute_query_envelope_for_path(&query_root, envelope)
         };
         let Some(query::QueryResponse::RenameFiles(response)) = response else {
             return Ok(None);
@@ -1370,16 +1735,15 @@ impl LanguageServer for DestackLanguageServer {
                 continue;
             };
 
-            // skip open documents
-            let uri_str = uri.to_string();
-            if self.open_documents.contains_key(&uri_str) {
-                continue;
-            }
-
             // resolve the file path
             let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
                 continue;
             };
+
+            // skip updates for files that are still open in the editor
+            if self.is_open_document_uri_or_path(&uri, &path) {
+                continue;
+            }
 
             // clear overlay so we read from disk
             self.overlay_fs.remove_overlay(&path);
@@ -1398,7 +1762,7 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         // apply watch updates
-        self.apply_watch_events(events).await;
+        self.enqueue_watch_events_task(events);
     }
 
     async fn did_rename_files(&self, params: lsp::RenameFilesParams) {
@@ -1414,15 +1778,6 @@ impl LanguageServer for DestackLanguageServer {
                 continue;
             };
 
-            // skip open documents
-            let old_uri_str = old_uri.to_string();
-            let new_uri_str = new_uri.to_string();
-            if self.open_documents.contains_key(&old_uri_str)
-                || self.open_documents.contains_key(&new_uri_str)
-            {
-                continue;
-            }
-
             // resolve paths
             let Some(old_path) = old_uri.to_file_path().map(|path| path.into_owned()) else {
                 continue;
@@ -1430,6 +1785,13 @@ impl LanguageServer for DestackLanguageServer {
             let Some(new_path) = new_uri.to_file_path().map(|path| path.into_owned()) else {
                 continue;
             };
+
+            // skip updates for files that are still open in the editor
+            if self.is_open_document_uri_or_path(&old_uri, &old_path)
+                || self.is_open_document_uri_or_path(&new_uri, &new_path)
+            {
+                continue;
+            }
 
             // clear overlays so we re-read from disk
             self.overlay_fs.remove_overlay(&old_path);
@@ -1449,7 +1811,7 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         // apply watch updates
-        self.apply_watch_events(events).await;
+        self.enqueue_watch_events_task(events);
     }
 
     async fn did_delete_files(&self, params: lsp::DeleteFilesParams) {
@@ -1460,13 +1822,14 @@ impl LanguageServer for DestackLanguageServer {
             let Ok(uri) = file.uri.parse::<lsp::Uri>() else {
                 continue;
             };
-            let uri_str = uri.to_string();
-            if self.open_documents.contains_key(&uri_str) {
-                continue;
-            }
 
             // resolve the file path
             if let Some(path) = uri.to_file_path().map(|path| path.into_owned()) {
+                // skip updates for files that are still open in the editor
+                if self.is_open_document_uri_or_path(&uri, &path) {
+                    continue;
+                }
+
                 // clear overlay so we read from disk
                 self.overlay_fs.remove_overlay(&path);
 
@@ -1480,7 +1843,7 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         // apply watch updates
-        self.apply_watch_events(events).await;
+        self.enqueue_watch_events_task(events);
     }
 
     // ------------------------------------------------------------------------
@@ -1496,7 +1859,7 @@ impl LanguageServer for DestackLanguageServer {
         let doc_entry = self.open_documents.get(&uri_str);
         let file_id = doc_entry
             .as_ref()
-            .map(|doc| doc.file_id)
+            .and_then(|doc| session.files.get_id_by_path(&doc.path))
             .or_else(|| {
                 params
                     .text_document
@@ -1535,42 +1898,36 @@ impl LanguageServer for DestackLanguageServer {
                 });
             return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
         };
-        let diagnostics = if let Some(open_document) = doc_entry.as_ref()
-            && let Some(cached) = self.virtual_diagnostics.get(&open_document.file_id)
-        {
-            cached.value().clone()
-        } else {
-            let source_file = session.files.get(file_id);
-            let Some(path) = source_file.path.as_ref() else {
-                tracing::debug!(?file_id, uri = %uri_str, "lsp.diagnostic.file_path_missing");
-                return Ok(lsp::DocumentDiagnosticReportResult::Report(
-                    lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
-                        related_documents: None,
-                        full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
-                            result_id: None,
-                            items: Vec::new(),
-                        },
-                    }),
-                ));
-            };
-            let Some(program) = session.find_program_for_path_maybe(path) else {
-                tracing::debug!(
-                    path = %path.display(),
-                    uri = %uri_str,
-                    "lsp.diagnostic.path_not_in_workspace"
-                );
-                return Ok(lsp::DocumentDiagnosticReportResult::Report(
-                    lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
-                        related_documents: None,
-                        full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
-                            result_id: None,
-                            items: Vec::new(),
-                        },
-                    }),
-                ));
-            };
-            program.diagnostic_store.diagnostics_for_file(file_id)
+        let source_file = session.files.get(file_id);
+        let Some(path) = source_file.path.as_ref() else {
+            tracing::debug!(?file_id, uri = %uri_str, "lsp.diagnostic.file_path_missing");
+            return Ok(lsp::DocumentDiagnosticReportResult::Report(
+                lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
+                    related_documents: None,
+                    full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                        result_id: None,
+                        items: Vec::new(),
+                    },
+                }),
+            ));
         };
+        let Some(program) = session.find_program_for_path_maybe(path) else {
+            tracing::debug!(
+                path = %path.display(),
+                uri = %uri_str,
+                "lsp.diagnostic.path_not_in_workspace"
+            );
+            return Ok(lsp::DocumentDiagnosticReportResult::Report(
+                lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
+                    related_documents: None,
+                    full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                        result_id: None,
+                        items: Vec::new(),
+                    },
+                }),
+            ));
+        };
+        let diagnostics = program.diagnostic_store.diagnostics_for_file(file_id);
         let result_id = diagnostic_result_id(&diagnostics);
 
         if params.previous_result_id.as_ref() == Some(&result_id) {
@@ -1614,32 +1971,7 @@ impl LanguageServer for DestackLanguageServer {
             .map(|entry| (entry.uri.to_string(), entry.value))
             .collect();
 
-        let mut diagnostics_by_file = std::collections::HashMap::new();
-        for entry in session.programs.iter() {
-            let program = entry.value();
-            for (file_id, diagnostics) in program.diagnostic_store.snapshot_by_file() {
-                diagnostics_by_file.entry(file_id).or_insert(diagnostics);
-            }
-        }
-
-        let mut open_versions = std::collections::HashMap::new();
-        for entry in self.open_documents.iter() {
-            let doc = entry.value();
-            open_versions.insert(doc.file_id, doc.version);
-            if let Some(cached) = self.virtual_diagnostics.get(&doc.file_id) {
-                diagnostics_by_file.insert(doc.file_id, cached.value().clone());
-            } else {
-                diagnostics_by_file.entry(doc.file_id).or_insert(Vec::new());
-            }
-        }
-
-        // collect partial results when supported
-        let partial_token = params.partial_result_params.partial_result_token;
-
-        let mut items = Vec::new();
-        let mut partial_items = Vec::new();
-
-        // start work done progress when supported
+        // start work done progress before collecting diagnostics
         let mut progress = WorkDoneProgressTracker::start(
             self,
             params.work_done_progress_params.work_done_token,
@@ -1647,6 +1979,56 @@ impl LanguageServer for DestackLanguageServer {
             "collecting diagnostics",
         )
         .await;
+        progress
+            .check_cancelled(self, "diagnostics cancelled")
+            .await?;
+
+        let mut diagnostics_by_file = std::collections::HashMap::new();
+        let mut collected = 0usize;
+        for entry in session.programs.iter() {
+            let program = entry.value();
+            for (file_id, diagnostics) in program.diagnostic_store.snapshot_by_file() {
+                diagnostics_by_file.entry(file_id).or_insert(diagnostics);
+
+                collected += 1;
+                progress
+                    .report_chunk(
+                        self,
+                        collected,
+                        WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE,
+                        |count| format!("collected {count} diagnostic entries"),
+                        "diagnostics cancelled",
+                    )
+                    .await?;
+            }
+        }
+
+        let mut open_versions = std::collections::HashMap::new();
+        for entry in self.open_documents.iter() {
+            let doc = entry.value();
+            let Some(file_id) = session.files.get_id_by_path(&doc.path) else {
+                continue;
+            };
+            open_versions.insert(file_id, doc.version);
+            diagnostics_by_file.entry(file_id).or_insert(Vec::new());
+
+            collected += 1;
+            progress
+                .report_chunk(
+                    self,
+                    collected,
+                    WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE,
+                    |count| format!("prepared {count} diagnostic inputs"),
+                    "diagnostics cancelled",
+                )
+                .await?;
+        }
+
+        // collect partial results when supported
+        let partial_token = params.partial_result_params.partial_result_token;
+
+        let mut items = Vec::new();
+        let mut partial_items = Vec::new();
 
         // allow cancellation between chunks
         let mut processed = 0usize;
@@ -1749,66 +2131,11 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<lsp::LSPAny>> {
         match params.command.as_str() {
             "destack.rescan" | "destack.reindex" => {
-                let started_at = Instant::now();
-                let workspace_service = self.workspace_service();
-                let result = match workspace_service.rescan_all(RescanReason::Manual) {
-                    Ok(result) => result,
-                    Err(error) => {
-                        tracing::debug!(?error, "lsp.command.rescan_failed");
-                        return Err(jsonrpc::Error::internal_error());
-                    }
-                };
-                let update_count = result.updates.len();
-                let message_count = result.messages.len();
-                self.publish_watch_updates(result.updates).await;
-                self.publish_watch_messages(result.messages).await;
-                if let Err(error) = self.client.workspace_diagnostic_refresh().await {
-                    tracing::debug!(?error, "lsp.command.refresh_diagnostics_failed");
-                }
-                if let Err(error) = self.client.semantic_tokens_refresh().await {
-                    tracing::debug!(?error, "lsp.command.refresh_semantic_tokens_failed");
-                }
-                tracing::info!(
-                    command = params.command.as_str(),
-                    updates = update_count,
-                    messages = message_count,
-                    elapsed_ms = started_at.elapsed().as_millis(),
-                    "lsp.command.completed"
-                );
+                self.enqueue_workspace_command_task(params.command.clone(), false);
                 Ok(None)
             }
             "destack.clearCache" => {
-                let started_at = Instant::now();
-                let workspace_service = self.workspace_service();
-                if let Err(error) = workspace_service.clear_cache_all() {
-                    tracing::debug!(?error, "lsp.command.clear_cache_failed");
-                    return Err(jsonrpc::Error::internal_error());
-                }
-
-                let result = match workspace_service.rescan_all(RescanReason::Manual) {
-                    Ok(result) => result,
-                    Err(error) => {
-                        tracing::debug!(?error, "lsp.command.rescan_failed");
-                        return Err(jsonrpc::Error::internal_error());
-                    }
-                };
-                let update_count = result.updates.len();
-                let message_count = result.messages.len();
-                self.publish_watch_updates(result.updates).await;
-                self.publish_watch_messages(result.messages).await;
-                if let Err(error) = self.client.workspace_diagnostic_refresh().await {
-                    tracing::debug!(?error, "lsp.command.refresh_diagnostics_failed");
-                }
-                if let Err(error) = self.client.semantic_tokens_refresh().await {
-                    tracing::debug!(?error, "lsp.command.refresh_semantic_tokens_failed");
-                }
-                tracing::info!(
-                    command = "destack.clearCache",
-                    updates = update_count,
-                    messages = message_count,
-                    elapsed_ms = started_at.elapsed().as_millis(),
-                    "lsp.command.completed"
-                );
+                self.enqueue_workspace_command_task("destack.clearCache".to_string(), true);
                 Ok(None)
             }
             _ => Ok(None),
@@ -1839,7 +2166,7 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // keep refactor inputs on a fresh analyzed snapshot
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
@@ -1882,7 +2209,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
@@ -1924,7 +2251,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
@@ -1962,7 +2289,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
@@ -2082,7 +2409,7 @@ impl LanguageServer for DestackLanguageServer {
         .await;
 
         // convert to LSP symbols
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let partial_token = params.partial_result_params.partial_result_token;
@@ -2228,7 +2555,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
@@ -2327,7 +2654,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
@@ -2371,7 +2698,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((file_id, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
@@ -2443,7 +2770,7 @@ impl LanguageServer for DestackLanguageServer {
                             .iter()
                             .filter_map(|edit| {
                                 // for now, only handle edits to the same file
-                                if edit.span.file != doc.file_id {
+                                if edit.span.file != file_id {
                                     return None;
                                 }
                                 Some(lsp::TextEdit {
@@ -2562,7 +2889,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
@@ -2637,7 +2964,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -2687,7 +3014,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -2753,7 +3080,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -2900,7 +3227,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((file_id, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -2915,7 +3242,17 @@ impl LanguageServer for DestackLanguageServer {
         let formatter = program.formatter;
 
         // format the file
-        let Some(formatted) = format_file(session, doc.file_id, &file, formatter) else {
+        let Some(formatted) = format_file(session, file_id, &file, formatter) else {
+            tracing::warn!(path = %path.display(), "lsp.format.semantic_state_not_ready");
+            self.client
+                .log_message(
+                    lsp::MessageType::WARNING,
+                    format!(
+                        "destack.format.semantic_state_not_ready path={}",
+                        path.display()
+                    ),
+                )
+                .await;
             return Ok(None);
         };
 
@@ -2951,7 +3288,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -3002,7 +3339,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -3093,7 +3430,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
@@ -3138,7 +3475,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -3234,7 +3571,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -3404,7 +3741,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -3484,7 +3821,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
 
@@ -3537,7 +3874,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.position) else {
@@ -3577,7 +3914,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
@@ -3639,7 +3976,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
@@ -3751,7 +4088,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let Some(file) = self.get_query_file_for_open_document(&doc) else {
+        let Some((_, file)) = self.get_query_file_for_open_document(&doc) else {
             return Ok(None);
         };
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)

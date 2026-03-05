@@ -1,24 +1,23 @@
-import assert from "node:assert/strict";
 import * as path from "node:path";
 import * as vscode from "vscode";
 
 import {
+    assertDefinitionLocation,
     createWorkspaceProject,
-    definitionLocations,
+    definitionValueExportFixture,
+    definitionLocationFromRange,
     ensureFixtureReady,
     getDestackTestingApi,
     isRealServerMode,
     openDocument,
     removeDirectory,
-    waitForRequestResult,
     withTimeout,
     writeFileTextByUri,
-} from "./support";
+} from "./tests";
 
-/** Timeout for workspace command requests in real-server host tests. */
+/** Timeout for workspace command requests in real-server LSP tests. */
 const COMMAND_TIMEOUT_MILLISECONDS = 20_000;
-
-suite("destack real server workspace commands", function () {
+suite("lsp.commands", function () {
     this.timeout(180_000);
 
     suiteSetup(async function () {
@@ -32,6 +31,9 @@ suite("destack real server workspace commands", function () {
     });
 
     test("keeps definition requests responsive across workspace commands", async () => {
+        // load canonical request and target range values
+        const definitionFixture = definitionValueExportFixture();
+
         // create a workspace local project with one import edge
         const project = createWorkspaceProject("destack-vscode-real-command-", {
             "main.ds": `import { value } from "./lib";
@@ -51,33 +53,45 @@ const output = compute(1);
             await openDocument(mainUri);
 
             // assert baseline definition behavior before command execution
-            await assertDefinitionTargetsLibrary(api, mainUri, libUri, {
-                line: 2,
-                character: 20,
-            });
+            await assertDefinitionLocation(
+                api,
+                mainUri,
+                definitionFixture.requestPosition,
+                definitionLocationFromRange(libUri, definitionFixture.expectedDefinitionRange),
+                `definition request did not resolve to exact value export in ${libUri.toString()}`,
+            );
 
             // execute rescan and verify definition behavior again
             await requestWorkspaceCommand(api, "destack.rescan");
-            await assertDefinitionTargetsLibrary(api, mainUri, libUri, {
-                line: 2,
-                character: 20,
-            });
+            await assertDefinitionLocation(
+                api,
+                mainUri,
+                definitionFixture.requestPosition,
+                definitionLocationFromRange(libUri, definitionFixture.expectedDefinitionRange),
+                `definition request did not resolve to exact value export in ${libUri.toString()}`,
+            );
 
             // apply edits, execute reindex, and verify response behavior
             writeFileTextByUri(libUri, "export const value = 2;\n");
             await requestWorkspaceCommand(api, "destack.reindex");
-            await assertDefinitionTargetsLibrary(api, mainUri, libUri, {
-                line: 2,
-                character: 20,
-            });
+            await assertDefinitionLocation(
+                api,
+                mainUri,
+                definitionFixture.requestPosition,
+                definitionLocationFromRange(libUri, definitionFixture.expectedDefinitionRange),
+                `definition request did not resolve to exact value export in ${libUri.toString()}`,
+            );
 
             // apply another edit, clear cache, and verify response behavior
             writeFileTextByUri(libUri, "export const value = 3;\n");
             await requestWorkspaceCommand(api, "destack.clearCache");
-            await assertDefinitionTargetsLibrary(api, mainUri, libUri, {
-                line: 2,
-                character: 20,
-            });
+            await assertDefinitionLocation(
+                api,
+                mainUri,
+                definitionFixture.requestPosition,
+                definitionLocationFromRange(libUri, definitionFixture.expectedDefinitionRange),
+                `definition request did not resolve to exact value export in ${libUri.toString()}`,
+            );
         } finally {
             // clean temporary files after each test run
             removeDirectory(project.path);
@@ -97,42 +111,5 @@ async function requestWorkspaceCommand(
         }),
         COMMAND_TIMEOUT_MILLISECONDS,
         `${command} request timed out`,
-    );
-}
-
-/** Assert that definition requests resolve to `lib.ds` line 0. */
-async function assertDefinitionTargetsLibrary(
-    api: ReturnType<typeof getDestackTestingApi>,
-    sourceUri: vscode.Uri,
-    targetUri: vscode.Uri,
-    position: { line: number; character: number },
-): Promise<void> {
-    // wait for definitions that include the expected target location
-    const expectedUri = targetUri.toString();
-    const definition = await waitForRequestResult(
-        api,
-        "textDocument/definition",
-        {
-            textDocument: { uri: sourceUri.toString() },
-            position,
-        },
-        (result) => {
-            if (result == null) {
-                return false;
-            }
-
-            const locations = definitionLocations(result);
-            return locations.some((item) => item.uri == expectedUri && item.startLine == 0);
-        },
-        `definition request did not resolve to ${expectedUri}`,
-    );
-
-    // decode resolved locations for exact assertion
-    const locations = definition == null ? [] : definitionLocations(definition);
-
-    // assert exact expected target is present
-    assert.ok(
-        locations.some((item) => item.uri == expectedUri && item.startLine == 0),
-        "expected definition to target lib.ds line 0",
     );
 }

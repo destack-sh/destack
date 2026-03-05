@@ -164,10 +164,10 @@ pub(super) fn tracked_file_globs() -> Vec<&'static str> {
 /// Create a workspace service for the LSP session.
 pub(super) fn create_workspace_service(
     session: Arc<Session>,
-    root: PathBuf,
+    roots: Vec<PathBuf>,
     compiler_options: CompilerOptions,
 ) -> Result<LspLanguageService, LanguageServiceError> {
-    LspLanguageService::with_options(session, vec![root], compiler_options)
+    LspLanguageService::with_options(session, roots, compiler_options)
 }
 
 /// Convert completion kind to LSP completion item kind.
@@ -221,7 +221,7 @@ pub(super) fn diagnostic_result_id(diagnostics: &[destack_source::Diagnostic]) -
 }
 
 /// Format a file and return the formatted content.
-/// Uses the module's pre-parsed AST when available, falls back to re-parsing.
+/// Requires module AST state from the workspace graph.
 pub(super) fn format_file(
     session: &Session,
     file_id: FileId,
@@ -234,60 +234,28 @@ pub(super) fn format_file(
         ..formatter.into()
     };
 
-    // try to use module's pre-parsed AST
-    if let Some(module_lock) = session.modules.get_by_file_id(file_id) {
-        let module = module_lock.read();
-        if let Some(ast) = module.ast_maybe() {
-            let side_span = Parser::compute_side_span_from_tree(&ast.tree);
-            let strings = ast.strings.clone().into_immutable();
-            let context = DestackFormatContext::new(
-                format_options,
-                DestackFormatArtifacts {
-                    file: file.as_ref(),
-                    tree: &ast.tree,
-                    tokens: &ast.tokens,
-                    side_tokens: &ast.side_tokens,
-                    side_span: &side_span,
-                    strings: &strings,
-                    parents: ast.parents.clone(),
-                },
-            );
+    // resolve module state for this file
+    let module_lock = session.modules.get_by_file_id(file_id)?;
+    let module = module_lock.read();
+    let ast = module.ast_maybe()?;
 
-            return format_expressions(&context, &ast.roots);
-        }
-    }
-
-    // fallback if module doesn't have AST yet, parse file
-    let mut parser = Parser::lex_file(file.clone(), language_type);
-    let expressions = parser.parse();
-
-    // bail if parse errors (don't format broken code)
-    if parser
-        .diagnostics
-        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-    {
-        return None;
-    }
-
-    // build format context
-    let side_span = parser.compute_side_span();
-    let (tokens, side_tokens) = parser.take_tokens();
-    let strings = parser.strings.into_immutable();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
+    // build format context from committed semantic state
+    let side_span = Parser::compute_side_span_from_tree(&ast.tree);
+    let strings = ast.strings.clone().into_immutable();
     let context = DestackFormatContext::new(
         format_options,
         DestackFormatArtifacts {
             file: file.as_ref(),
-            tree: &parser.tree,
-            tokens: &tokens,
-            side_tokens: &side_tokens,
+            tree: &ast.tree,
+            tokens: &ast.tokens,
+            side_tokens: &ast.side_tokens,
             side_span: &side_span,
             strings: &strings,
-            parents,
+            parents: ast.parents.clone(),
         },
     );
 
-    format_expressions(&context, &expressions)
+    format_expressions(&context, &ast.roots)
 }
 
 /// Format expressions and return the result string.

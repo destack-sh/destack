@@ -1722,10 +1722,6 @@ name = "destack_vm_abi"
 version = "0.55.4"
 
 [[package]]
-name = "destack_vscode"
-version = "0.55.4"
-
-[[package]]
 name = "destack_wasm"
 version = "0.55.4"
 dependencies = [

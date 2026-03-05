@@ -11,7 +11,7 @@ import {
     removeDirectory,
     waitForDiagnosticItems,
     writeFileTextByUri,
-} from "./support";
+} from "./tests";
 
 /** Baseline library source for multi-file diagnostic flows. */
 const BASELINE_LIB_TEXT = "export const value = 1;\n";
@@ -36,7 +36,7 @@ const UPDATED_HELPER_TEXT = `export function helper(input: number): number {
 }
 `;
 
-suite("destack real server diagnostics", () => {
+suite("lsp.diagnostics", () => {
     suiteSetup(async function () {
         // skip this suite outside real server mode
         if (!isRealServerMode()) {

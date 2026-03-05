@@ -3,9 +3,9 @@ set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
 # all bridge crates
-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
-format-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
-test-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_vscode -p destack_zed"
+packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
+format-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
+test-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
 
 _default:
     @just --list --unsorted
@@ -141,7 +141,7 @@ test-ci:
 # run nightly test gates
 test-nightly:
     just test-ci
-    just test-vscode-host
+    just test-vscode-lsp
 
 # run release test gates
 test-release:
@@ -155,9 +155,9 @@ test:
 test-vscode:
     cd vscode && bun run test:grammar
 
-# test vscode extension host smoke suite
-test-vscode-host:
-    cd vscode && bun run test:host
+# test vscode lsp smoke suite
+test-vscode-lsp:
+    cd vscode && bun run test:lsp
 
 # test zed extension and shared tree sitter overlays
 test-zed:
@@ -186,7 +186,7 @@ check-zed-grammars-pinned:
 # test the core ide integration surface
 test-ide:
     just test-vscode
-    just test-vscode-host
+    just test-vscode-lsp
     just test-zed
 
 # backward compatibility alias

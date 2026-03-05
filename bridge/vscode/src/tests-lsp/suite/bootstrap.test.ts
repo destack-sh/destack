@@ -3,15 +3,15 @@ import * as vscode from "vscode";
 
 import {
     DESTACK_COMMANDS,
-    definitionLocations,
+    assertDefinitionLocation,
+    definitionLocation,
     ensureFixtureReady,
     fixtureDocumentUri,
     getDestackTestingApi,
     openDocument,
-    waitForRequestResult,
-} from "./support";
+} from "./tests";
 
-suite("destack extension host smoke", () => {
+suite("lsp.bootstrap", () => {
     suiteSetup(async () => {
         // wait for extension activation before tests run
         await ensureFixtureReady();
@@ -33,24 +33,13 @@ suite("destack extension host smoke", () => {
         const api = getDestackTestingApi();
         await openDocument(fixtureUri);
 
-        // request definition and assert response shape
-        const definition = await waitForRequestResult(
+        // assert exact definition location for `answer` at call site
+        await assertDefinitionLocation(
             api,
-            "textDocument/definition",
-            {
-                textDocument: { uri: fixtureUri.toString() },
-                position: { line: 5, character: 16 },
-            },
-            (result) => result !== undefined,
-            "definition request did not complete",
+            fixtureUri,
+            { line: 4, character: 16 },
+            definitionLocation(fixtureUri, 0, 16, 0, 22),
+            "definition request did not resolve to exact answer declaration",
         );
-
-        // allow null when no target exists, otherwise require at least one location
-        if (definition == null) {
-            return;
-        }
-
-        const locations = definitionLocations(definition);
-        assert.ok(locations.length > 0, "definition response should include a location payload");
     });
 });

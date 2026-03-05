@@ -5,7 +5,7 @@
         "outDir": "out-tests",
         "lib": ["es2020"],
         "sourceMap": true,
-        "rootDir": "typescript",
+        "rootDir": "src",
         "strict": true,
         "noEmit": false,
         "noImplicitAny": true,
@@ -13,5 +13,5 @@
         "skipLibCheck": true,
         "types": ["node", "mocha", "vscode"]
     },
-    "include": ["typescript/tests-host/**/*.ts"]
+    "include": ["src/tests-lsp/**/*.ts"]
 }

@@ -9,12 +9,12 @@ import {
     isRealServerMode,
     removeDirectory,
     withTimeout,
-} from "./support";
+} from "./tests";
 
-/** Timeout for `workspace/willRenameFiles` requests in host tests. */
+/** Timeout for `workspace/willRenameFiles` requests in LSP tests. */
 const RENAME_TIMEOUT_MILLISECONDS = 10_000;
 
-suite("destack real server rename participants", () => {
+suite("lsp.rename", () => {
     suiteSetup(async function () {
         // skip this suite outside real server mode
         if (!isRealServerMode()) {

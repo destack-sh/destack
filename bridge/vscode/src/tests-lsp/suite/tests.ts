@@ -5,13 +5,13 @@ import * as vscode from "vscode";
 
 import type { DestackExtensionApi } from "../../extension/index";
 
-/** Timeout used for raw LSP request helpers in host tests. */
+/** Timeout used for raw LSP request helpers in LSP tests. */
 const REQUEST_TIMEOUT_MILLISECONDS = 30_000;
 
 /** Timeout used while waiting for extension runtime readiness. */
 const RUNTIME_READY_TIMEOUT_MILLISECONDS = 30_000;
 
-/** Retry count used for LSP request convergence checks in host tests. */
+/** Retry count used for LSP request convergence checks in LSP tests. */
 const REQUEST_RETRY_ATTEMPTS = 40;
 
 /** Commands that the extension must register after activation. */
@@ -28,11 +28,101 @@ export type DefinitionLocation = {
     uri: string;
     /** The destination start line. */
     startLine: number;
+    /** The destination start character. */
+    startCharacter: number;
+    /** The destination end line. */
+    endLine: number;
+    /** The destination end character. */
+    endCharacter: number;
 };
+
+/** One zero-based LSP range payload used by fixtures. */
+export type LspRangePayload = {
+    /** The zero-based range start line. */
+    startLine: number;
+    /** The zero-based range start character. */
+    startCharacter: number;
+    /** The zero-based range end line. */
+    endLine: number;
+    /** The zero-based range end character. */
+    endCharacter: number;
+};
+
+/** Shared imported-value definition fixture payload. */
+export type DefinitionValueExportFixture = {
+    /** The stable fixture identifier. */
+    id: string;
+    /** The fixture description. */
+    description: string;
+    /** The request position used for definition queries. */
+    requestPosition: {
+        /** The zero-based request line. */
+        line: number;
+        /** The zero-based request character. */
+        character: number;
+    };
+    /** The expected definition target range. */
+    expectedDefinitionRange: LspRangePayload;
+};
+
+/** Cached imported-value definition fixture payload. */
+let definitionValueExportFixtureCache: DefinitionValueExportFixture | undefined;
+
+/** Return the shared imported-value definition fixture payload. */
+export function definitionValueExportFixture(): DefinitionValueExportFixture {
+    // return cached fixture when available
+    if (definitionValueExportFixtureCache) {
+        return definitionValueExportFixtureCache;
+    }
+
+    // resolve fixture path from the canonical root
+    const fixturesRoot = process.env.DESTACK_LSP_FIXTURES_ROOT;
+    assert.ok(fixturesRoot, "DESTACK_LSP_FIXTURES_ROOT must be set for lsp tests");
+    const fixturePath = path.join(fixturesRoot, "navigation", "definition_value_export.json");
+
+    // load and parse fixture payload
+    const text = fs.readFileSync(fixturePath, "utf8");
+    const parsed = JSON.parse(text) as DefinitionValueExportFixture;
+    definitionValueExportFixtureCache = parsed;
+
+    return parsed;
+}
+
+/** Build one exact definition location expectation. */
+export function definitionLocation(
+    uri: vscode.Uri | string,
+    startLine: number,
+    startCharacter: number,
+    endLine: number,
+    endCharacter: number,
+): DefinitionLocation {
+    const normalizedUri = typeof uri == "string" ? uri : uri.toString();
+    return {
+        uri: normalizedUri,
+        startLine,
+        startCharacter,
+        endLine,
+        endCharacter,
+    };
+}
+
+/** Build one exact definition location from a uri and one range payload. */
+export function definitionLocationFromRange(
+    uri: vscode.Uri | string,
+    range: LspRangePayload,
+): DefinitionLocation {
+    return definitionLocation(
+        uri,
+        range.startLine,
+        range.startCharacter,
+        range.endLine,
+        range.endCharacter,
+    );
+}
 
 /** Return true when tests are running against the real Destack server. */
 export function isRealServerMode(): boolean {
-    return process.env.DESTACK_VSCODE_HOST_REAL_SERVER == "1";
+    return process.env.DESTACK_VSCODE_LSP_REAL_SERVER == "1";
 }
 
 /** Return the installed Destack extension instance. */
@@ -229,9 +319,9 @@ export function seedDiagnosticLoad(workspaceRoot: string, fileCount: number): vo
     for (let index = 0; index < fileCount; index += 1) {
         const fileName = `diag_${index.toString().padStart(4, "0")}.ds`;
         const filePath = path.join(generatedDirectory, fileName);
-        const text = `export function item_${index}(value: number): number {
-    const value_copy = value;
-    return value_copy;
+        const text = `export function item${index}(value: number): number {
+    const valueCopy = value;
+    return valueCopy;
 }
 `;
         fs.writeFileSync(filePath, text, "utf8");
@@ -386,7 +476,33 @@ export async function waitForDefinitionLocations(
         );
     }
 
-    assert.fail(`${failureMessage}; last location count=${lastLocations.length}`);
+    assert.fail(
+        `${failureMessage}; last location count=${lastLocations.length}; last locations=${JSON.stringify(lastLocations)}`,
+    );
+}
+
+/** Assert that definition locations include one exact expected target. */
+export async function assertDefinitionLocation(
+    api: DestackExtensionApi,
+    sourceUri: vscode.Uri,
+    position: { line: number; character: number },
+    expectedLocation: DefinitionLocation,
+    failureMessage: string,
+): Promise<void> {
+    // wait until the exact target location is present in provider results
+    const locations = await waitForDefinitionLocations(
+        api,
+        sourceUri,
+        position,
+        (items) => items.some((item) => isExactDefinitionLocation(item, expectedLocation)),
+        failureMessage,
+    );
+
+    // assert the exact target location is present
+    assert.ok(
+        locations.some((item) => isExactDefinitionLocation(item, expectedLocation)),
+        "expected definition to include the exact target location",
+    );
 }
 
 /** Remove a directory recursively and ignore missing paths. */
@@ -425,18 +541,29 @@ function normalizeDefinitionLocation(result: unknown): DefinitionLocation[] {
             {
                 uri: locationUri,
                 startLine: locationRange.start.line,
+                startCharacter: locationRange.start.character,
+                endLine: locationRange.end.line,
+                endCharacter: locationRange.end.character,
             },
         ];
     }
 
     // normalize location-link payloads
     const linkTargetUri = normalizeLocationUri((result as { targetUri?: unknown }).targetUri);
+    const linkTargetSelectionRange = (result as { targetSelectionRange?: unknown })
+        .targetSelectionRange;
     const linkTargetRange = (result as { targetRange?: unknown }).targetRange;
-    if (linkTargetUri && isRangeLike(linkTargetRange)) {
+    const normalizedLinkRange = isRangeLike(linkTargetSelectionRange)
+        ? linkTargetSelectionRange
+        : linkTargetRange;
+    if (linkTargetUri && isRangeLike(normalizedLinkRange)) {
         return [
             {
                 uri: linkTargetUri,
-                startLine: linkTargetRange.start.line,
+                startLine: normalizedLinkRange.start.line,
+                startCharacter: normalizedLinkRange.start.character,
+                endLine: normalizedLinkRange.end.line,
+                endCharacter: normalizedLinkRange.end.character,
             },
         ];
     }
@@ -467,22 +594,44 @@ function normalizeLocationUri(value: unknown): string | undefined {
 }
 
 /** Return true when a value matches an LSP range shape. */
-function isRangeLike(value: unknown): value is { start: { line: number } } {
+function isRangeLike(
+    value: unknown,
+): value is { start: { line: number; character: number }; end: { line: number; character: number } } {
     // reject non-object range values
     if (!value || typeof value != "object") {
         return false;
     }
 
-    // extract start position for line validation
+    // extract start and end positions for shape validation
     const start = (value as { start?: unknown }).start;
-    if (!start || typeof start != "object") {
+    const end = (value as { end?: unknown }).end;
+    if (!start || typeof start != "object" || !end || typeof end != "object") {
         return false;
     }
 
-    return typeof (start as { line?: unknown }).line == "number";
+    return (
+        typeof (start as { line?: unknown }).line == "number" &&
+        typeof (start as { character?: unknown }).character == "number" &&
+        typeof (end as { line?: unknown }).line == "number" &&
+        typeof (end as { character?: unknown }).character == "number"
+    );
 }
 
-/** Wait until the language client is fully running for host test requests. */
+/** Return true when two normalized definition locations are exactly equal. */
+function isExactDefinitionLocation(
+    actual: DefinitionLocation,
+    expected: DefinitionLocation,
+): boolean {
+    return (
+        actual.uri == expected.uri &&
+        actual.startLine == expected.startLine &&
+        actual.startCharacter == expected.startCharacter &&
+        actual.endLine == expected.endLine &&
+        actual.endCharacter == expected.endCharacter
+    );
+}
+
+/** Wait until the language client is fully running for LSP test requests. */
 async function waitForRuntimeReady(api: DestackExtensionApi): Promise<void> {
     // retry until runtime reports a stable running state
     const startedAt = Date.now();
