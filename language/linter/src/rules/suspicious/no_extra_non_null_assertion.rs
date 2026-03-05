@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_optional_chain_target;
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -40,9 +41,12 @@ impl LintRule for NoExtraNonNullAssertion {
                 continue;
             };
 
-            // require an inner non null assertion as well
+            // require nested assertion or optional chain target
             let inner = ctx.tree.get(*left);
-            if !matches!(inner, Expression::Must { .. }) {
+            let has_nested_non_null = matches!(inner, Expression::Must { .. });
+            let has_optional_chain_target =
+                expression_is_optional_chain_target(ctx.tree, &ctx.parents, node_id);
+            if !has_nested_non_null && !has_optional_chain_target {
                 continue;
             }
 
@@ -167,6 +171,24 @@ const x = value!!
             .assert_safe_fixed(
                 r#"
 const x = value!;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_detects_non_null_before_optional_chain() {
+        let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
+        let result = test.lint_ast(
+            "no_extra_non_null_assertion/test_detects_non_null_before_optional_chain.ts",
+            r#"
+const x = value!.?name
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-extra-non-null-assertion")
+            .assert_safe_fixed(
+                r#"
+const x = value.?name
 "#,
             );
     }

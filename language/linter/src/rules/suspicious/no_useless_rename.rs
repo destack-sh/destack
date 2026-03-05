@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -14,7 +15,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -34,44 +35,202 @@ impl LintRule for NoUselessRename {
         for node_id in ctx.tree.iter_nodes::<ast::PatternField>() {
             let field = ctx.tree.get(node_id);
 
-            // check for Alias pattern where name equals alias
-            let ast::PatternField::Alias { name, alias, .. } = field else {
+            // keep only alias fields with one identifier key
+            let ast::PatternField::Alias {
+                mutability,
+                name,
+                alias,
+                default,
+            } = field
+            else {
+                continue;
+            };
+            let ast::Name::Identifier(name_id) = name else {
                 continue;
             };
 
-            // if name and alias are the same, it's useless
-            if name.string() == *alias {
-                let severity = ctx.get_effective_severity(meta, node_id);
+            // enforce one identical alias pair
+            if *name_id != *alias {
+                continue;
+            }
+
+            // resolve effective severity
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            // build one diagnostic message
+            let name_text: String = ctx.strings.get(*name_id).as_ref().to_string();
+            let field_span = ctx.tree.get_span(node_id);
+            let mut diagnostic = LintDiagnostic::new(
+                NO_USELESS_RENAME.id,
+                NO_USELESS_RENAME.code,
+                NO_USELESS_RENAME.category,
+                severity,
+                format!("useless rename: `{name_text}: {name_text}` can be `{name_text}`"),
+                ctx.module.file_id,
+                field_span,
+            )
+            .with_label("this rename is unnecessary");
+
+            // attach one fix for safe local rewrites
+            if ctx.compute_fixes
+                && let Some(fix) = useless_destructuring_rename_fix(
+                    ctx,
+                    field_span,
+                    *mutability,
+                    name_text,
+                    *default,
+                )
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
+        }
+
+        // check import and export dependency items
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let expression = ctx.tree.get(node_id);
+            let (items, rename_kind) = match expression {
+                ast::Expression::Import { items, .. } => (items, RenameKind::Import),
+                ast::Expression::Export { items, .. } => (items, RenameKind::Export),
+                _ => continue,
+            };
+
+            // inspect each renamed item in the clause
+            for item_id in items {
+                let item = ctx.tree.get(*item_id);
+                let Some(alias_id) = item.alias else {
+                    continue;
+                };
+                let Some(name) = item.name else {
+                    continue;
+                };
+                let ast::Name::Identifier(name_id) = name else {
+                    continue;
+                };
+                if name_id != alias_id {
+                    continue;
+                }
+
+                // resolve effective severity
+                let severity = ctx.get_effective_severity(meta, *item_id);
                 if !severity.is_enabled() {
                     continue;
                 }
 
-                let name_str: String = ctx.strings.get(name.string()).as_ref().to_string();
-                let field_span = ctx.tree.get_span(node_id);
+                // build one diagnostic for this dependency item
+                let name_text: String = ctx.strings.get(name_id).as_ref().to_string();
+                let item_span = ctx.tree.get_span(*item_id);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_USELESS_RENAME.id,
+                    NO_USELESS_RENAME.code,
+                    NO_USELESS_RENAME.category,
+                    severity,
+                    format!(
+                        "useless rename: {} `{name_text}` renamed to itself",
+                        rename_kind.label()
+                    ),
+                    ctx.module.file_id,
+                    item_span,
+                )
+                .with_label("this rename is unnecessary");
 
-                // make fix: replace `x: x` with just `x`
-                let edits = ctx
-                    .edit_builder()
-                    .replace(field_span, name_str.clone())
-                    .into_edits();
-                let fix = LintFix::safe("Remove useless rename").with_edits(edits);
+                // attach one safe fix when text shape is trivial and comment free
+                if ctx.compute_fixes
+                    && let Some(fix) = useless_dependency_item_rename_fix(ctx, item_span)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_USELESS_RENAME.id,
-                        NO_USELESS_RENAME.code,
-                        NO_USELESS_RENAME.category,
-                        severity,
-                        format!("useless rename: `{name_str}: {name_str}` can be `{name_str}`"),
-                        ctx.module.file_id,
-                        field_span,
-                    )
-                    .with_label("this rename is unnecessary")
-                    .with_fix(fix),
-                );
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// One dependency rename source kind for messages.
+#[derive(Clone, Copy)]
+enum RenameKind {
+    /// Import item rename.
+    Import,
+    /// Export item rename.
+    Export,
+}
+
+impl RenameKind {
+    /// Return the lower case kind label.
+    fn label(self) -> &'static str {
+        match self {
+            RenameKind::Import => "import",
+            RenameKind::Export => "export",
+        }
+    }
+}
+
+/// Build one safe fix for a useless destructuring alias.
+fn useless_destructuring_rename_fix(
+    ctx: &LintModuleAstContext<'_>,
+    field_span: destack_source::Span,
+    mutability: Option<ast::Mutability>,
+    name_text: String,
+    default_expression_id: Option<ast::LocalNodeId<ast::Expression>>,
+) -> Option<LintFix> {
+    // keep source parity: avoid touching commented nodes
+    if span_has_comment_trivia(ctx.tree, field_span) {
+        return None;
+    }
+
+    // keep local mutability keyword in shorthand replacements
+    let mutability_prefix = match mutability {
+        Some(ast::Mutability::Immutable) => "const ",
+        Some(ast::Mutability::Mutable) => "var ",
+        None => "",
+    };
+
+    // keep default expressions in shorthand shape
+    let replacement = if let Some(default_expression_id) = default_expression_id {
+        let default_span = ctx.tree.get_span(default_expression_id);
+        let default_text = ctx.get_span_text(default_span);
+        format!("{mutability_prefix}{name_text} = {default_text}")
+    } else {
+        format!("{mutability_prefix}{name_text}")
+    };
+
+    // build fix edits
+    let edits = ctx
+        .edit_builder()
+        .replace(field_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Remove useless rename").with_edits(edits))
+}
+
+/// Build one safe fix for a useless import or export rename item.
+fn useless_dependency_item_rename_fix(
+    ctx: &LintModuleAstContext<'_>,
+    item_span: destack_source::Span,
+) -> Option<LintFix> {
+    // keep source parity: avoid touching commented items
+    if span_has_comment_trivia(ctx.tree, item_span) {
+        return None;
+    }
+
+    // resolve the current item source text
+    let item_text = ctx.get_span_text(item_span);
+    let separator_index = item_text.rfind(" as ")?;
+    let replacement = item_text[..separator_index].trim_end().to_string();
+    if replacement.is_empty() {
+        return None;
+    }
+
+    // build fix edits
+    let edits = ctx
+        .edit_builder()
+        .replace(item_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Remove useless rename").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -141,6 +300,86 @@ const { x: x } = obj;
             .assert_safe_fixed(
                 r#"
 const { x } = obj;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_when_field_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
+        let result = test.lint_ast(
+            "no_useless_rename/test_no_fix_when_field_contains_comment.ds",
+            r#"
+const { x /* keep */: x } = obj;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-rename")
+            .assert_has_no_fix("no-useless-rename");
+    }
+
+    #[test]
+    fn test_allows_string_key_alias_with_same_identifier() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
+        let result = test.lint_ast(
+            "no_useless_rename/test_allows_string_key_alias_with_same_identifier.ds",
+            r#"
+const { "x": x } = obj;
+"#,
+        );
+        test.result(result).assert_no_lint("no-useless-rename");
+    }
+
+    #[test]
+    fn test_fix_preserves_default_value_in_destructure() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
+        let result = test.lint_ast(
+            "no_useless_rename/test_fix_preserves_default_value_in_destructure.ds",
+            r#"
+const { value: value = 1 } = obj;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-rename")
+            .assert_safe_fixed(
+                r#"
+const { value = 1 } = obj;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_detects_useless_import_rename() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
+        let result = test.lint_ast(
+            "no_useless_rename/test_detects_useless_import_rename.ds",
+            r#"
+import { value as value } from "./source.ds";
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-rename")
+            .assert_safe_fixed(
+                r#"
+import { value } from "./source.ds";
+"#,
+            );
+    }
+
+    #[test]
+    fn test_detects_useless_export_rename() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
+        let result = test.lint_ast(
+            "no_useless_rename/test_detects_useless_export_rename.ds",
+            r#"
+export { value as value } from "./source.ds";
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-rename")
+            .assert_safe_fixed(
+                r#"
+export { value } from "./source.ds";
 "#,
             );
     }

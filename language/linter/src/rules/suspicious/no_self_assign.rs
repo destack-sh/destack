@@ -37,12 +37,21 @@ impl LintRule for NoSelfAssign {
 
             let ast::Expression::Assign {
                 left,
-                operator: ast::AssignOperator::Assign,
+                operator,
                 right,
             } = expr
             else {
                 continue;
             };
+            if !matches!(
+                operator,
+                ast::AssignOperator::Assign
+                    | ast::AssignOperator::AndAssign
+                    | ast::AssignOperator::OrAssign
+                    | ast::AssignOperator::CoalesceAssign
+            ) {
+                continue;
+            }
 
             // compare assignment operands structurally
             let left_span = ctx.tree.get_span(*left);
@@ -68,8 +77,8 @@ impl LintRule for NoSelfAssign {
             )
             .with_label("this assignment has no effect");
 
-            // add fix when source extraction is valid
-            if !left_span.is_empty() {
+            // add fix for direct assignment only when source extraction is valid
+            if *operator == ast::AssignOperator::Assign && !left_span.is_empty() {
                 let left_text = ctx.get_span_text(left_span);
                 if !left_text.is_empty() {
                     let replacement = left_text.to_string();
@@ -162,6 +171,20 @@ x += x
 "#,
         );
         test.result(result).assert_no_lint("no-self-assign");
+    }
+
+    #[test]
+    fn test_detects_logical_and_self_assign() {
+        let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
+        let result = test.lint_ast(
+            "no_self_assign/test_detects_logical_and_self_assign.ds",
+            r#"
+x &&= x
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-self-assign")
+            .assert_has_no_fix("no-self-assign");
     }
 
     #[test]

@@ -47,73 +47,101 @@ impl LintRule for NoUselessComputedKey {
             };
 
             let expr = ctx.tree.get(*expr_id);
-            let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) = expr else {
+            let Some((label_text, replacement_text)) = computed_key_replacement(ctx, expr) else {
                 continue;
             };
 
-            // get the string value and check if it's a valid identifier
-            let string_value = ctx.strings.get(*string_id);
-            let string_str = string_value.as_ref();
-            if is_valid_identifier(string_str) {
-                let severity = ctx.get_effective_severity(meta, *expr_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
+            let severity = ctx.get_effective_severity(meta, *expr_id);
+            if !severity.is_enabled() {
+                continue;
+            }
 
-                let property_span = ctx.tree.get_span(node_id);
+            let property_span = ctx.tree.get_span(node_id);
+            let mut diagnostic = LintDiagnostic::new(
+                NO_USELESS_COMPUTED_KEY.id,
+                NO_USELESS_COMPUTED_KEY.code,
+                NO_USELESS_COMPUTED_KEY.category,
+                severity,
+                "useless computed key",
+                ctx.module.file_id,
+                property_span,
+            )
+            .with_label(format!("use `{label_text}` without computed key syntax"));
 
-                // make fix: replace `["foo"]` with `.foo`
-                // the expression_span is just the string literal, we need to include the brackets
-                let expression_span = ctx.tree.get_span(*expr_id);
-                // expand span to include surrounding brackets
-                let key_span = Span::new(
-                    expression_span.file,
-                    expression_span.start - 1,
-                    expression_span.end + 1,
-                );
-                let replacement = string_str.to_string();
+            if ctx.compute_fixes
+                && let Some(key_span) = computed_key_bracket_span(ctx, *expr_id)
+            {
                 let edits = ctx
                     .edit_builder()
-                    .replace(key_span, replacement)
+                    .replace(key_span, replacement_text)
                     .into_edits();
                 let fix = LintFix::safe("Convert to static key").with_edits(edits);
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_USELESS_COMPUTED_KEY.id,
-                        NO_USELESS_COMPUTED_KEY.code,
-                        NO_USELESS_COMPUTED_KEY.category,
-                        severity,
-                        "useless computed key",
-                        ctx.module.file_id,
-                        property_span,
-                    )
-                    .with_label(format!(
-                        "use `{string_str}` instead of `[\"{string_str}\"]`"
-                    ))
-                    .with_fix(fix),
-                );
+                diagnostic = diagnostic.with_fix(fix);
             }
+
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Check if a string is a valid identifier (can be used as a non-computed key).
-fn is_valid_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
+/// Return label and replacement text for one useless computed key expression.
+fn computed_key_replacement(
+    ctx: &LintModuleAstContext<'_>,
+    expression: &ast::Expression,
+) -> Option<(String, String)> {
+    match expression {
+        ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) => {
+            let string_text = ctx.strings.get(*string_id);
+            if string_text.as_ref() == "__proto__" {
+                return None;
+            }
+
+            let quoted = format!("\"{}\"", string_text.as_ref());
+            Some((quoted.clone(), quoted))
+        }
+        ast::Expression::ScalarLiteral(ast::ScalarLiteral::Integer(value)) => {
+            let value_text = value.to_string();
+            Some((value_text.clone(), value_text))
+        }
+        ast::Expression::ScalarLiteral(ast::ScalarLiteral::Float(value)) => {
+            let value_text = value.to_string();
+            Some((value_text.clone(), value_text))
+        }
+        _ => None,
     }
+}
 
-    let mut chars = s.chars();
-    let first = chars.next().unwrap();
+/// Return one span that covers `[<expression>]` around a computed key expression.
+fn computed_key_bracket_span(
+    ctx: &LintModuleAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<Span> {
+    let source = ctx.source_text().as_bytes();
+    let expression_span = ctx.tree.get_span(expression_id);
 
-    // first char must be letter, underscore, or $
-    if !first.is_alphabetic() && first != '_' && first != '$' {
-        return false;
+    let mut left_cursor = expression_span.start as usize;
+    while left_cursor > 0 && source[left_cursor - 1].is_ascii_whitespace() {
+        left_cursor -= 1;
     }
+    if left_cursor == 0 || source[left_cursor - 1] != b'[' {
+        return None;
+    }
+    let key_start = left_cursor - 1;
 
-    // rest must be alphanumeric, underscore, or $
-    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+    let mut right_cursor = expression_span.end as usize;
+    while right_cursor < source.len() && source[right_cursor].is_ascii_whitespace() {
+        right_cursor += 1;
+    }
+    if right_cursor >= source.len() || source[right_cursor] != b']' {
+        return None;
+    }
+    let key_end = right_cursor + 1;
+
+    Some(Span::new(
+        expression_span.file,
+        key_start as u32,
+        key_end as u32,
+    ))
 }
 
 #[cfg(test)]
@@ -146,16 +174,52 @@ const obj = { ["foo"]: 1 }
     }
 
     #[test]
-    fn test_allows_non_identifier_computed_key() {
+    fn test_detects_computed_numeric_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
         let result = test.lint_ast(
-            "no_useless_computed_key/test_allows_non_identifier_computed_key.ds",
+            "no_useless_computed_key/test_detects_computed_numeric_key.ds",
+            r#"
+const obj = { [0]: 1 }
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-computed-key")
+            .assert_safe_fixed(
+                r#"
+const obj = { 0: 1 };
+"#,
+            );
+    }
+
+    #[test]
+    fn test_allows_proto_computed_key() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
+        let result = test.lint_ast(
+            "no_useless_computed_key/test_allows_proto_computed_key.ds",
+            r#"
+const obj = { ["__proto__"]: value }
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-useless-computed-key");
+    }
+
+    #[test]
+    fn test_detects_non_identifier_computed_key() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
+        let result = test.lint_ast(
+            "no_useless_computed_key/test_detects_non_identifier_computed_key.ds",
             r#"
 const obj = { ["Content-Type"]: "json" }
 "#,
         );
         test.result(result)
-            .assert_no_lint("no-useless-computed-key");
+            .assert_lint("no-useless-computed-key")
+            .assert_safe_fixed(
+                r#"
+const obj = { "Content-Type": "json" };
+"#,
+            );
     }
 
     #[test]
@@ -186,17 +250,21 @@ const obj = { x: 1 }
     }
 
     #[test]
-    fn test_allows_numeric_string_key() {
-        // numeric strings aren't valid identifiers
+    fn test_detects_numeric_string_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
         let result = test.lint_ast(
-            "no_useless_computed_key/test_allows_numeric_string_key.ds",
+            "no_useless_computed_key/test_detects_numeric_string_key.ds",
             r#"
 const obj = { ["123"]: 1 }
 "#,
         );
         test.result(result)
-            .assert_no_lint("no-useless-computed-key");
+            .assert_lint("no-useless-computed-key")
+            .assert_safe_fixed(
+                r#"
+const obj = { "123": 1 };
+"#,
+            );
     }
 
     #[test]
@@ -212,7 +280,7 @@ const obj = { ["foo"]: 1 }
             .assert_lint("no-useless-computed-key")
             .assert_safe_fixed(
                 r#"
-const obj = { foo: 1 };
+const obj = { "foo": 1 };
 "#,
             );
     }

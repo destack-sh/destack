@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_else_if_branch;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,7 +34,7 @@ impl LintRule for RequireElseInIfChain {
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // only lint the chain head to avoid duplicate diagnostics
-            if is_else_if_of_parent(ctx, node_id) {
+            if expression_is_else_if_branch(ctx.tree, &ctx.parents, node_id) {
                 continue;
             }
 
@@ -77,29 +78,6 @@ impl LintRule for RequireElseInIfChain {
     }
 }
 
-/// Return true when this if node belongs to a parent else-if chain.
-fn is_else_if_of_parent(
-    ctx: &LintModuleAstContext<'_>,
-    if_expression_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
-    let Some(parent_node_id) = ctx.parents.get(if_expression_id) else {
-        return false;
-    };
-    if ctx.tree.get_node_type(parent_node_id) != ast::NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_node_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
-    matches!(
-        parent_expression,
-        ast::Expression::If {
-            else_expression: Some(else_expression_id),
-            ..
-        } if *else_expression_id == if_expression_id
-    )
-}
-
 /// Follow else wrappers and return the terminal else-if without fallback else.
 fn find_terminal_else_if_without_fallback(
     ctx: &LintModuleAstContext<'_>,
@@ -113,16 +91,6 @@ fn find_terminal_else_if_without_fallback(
         // unwrap statement wrappers around else-if nodes
         if let ast::Expression::Statement(inner_id) = current_expression {
             current_id = *inner_id;
-            continue;
-        }
-
-        // unwrap single-expression blocks that contain else-if
-        if let ast::Expression::Block(block_id) = current_expression {
-            let block = ctx.tree.get(*block_id);
-            if block.expressions.len() != 1 {
-                return None;
-            }
-            current_id = block.expressions[0];
             continue;
         }
 
@@ -277,5 +245,24 @@ if (x == 0) {
         );
         test.result(result)
             .assert_lint_count("require-else-in-if-chain", 1);
+    }
+
+    #[test]
+    fn test_allows_else_block_with_nested_if() {
+        let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
+        let result = test.lint_ast(
+            "require_else_in_if_chain/test_allows_else_block_with_nested_if.ds",
+            r#"
+if (x > 0) {
+    a()
+} else {
+    if (x < 0) {
+        b()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("require-else-in-if-chain");
     }
 }

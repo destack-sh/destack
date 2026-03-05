@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -48,25 +49,47 @@ impl LintRule for NoUselessReturn {
                 }
 
                 let return_span = ctx.tree.get_span(return_id);
-                let edits = ctx.edit_builder().delete(return_span).into_edits();
-                let fix = LintFix::safe("Remove useless return").with_edits(edits);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_USELESS_RETURN.id,
+                    NO_USELESS_RETURN.code,
+                    NO_USELESS_RETURN.category,
+                    severity,
+                    "useless return statement",
+                    ctx.module.file_id,
+                    return_span,
+                )
+                .with_label("this return is unnecessary");
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_USELESS_RETURN.id,
-                        NO_USELESS_RETURN.code,
-                        NO_USELESS_RETURN.category,
-                        severity,
-                        "useless return statement",
-                        ctx.module.file_id,
-                        return_span,
-                    )
-                    .with_label("this return is unnecessary")
-                    .with_fix(fix),
-                );
+                // keep source parity: avoid deleting commented returns
+                if ctx.compute_fixes
+                    && !span_has_comment_trivia(ctx.tree, return_span)
+                    && !return_has_trailing_comment(ctx, return_span)
+                {
+                    let edits = ctx.edit_builder().delete(return_span).into_edits();
+                    let fix = LintFix::safe("Remove useless return").with_edits(edits);
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// Return true when source text has a trailing comment after one return span.
+fn return_has_trailing_comment(
+    ctx: &LintModuleAstContext<'_>,
+    return_span: destack_source::Span,
+) -> bool {
+    let source = ctx.source_text().as_bytes();
+    let mut cursor = return_span.end as usize;
+    while cursor < source.len() && (source[cursor] == b' ' || source[cursor] == b'\t') {
+        cursor += 1;
+    }
+
+    cursor + 1 < source.len()
+        && source[cursor] == b'/'
+        && (source[cursor + 1] == b'/' || source[cursor + 1] == b'*')
 }
 
 /// Get a trailing bare return statement from a function body.
@@ -181,5 +204,22 @@ function foo() {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_no_fix_when_return_has_comment_trivia() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
+        let result = test.lint_ast(
+            "no_useless_return/test_no_fix_when_return_has_comment_trivia.ds",
+            r#"
+function foo() {
+    bar()
+    return // keep intent
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-return")
+            .assert_has_no_fix("no-useless-return");
     }
 }

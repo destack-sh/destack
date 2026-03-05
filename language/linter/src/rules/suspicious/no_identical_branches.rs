@@ -1,7 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_is_equal;
+use crate::rules::common::{
+    expression_is_else_if_branch, expression_is_equal, if_expression_branch_chain,
+};
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,35 +35,54 @@ impl LintRule for NoIdenticalBranches {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::If {
-                then_expression,
-                else_expression: Some(else_expression),
-                ..
-            } = ctx.tree.get(node_id)
-            else {
+            let ast::Expression::If { kind, .. } = ctx.tree.get(node_id) else {
                 continue;
             };
 
-            // check if then and else are identical
-            if expression_is_equal(ctx, *then_expression, *else_expression) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_IDENTICAL_BRANCHES.id,
-                        NO_IDENTICAL_BRANCHES.code,
-                        NO_IDENTICAL_BRANCHES.category,
-                        severity,
-                        "identical if and else branches",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("these branches have the same code"),
-                );
+            // apply source parity for statement-style if chains:
+            // only evaluate the chain root, not nested else-if children
+            if *kind == ast::IfKind::If
+                && expression_is_else_if_branch(ctx.tree, &ctx.parents, node_id)
+            {
+                continue;
             }
+
+            // normalize branches and require a complete conditional
+            let Some(branch_chain) = if_expression_branch_chain(ctx.tree, node_id) else {
+                continue;
+            };
+            if !branch_chain.ends_with_else || branch_chain.branch_expressions.len() < 2 {
+                continue;
+            }
+
+            // report only when every branch body is structurally identical
+            let first_branch = branch_chain.branch_expressions[0];
+            let branches_are_identical = branch_chain
+                .branch_expressions
+                .iter()
+                .skip(1)
+                .all(|branch_id| expression_is_equal(ctx, first_branch, *branch_id));
+            if !branches_are_identical {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_IDENTICAL_BRANCHES.id,
+                    NO_IDENTICAL_BRANCHES.code,
+                    NO_IDENTICAL_BRANCHES.category,
+                    severity,
+                    "identical conditional branches",
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("this conditional evaluates to the same branch body"),
+            );
         }
     }
 }
@@ -127,5 +148,42 @@ let x = cond ? value : value;
 "#,
         );
         test.result(result).assert_lint("no-identical-branches");
+    }
+
+    #[test]
+    fn test_detects_identical_else_if_chain() {
+        let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
+        let result = test.lint_ast(
+            "no_identical_branches/test_detects_identical_else_if_chain.ds",
+            r#"
+if (a) {
+    first();
+} else if (b) {
+    first();
+} else {
+    first();
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint_count("no-identical-branches", 1);
+    }
+
+    #[test]
+    fn test_allows_else_if_chain_when_not_all_identical() {
+        let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
+        let result = test.lint_ast(
+            "no_identical_branches/test_allows_else_if_chain_when_not_all_identical.ds",
+            r#"
+if (a) {
+    first();
+} else if (b) {
+    second();
+} else {
+    second();
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-identical-branches");
     }
 }

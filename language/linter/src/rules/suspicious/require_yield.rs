@@ -1,7 +1,11 @@
-use destack_ast as ast;
+use destack_ast::{
+    self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
+    walk_expression,
+};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_starts_nested_declaration_scope;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -32,15 +36,6 @@ impl LintRule for RequireYield {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
-        // collect all yield expression spans
-        let mut yield_spans: Vec<destack_source::Span> = Vec::new();
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
-            if matches!(expr, ast::Expression::Yield { .. }) {
-                yield_spans.push(ctx.tree.get_span(node_id));
-            }
-        }
-
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let decl = ctx.tree.get(node_id);
 
@@ -57,42 +52,16 @@ impl LintRule for RequireYield {
             if signature.cardinality != ast::FunctionCardinality::Generator {
                 continue;
             }
-
-            // check if any yield is within the function body
-            let body_span = ctx.tree.get_span(*body_id);
-            let has_yield = yield_spans
-                .iter()
-                .any(|s| s.start >= body_span.start && s.end <= body_span.end);
-
-            if !has_yield {
-                let severity = ctx.get_effective_severity(meta, *body_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                let mut diagnostic = LintDiagnostic::new(
-                    REQUIRE_YIELD.id,
-                    REQUIRE_YIELD.code,
-                    REQUIRE_YIELD.category,
-                    severity,
-                    "generator function does not contain `yield`",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label("add a `yield` expression or remove the `*`");
-
-                // compute fixes only when requested by the runner
-                if ctx.compute_fixes
-                    && let Some(fix) = remove_generator_marker_fix(ctx, node_id, *body_id)
-                {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
-            }
+            report_missing_generator_yield(
+                ctx,
+                meta,
+                node_id,
+                *body_id,
+                "generator function does not contain `yield`",
+            );
         }
 
-        // also check generator methods
+        // check generator methods
         for node_id in ctx.tree.iter_nodes::<ast::Member>() {
             let member = ctx.tree.get(node_id);
 
@@ -108,40 +77,153 @@ impl LintRule for RequireYield {
             if signature.cardinality != ast::FunctionCardinality::Generator {
                 continue;
             }
-
-            // check if any yield is within the method body
-            let body_span = ctx.tree.get_span(*body_id);
-            let has_yield = yield_spans
-                .iter()
-                .any(|s| s.start >= body_span.start && s.end <= body_span.end);
-
-            if !has_yield {
-                let severity = ctx.get_effective_severity(meta, *body_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                let mut diagnostic = LintDiagnostic::new(
-                    REQUIRE_YIELD.id,
-                    REQUIRE_YIELD.code,
-                    REQUIRE_YIELD.category,
-                    severity,
-                    "generator method does not contain `yield`",
-                    ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
-                )
-                .with_label("add a `yield` expression or remove the `*`");
-
-                // compute fixes only when requested by the runner
-                if ctx.compute_fixes
-                    && let Some(fix) = remove_generator_marker_fix(ctx, node_id, *body_id)
-                {
-                    diagnostic = diagnostic.with_fix(fix);
-                }
-
-                ctx.report(diagnostic);
-            }
+            report_missing_generator_yield(
+                ctx,
+                meta,
+                node_id,
+                *body_id,
+                "generator method does not contain `yield`",
+            );
         }
+
+        // check generator object methods
+        for node_id in ctx.tree.iter_nodes::<ast::Property>() {
+            let property = ctx.tree.get(node_id);
+            let ast::Property::Method {
+                signature,
+                body: Some(body_id),
+                ..
+            } = property
+            else {
+                continue;
+            };
+
+            if signature.cardinality != ast::FunctionCardinality::Generator {
+                continue;
+            }
+
+            report_missing_generator_yield(
+                ctx,
+                meta,
+                node_id,
+                *body_id,
+                "generator method does not contain `yield`",
+            );
+        }
+    }
+}
+
+/// Report one generator callable that has no own yield expression.
+fn report_missing_generator_yield<T: ast::Node>(
+    ctx: &mut LintModuleAstContext<'_>,
+    meta: &crate::LintMeta,
+    callable_id: ast::LocalNodeId<T>,
+    body_expression_id: ast::LocalNodeId<ast::Expression>,
+    message: &str,
+) {
+    // match source behavior: empty generators are allowed
+    if generator_body_is_empty(ctx.tree, body_expression_id) {
+        return;
+    }
+
+    // skip callables that contain yield in their own body scope
+    if generator_body_has_yield(ctx.tree, body_expression_id) {
+        return;
+    }
+
+    // honor per node severity
+    let callable_raw_id = callable_id.id;
+    let severity = ctx.get_effective_severity(meta, ast::LocalNodeId::<T>::new(callable_raw_id));
+    if !severity.is_enabled() {
+        return;
+    }
+
+    let mut diagnostic = LintDiagnostic::new(
+        REQUIRE_YIELD.id,
+        REQUIRE_YIELD.code,
+        REQUIRE_YIELD.category,
+        severity,
+        message,
+        ctx.module.file_id,
+        ctx.tree
+            .get_span(ast::LocalNodeId::<T>::new(callable_raw_id)),
+    )
+    .with_label("add a `yield` expression or remove the `*`");
+
+    // compute fixes only when requested by the runner
+    if ctx.compute_fixes
+        && let Some(fix) = remove_generator_marker_fix(
+            ctx,
+            ast::LocalNodeId::<T>::new(callable_raw_id),
+            body_expression_id,
+        )
+    {
+        diagnostic = diagnostic.with_fix(fix);
+    }
+
+    ctx.report(diagnostic);
+}
+
+/// Return true when one generator body expression is an empty block.
+fn generator_body_is_empty(
+    tree: &ast::NodeTree,
+    body_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let body_expression = tree.get(body_expression_id);
+    let ast::Expression::Block(block_id) = body_expression else {
+        return false;
+    };
+    let block = tree.get(*block_id);
+
+    block.expressions.is_empty()
+}
+
+/// Return true when one generator body has one yield expression in its own scope.
+fn generator_body_has_yield(
+    tree: &ast::NodeTree,
+    body_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let body_expression = tree.get(body_expression_id);
+    let mut visitor = GeneratorYieldVisitor {
+        options: NodeVisitorOptions::default(),
+        has_yield: false,
+    };
+    visitor.visit_expression(tree, body_expression_id, body_expression);
+
+    visitor.has_yield
+}
+
+/// Visitor that checks one generator body for yield expressions.
+struct GeneratorYieldVisitor {
+    /// Visitor options.
+    options: NodeVisitorOptions,
+    /// Whether a yield expression was seen in this callable scope.
+    has_yield: bool,
+}
+
+impl NodeVisitor for GeneratorYieldVisitor {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        // track direct yield expressions
+        if matches!(expression, Expression::Yield { .. }) {
+            self.has_yield = true;
+            return;
+        }
+
+        // skip nested declaration scopes
+        if expression_starts_nested_declaration_scope(expression) {
+            return;
+        }
+
+        walk_expression(self, tree, expression_id, expression);
     }
 }
 
@@ -212,15 +294,15 @@ function gen() {
     }
 
     #[test]
-    fn test_detects_empty_generator() {
+    fn test_allows_empty_generator() {
         let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
-            "require_yield/test_detects_empty_generator.ds",
+            "require_yield/test_allows_empty_generator.ds",
             r#"
 function* gen() {}
 "#,
         );
-        test.result(result).assert_lint("require-yield");
+        test.result(result).assert_no_lint("require-yield");
     }
 
     #[test]
@@ -306,5 +388,79 @@ class C {
 }
 "#,
             );
+    }
+
+    #[test]
+    fn test_allows_empty_generator_method() {
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
+        let result = test.lint_ast(
+            "require_yield/test_allows_empty_generator_method.ds",
+            r#"
+class C {
+    *gen() {}
+}
+"#,
+        );
+        test.result(result).assert_no_lint("require-yield");
+    }
+
+    #[test]
+    fn test_flags_generator_function_expression_without_yield() {
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
+        let result = test.lint_ast(
+            "require_yield/test_flags_generator_function_expression_without_yield.ds",
+            r#"
+(function* gen() {
+    return 1
+})();
+"#,
+        );
+        test.result(result).assert_lint("require-yield");
+    }
+
+    #[test]
+    fn test_allows_empty_generator_function_expression() {
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
+        let result = test.lint_ast(
+            "require_yield/test_allows_empty_generator_function_expression.ds",
+            r#"
+(function* gen() {})();
+"#,
+        );
+        test.result(result).assert_no_lint("require-yield");
+    }
+
+    #[test]
+    fn test_flags_generator_object_method_without_yield() {
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
+        let result = test.lint_ast(
+            "require_yield/test_flags_generator_object_method_without_yield.ds",
+            r#"
+let obj = {
+    *gen() {
+        return 1
+    }
+};
+"#,
+        );
+        test.result(result).assert_lint("require-yield");
+    }
+
+    #[test]
+    fn test_flags_generator_with_only_nested_generator_yield() {
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
+        let result = test.lint_ast(
+            "require_yield/test_flags_generator_with_only_nested_generator_yield.ds",
+            r#"
+function* outer() {
+    function* inner() {
+        yield 1
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("require-yield")
+            .assert_lint_count("require-yield", 1);
     }
 }

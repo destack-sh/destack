@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_unqualified_path_name;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -55,59 +56,74 @@ impl LintRule for NoUselessCatch {
 
             // check if the catch expression just throws the caught variable
             if is_throw_of_name(ctx, *catch_expr_id, catch_name) {
-                // if there's a finally block, the catch might still be useful for cleanup ordering
-                if finally_expression.is_some() {
-                    continue;
-                }
-
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
                 }
 
-                // build fix: replace try-catch with just the try body
-                let try_span = ctx.tree.get_span(node_id);
-
-                // get the block content - need to unwrap the Block expression
-                let try_expr = ctx.tree.get(*try_expression);
-                let replacement = if let ast::Expression::Block(block_id) = try_expr {
-                    // get the actual block span (not try_expression which includes 'try')
-                    let block_span = ctx.tree.get_span(*block_id);
-                    let block_text = ctx.get_span_text(block_span);
-                    // strip braces and trim
-                    if block_text.starts_with('{') && block_text.ends_with('}') {
-                        block_text[1..block_text.len() - 1].trim().to_string()
-                    } else {
-                        block_text.to_string()
-                    }
+                let has_finally_clause = finally_expression.is_some();
+                let diagnostic_span = if has_finally_clause {
+                    ctx.tree.get_span(*catch_expr_id)
                 } else {
-                    // not a block, just use the expression directly
-                    let body_span = ctx.tree.get_span(*try_expression);
-                    ctx.get_span_text(body_span).to_string()
+                    ctx.tree.get_span(node_id)
                 };
 
-                let edits = ctx
-                    .edit_builder()
-                    .replace(try_span, replacement)
-                    .into_edits();
-                let fix = LintFix::safe("Remove useless try-catch").with_edits(edits);
+                let mut diagnostic = LintDiagnostic::new(
+                    NO_USELESS_CATCH.id,
+                    NO_USELESS_CATCH.code,
+                    NO_USELESS_CATCH.category,
+                    severity,
+                    "useless catch clause",
+                    ctx.module.file_id,
+                    diagnostic_span,
+                )
+                .with_label("this catch only rethrows the original error");
 
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_USELESS_CATCH.id,
-                        NO_USELESS_CATCH.code,
-                        NO_USELESS_CATCH.category,
-                        severity,
-                        "useless catch clause",
-                        ctx.module.file_id,
-                        try_span,
-                    )
-                    .with_label("this catch just rethrows the error")
-                    .with_fix(fix),
-                );
+                // keep source parity: only remove the full try-catch wrapper when no finally exists
+                if !has_finally_clause
+                    && ctx.compute_fixes
+                    && let Some(fix) = no_useless_catch_fix(ctx, node_id, *try_expression)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
             }
         }
     }
+}
+
+/// Build one safe fix for a try-catch wrapper that only rethrows.
+fn no_useless_catch_fix(
+    ctx: &LintModuleAstContext<'_>,
+    try_id: ast::LocalNodeId<ast::Expression>,
+    try_expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<LintFix> {
+    // resolve replacement source for the try body expression
+    let try_expression = ctx.tree.get(try_expression_id);
+    let replacement = if let ast::Expression::Block(block_id) = try_expression {
+        let block_span = ctx.tree.get_span(*block_id);
+        let block_text = ctx.get_span_text(block_span);
+        if block_text.starts_with('{') && block_text.ends_with('}') {
+            block_text[1..block_text.len() - 1].trim().to_string()
+        } else {
+            block_text.to_string()
+        }
+    } else {
+        let body_span = ctx.tree.get_span(try_expression_id);
+        ctx.get_span_text(body_span).to_string()
+    };
+    if replacement.trim().is_empty() {
+        return None;
+    }
+
+    // replace the full try expression with its inner body
+    let try_span = ctx.tree.get_span(try_id);
+    let edits = ctx
+        .edit_builder()
+        .replace(try_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Remove useless try-catch").with_edits(edits))
 }
 
 /// Get the binding name from a simple catch pattern.
@@ -131,33 +147,21 @@ fn is_throw_of_name(
     let expr = ctx.tree.get(expr_id);
     match expr {
         // direct throw
-        ast::Expression::Throw { value } => is_path_to_name(ctx, *value, name),
-        // block with single throw statement
+        ast::Expression::Throw { value } => {
+            expression_is_unqualified_path_name(ctx.tree, *value, name)
+        }
+        // unwrap statement wrappers around throw expressions
+        ast::Expression::Statement(inner_expression_id) => {
+            is_throw_of_name(ctx, *inner_expression_id, name)
+        }
+        // block where first expression throws the caught name
         ast::Expression::Block(block_id) => {
             let block = ctx.tree.get(*block_id);
-            if block.expressions.len() == 1 {
-                is_throw_of_name(ctx, block.expressions[0], name)
-            } else {
-                false
-            }
+            block
+                .expressions
+                .first()
+                .is_some_and(|expression_id| is_throw_of_name(ctx, *expression_id, name))
         }
-        _ => false,
-    }
-}
-
-/// Check if an expression is a simple path referencing the given name.
-fn is_path_to_name(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-    name: ast::StringId,
-) -> bool {
-    let expr = ctx.tree.get(expr_id);
-    match expr {
-        ast::Expression::Path { path, .. } => {
-            // simple identifier path (single segment, not absolute)
-            path.segments.len() == 1 && path.segments[0] == name
-        }
-        ast::Expression::Parenthesized { expression } => is_path_to_name(ctx, *expression, name),
         _ => false,
     }
 }
@@ -233,11 +237,10 @@ try {
     }
 
     #[test]
-    fn test_allows_catch_with_finally() {
-        // catch + finally might be useful for cleanup ordering
+    fn test_detects_useless_catch_with_finally_without_fix() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
         let result = test.lint_ast(
-            "no_useless_catch/test_allows_catch_with_finally.ds",
+            "no_useless_catch/test_detects_useless_catch_with_finally_without_fix.ds",
             r#"
 try {
     riskyOperation();
@@ -248,7 +251,26 @@ try {
 }
 "#,
         );
-        test.result(result).assert_no_lint("no-useless-catch");
+        test.result(result)
+            .assert_lint("no-useless-catch")
+            .assert_has_no_fix("no-useless-catch");
+    }
+
+    #[test]
+    fn test_detects_catch_when_throw_is_first_statement_only() {
+        let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
+        let result = test.lint_ast(
+            "no_useless_catch/test_detects_catch_when_throw_is_first_statement_only.ds",
+            r#"
+try {
+    riskyOperation();
+} catch e {
+    throw e;
+    logUnreachable(e);
+}
+"#,
+        );
+        test.result(result).assert_lint("no-useless-catch");
     }
 
     #[test]

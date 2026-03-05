@@ -4,6 +4,7 @@ use destack_ast::{
 };
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_starts_nested_declaration_scope;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -95,7 +96,7 @@ impl LintRule for NoConstructorReturn {
     }
 }
 
-/// NodeVisitor that finds return statements with values, but stops at nested functions.
+/// NodeVisitor that finds return statements with values in one constructor body scope.
 struct ConstructorReturnVisitor {
     options: NodeVisitorOptions,
     return_nodes: Vec<LocalNodeId<Expression>>,
@@ -117,12 +118,9 @@ impl NodeVisitor for ConstructorReturnVisitor {
             self.return_nodes.push(id);
         }
 
-        // don't descend into nested function declarations
-        if let Expression::Declaration(declaration_id) = expression {
-            let declaration = tree.get(*declaration_id);
-            if matches!(declaration, ast::Declaration::Function { .. }) {
-                return; // stop here - don't check nested functions
-            }
+        // don't descend into nested declaration scopes
+        if expression_starts_nested_declaration_scope(expression) {
+            return;
         }
 
         // walk children
@@ -247,6 +245,26 @@ class Foo {
             return { x: 1 }
         }
         this.helper = helper
+    }
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-constructor-return");
+    }
+
+    #[test]
+    fn test_allows_return_in_nested_class_method() {
+        let test = TestProgram::for_rule_without_prelude(NoConstructorReturn);
+        let result = test.lint_ast(
+            "no_constructor_return/test_allows_return_in_nested_class_method.ds",
+            r#"
+class Foo {
+    constructor() {
+        class Nested {
+            method() {
+                return 1
+            }
+        }
     }
 }
 "#,

@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::ExpressionDuplicateTracker;
+use crate::rules::common::{ExpressionDuplicateTracker, span_has_comment_trivia};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -17,7 +17,7 @@ declare_lint! {
         level = Ast,
         requires_all = [],
         requires_any = [],
-        fixable = Always,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -73,7 +73,7 @@ impl LintRule for NoDuplicateDecorators {
                         span,
                     )
                     .with_label("this decorator is already applied with identical arguments");
-                    if ctx.compute_fixes {
+                    if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, span) {
                         let fix_span = duplicate_decorator_fix_span(ctx, span);
                         let fix = LintFix::safe("Remove duplicate decorator").delete(fix_span);
                         diagnostic = diagnostic.with_fix(fix);
@@ -286,5 +286,21 @@ function foo() {}
 function foo() {}
 "#,
             );
+    }
+
+    #[test]
+    fn test_reports_without_fix_when_duplicate_decorator_contains_comment() {
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
+        let result = test.lint_ast(
+            "no_duplicate_decorators/test_reports_without_fix_when_duplicate_decorator_contains_comment.ds",
+            r#"
+@cache(/* keep */ 100)
+@cache(/* keep */ 100)
+function foo() {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-duplicate-decorators")
+            .assert_has_no_fix("no-duplicate-decorators");
     }
 }

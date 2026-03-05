@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_is_unqualified_path_name;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -90,36 +91,6 @@ fn collect_assignment_references_in_expression(
     let expression = ctx.tree.get(expression_id);
     visitor.visit_expression(ctx.tree, expression_id, expression);
     visitor.assignment_ids
-}
-
-/// Check if expression is a simple path to the given name.
-fn is_path_to_name(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-    name: ast::StringId,
-) -> bool {
-    let expr = ctx.tree.get(expr_id);
-    match expr {
-        ast::Expression::Path { path, .. } => path.segments.len() == 1 && path.segments[0] == name,
-        ast::Expression::Parenthesized { expression } => is_path_to_name(ctx, *expression, name),
-        _ => false,
-    }
-}
-
-/// Check if expression is a simple path to the given name.
-fn is_path_to_name_in_tree(
-    tree: &ast::NodeTree,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-    name: ast::StringId,
-) -> bool {
-    let expr = tree.get(expr_id);
-    match expr {
-        ast::Expression::Path { path, .. } => path.segments.len() == 1 && path.segments[0] == name,
-        ast::Expression::Parenthesized { expression } => {
-            is_path_to_name_in_tree(tree, *expression, name)
-        }
-        _ => false,
-    }
 }
 
 /// Report an exception reassignment diagnostic.
@@ -222,7 +193,7 @@ fn catch_name_is_used_after(
 ) -> bool {
     let catch_span = ctx.tree.get_span(catch_expression_id);
     for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-        if !is_path_to_name(ctx, expression_id, catch_name) {
+        if !expression_is_unqualified_path_name(ctx.tree, expression_id, catch_name) {
             continue;
         }
 
@@ -313,8 +284,23 @@ impl NodeVisitor for CatchAssignmentCollector {
         id: ast::LocalNodeId<ast::Expression>,
         expression: &ast::Expression,
     ) {
+        // capture direct assignments to the catch binding
         if let ast::Expression::Assign { left, .. } = expression
-            && is_path_to_name_in_tree(tree, *left, self.catch_name)
+            && expression_is_unqualified_path_name(tree, *left, self.catch_name)
+        {
+            self.assignment_ids.push(id);
+        }
+
+        // capture unary updates to the catch binding
+        if let ast::Expression::Unary { operator, right } = expression
+            && matches!(
+                operator,
+                ast::UnaryOperator::PreIncrement
+                    | ast::UnaryOperator::PostIncrement
+                    | ast::UnaryOperator::PreDecrement
+                    | ast::UnaryOperator::PostDecrement
+            )
+            && expression_is_unqualified_path_name(tree, *right, self.catch_name)
         {
             self.assignment_ids.push(id);
         }
@@ -354,6 +340,38 @@ try {
     riskyOperation();
 } catch e {
     e = new Error("replaced");
+}
+"#,
+        );
+        test.result(result).assert_lint("no-ex-assign");
+    }
+
+    #[test]
+    fn test_flags_exception_post_increment() {
+        let test = TestProgram::for_rule_without_prelude(NoExAssign);
+        let result = test.lint_ast(
+            "no_ex_assign/test_flags_exception_post_increment.ds",
+            r#"
+try {
+    riskyOperation();
+} catch e {
+    e++;
+}
+"#,
+        );
+        test.result(result).assert_lint("no-ex-assign");
+    }
+
+    #[test]
+    fn test_flags_exception_pre_decrement() {
+        let test = TestProgram::for_rule_without_prelude(NoExAssign);
+        let result = test.lint_ast(
+            "no_ex_assign/test_flags_exception_pre_decrement.ds",
+            r#"
+try {
+    riskyOperation();
+} catch e {
+    --e;
 }
 "#,
         );
