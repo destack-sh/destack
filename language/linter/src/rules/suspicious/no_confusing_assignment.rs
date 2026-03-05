@@ -1,6 +1,9 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{
+    ConditionAssignmentStyle, condition_assignment_style, control_flow_condition_expression,
+};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -36,25 +39,13 @@ impl LintRule for NoConfusingAssignment {
             let expression = ctx.tree.get(node_id);
 
             // check conditions in if/while/for that contain assignments
-            let condition_id = match expression {
-                ast::Expression::If { condition, .. } => match condition {
-                    ast::IfCondition::Expression { condition } => Some(*condition),
-                    ast::IfCondition::Let { .. } => None,
-                },
-                ast::Expression::While { condition, .. } => Some(*condition),
-                ast::Expression::For {
-                    condition: Some(condition),
-                    ..
-                } => Some(*condition),
-                _ => None,
-            };
-            let Some(condition_id) = condition_id else {
+            let Some(condition_id) = control_flow_condition_expression(expression) else {
                 continue;
             };
 
             // check if condition is an assignment (not wrapped in extra parens)
-            let assignment_style = assignment_style(ctx, condition_id);
-            if assignment_style != AssignmentStyle::None {
+            let assignment_style = condition_assignment_style(ctx.tree, condition_id);
+            if assignment_style != ConditionAssignmentStyle::None {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
@@ -64,9 +55,9 @@ impl LintRule for NoConfusingAssignment {
                 let condition_span = ctx.tree.get_span(condition_id);
                 let condition_text = ctx.get_span_text(condition_span);
                 let replacement = match assignment_style {
-                    AssignmentStyle::Bare => format!("(({condition_text}))"),
-                    AssignmentStyle::SingleParenthesized => format!("({condition_text})"),
-                    AssignmentStyle::None => unreachable!(),
+                    ConditionAssignmentStyle::Bare => format!("(({condition_text}))"),
+                    ConditionAssignmentStyle::SingleParenthesized => format!("({condition_text})"),
+                    ConditionAssignmentStyle::None => unreachable!(),
                 };
                 let edits = ctx
                     .edit_builder()
@@ -90,38 +81,6 @@ impl LintRule for NoConfusingAssignment {
                 );
             }
         }
-    }
-}
-
-/// The assignment wrapping style in one condition expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AssignmentStyle {
-    /// No direct assignment style matched.
-    None,
-    /// Bare assignment expression: `x = y`.
-    Bare,
-    /// Single-parenthesized assignment: `(x = y)`.
-    SingleParenthesized,
-}
-
-/// Return the assignment wrapping style for one condition expression.
-fn assignment_style(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> AssignmentStyle {
-    let expression = ctx.tree.get(expr_id);
-    match expression {
-        ast::Expression::Assign { .. } => AssignmentStyle::Bare,
-        ast::Expression::Parenthesized { expression } => {
-            // single paren is still confusing, double parens is intentional
-            let inner = ctx.tree.get(*expression);
-            if matches!(inner, ast::Expression::Assign { .. }) {
-                AssignmentStyle::SingleParenthesized
-            } else {
-                AssignmentStyle::None
-            }
-        }
-        _ => AssignmentStyle::None,
     }
 }
 
