@@ -2,7 +2,7 @@ use super::*;
 
 /// Set one window title string.
 pub(crate) unsafe fn window_set_title(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -10,19 +10,17 @@ pub(crate) unsafe fn window_set_title(
     let title = unsafe { title.as_str()? }.to_string();
     let title_wide = core_platform::wide_from_str("title", &title)?;
 
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setTitle",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setTitle")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setTitle")?;
 
     // apply host title update
-    let status = unsafe { SetWindowTextW(resolved_binding.hwnd, title_wide.as_ptr()) };
+    let status = unsafe { SetWindowTextW(binding.hwnd, title_wide.as_ptr()) };
     // evaluate this condition
     if status == 0 {
         return Err(core::io_error(
@@ -33,27 +31,25 @@ pub(crate) unsafe fn window_set_title(
     }
 
     // update cached title value
-    resolved_binding.title = title;
+    binding.title = title;
 
     Ok(())
 }
 
 /// Set one window icon set.
 pub(crate) unsafe fn window_set_icons(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     icons: Option<WindowIconSet>,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setIcons",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setIcons")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setIcons")?;
 
     // decode icons and build new host icon handles
     let (new_small_icon, new_big_icon) = match icons {
@@ -84,24 +80,19 @@ pub(crate) unsafe fn window_set_icons(
     // apply host icon handles
     unsafe {
         let _ = SendMessageW(
-            resolved_binding.hwnd,
+            binding.hwnd,
             WM_SETICON,
             ICON_SMALL as usize,
             new_small_icon,
         );
-        let _ = SendMessageW(
-            resolved_binding.hwnd,
-            WM_SETICON,
-            ICON_BIG as usize,
-            new_big_icon,
-        );
+        let _ = SendMessageW(binding.hwnd, WM_SETICON, ICON_BIG as usize, new_big_icon);
     }
 
     // swap cached icon handles
-    let previous_small_icon = resolved_binding.icon_small;
-    let previous_big_icon = resolved_binding.icon_big;
-    resolved_binding.icon_small = new_small_icon;
-    resolved_binding.icon_big = new_big_icon;
+    let previous_small_icon = binding.icon_small;
+    let previous_big_icon = binding.icon_big;
+    binding.icon_small = new_small_icon;
+    binding.icon_big = new_big_icon;
 
     // release stale icon handles
     let stale_small_icon = if previous_small_icon == new_small_icon {
@@ -121,37 +112,44 @@ pub(crate) unsafe fn window_set_icons(
 
 /// Set one window visibility state.
 pub(crate) unsafe fn window_set_visibility(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setVisibility",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setVisibility")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setVisibility")?;
 
     // capture previous state for delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
+
+    // resolve one host show command for this transition
+    let show_window_command = if visibility == WindowVisibility::Visible
+        && previous.visibility != WindowVisibility::Visible
+    {
+        SW_RESTORE
+    } else {
+        show_command(visibility)
+    };
 
     // apply host visibility transition
     unsafe {
-        ShowWindow(resolved_binding.hwnd, show_command(visibility));
-        UpdateWindow(resolved_binding.hwnd);
+        ShowWindow(binding.hwnd, show_window_command);
+        UpdateWindow(binding.hwnd);
     }
 
     // refresh cached state and publish deltas
-    resolved_binding.visibility = visibility;
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    binding.visibility = visibility;
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -159,28 +157,25 @@ pub(crate) unsafe fn window_set_visibility(
 
 /// Set one window resizable state.
 pub(crate) unsafe fn window_set_resizable(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setResizable",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setResizable")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setResizable")?;
 
     // apply cached mutation and rollback on host failure
-    let previous_resizable = resolved_binding.resizable;
-    resolved_binding.resizable = resizable;
+    let previous_resizable = binding.resizable;
+    binding.resizable = resizable;
     // evaluate this condition
-    if let Err(error) = apply_window_style(&resolved_binding, "destack.display.window.setResizable")
-    {
-        resolved_binding.resizable = previous_resizable;
+    if let Err(error) = apply_window_style(&binding, "destack.display.window.setResizable") {
+        binding.resizable = previous_resizable;
         return Err(error);
     }
 
@@ -189,28 +184,25 @@ pub(crate) unsafe fn window_set_resizable(
 
 /// Set window decoration state.
 pub(crate) unsafe fn window_set_decorated(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setDecorated",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setDecorated")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setDecorated")?;
 
     // apply cached mutation and rollback on host failure
-    let previous_decorated = resolved_binding.decorated;
-    resolved_binding.decorated = decorated;
+    let previous_decorated = binding.decorated;
+    binding.decorated = decorated;
     // evaluate this condition
-    if let Err(error) = apply_window_style(&resolved_binding, "destack.display.window.setDecorated")
-    {
-        resolved_binding.decorated = previous_decorated;
+    if let Err(error) = apply_window_style(&binding, "destack.display.window.setDecorated") {
+        binding.decorated = previous_decorated;
         return Err(error);
     }
 
@@ -219,25 +211,23 @@ pub(crate) unsafe fn window_set_decorated(
 
 /// Set always-on-top state.
 pub(crate) unsafe fn window_set_always_on_top(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setAlwaysOnTop",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setAlwaysOnTop")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setAlwaysOnTop")?;
 
     // apply host topmost transition
     let status = unsafe {
         SetWindowPos(
-            resolved_binding.hwnd,
+            binding.hwnd,
             // evaluate this condition
             if alwaysontop {
                 HWND_TOPMOST
@@ -261,45 +251,43 @@ pub(crate) unsafe fn window_set_always_on_top(
     }
 
     // update cached topmost state
-    resolved_binding.always_on_top = alwaysontop;
+    binding.always_on_top = alwaysontop;
 
     Ok(())
 }
 
 /// Set one window chrome kind.
 pub(crate) unsafe fn window_set_chrome(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     chrome: WindowChromeKind,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setChrome",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setChrome")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setChrome")?;
 
     // capture previous state for rollback and delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // apply cached mutation and rollback on host failure
-    resolved_binding.chrome = chrome;
+    binding.chrome = chrome;
     // evaluate this condition
-    if let Err(error) = apply_window_style(&resolved_binding, "destack.display.window.setChrome") {
-        resolved_binding.chrome = previous.chrome;
+    if let Err(error) = apply_window_style(&binding, "destack.display.window.setChrome") {
+        binding.chrome = previous.chrome;
         return Err(error);
     }
 
     // refresh cached state and publish deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -307,44 +295,36 @@ pub(crate) unsafe fn window_set_chrome(
 
 /// Set one window mouse passthrough state.
 pub(crate) unsafe fn window_set_mouse_passthrough(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     passthrough: bool,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setMousePassthrough",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(
-        &resolved_binding,
-        "destack.display.window.setMousePassthrough",
-    )?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setMousePassthrough")?;
 
     // capture previous state for rollback and delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // apply cached mutation and rollback on host failure
-    resolved_binding.mouse_passthrough = passthrough;
+    binding.mouse_passthrough = passthrough;
     // evaluate this condition
-    if let Err(error) = apply_window_style(
-        &resolved_binding,
-        "destack.display.window.setMousePassthrough",
-    ) {
-        resolved_binding.mouse_passthrough = previous.mouse_passthrough;
+    if let Err(error) = apply_window_style(&binding, "destack.display.window.setMousePassthrough") {
+        binding.mouse_passthrough = previous.mouse_passthrough;
         return Err(error);
     }
 
     // refresh cached state and publish deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -352,41 +332,39 @@ pub(crate) unsafe fn window_set_mouse_passthrough(
 
 /// Set one window opacity.
 pub(crate) unsafe fn window_set_opacity(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     opacity: f64,
 ) -> RuntimeResult<()> {
     // validate opacity payload
     let opacity = normalize_opacity(opacity, "opacity")?;
 
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setOpacity",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.setOpacity")?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setOpacity")?;
 
     // capture previous state for rollback and delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // apply cached mutation and rollback on host failure
-    resolved_binding.opacity = opacity;
+    binding.opacity = opacity;
     // evaluate this condition
-    if let Err(error) = apply_window_style(&resolved_binding, "destack.display.window.setOpacity") {
-        resolved_binding.opacity = previous.opacity;
+    if let Err(error) = apply_window_style(&binding, "destack.display.window.setOpacity") {
+        binding.opacity = previous.opacity;
         return Err(error);
     }
 
     // refresh cached state and publish deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
@@ -394,27 +372,25 @@ pub(crate) unsafe fn window_set_opacity(
 
 /// Read one window opacity value.
 pub(crate) unsafe fn window_opacity(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut f64,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer
     core_platform::ensure_out(out, "out")?;
 
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.opacity",
     )?;
-    let resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(&resolved_binding, "destack.display.window.opacity")?;
+    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.opacity")?;
 
     // write cached opacity value
     unsafe {
-        *out = resolved_binding.opacity;
+        *out = binding.opacity;
     }
 
     Ok(())
@@ -422,44 +398,36 @@ pub(crate) unsafe fn window_opacity(
 
 /// Set one window taskbar-visibility state.
 pub(crate) unsafe fn window_set_taskbar_visible(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    // resolve and validate the target window resolved_binding
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve and validate the target window binding
+    let binding = display_resource::resolve_window_binding(
+        context,
         window,
         "destack.display.window.setTaskbarVisible",
     )?;
-    let mut resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    ensure_window_thread(
-        &resolved_binding,
-        "destack.display.window.setTaskbarVisible",
-    )?;
+    let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    ensure_window_thread(&binding, "destack.display.window.setTaskbarVisible")?;
 
     // capture previous state for rollback and delta publication
-    let previous = resolved_binding.clone();
+    let previous = binding.clone();
 
     // apply cached mutation and rollback on host failure
-    resolved_binding.taskbar_visible = visible;
+    binding.taskbar_visible = visible;
     // evaluate this condition
-    if let Err(error) = apply_window_style(
-        &resolved_binding,
-        "destack.display.window.setTaskbarVisible",
-    ) {
-        resolved_binding.taskbar_visible = previous.taskbar_visible;
+    if let Err(error) = apply_window_style(&binding, "destack.display.window.setTaskbarVisible") {
+        binding.taskbar_visible = previous.taskbar_visible;
         return Err(error);
     }
 
     // refresh cached state and publish deltas
-    refresh_window_snapshot(&mut resolved_binding);
-    let next = resolved_binding.clone();
-    drop(resolved_binding);
+    refresh_window_snapshot(&mut binding);
+    let next = binding.clone();
+    drop(binding);
 
-    let event_runtime_state = event::display_event_runtime_state(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
     event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())

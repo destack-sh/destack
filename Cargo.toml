@@ -200,6 +200,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5.8"
 pnp = "0.12.8"
 x11rb = "0.13.2"
+wayland-client = "0.31.11"
+wayland-protocols = { version = "0.32.9", features = ["client", "staging", "unstable"] }
+wayland-protocols-wlr = { version = "0.3.11", features = ["client"] }
+objc2 = "0.6.3"
+objc2-app-kit = "0.3.2"
+objc2-foundation = "0.3.2"
 windows = { version = "0.60.0", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 windows-sys = "0.52.0"
 zeroize = "1.8.1"

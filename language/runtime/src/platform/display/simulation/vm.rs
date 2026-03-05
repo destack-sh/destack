@@ -2,13 +2,14 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayBackendDescriptorVm, DisplayColorState, DisplayDescriptorVm, DisplayGammaRampVm,
-    DisplayHdrMode, DisplayModeVm, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
-    DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm, WindowAspectRatio,
-    WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowDescriptorVm,
-    WindowEventOpenOptionsVm, WindowEventVm, WindowIconSetVm, WindowLogicalSizeVm,
-    WindowModeOptionsVm, WindowOptionsVm, WindowPhysicalSizeVm, WindowPositionVm, WindowResizeEdge,
-    WindowSizeConstraintsVm, WindowStateVm, WindowVisibility,
+    DisplayBackendCapabilityFlags, DisplayBackendDescriptorVm, DisplayColorState,
+    DisplayDescriptorVm, DisplayGammaRampVm, DisplayHdrMode, DisplayModeVm,
+    DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm, DisplayMonitorListRequestVm,
+    DisplayMonitorOpenOptionsVm, WindowAspectRatio, WindowAttentionLevel, WindowChromeKind,
+    WindowCursorIcon, WindowCursorMode, WindowDescriptorVm, WindowEventOpenOptionsVm,
+    WindowEventVm, WindowIconSetVm, WindowLogicalSizeVm, WindowModeOptionsVm, WindowOptionsVm,
+    WindowPhysicalSizeVm, WindowPositionVm, WindowResizeEdge, WindowSizeConstraintsVm,
+    WindowStateVm, WindowVisibility,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
@@ -528,6 +529,19 @@ pub(crate) fn destack_display_window_descriptor(
     let _ = window;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.descriptor",
+    ))
+    .boxed())
+}
+
+/// Read one capability mask for one opened window backend.
+pub(crate) fn destack_display_window_capabilities(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<DisplayBackendCapabilityFlags> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.capabilities",
     ))
     .boxed())
 }

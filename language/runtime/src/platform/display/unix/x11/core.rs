@@ -9,30 +9,28 @@ use x11rb::rust_connection::RustConnection;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayBackendCapabilityFlags, DisplayEventOverflowPolicy, DisplayMonitorEventKindMask,
-    WindowEventKindMask,
+    DisplayBackend, DisplayBackendCapabilityFlags, DisplayEventOverflowPolicy,
+    DisplayMonitorEventKindMask, WindowEventKindMask,
 };
 use crate::platform::{
     PlatformError, core as core_platform, display as display_platform, resource,
 };
 use crate::runtime::BindingCallContext;
 
+pub(super) use super::constants::*;
 use super::event::{MonitorEventBinding, WindowEventBinding};
 use super::model::MonitorSnapshot;
 use super::monitor;
 
-/// Resource-table label for opened display monitor handles.
-pub(super) const DISPLAY_RESOURCE_LABEL: &str = "display.monitor";
-/// Resource-table label for opened window handles.
-pub(super) const WINDOW_RESOURCE_LABEL: &str = "display.window";
-/// Resource-table label for opened monitor-event stream handles.
-pub(super) const DISPLAY_EVENT_RESOURCE_LABEL: &str = "display.monitor.event";
-/// Resource-table label for opened window-event stream handles.
-pub(super) const WINDOW_EVENT_RESOURCE_LABEL: &str = "display.window.event";
-/// Default queue capacity for monitor and window event streams.
-pub(super) const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
-/// Default wait-slice interval for blocking event stream reads.
-pub(super) const DEFAULT_EVENT_WAIT_SLICE_NS: u64 = 10_000_000;
+/// Return the backend for the x11 backend implementation.
+pub(crate) fn selected_backend() -> DisplayBackend {
+    DisplayBackend::X11
+}
+
+/// Return one backend label for x11 diagnostics and stable identifiers.
+pub(crate) fn selected_backend_name() -> &'static str {
+    "x11"
+}
 
 /// Interned X11 atoms used by the runtime.
 #[derive(Debug, Clone)]
@@ -41,6 +39,10 @@ pub(super) struct X11Atoms {
     pub(super) wm_protocols: Atom,
     /// `WM_DELETE_WINDOW` atom.
     pub(super) wm_delete_window: Atom,
+    /// `WM_CHANGE_STATE` atom.
+    pub(super) wm_change_state: Atom,
+    /// `WM_STATE` atom.
+    pub(super) wm_state: Atom,
     /// `UTF8_STRING` atom.
     pub(super) utf8_string: Atom,
     /// `WM_NAME` atom.
@@ -83,6 +85,8 @@ pub(super) struct X11Atoms {
     pub(super) net_work_area: Atom,
     /// `_NET_CURRENT_DESKTOP` atom.
     pub(super) net_current_desktop: Atom,
+    /// `vrr_capable` atom.
+    pub(super) vrr_capable: Atom,
     /// `XdndAware` atom.
     pub(super) xdnd_aware: Atom,
     /// `XdndEnter` atom.
@@ -200,7 +204,8 @@ pub(super) fn connection_state(
     // reject when x11 display endpoint is unavailable
     if std::env::var_os("DISPLAY").is_none() {
         return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation}: DISPLAY is not set for x11 backend",
+            "{operation}: DISPLAY is not set for {} backend",
+            selected_backend_name(),
         )))
         .boxed());
     }
@@ -208,7 +213,8 @@ pub(super) fn connection_state(
     // open one new x11 connection and intern required atoms
     let (connection, screen_index) = x11rb::connect(None).map_err(|error| {
         RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation}: x11 connect failed: {error}",
+            "{operation}: {} connect failed: {error}",
+            selected_backend_name(),
         )))
         .boxed()
     })?;
@@ -230,6 +236,8 @@ pub(super) fn connection_state(
     let atoms = X11Atoms {
         wm_protocols: intern_atom(&connection, b"WM_PROTOCOLS", operation)?,
         wm_delete_window: intern_atom(&connection, b"WM_DELETE_WINDOW", operation)?,
+        wm_change_state: intern_atom(&connection, b"WM_CHANGE_STATE", operation)?,
+        wm_state: intern_atom(&connection, b"WM_STATE", operation)?,
         utf8_string: intern_atom(&connection, b"UTF8_STRING", operation)?,
         wm_name: AtomEnum::WM_NAME.into(),
         net_wm_name: intern_atom(&connection, b"_NET_WM_NAME", operation)?,
@@ -279,6 +287,7 @@ pub(super) fn connection_state(
         net_wm_icon: intern_atom(&connection, b"_NET_WM_ICON", operation)?,
         net_work_area: intern_atom(&connection, b"_NET_WORKAREA", operation)?,
         net_current_desktop: intern_atom(&connection, b"_NET_CURRENT_DESKTOP", operation)?,
+        vrr_capable: intern_atom(&connection, b"vrr_capable", operation)?,
         xdnd_aware: intern_atom(&connection, b"XdndAware", operation)?,
         xdnd_enter: intern_atom(&connection, b"XdndEnter", operation)?,
         xdnd_position: intern_atom(&connection, b"XdndPosition", operation)?,
@@ -337,7 +346,6 @@ pub(crate) fn backend_descriptor_state(
         | display_platform::DISPLAY_BACKEND_CAP_MONITOR.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
         | display_platform::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
-        | display_platform::DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE.0
         | display_platform::DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN.0
         | display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
         | display_platform::DISPLAY_BACKEND_CAP_CURSOR_LOCK.0
@@ -358,6 +366,9 @@ pub(crate) fn backend_descriptor_state(
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY.0
+        | display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0;
 
     // enable cursor visibility lane when xfixes is present
@@ -381,6 +392,7 @@ pub(crate) fn backend_descriptor_state(
         .unwrap_or(false);
         // evaluate this condition
         if gamma_available {
+            capability_flags |= display_platform::DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE.0;
             capability_flags |= display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0;
         }
     }
@@ -639,108 +651,6 @@ fn query_gamma_control_available(connection: &RustConnection, root: Window) -> R
 
     Ok(false)
 }
-
-/// Return one monitor-event kind bit for `added`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_ADDED: u32 =
-    display_platform::DISPLAY_MONITOR_EVENT_KIND_ADDED.0;
-/// Return one monitor-event kind bit for `removed`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_REMOVED: u32 =
-    display_platform::DISPLAY_MONITOR_EVENT_KIND_REMOVED.0;
-/// Return one monitor-event kind bit for `primaryChanged`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: u32 =
-    display_platform::DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED.0;
-/// Return one monitor-event kind bit for `descriptorChanged`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: u32 =
-    display_platform::DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED.0;
-/// Return one monitor-event kind bit for `modeChanged`.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: u32 =
-    display_platform::DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED.0;
-/// Return one monitor-event kind bit mask for all monitor variants.
-pub(super) const DISPLAY_MONITOR_EVENT_KIND_MASK_ALL: u32 = DISPLAY_MONITOR_EVENT_KIND_ADDED
-    | DISPLAY_MONITOR_EVENT_KIND_REMOVED
-    | DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED
-    | DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED
-    | DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED;
-/// Display metric mask bit for name updates.
-pub(super) const DISPLAY_CHANGED_MASK_NAME: u32 = display_platform::DISPLAY_METRIC_CHANGED_NAME.0;
-/// Display metric mask bit for primary updates.
-pub(super) const DISPLAY_CHANGED_MASK_PRIMARY: u32 =
-    display_platform::DISPLAY_METRIC_CHANGED_PRIMARY.0;
-/// Display metric mask bit for bounds updates.
-pub(super) const DISPLAY_CHANGED_MASK_BOUNDS: u32 =
-    display_platform::DISPLAY_METRIC_CHANGED_BOUNDS.0;
-/// Display metric mask bit for work-area updates.
-pub(super) const DISPLAY_CHANGED_MASK_WORKAREA: u32 =
-    display_platform::DISPLAY_METRIC_CHANGED_WORK_AREA.0;
-/// Display metric mask bit for scale updates.
-pub(super) const DISPLAY_CHANGED_MASK_SCALE: u32 =
-    display_platform::DISPLAY_METRIC_CHANGED_SCALE_FACTOR.0;
-/// Display metric mask bit for orientation updates.
-pub(super) const DISPLAY_CHANGED_MASK_ORIENTATION: u32 =
-    display_platform::DISPLAY_METRIC_CHANGED_ORIENTATION.0;
-/// Return one window-event kind bit for `created`.
-pub(super) const WINDOW_EVENT_KIND_CREATED: u64 = display_platform::WINDOW_EVENT_KIND_CREATED.0;
-/// Return one window-event kind bit for `closeRequested`.
-pub(super) const WINDOW_EVENT_KIND_CLOSE_REQUESTED: u64 =
-    display_platform::WINDOW_EVENT_KIND_CLOSE_REQUESTED.0;
-/// Return one window-event kind bit for `destroyed`.
-pub(super) const WINDOW_EVENT_KIND_DESTROYED: u64 = display_platform::WINDOW_EVENT_KIND_DESTROYED.0;
-/// Return one window-event kind bit for `focusChanged`.
-pub(super) const WINDOW_EVENT_KIND_FOCUS_CHANGED: u64 =
-    display_platform::WINDOW_EVENT_KIND_FOCUS_CHANGED.0;
-/// Return one window-event kind bit for `visibilityChanged`.
-pub(super) const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: u64 =
-    display_platform::WINDOW_EVENT_KIND_VISIBILITY_CHANGED.0;
-/// Return one window-event kind bit for `positionChanged`.
-pub(super) const WINDOW_EVENT_KIND_POSITION_CHANGED: u64 =
-    display_platform::WINDOW_EVENT_KIND_POSITION_CHANGED.0;
-/// Return one window-event kind bit for `sizeChanged`.
-pub(super) const WINDOW_EVENT_KIND_SIZE_CHANGED: u64 =
-    display_platform::WINDOW_EVENT_KIND_SIZE_CHANGED.0;
-/// Return one window-event kind bit for `refreshRequested`.
-pub(super) const WINDOW_EVENT_KIND_REFRESH_REQUESTED: u64 =
-    display_platform::WINDOW_EVENT_KIND_REFRESH_REQUESTED.0;
-/// Return one window-event kind bit for `modeChanged`.
-pub(super) const WINDOW_EVENT_KIND_MODE_CHANGED: u64 =
-    display_platform::WINDOW_EVENT_KIND_MODE_CHANGED.0;
-/// Return one window-event kind bit for `dropStarted`.
-pub(super) const WINDOW_EVENT_KIND_DROP_STARTED: u64 =
-    display_platform::WINDOW_EVENT_KIND_DROP_STARTED.0;
-/// Return one window-event kind bit for `fileHovered`.
-pub(super) const WINDOW_EVENT_KIND_FILE_HOVERED: u64 =
-    display_platform::WINDOW_EVENT_KIND_FILE_HOVERED.0;
-/// Return one window-event kind bit for `dropCancelled`.
-pub(super) const WINDOW_EVENT_KIND_DROP_CANCELLED: u64 =
-    display_platform::WINDOW_EVENT_KIND_DROP_CANCELLED.0;
-/// Return one window-event kind bit for `dropCompleted`.
-pub(super) const WINDOW_EVENT_KIND_DROP_COMPLETED: u64 =
-    display_platform::WINDOW_EVENT_KIND_DROP_COMPLETED.0;
-/// Return one window-event kind bit for `fileHoverLeft`.
-pub(super) const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: u64 =
-    display_platform::WINDOW_EVENT_KIND_FILE_HOVER_LEFT.0;
-/// Return one window-event kind bit for `fileDropped`.
-pub(super) const WINDOW_EVENT_KIND_FILE_DROPPED: u64 =
-    display_platform::WINDOW_EVENT_KIND_FILE_DROPPED.0;
-/// Return one window-event kind bit for `textDropped`.
-pub(super) const WINDOW_EVENT_KIND_TEXT_DROPPED: u64 =
-    display_platform::WINDOW_EVENT_KIND_TEXT_DROPPED.0;
-/// Return one window-event kind bit mask for all window variants.
-pub(super) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
-    | WINDOW_EVENT_KIND_CLOSE_REQUESTED
-    | WINDOW_EVENT_KIND_DESTROYED
-    | WINDOW_EVENT_KIND_FOCUS_CHANGED
-    | WINDOW_EVENT_KIND_VISIBILITY_CHANGED
-    | WINDOW_EVENT_KIND_POSITION_CHANGED
-    | WINDOW_EVENT_KIND_SIZE_CHANGED
-    | WINDOW_EVENT_KIND_REFRESH_REQUESTED
-    | WINDOW_EVENT_KIND_MODE_CHANGED
-    | WINDOW_EVENT_KIND_DROP_STARTED
-    | WINDOW_EVENT_KIND_FILE_HOVERED
-    | WINDOW_EVENT_KIND_DROP_CANCELLED
-    | WINDOW_EVENT_KIND_DROP_COMPLETED
-    | WINDOW_EVENT_KIND_FILE_HOVER_LEFT
-    | WINDOW_EVENT_KIND_FILE_DROPPED
-    | WINDOW_EVENT_KIND_TEXT_DROPPED;
 
 #[cfg(test)]
 mod tests {

@@ -1,14 +1,15 @@
 use super::{core, win32};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayColorState, DisplayDescriptor, DisplayGammaRamp, DisplayHdrMode, DisplayMode,
-    DisplayMonitorEvent, DisplayMonitorEventOpenOptions, DisplayMonitorListRequest,
-    DisplayMonitorOpenOptions, WindowAspectRatio, WindowAttentionLevel, WindowChromeKind,
-    WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowEvent, WindowEventOpenOptions,
-    WindowIconSet, WindowLogicalSize, WindowModeOptions, WindowOptions, WindowPhysicalSize,
-    WindowPosition, WindowResizeEdge, WindowSizeConstraints, WindowState, WindowVisibility,
+    DisplayBackend, DisplayBackendCapabilityFlags, DisplayColorState, DisplayDescriptor,
+    DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayMonitorEvent,
+    DisplayMonitorEventOpenOptions, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
+    WindowAspectRatio, WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode,
+    WindowDescriptor, WindowEvent, WindowEventOpenOptions, WindowIconSet, WindowLogicalSize,
+    WindowModeOptions, WindowOptions, WindowPhysicalSize, WindowPosition, WindowResizeEdge,
+    WindowSizeConstraints, WindowState, WindowVisibility,
 };
-use crate::platform::{NativeArray, resource};
+use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Close one display endpoint.
@@ -595,6 +596,26 @@ pub(crate) unsafe fn destack_display_window_set_visibility(
 ) -> RuntimeResult<()> {
     let _backend = core::resolve_default_backend("destack.display.window.setVisibility")?;
     unsafe { win32::window_set_visibility(binding, window, visibility) }
+}
+
+/// Read one capability mask for one opened window backend.
+pub(crate) unsafe fn destack_display_window_capabilities(
+    context: &BindingCallContext,
+    out: *mut DisplayBackendCapabilityFlags,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    core_platform::ensure_out(out, "out")?;
+    let operation = "destack.display.window.capabilities";
+
+    // validate that this runtime window handle resolves to one win32 window binding
+    win32::ensure_window_binding_exists(context, window, operation)?;
+
+    let _backend = core::resolve_default_backend(operation)?;
+    unsafe {
+        *out = core::backend_capabilities(DisplayBackend::Win32);
+    }
+
+    Ok(())
 }
 
 /// Read one window state snapshot.

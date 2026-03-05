@@ -1,3 +1,7 @@
+#[cfg(target_os = "macos")]
+use super::appkit;
+#[cfg(target_os = "linux")]
+use super::wayland;
 #[cfg(target_os = "linux")]
 use super::x11;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -49,7 +53,7 @@ pub(crate) fn backend_name(backend: DisplayBackend) -> &'static str {
 /// Return whether one backend is valid for the active unix target.
 pub(crate) fn backend_supported(backend: DisplayBackend) -> bool {
     #[cfg(target_os = "linux")]
-    if backend == DisplayBackend::X11 {
+    if backend == DisplayBackend::X11 || backend == DisplayBackend::Wayland {
         return true;
     }
 
@@ -83,6 +87,17 @@ pub(crate) fn backend_available(backend: DisplayBackend) -> bool {
         return std::env::var_os("DISPLAY").is_some();
     }
 
+    #[cfg(target_os = "linux")]
+    if backend == DisplayBackend::Wayland {
+        return std::env::var_os("WAYLAND_DISPLAY").is_some()
+            || std::env::var_os("WAYLAND_SOCKET").is_some();
+    }
+
+    #[cfg(target_os = "macos")]
+    if backend == DisplayBackend::AppKit {
+        return false;
+    }
+
     true
 }
 
@@ -98,6 +113,16 @@ pub(crate) fn backend_capabilities(
     #[cfg(target_os = "linux")]
     if backend == DisplayBackend::X11 {
         return x11::backend_descriptor_state(binding).1;
+    }
+
+    #[cfg(target_os = "linux")]
+    if backend == DisplayBackend::Wayland {
+        return wayland::backend_descriptor_state(binding).1;
+    }
+
+    #[cfg(target_os = "macos")]
+    if backend == DisplayBackend::AppKit {
+        return appkit::backend_descriptor_state(binding).1;
     }
 
     let _ = binding;
@@ -129,15 +154,26 @@ pub(crate) fn backend_descriptors(binding: &BindingCallContext) -> Vec<DisplayBa
         #[cfg(target_os = "linux")]
         let (available, capability_flags) = if backend == DisplayBackend::X11 {
             x11::backend_descriptor_state(binding)
+        } else if backend == DisplayBackend::Wayland {
+            wayland::backend_descriptor_state(binding)
         } else {
             (
                 backend_available(backend),
                 backend_capabilities(binding, backend),
             )
         };
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(target_os = "macos")]
+        let (available, capability_flags) = if backend == DisplayBackend::AppKit {
+            appkit::backend_descriptor_state(binding)
+        } else {
+            (
+                backend_available(backend),
+                backend_capabilities(binding, backend),
+            )
+        };
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         let available = backend_available(backend);
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         let capability_flags = backend_capabilities(binding, backend);
 
         let priority = u16::MAX.saturating_sub(index as u16);
@@ -160,7 +196,7 @@ pub(crate) fn resolve_backend(
     operation: &'static str,
 ) -> RuntimeResult<DisplayBackend> {
     if requested == DisplayBackend::Auto {
-        return resolve_auto_backend(operation);
+        return resolve_default_backend(operation);
     }
 
     if backend_available(requested) {
@@ -176,16 +212,7 @@ pub(crate) fn resolve_backend(
 
 /// Resolve one default backend for operations without an explicit selector.
 pub(crate) fn resolve_default_backend(operation: &'static str) -> RuntimeResult<DisplayBackend> {
-    for backend in preferred_host_backends().iter().copied() {
-        if backend_supported(backend) {
-            return Ok(backend);
-        }
-    }
-
-    Err(RuntimeError::from(PlatformError::not_supported(format!(
-        "{operation}: no unix display backend is supported on this target",
-    )))
-    .boxed())
+    resolve_auto_backend(operation)
 }
 
 /// Resolve one auto-selected backend for one operation.
@@ -206,4 +233,106 @@ fn resolve_auto_backend(operation: &'static str) -> RuntimeResult<DisplayBackend
         "{operation}: no unix display backend is available on this target",
     )))
     .boxed())
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use std::ffi::OsString;
+    use std::sync::Mutex;
+
+    use super::{DisplayBackend, backend_available, resolve_default_backend};
+
+    /// Serialize environment-variable mutation across tests.
+    static ENVIRONMENT_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Environment snapshot for one test mutation lane.
+    struct EnvironmentRestore {
+        /// Previous DISPLAY value.
+        display: Option<OsString>,
+        /// Previous WAYLAND_DISPLAY value.
+        wayland_display: Option<OsString>,
+        /// Previous WAYLAND_SOCKET value.
+        wayland_socket: Option<OsString>,
+    }
+
+    impl EnvironmentRestore {
+        /// Capture current environment variables for later restoration.
+        fn capture() -> Self {
+            Self {
+                display: std::env::var_os("DISPLAY"),
+                wayland_display: std::env::var_os("WAYLAND_DISPLAY"),
+                wayland_socket: std::env::var_os("WAYLAND_SOCKET"),
+            }
+        }
+    }
+
+    impl Drop for EnvironmentRestore {
+        /// Restore environment variables mutated by one test case.
+        fn drop(&mut self) {
+            // restore DISPLAY lane
+            unsafe {
+                match self.display.as_ref() {
+                    Some(value) => std::env::set_var("DISPLAY", value),
+                    None => std::env::remove_var("DISPLAY"),
+                }
+            }
+
+            // restore WAYLAND_DISPLAY lane
+            unsafe {
+                match self.wayland_display.as_ref() {
+                    Some(value) => std::env::set_var("WAYLAND_DISPLAY", value),
+                    None => std::env::remove_var("WAYLAND_DISPLAY"),
+                }
+            }
+
+            // restore WAYLAND_SOCKET lane
+            unsafe {
+                match self.wayland_socket.as_ref() {
+                    Some(value) => std::env::set_var("WAYLAND_SOCKET", value),
+                    None => std::env::remove_var("WAYLAND_SOCKET"),
+                }
+            }
+        }
+    }
+
+    /// Default backend selection should prefer available backends over unsupported availability.
+    #[test]
+    fn test_resolve_default_backend_prefers_available_backend() {
+        // serialize environment mutation for this process
+        let _guard = ENVIRONMENT_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let _restore = EnvironmentRestore::capture();
+
+        // force wayland availability while disabling x11 availability
+        unsafe {
+            std::env::remove_var("DISPLAY");
+            std::env::set_var("WAYLAND_DISPLAY", "wayland-0");
+            std::env::remove_var("WAYLAND_SOCKET");
+        }
+
+        let backend = resolve_default_backend("destack.display.test.resolveDefault")
+            .expect("resolve_default_backend should select available wayland backend");
+
+        assert_eq!(backend, DisplayBackend::Wayland);
+    }
+
+    /// Wayland availability should accept WAYLAND_SOCKET when WAYLAND_DISPLAY is absent.
+    #[test]
+    fn test_backend_available_accepts_wayland_socket() {
+        // serialize environment mutation for this process
+        let _guard = ENVIRONMENT_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let _restore = EnvironmentRestore::capture();
+
+        // expose only wayland socket lane
+        unsafe {
+            std::env::remove_var("DISPLAY");
+            std::env::remove_var("WAYLAND_DISPLAY");
+            std::env::set_var("WAYLAND_SOCKET", "5");
+        }
+
+        assert!(backend_available(DisplayBackend::Wayland));
+    }
 }

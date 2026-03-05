@@ -1,178 +1,45 @@
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::Arc;
 
-use windows_sys::Win32::Foundation::{
-    ERROR_CLASS_ALREADY_EXISTS, ERROR_SUCCESS, GetLastError, HINSTANCE, HWND, LPARAM, LRESULT,
-    POINT, RECT, SetLastError, WPARAM,
-};
+use windows_sys::Win32::Foundation::{ERROR_SUCCESS, HWND, LPARAM, POINT, RECT, WPARAM};
 use windows_sys::Win32::Graphics::Gdi::{ClientToScreen, GetDeviceCaps, LOGPIXELSX, UpdateWindow};
-use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW};
-use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW};
 use windows_sys::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, ReleaseCapture};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AdjustWindowRectEx, CURSOR_SHOWING, CURSORINFO, CW_USEDEFAULT, ClipCursor, CreateWindowExW,
-    DefWindowProcW, DestroyWindow, FLASHW_TIMERNOFG, FLASHW_TRAY, FLASHWINFO, FlashWindowEx,
-    GWL_EXSTYLE, GWL_STYLE, GWLP_HWNDPARENT, GWLP_USERDATA, GetClientRect, GetCursorInfo,
-    GetForegroundWindow, GetWindowLongPtrW, GetWindowRect, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT,
-    HTCAPTION, HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT, HWND_NOTOPMOST, HWND_TOP,
-    HWND_TOPMOST, ICON_BIG, ICON_SMALL, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP,
-    IDC_IBEAM, IDC_NO, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS, IDC_SIZENWSE, IDC_SIZEWE, IDC_WAIT,
-    IsIconic, IsWindow, IsWindowVisible, IsZoomed, LWA_ALPHA, LoadCursorW, PostMessageW,
-    RegisterClassW, SIZE_MAXIMIZED, SIZE_MINIMIZED, SPI_GETHIGHCONTRAST, SW_HIDE, SW_MAXIMIZE,
+    FLASHW_TIMERNOFG, FLASHW_TRAY, FLASHWINFO, FlashWindowEx, GWL_EXSTYLE, GWL_STYLE,
+    GWLP_HWNDPARENT, GetClientRect, GetCursorInfo, GetForegroundWindow, GetWindowRect, HTBOTTOM,
+    HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCAPTION, HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT,
+    HWND_NOTOPMOST, HWND_TOP, HWND_TOPMOST, ICON_BIG, ICON_SMALL, IDC_APPSTARTING, IDC_ARROW,
+    IDC_CROSS, IDC_HAND, IDC_HELP, IDC_IBEAM, IDC_NO, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS,
+    IDC_SIZENWSE, IDC_SIZEWE, IDC_WAIT, IsIconic, IsWindowVisible, IsZoomed, LWA_ALPHA,
+    PostMessageW, SIZE_MAXIMIZED, SIZE_MINIMIZED, SPI_GETHIGHCONTRAST, SW_HIDE, SW_MAXIMIZE,
     SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWNA, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetCursor, SetCursorPos, SetForegroundWindow,
+    SWP_NOSIZE, SWP_NOZORDER, SendMessageW, SetCursorPos, SetForegroundWindow,
     SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowCursor,
-    ShowWindow, SystemParametersInfoW, WA_INACTIVE, WINDOW_EX_STYLE, WINDOW_STYLE, WM_ACTIVATE,
-    WM_CLOSE, WM_DESTROY, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_KILLFOCUS, WM_MOVE, WM_NCLBUTTONDOWN,
-    WM_SETCURSOR, WM_SETFOCUS, WM_SETICON, WM_SETTINGCHANGE, WM_SHOWWINDOW, WM_SIZE, WM_SIZING,
-    WM_THEMECHANGED, WM_WINDOWPOSCHANGED, WMSZ_BOTTOM, WMSZ_BOTTOMLEFT, WMSZ_LEFT, WMSZ_RIGHT,
-    WMSZ_TOP, WMSZ_TOPLEFT, WMSZ_TOPRIGHT, WNDCLASSW, WS_CAPTION, WS_EX_APPWINDOW, WS_EX_LAYERED,
-    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP,
-    WS_SYSMENU, WS_THICKFRAME,
+    ShowWindow, SystemParametersInfoW, WINDOW_EX_STYLE, WINDOW_STYLE, WM_NCLBUTTONDOWN, WM_SETICON,
+    WMSZ_BOTTOM, WMSZ_BOTTOMLEFT, WMSZ_LEFT, WMSZ_RIGHT, WMSZ_TOP, WMSZ_TOPLEFT, WMSZ_TOPRIGHT,
+    WS_CAPTION, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
+    WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
 };
 
-use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayBackend, DisplayMode, WindowAspectRatio, WindowAttentionLevel, WindowChromeKind,
-    WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowIconSet, WindowLogicalSize,
-    WindowModeOptions, WindowOcclusionState, WindowOptions, WindowPhysicalSize, WindowPosition,
-    WindowResizeEdge, WindowSizeConstraints, WindowState, WindowTheme, WindowVisibility,
+    DisplayBackend, WindowAspectRatio, WindowAttentionLevel, WindowChromeKind, WindowCursorIcon,
+    WindowCursorMode, WindowDescriptor, WindowIconSet, WindowLogicalSize, WindowModeOptions,
+    WindowOcclusionState, WindowOptions, WindowPhysicalSize, WindowPosition, WindowResizeEdge,
+    WindowRole, WindowSizeConstraints, WindowState, WindowTheme, WindowVisibility,
 };
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
-#[path = "action.rs"]
-mod action;
-#[path = "appearance.rs"]
-mod appearance;
-#[path = "cursor.rs"]
-mod cursor;
-#[path = "drop.rs"]
-mod drop;
-#[path = "geometry.rs"]
-mod geometry;
-#[path = "icon.rs"]
-mod icon;
-#[path = "lifecycle.rs"]
-mod lifecycle;
-#[path = "relation.rs"]
-mod relation;
-#[path = "state.rs"]
-mod state;
-
-pub(crate) use action::*;
-pub(crate) use appearance::*;
-pub(crate) use cursor::*;
-pub(crate) use geometry::*;
-pub(crate) use lifecycle::*;
-pub(crate) use relation::*;
-pub(crate) use state::*;
-
-use self::drop::unregister_window_drop_target;
-use self::icon::{
+use super::super::model::Win32WindowBinding;
+use super::super::{core, monitor, resource as display_resource};
+use super::constants::*;
+use super::icon::{
     best_icon_index, create_hicon, decode_window_icons, destroy_owned_icons, icon_target_dimensions,
 };
-use super::super::model::{ExclusiveModeRestore, Win32WindowBinding};
-use super::super::{core, event, monitor, resource as display_resource};
-
-/// Win32 color-plane selector used for icon creation.
-const WINDOW_ICON_COLOR_PLANES: u8 = 1;
-/// Win32 bits-per-pixel selector used for icon creation.
-const WINDOW_ICON_BITS_PER_PIXEL: u8 = 32;
-/// Default small icon dimension when system metrics are unavailable.
-const WINDOW_ICON_SMALL_DEFAULT: u32 = 16;
-/// Default big icon dimension when system metrics are unavailable.
-const WINDOW_ICON_BIG_DEFAULT: u32 = 32;
-
-/// Runtime-owned mutable state for win32 window bindings.
-#[derive(Debug)]
-pub(crate) struct WindowRuntimeState {
-    /// Shared global cursor visibility state.
-    cursor_visible_state: Mutex<Option<bool>>,
-    /// Per-window cursor policy lanes used to derive process-global cursor state.
-    cursor_policy_by_window: Mutex<HashMap<resource::WindowHandle, CursorPolicyState>>,
-    /// Monotonic counter used for stable cursor policy ordering.
-    next_cursor_policy_sequence: AtomicU64,
-    /// Monotonic counter used for stable runtime window identifiers.
-    next_window_identifier: AtomicU64,
-    /// Runtime diagnostics store for callback and best-effort lanes.
-    diagnostics: Arc<AgentDiagnosticStore>,
-}
-
-impl Default for WindowRuntimeState {
-    /// Create one default window runtime state.
-    fn default() -> Self {
-        Self::new(Arc::new(AgentDiagnosticStore::default()))
-    }
-}
-
-impl WindowRuntimeState {
-    /// Create one window runtime state with explicit diagnostics storage.
-    fn new(diagnostics: Arc<AgentDiagnosticStore>) -> Self {
-        Self {
-            cursor_visible_state: Mutex::new(None),
-            cursor_policy_by_window: Mutex::new(HashMap::new()),
-            next_cursor_policy_sequence: AtomicU64::new(1),
-            next_window_identifier: AtomicU64::new(1),
-            diagnostics,
-        }
-    }
-}
-
-/// Per-window cursor policy snapshot.
-#[derive(Debug, Clone, Copy)]
-struct CursorPolicyState {
-    /// Host window handle associated with this policy.
-    hwnd: HWND,
-    /// Per-window cursor visibility preference.
-    cursor_visible: bool,
-    /// Per-window cursor mode preference.
-    cursor_mode: WindowCursorMode,
-    /// Monotonic sequence used for most-recent policy ordering.
-    sequence: u64,
-}
-
-/// Runtime mapping payload for one live hwnd.
-#[derive(Clone)]
-struct WindowRuntimeEntry {
-    /// Runtime window handle associated with this hwnd.
-    window: resource::WindowHandle,
-    /// Weak binding reference for this window.
-    binding: Weak<Mutex<Win32WindowBinding>>,
-    /// Runtime-owned display event stream state.
-    event_runtime_state: Arc<event::DisplayEventRuntimeState>,
-    /// Runtime-owned window state for cursor/global cleanup lanes.
-    window_runtime_state: Arc<WindowRuntimeState>,
-}
-
-/// Return runtime-owned win32 window state.
-fn window_runtime_state(binding: &BindingCallContext) -> Arc<WindowRuntimeState> {
-    let diagnostics = Arc::clone(&binding.agent().diagnostic);
-    binding
-        .agent()
-        .platform_state
-        .display
-        .window_runtime_state(|| WindowRuntimeState::new(diagnostics))
-}
-
-/// Allocate one stable runtime window identifier.
-fn next_window_identifier(binding: &BindingCallContext) -> u64 {
-    let runtime_state = window_runtime_state(binding);
-    runtime_state
-        .next_window_identifier
-        .fetch_add(1, Ordering::Relaxed)
-}
-
-/// Allocate one stable cursor-policy sequence number.
-fn next_cursor_policy_sequence(runtime_state: &Arc<WindowRuntimeState>) -> u64 {
-    runtime_state
-        .next_cursor_policy_sequence
-        .fetch_add(1, Ordering::Relaxed)
-}
 
 /// Resolve whether one cursor mode requests process-global cursor clipping.
 fn is_clipped_cursor_mode(mode: WindowCursorMode) -> bool {
@@ -207,7 +74,7 @@ fn refresh_cursor_policy(runtime_state: &Arc<WindowRuntimeState>) -> RuntimeResu
             .cursor_policy_by_window
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        policies.retain(|_, policy| unsafe { IsWindow(policy.hwnd) } != 0);
+        policies.retain(|_, policy| is_live_hwnd(policy.hwnd));
 
         let desired_visible = desired_cursor_visibility_from_policies(&policies);
         let desired_clip = desired_cursor_clip_policy(&policies);
@@ -275,88 +142,6 @@ fn remove_cursor_policy(runtime_state: &Arc<WindowRuntimeState>, window: resourc
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     policies.remove(&window);
-}
-
-/// Register one live hwnd mapping for runtime window callbacks.
-fn register_runtime_window(
-    hwnd: HWND,
-    entry: WindowRuntimeEntry,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let entry = Box::new(entry);
-    let entry = Box::into_raw(entry);
-    let previous = unsafe {
-        SetLastError(0);
-        SetWindowLongPtrW(hwnd, GWLP_USERDATA, entry as isize)
-    };
-    // evaluate this condition
-    if previous == 0 {
-        let error_code = unsafe { GetLastError() };
-        // evaluate this condition
-        if error_code != 0 {
-            unsafe {
-                drop(Box::from_raw(entry));
-            }
-            return Err(core::io_error_with_code(
-                operation,
-                "SetWindowLongPtrW",
-                error_code as u32,
-                "failed to register runtime window entry",
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-/// Unregister one live hwnd mapping.
-fn unregister_runtime_window(hwnd: HWND) {
-    let pointer = unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0) } as *mut WindowRuntimeEntry;
-    // evaluate this condition
-    if pointer.is_null() {
-        return;
-    }
-
-    unsafe {
-        drop(Box::from_raw(pointer));
-    }
-}
-
-/// Resolve one runtime hwnd entry.
-fn runtime_window_entry(hwnd: HWND) -> Option<WindowRuntimeEntry> {
-    let pointer = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) } as *mut WindowRuntimeEntry;
-    // evaluate this condition
-    if pointer.is_null() {
-        return None;
-    }
-
-    let entry = unsafe { &*pointer };
-    Some(entry.clone())
-}
-
-/// Return the current host thread identifier.
-fn current_thread_id() -> u32 {
-    unsafe { GetCurrentThreadId() }
-}
-
-/// Ensure the calling thread owns this window binding.
-fn ensure_window_thread(
-    binding: &Win32WindowBinding,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let current = current_thread_id();
-    // evaluate this condition
-    if current == binding.owner_thread_id {
-        return Ok(());
-    }
-
-    Err(core_platform::invalid_argument(
-        "window",
-        format!(
-            "{operation} must run on owner thread {}, current thread is {current}",
-            binding.owner_thread_id
-        ),
-    ))
 }
 
 /// Normalize one window logical-size payload.
@@ -659,58 +444,6 @@ fn show_command_on_open(visibility: WindowVisibility, focus_on_show: bool) -> i3
     }
 }
 
-/// Return whether one mode payload resolves to windowed.
-fn is_windowed_mode(mode: WindowModeOptions) -> bool {
-    matches!(mode, WindowModeOptions::WindowWindowedModeOptions(_))
-}
-
-/// Return whether one mode payload resolves to exclusive fullscreen.
-fn is_exclusive_mode(mode: WindowModeOptions) -> bool {
-    matches!(
-        mode,
-        WindowModeOptions::WindowExclusiveFullscreenModeOptions(_)
-    )
-}
-
-/// Resolve one mode payload to its optional preferred display handle.
-fn mode_display(mode: WindowModeOptions) -> Option<resource::DisplayHandle> {
-    // resolve this variant
-    match mode {
-        WindowModeOptions::WindowWindowedModeOptions(_) => None,
-        WindowModeOptions::WindowBorderlessModeOptions(options) => options.display,
-        WindowModeOptions::WindowExclusiveFullscreenModeOptions(options) => Some(options.display),
-    }
-}
-
-/// Resolve one mode payload to its optional preferred exclusive mode.
-fn mode_display_mode(mode: WindowModeOptions) -> Option<DisplayMode> {
-    // resolve this variant
-    match mode {
-        WindowModeOptions::WindowExclusiveFullscreenModeOptions(options) => options.display_mode,
-        _ => None,
-    }
-}
-
-/// Compare two mode payloads by semantic fields, excluding discriminator string handles.
-fn same_window_mode(left: WindowModeOptions, right: WindowModeOptions) -> bool {
-    // compare mode payload by semantic fields
-    match (left, right) {
-        (
-            WindowModeOptions::WindowWindowedModeOptions(_),
-            WindowModeOptions::WindowWindowedModeOptions(_),
-        ) => true,
-        (
-            WindowModeOptions::WindowBorderlessModeOptions(left),
-            WindowModeOptions::WindowBorderlessModeOptions(right),
-        ) => left.display == right.display,
-        (
-            WindowModeOptions::WindowExclusiveFullscreenModeOptions(left),
-            WindowModeOptions::WindowExclusiveFullscreenModeOptions(right),
-        ) => left.display == right.display && left.display_mode == right.display_mode,
-        _ => false,
-    }
-}
-
 /// Resolve visibility from one live hwnd state.
 fn visibility_from_hwnd(hwnd: HWND) -> WindowVisibility {
     // hidden windows are always hidden
@@ -729,6 +462,17 @@ fn visibility_from_hwnd(hwnd: HWND) -> WindowVisibility {
     }
 
     WindowVisibility::Visible
+}
+
+/// Resolve one occlusion value from one window visibility state.
+pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
+    // hidden and minimized windows are not visible to presentation
+    if visibility == WindowVisibility::Hidden || visibility == WindowVisibility::Minimized {
+        return WindowOcclusionState::Occluded;
+    }
+
+    // win32 backend does not yet expose one compositor-accurate occlusion signal for visible windows
+    WindowOcclusionState::Unknown
 }
 
 /// Build one Win32 style payload from one window binding snapshot.
@@ -951,28 +695,25 @@ fn refresh_window_snapshot(binding: &mut Win32WindowBinding) {
 
     // refresh cached position from outer rect
     if unsafe { GetWindowRect(binding.hwnd, &mut window_rect) } != 0 {
-        window_binding.position = WindowPosition {
+        binding.position = WindowPosition {
             x: window_rect.left,
             y: window_rect.top,
         };
     }
 
     // refresh cached physical size from client rect
-    if unsafe { GetClientRect(window_binding.hwnd, &mut client_rect) } != 0 {
+    if unsafe { GetClientRect(binding.hwnd, &mut client_rect) } != 0 {
         let width = (client_rect.right - client_rect.left).max(1) as u32;
         let height = (client_rect.bottom - client_rect.top).max(1) as u32;
-        window_binding.size_physical = WindowPhysicalSize { width, height };
+        binding.size_physical = WindowPhysicalSize { width, height };
     }
 
     // refresh derived state lanes
-    window_binding.scale_factor_milli = window_scale_factor_milli(binding.hwnd);
-    binding.size_logical = physical_to_logical(
-        window_binding.size_physical,
-        window_binding.scale_factor_milli,
-    );
-    window_binding.visibility = visibility_from_hwnd(binding.hwnd);
-    window_binding.focused = unsafe { GetForegroundWindow() } == binding.hwnd;
-    window_binding.theme = current_window_theme();
+    binding.scale_factor_milli = window_scale_factor_milli(binding.hwnd);
+    binding.size_logical = physical_to_logical(binding.size_physical, binding.scale_factor_milli);
+    binding.visibility = visibility_from_hwnd(binding.hwnd);
+    binding.focused = unsafe { GetForegroundWindow() } == binding.hwnd;
+    binding.theme = current_window_theme();
 }
 
 /// Return whether one sizing-edge code anchors width from the left side.
@@ -1026,12 +767,12 @@ fn apply_aspect_ratio_on_sizing(entry: &WindowRuntimeEntry, edge: WPARAM, rect_p
     let Some(binding) = entry.binding.upgrade() else {
         return;
     };
-    let window_binding = match binding.try_lock() {
+    let binding = match binding.try_lock() {
         Ok(binding) => binding,
         Err(std::sync::TryLockError::WouldBlock) => return,
         Err(std::sync::TryLockError::Poisoned(error)) => error.into_inner(),
     };
-    let Some(aspect_ratio) = window_binding.aspect_ratio else {
+    let Some(aspect_ratio) = binding.aspect_ratio else {
         return;
     };
 
@@ -1052,11 +793,11 @@ fn apply_aspect_ratio_on_sizing(entry: &WindowRuntimeEntry, edge: WPARAM, rect_p
         bottom: 0,
     };
     // evaluate this condition
-    if unsafe { GetWindowRect(window_binding.hwnd, &mut outer_rect) } == 0 {
+    if unsafe { GetWindowRect(binding.hwnd, &mut outer_rect) } == 0 {
         return;
     }
     // evaluate this condition
-    if unsafe { GetClientRect(window_binding.hwnd, &mut client_rect) } == 0 {
+    if unsafe { GetClientRect(binding.hwnd, &mut client_rect) } == 0 {
         return;
     }
 
@@ -1098,11 +839,9 @@ fn apply_aspect_ratio_on_sizing(entry: &WindowRuntimeEntry, edge: WPARAM, rect_p
         width: target_width as u32,
         height: target_height as u32,
     };
-    let target_logical =
-        physical_to_logical(target_physical, window_window_binding.scale_factor_milli);
-    let clamped_logical = clamp_logical_size(target_logical, window_binding.constraints);
-    let clamped_physical =
-        logical_to_physical(clamped_logical, window_window_binding.scale_factor_milli);
+    let target_logical = physical_to_logical(target_physical, binding.scale_factor_milli);
+    let clamped_logical = clamp_logical_size(target_logical, binding.constraints);
+    let clamped_physical = logical_to_physical(clamped_logical, binding.scale_factor_milli);
 
     let target_outer_width = (clamped_physical.width as i32)
         .saturating_add(frame_width)
@@ -1117,454 +856,6 @@ fn apply_aspect_ratio_on_sizing(entry: &WindowRuntimeEntry, edge: WPARAM, rect_p
 /// Resolve one class-name payload for Win32 window registration.
 fn window_class_name() -> Vec<u16> {
     core_platform::wide_with_nul("destack_display_win32")
-}
-
-/// Apply one window-message snapshot mutation and publish state deltas.
-fn apply_window_message_snapshot(
-    entry: &WindowRuntimeEntry,
-    message: u32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) {
-    let Some(binding) = entry.binding.upgrade() else {
-        return;
-    };
-
-    let mut window_binding = match binding.try_lock() {
-        Ok(binding) => binding,
-        Err(std::sync::TryLockError::WouldBlock) => return,
-        Err(std::sync::TryLockError::Poisoned(error)) => error.into_inner(),
-    };
-    let previous = window_binding.clone();
-    let mut monitor_topology_changed = false;
-
-    // evaluate this condition
-    if message == WM_MOVE {
-        window_binding.position = WindowPosition {
-            x: (lparam as u32 & 0xFFFF) as i16 as i32,
-            y: ((lparam as u32 >> 16) & 0xFFFF) as i16 as i32,
-        };
-    }
-
-    // evaluate this condition
-    if message == WM_SIZE {
-        let width = (lparam as usize & 0xFFFF) as u16 as u32;
-        let height = ((lparam as usize >> 16) & 0xFFFF) as u16 as u32;
-        // evaluate this condition
-        if width > 0 && height > 0 {
-            window_binding.size_physical = WindowPhysicalSize { width, height };
-            binding.size_logical = physical_to_logical(
-                window_binding.size_physical,
-                window_binding.scale_factor_milli,
-            );
-        }
-
-        // evaluate this condition
-        if wparam == SIZE_MINIMIZED as usize {
-            window_binding.visibility = WindowVisibility::Minimized;
-        } else if wparam == SIZE_MAXIMIZED as usize {
-            window_binding.visibility = WindowVisibility::Maximized;
-        } else if window_binding.visibility != WindowVisibility::Hidden {
-            window_binding.visibility = WindowVisibility::Visible;
-        }
-    }
-
-    // evaluate this condition
-    if message == WM_ACTIVATE {
-        let activation = (wparam & 0xFFFF) as u32;
-        window_binding.focused = activation != WA_INACTIVE;
-    }
-
-    // evaluate this condition
-    if message == WM_SETFOCUS {
-        window_binding.focused = true;
-    }
-
-    // evaluate this condition
-    if message == WM_KILLFOCUS {
-        window_binding.focused = false;
-    }
-
-    // evaluate this condition
-    if message == WM_SHOWWINDOW {
-        // evaluate this condition
-        if wparam == 0 {
-            window_binding.visibility = WindowVisibility::Hidden;
-        } else if window_binding.visibility == WindowVisibility::Hidden {
-            window_binding.visibility = WindowVisibility::Visible;
-        }
-    }
-
-    // evaluate this condition
-    if message == WM_DPICHANGED {
-        let dpi_x = (wparam & 0xFFFF) as u32;
-        // evaluate this condition
-        if dpi_x > 0 {
-            window_binding.scale_factor_milli = dpi_x.saturating_mul(1000).max(1) / 96;
-        }
-
-        // evaluate this condition
-        if lparam != 0 {
-            let recommended = unsafe { *(lparam as *const RECT) };
-            let status = unsafe {
-                SetWindowPos(
-                    window_binding.hwnd,
-                    0,
-                    recommended.left,
-                    recommended.top,
-                    (recommended.right - recommended.left).max(1),
-                    (recommended.bottom - recommended.top).max(1),
-                    SWP_NOACTIVATE | SWP_NOZORDER,
-                )
-            };
-            // evaluate this condition
-            if status == 0 {
-                let error_code = core_platform::last_error_code() as u32;
-                entry.window_runtime_state.diagnostics.warn(
-                    "display",
-                    "destack.display.window.wndproc",
-                    "WM_DPICHANGED SetWindowPos failed while applying recommended rectangle",
-                    Some(error_code),
-                );
-            }
-        }
-    }
-
-    // evaluate this condition
-    if message == WM_THEMECHANGED || message == WM_SETTINGCHANGE {
-        window_binding.theme = current_window_theme();
-    }
-
-    // evaluate this condition
-    if message == WM_DISPLAYCHANGE {
-        monitor_topology_changed = true;
-    }
-
-    // evaluate this condition
-    if message == WM_DESTROY {
-        window_window_binding.destroyed_emitted = true;
-        window_binding.visibility = WindowVisibility::Hidden;
-        window_binding.focused = false;
-    }
-
-    refresh_window_snapshot(&mut window_binding);
-    let next = window_binding.clone();
-    drop(window_binding);
-
-    // evaluate this condition
-    if monitor_topology_changed
-        && let Err(error) = event::publish_monitor_topology_deltas(&entry.event_runtime_state)
-    {
-        entry.window_runtime_state.diagnostics.warn(
-            "display",
-            "destack.display.window.messageDispatch.monitorTopology",
-            format!("failed to publish monitor topology deltas: {error}"),
-            None,
-        );
-    }
-
-    event::publish_state_deltas(&entry.event_runtime_state, entry.window, &previous, &next);
-}
-
-/// Drain pending window-thread messages and dispatch them through the registered wndproc.
-pub(in super::super) fn pump_window_messages(binding: &BindingCallContext) -> RuntimeResult<()> {
-    // drain pending thread messages while preserving host-managed quit lifecycle
-    binding.host().pump_pending_thread_messages(true)?;
-
-    Ok(())
-}
-
-/// Wndproc for display windows.
-unsafe extern "system" fn display_window_proc(
-    hwnd: HWND,
-    message: u32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
-    // apply live aspect ratio constraints during interactive sizing
-    if message == WM_SIZING
-        && let Some(entry) = runtime_window_entry(hwnd)
-    {
-        apply_aspect_ratio_on_sizing(&entry, wparam, lparam);
-        return 1;
-    }
-
-    // intercept close request and publish close requested once
-    if message == WM_CLOSE
-        && let Some(entry) = runtime_window_entry(hwnd)
-    {
-        let is_forced_close = wparam == core::WINDOW_CLOSE_FORCE_WPARAM;
-
-        // evaluate this condition
-        if let Some(binding) = entry.binding.upgrade() {
-            let mut window_binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-            // evaluate this condition
-            if !window_binding.close_requested_emitted {
-                window_binding.close_requested_emitted = true;
-                drop(window_binding);
-                event::publish_window_close_requested_event(
-                    &entry.event_runtime_state,
-                    entry.window,
-                );
-            }
-        }
-
-        // evaluate this condition
-        if is_forced_close {
-            let status = unsafe { DestroyWindow(hwnd) };
-            // evaluate this condition
-            if status != 0 {
-                return 0;
-            }
-
-            let error_code = core_platform::last_error_code() as u32;
-            entry.window_runtime_state.diagnostics.warn(
-                "display",
-                "destack.display.window.wndproc",
-                "forced close DestroyWindow failed, falling back to DefWindowProcW",
-                Some(error_code),
-            );
-            return unsafe { DefWindowProcW(hwnd, message, wparam, lparam) };
-        }
-
-        return 0;
-    }
-
-    // cleanup runtime entry and publish destroyed on teardown
-    if message == WM_DESTROY
-        && let Some(entry) = runtime_window_entry(hwnd)
-    {
-        let mut should_emit_destroyed = true;
-        // evaluate this condition
-        if let Some(binding) = entry.binding.upgrade() {
-            let mut window_binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-            unregister_window_drop_target(&mut window_binding);
-            should_emit_destroyed = !window_binding.destroyed_emitted;
-            window_window_binding.destroyed_emitted = true;
-        }
-
-        apply_window_message_snapshot(&entry, message, wparam, lparam);
-        // evaluate this condition
-        if should_emit_destroyed {
-            event::publish_window_destroyed_event(&entry.event_runtime_state, entry.window);
-        }
-        remove_cursor_policy(&entry.window_runtime_state, entry.window);
-        refresh_cursor_policy_best_effort(&entry.window_runtime_state);
-        unregister_runtime_window(hwnd);
-        return 0;
-    }
-
-    // apply stored cursor icon for this window during host cursor updates
-    if message == WM_SETCURSOR
-        && let Some(entry) = runtime_window_entry(hwnd)
-        && let Some(binding) = entry.binding.upgrade()
-    {
-        let window_binding = binding.lock().unwrap_or_else(|error| error.into_inner());
-        let cursor = unsafe { LoadCursorW(0, cursor_name(window_binding.cursor_icon)) };
-        // evaluate this condition
-        if cursor != 0 {
-            unsafe {
-                SetCursor(cursor);
-            }
-            return 1;
-        }
-    }
-
-    // mirror host message deltas into cached runtime state
-    if matches!(
-        message,
-        WM_MOVE
-            | WM_SIZE
-            | WM_SETFOCUS
-            | WM_KILLFOCUS
-            | WM_THEMECHANGED
-            | WM_SETTINGCHANGE
-            | WM_DPICHANGED
-            | WM_DISPLAYCHANGE
-            | WM_ACTIVATE
-            | WM_SHOWWINDOW
-            | WM_WINDOWPOSCHANGED
-    ) && let Some(entry) = runtime_window_entry(hwnd)
-    {
-        apply_window_message_snapshot(&entry, message, wparam, lparam);
-    }
-
-    unsafe { DefWindowProcW(hwnd, message, wparam, lparam) }
-}
-
-/// Ensure the display window class is registered.
-fn ensure_window_class_registered() -> RuntimeResult<()> {
-    // resolve process module instance for class registration
-    let instance = unsafe { GetModuleHandleW(std::ptr::null()) } as HINSTANCE;
-    // evaluate this condition
-    if instance == 0 {
-        return Err(core::io_error(
-            "destack.display.window.open",
-            "GetModuleHandleW",
-            "failed to resolve module handle",
-        ));
-    }
-
-    // build and register one window class
-    let class_name = window_class_name();
-    let class = WNDCLASSW {
-        style: 0,
-        lpfnWndProc: Some(display_window_proc),
-        cbClsExtra: 0,
-        cbWndExtra: 0,
-        hInstance: instance,
-        hIcon: 0,
-        hCursor: 0,
-        hbrBackground: 0,
-        lpszMenuName: std::ptr::null(),
-        lpszClassName: class_name.as_ptr(),
-    };
-
-    let atom = unsafe { RegisterClassW(&class) };
-    // tolerate duplicate class registration by name
-    if atom == 0 {
-        let code = core_platform::last_error_code() as u32;
-        // evaluate this condition
-        if code != ERROR_CLASS_ALREADY_EXISTS {
-            return Err(core::io_error_with_code(
-                "destack.display.window.open",
-                "RegisterClassW",
-                code,
-                "failed to register display window class",
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-/// Resolve one monitor handle to one display identifier for exclusive-fullscreen updates.
-fn mode_target_display(
-    mode: WindowModeOptions,
-    current_display: Option<resource::DisplayHandle>,
-) -> Option<resource::DisplayHandle> {
-    // evaluate this condition
-    if let Some(display) = mode_display(mode) {
-        return Some(display);
-    }
-
-    // evaluate this condition
-    if is_exclusive_mode(mode) {
-        return current_display;
-    }
-
-    current_display
-}
-
-/// Restore one captured exclusive-fullscreen display mode snapshot.
-fn restore_exclusive_mode(
-    binding: &BindingCallContext,
-    restore: &ExclusiveModeRestore,
-    operation: &'static str,
-    emit_events: bool,
-) -> RuntimeResult<()> {
-    monitor::apply_monitor_mode_by_id(&restore.display_id, restore.mode, operation)?;
-    // evaluate this condition
-    if emit_events {
-        event::publish_mode_changed_event(binding, &restore.display_id, restore.mode);
-        // evaluate this condition
-        if let Some(snapshot) = monitor::monitor_snapshot_by_id(&restore.display_id)? {
-            event::publish_descriptor_changed_event(
-                binding,
-                &snapshot.descriptor,
-                core::DISPLAY_CHANGED_MASK_BOUNDS
-                    | core::DISPLAY_CHANGED_MASK_WORKAREA
-                    | core::DISPLAY_CHANGED_MASK_SCALE
-                    | core::DISPLAY_CHANGED_MASK_ORIENTATION,
-            );
-        }
-    }
-
-    event::refresh_monitor_topology_cache(binding)?;
-    Ok(())
-}
-
-/// Apply one window-mode transition and associated exclusive-display state changes.
-fn apply_mode_options(
-    binding_2: &BindingCallContext,
-    binding: &mut Win32WindowBinding,
-    mode: WindowModeOptions,
-    operation: &'static str,
-    emit_monitor_events: bool,
-) -> RuntimeResult<()> {
-    let target_display = mode_target_display(mode, binding.display);
-    // evaluate this condition
-    if is_exclusive_mode(mode) {
-        let Some(display) = target_display else {
-            return Err(core_platform::invalid_argument(
-                "mode.display",
-                "exclusive fullscreen requires one display target",
-            ));
-        };
-
-        let display_id = display_resource::resolve_display_id(binding_2, display, operation)?;
-
-        // evaluate this condition
-        if let Some(restore) = binding.exclusive_restore.as_ref()
-            && restore.display_id != display_id
-        {
-            let restore = restore.clone();
-            restore_exclusive_mode(binding_2, &restore, operation, emit_monitor_events)?;
-            binding.exclusive_restore = None;
-        }
-
-        // evaluate this condition
-        if binding.exclusive_restore.is_none() {
-            let snapshot = monitor::monitor_snapshot_by_id(&display_id)?.ok_or_else(|| {
-                core_platform::io_not_found(
-                    operation,
-                    format!("display id '{display_id}' is no longer available"),
-                )
-            })?;
-
-            binding.exclusive_restore = Some(ExclusiveModeRestore {
-                display_id: display_id.clone(),
-                mode: snapshot.current_mode,
-            });
-        }
-
-        // evaluate this condition
-        if let Some(display_mode) = mode_display_mode(mode) {
-            monitor::apply_monitor_mode_by_id(&display_id, display_mode, operation)?;
-            // evaluate this condition
-            if emit_monitor_events {
-                event::publish_mode_changed_event(binding_2, &display_id, display_mode);
-                // evaluate this condition
-                if let Some(snapshot) = monitor::monitor_snapshot_by_id(&display_id)? {
-                    event::publish_descriptor_changed_event(
-                        binding_2,
-                        &snapshot.descriptor,
-                        core::DISPLAY_CHANGED_MASK_BOUNDS
-                            | core::DISPLAY_CHANGED_MASK_WORKAREA
-                            | core::DISPLAY_CHANGED_MASK_SCALE
-                            | core::DISPLAY_CHANGED_MASK_ORIENTATION,
-                    );
-                }
-            }
-        }
-    } else if let Some(restore) = binding.exclusive_restore.clone() {
-        restore_exclusive_mode(binding_2, &restore, operation, emit_monitor_events)?;
-        binding.exclusive_restore = None;
-    }
-
-    binding.mode = mode;
-    binding.display = target_display;
-    apply_window_style(binding, operation)?;
-
-    // evaluate this condition
-    if let Some(rectangle) =
-        monitor::mode_target_rect(binding_2, mode, binding.display, binding.hwnd, operation)?
-    {
-        apply_window_rect(binding, rectangle, operation)?;
-    }
-
-    event::refresh_monitor_topology_cache(binding_2)?;
-    Ok(())
 }
 
 /// Set one cursor visibility lane.
@@ -1628,15 +919,13 @@ fn restore_cursor_after_close(
 
 /// Resolve one referenced relationship window handle to one hwnd.
 fn resolve_relationship_hwnd(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window: resource::WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<HWND> {
-    let resolved_binding = display_resource::resolve_window_binding(binding, window, operation)?;
-    let resolved_binding = resolved_binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    Ok(resolved_binding.hwnd)
+    let binding = display_resource::resolve_window_binding(context, window, operation)?;
+    let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+    Ok(binding.hwnd)
 }
 
 /// Resolve the owner relationship for one window binding.
@@ -1646,12 +935,12 @@ fn owner_relationship(binding: &Win32WindowBinding) -> Option<resource::WindowHa
 
 /// Apply owner relationship style for one window.
 fn apply_owner_relationship(
-    binding_2: &BindingCallContext,
+    context: &BindingCallContext,
     binding: &Win32WindowBinding,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let owner_hwnd = if let Some(owner) = owner_relationship(binding) {
-        let owner_hwnd = resolve_relationship_hwnd(binding_2, owner, operation)?;
+        let owner_hwnd = resolve_relationship_hwnd(context, owner, operation)?;
         // evaluate this condition
         if owner_hwnd == binding.hwnd {
             return Err(core_platform::invalid_argument(
@@ -1697,12 +986,12 @@ fn apply_owner_relationship(
 
 /// Set one owner-window enabled state.
 fn set_owner_enabled(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     owner: resource::WindowHandle,
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let owner_hwnd = resolve_relationship_hwnd(binding, owner, operation)?;
+    let owner_hwnd = resolve_relationship_hwnd(context, owner, operation)?;
     let enabled = if enabled { 1 } else { 0 };
 
     unsafe {
@@ -1728,7 +1017,7 @@ fn set_owner_enabled(
 
 /// Apply one modal-owner state transition for one window.
 fn apply_modal_owner_transition(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     previous_owner: Option<resource::WindowHandle>,
     previous_modal: bool,
     next_owner: Option<resource::WindowHandle>,
@@ -1748,27 +1037,34 @@ fn apply_modal_owner_transition(
         && let Some(owner) = previous_owner
         && (!next_modal || Some(owner) != next_owner)
     {
-        set_owner_enabled(binding, owner, true, operation)?;
+        set_owner_enabled(context, owner, true, operation)?;
     }
 
     // evaluate this condition
     if next_modal && let Some(owner) = next_owner {
-        set_owner_enabled(binding, owner, false, operation)?;
+        set_owner_enabled(context, owner, false, operation)?;
     }
 
     Ok(())
 }
 
 /// Re-enable one modal owner as part of window close cleanup.
-fn restore_modal_owner_on_close(binding_2: &BindingCallContext, binding: &Win32WindowBinding) {
+fn restore_modal_owner_on_close(context: &BindingCallContext, binding: &Win32WindowBinding) {
     // evaluate this condition
     if !binding.modal {
         return;
     }
 
     // evaluate this condition
-    if let Some(owner) = owner_relationship(binding) {
-        let _ = set_owner_enabled(binding_2, owner, true, "destack.display.window.close");
+    if let Some(owner) = owner_relationship(binding)
+        && let Err(error) = set_owner_enabled(context, owner, true, "destack.display.window.close")
+    {
+        window_runtime_state(context).diagnostics.warn(
+            "display",
+            "destack.display.window.close",
+            format!("failed to restore modal owner after close: {error}"),
+            None,
+        );
     }
 }
 

@@ -200,7 +200,7 @@ fn test_display_backend_capabilities_match_win32_implementation() {
             0
         );
         assert_ne!(win32_capability_flags & DISPLAY_CAP_WINDOW_DROP_EVENTS, 0);
-        assert_eq!(win32_capability_flags & DISPLAY_CAP_OCCLUSION, 0);
+        assert_ne!(win32_capability_flags & DISPLAY_CAP_OCCLUSION, 0);
 
         Ok(())
     });

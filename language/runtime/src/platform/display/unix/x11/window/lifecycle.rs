@@ -9,8 +9,8 @@ use x11rb::wrapper::ConnectionExt as X11WrapperConnectionExt;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowModeOptions, WindowOptions,
-    WindowPhysicalSize, WindowPosition, WindowTheme, WindowVisibility,
+    WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowModeOptions,
+    WindowOptions, WindowPhysicalSize, WindowPosition, WindowRole, WindowTheme, WindowVisibility,
 };
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
@@ -19,9 +19,36 @@ use super::super::super::model::{ExclusiveModeRestore, X11WindowBinding};
 use super::super::super::{core, event, monitor, resource as display_resource};
 use super::{cursor, geometry};
 
+/// Resolve role-specific open defaults for one window open request.
+fn resolve_role_open_defaults(
+    role: WindowRole,
+    chrome: WindowChromeKind,
+    decorated: bool,
+    taskbar_visible: bool,
+    always_on_top: bool,
+) -> (WindowChromeKind, bool, bool, bool) {
+    // keep explicit caller values for top-level windows
+    if role == WindowRole::Toplevel {
+        return (chrome, decorated, taskbar_visible, always_on_top);
+    }
+
+    // popup role defaults to popup chrome and hidden taskbar presence
+    if role == WindowRole::Popup {
+        let resolved_chrome = if chrome == WindowChromeKind::Standard {
+            WindowChromeKind::Popup
+        } else {
+            chrome
+        };
+        return (resolved_chrome, decorated, false, always_on_top);
+    }
+
+    // overlay role defaults to popup chrome, undecorated, topmost, and hidden taskbar presence
+    (WindowChromeKind::Popup, false, false, true)
+}
+
 /// Apply one exclusive fullscreen monitor mode request and return restore metadata.
 pub(super) fn apply_exclusive_mode(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     runtime_state: &Arc<core::X11RuntimeState>,
     mode: WindowModeOptions,
     operation: &'static str,
@@ -35,8 +62,8 @@ pub(super) fn apply_exclusive_mode(
     };
 
     // resolve one stable display id and current monitor mode
-    let display_id = display_resource::resolve_display_id(binding, display, operation)?;
-    let Some(snapshot) = monitor::monitor_snapshot_by_display_id(binding, &display_id)? else {
+    let display_id = display_resource::resolve_display_id(context, display, operation)?;
+    let Some(snapshot) = monitor::monitor_snapshot_by_display_id(context, &display_id)? else {
         return Err(core_platform::io_not_found(
             operation,
             format!("display id '{display_id}' is no longer available"),
@@ -50,8 +77,8 @@ pub(super) fn apply_exclusive_mode(
 
     // apply one mode transition and publish monitor mode change
     let current_mode =
-        monitor::apply_monitor_mode_by_display_id(binding, &display_id, requested_mode, operation)?;
-    let current_snapshot = monitor::monitor_snapshot_by_display_id(binding, &display_id)?;
+        monitor::apply_monitor_mode_by_display_id(context, &display_id, requested_mode, operation)?;
+    let current_snapshot = monitor::monitor_snapshot_by_display_id(context, &display_id)?;
     event::publish_monitor_mode_changed(
         runtime_state,
         &display_id,
@@ -68,7 +95,7 @@ pub(super) fn apply_exclusive_mode(
             current_snapshot.descriptor,
         );
     }
-    event::refresh_monitor_topology_cache(binding)?;
+    event::refresh_monitor_topology_cache(context)?;
 
     Ok(Some(ExclusiveModeRestore {
         display_id,
@@ -78,13 +105,13 @@ pub(super) fn apply_exclusive_mode(
 
 /// Restore one monitor mode captured by one exclusive fullscreen transition.
 pub(super) fn restore_exclusive_mode(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     runtime_state: &Arc<core::X11RuntimeState>,
     restore: &ExclusiveModeRestore,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // capture previous mode when display is still available
-    let previous_snapshot = monitor::monitor_snapshot_by_display_id(binding, &restore.display_id)?;
+    let previous_snapshot = monitor::monitor_snapshot_by_display_id(context, &restore.display_id)?;
     let previous_mode = previous_snapshot
         .as_ref()
         .map(|snapshot| snapshot.current_mode);
@@ -92,12 +119,12 @@ pub(super) fn restore_exclusive_mode(
 
     // apply one restore transition and publish monitor mode delta
     let current_mode = monitor::apply_monitor_mode_by_display_id(
-        binding,
+        context,
         &restore.display_id,
         restore.previous_mode,
         operation,
     )?;
-    let current_snapshot = monitor::monitor_snapshot_by_display_id(binding, &restore.display_id)?;
+    let current_snapshot = monitor::monitor_snapshot_by_display_id(context, &restore.display_id)?;
     // evaluate this condition
     if previous_mode == Some(current_mode) {
         return Ok(());
@@ -119,19 +146,28 @@ pub(super) fn restore_exclusive_mode(
             current_snapshot.descriptor,
         );
     }
-    event::refresh_monitor_topology_cache(binding)?;
+    event::refresh_monitor_topology_cache(context)?;
 
     Ok(())
 }
 
 /// Create one x11 window and register it in runtime resources.
 pub(crate) unsafe fn window_open(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeResult<()> {
     // validate out pointer and logical size
     core_platform::ensure_out(out, "out")?;
+    let (resolved_chrome, resolved_decorated, resolved_taskbar_visible, resolved_always_on_top) =
+        resolve_role_open_defaults(
+            options.role,
+            options.chrome,
+            options.decorated,
+            options.taskbar_visible,
+            options.always_on_top,
+        );
+
     let title = unsafe { options.title.as_str()? };
     // evaluate this condition
     if options.size_logical.width <= 0.0 || options.size_logical.height <= 0.0 {
@@ -148,6 +184,18 @@ pub(crate) unsafe fn window_open(
             "window opacity must be between 0.0 and 1.0",
         ));
     }
+
+    // popup windows require one owner relationship
+    if options.role == WindowRole::Popup
+        && options.transient_for.is_none()
+        && options.parent.is_none()
+    {
+        return Err(core_platform::invalid_argument(
+            "role",
+            "popup windows require transientFor or parent to be set",
+        ));
+    }
+
     // evaluate this condition
     if options.modal == Some(true) && options.transient_for.is_none() && options.parent.is_none() {
         return Err(core_platform::invalid_argument(
@@ -167,7 +215,7 @@ pub(crate) unsafe fn window_open(
     geometry::validate_size_constraints(options.constraints, "destack.display.window.open")?;
 
     // resolve runtime and connection state
-    let runtime_state = core::runtime_state(binding);
+    let runtime_state = core::runtime_state(context);
     let connection_state = core::connection_state(&runtime_state, "destack.display.window.open")?;
     let connection = &connection_state.connection;
     let screen = connection
@@ -181,13 +229,13 @@ pub(crate) unsafe fn window_open(
     let preferred_display = mode_display.or(options.display);
     // evaluate this condition
     if let Some(display) = preferred_display {
-        display_resource::resolve_display_id(binding, display, "destack.display.window.open")?;
+        display_resource::resolve_display_id(context, display, "destack.display.window.open")?;
     }
 
     // resolve optional transient relationship to one x11 window id
     let transient_for_window = if let Some(transient_handle) = options.transient_for {
         let transient_binding = display_resource::resolve_window_binding(
-            binding,
+            context,
             transient_handle,
             "destack.display.window.open",
         )?;
@@ -198,7 +246,7 @@ pub(crate) unsafe fn window_open(
         Some(transient_binding.window)
     } else if let Some(parent_handle) = options.parent {
         let parent_binding = display_resource::resolve_window_binding(
-            binding,
+            context,
             parent_handle,
             "destack.display.window.open",
         )?;
@@ -290,13 +338,13 @@ pub(crate) unsafe fn window_open(
     super::apply_window_decorated(
         connection_state.as_ref(),
         window,
-        options.decorated,
+        resolved_decorated,
         "destack.display.window.open",
     )?;
     super::apply_window_chrome(
         connection_state.as_ref(),
         window,
-        options.chrome,
+        resolved_chrome,
         "destack.display.window.open",
     )?;
     super::apply_window_size_hints(
@@ -318,7 +366,7 @@ pub(crate) unsafe fn window_open(
         "destack.display.window.open",
     )?;
     // evaluate this condition
-    if !options.taskbar_visible {
+    if !resolved_taskbar_visible {
         super::set_net_wm_state(
             connection_state.as_ref(),
             window,
@@ -327,7 +375,7 @@ pub(crate) unsafe fn window_open(
         )?;
     }
     // evaluate this condition
-    if options.always_on_top {
+    if resolved_always_on_top {
         super::set_net_wm_state(
             connection_state.as_ref(),
             window,
@@ -368,10 +416,8 @@ pub(crate) unsafe fn window_open(
             })?;
     }
 
-    // apply initial visibility and focus behavior
-    if options.visibility != WindowVisibility::Hidden
-        && options.visibility != WindowVisibility::Minimized
-    {
+    // map all non-hidden windows so wm-managed minimize can be requested
+    if options.visibility != WindowVisibility::Hidden {
         connection.map_window(window).map_err(|error| {
             core::io_error(
                 "destack.display.window.open",
@@ -379,6 +425,16 @@ pub(crate) unsafe fn window_open(
             )
         })?;
     }
+
+    // request initial minimize through one wm change-state client message
+    if options.visibility == WindowVisibility::Minimized {
+        super::request_window_minimize(
+            connection_state.as_ref(),
+            window,
+            "destack.display.window.open",
+        )?;
+    }
+
     // evaluate this condition
     if options.focus_on_show
         && options.visibility != WindowVisibility::Hidden
@@ -400,7 +456,7 @@ pub(crate) unsafe fn window_open(
         )
     })?;
     let exclusive_restore = match apply_exclusive_mode(
-        binding,
+        context,
         &runtime_state,
         options.mode,
         "destack.display.window.open",
@@ -411,7 +467,7 @@ pub(crate) unsafe fn window_open(
             if let Ok(cookie) = connection.destroy_window(window) {
                 // evaluate this condition
                 if let Err(cleanup_error) = cookie.check() {
-                    binding.warn(
+                    context.warn(
                         "display",
                         "destack.display.window.open",
                         format!(
@@ -423,7 +479,7 @@ pub(crate) unsafe fn window_open(
             }
             // evaluate this condition
             if let Err(cleanup_error) = connection.flush() {
-                binding.warn(
+                context.warn(
                     "display",
                     "destack.display.window.open",
                     format!("flush cleanup failed after mode apply error: {cleanup_error}"),
@@ -434,7 +490,7 @@ pub(crate) unsafe fn window_open(
         }
     };
 
-    // build runtime resolved_binding payload for this window
+    // build runtime binding payload for this window
     let size_logical = WindowLogicalSize {
         width: width as f64,
         height: height as f64,
@@ -447,22 +503,23 @@ pub(crate) unsafe fn window_open(
         x: i32::from(x),
         y: i32::from(y),
     };
-    let resolved_binding = Arc::new(Mutex::new(X11WindowBinding {
-        id: format!("x11-window-{window}"),
+    let binding = Arc::new(Mutex::new(X11WindowBinding {
+        id: format!("{}-window-{window}", core::selected_backend_name()),
         window,
         cursor_handle: None,
         owner_thread_id: std::thread::current().id(),
         title: title.to_string(),
+        role: options.role,
         mode: options.mode,
         exclusive_restore,
         display: preferred_display,
         resizable: options.resizable,
-        decorated: options.decorated,
-        chrome: options.chrome,
-        taskbar_visible: options.taskbar_visible,
+        decorated: resolved_decorated,
+        chrome: resolved_chrome,
+        taskbar_visible: resolved_taskbar_visible,
         transparent: options.transparent,
         opacity,
-        always_on_top: options.always_on_top,
+        always_on_top: resolved_always_on_top,
         parent: options.parent,
         transient_for: options.transient_for,
         modal: options.modal.unwrap_or(false),
@@ -495,12 +552,12 @@ pub(crate) unsafe fn window_open(
     }));
 
     // insert resource entry and publish created event
-    let resource_id = binding.agent().resources.insert(
+    let resource_id = context.runtime().resources.insert(
         display_resource::window_resource_entry(
             Arc::clone(&connection_state),
-            Arc::clone(&resolved_binding),
+            Arc::clone(&binding),
         ),
-        Some(binding.engine()),
+        Some(context.engine()),
     );
     let handle = resource::WindowHandle(resource_id);
     event::register_xid(&runtime_state, window, handle);
@@ -515,22 +572,20 @@ pub(crate) unsafe fn window_open(
 
 /// Close one window.
 pub(crate) unsafe fn window_close(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     window_handle: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve runtime and resolved_binding lanes
-    let runtime_state = core::runtime_state(binding);
-    let resolved_binding = display_resource::resolve_window_binding(
-        binding,
+    // resolve runtime and binding lanes
+    let runtime_state = core::runtime_state(context);
+    let binding = display_resource::resolve_window_binding(
+        context,
         window_handle,
         "destack.display.window.close",
     )?;
     let mut binding_snapshot = {
-        let resolved_binding = resolved_binding
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        super::ensure_window_thread(&resolved_binding, "destack.display.window.close")?;
-        resolved_binding.clone()
+        let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+        super::ensure_window_thread(&binding, "destack.display.window.close")?;
+        binding.clone()
     };
 
     // request host window destruction and flush
@@ -543,7 +598,7 @@ pub(crate) unsafe fn window_close(
     // evaluate this condition
     if let Some(restore) = binding_snapshot.exclusive_restore.clone() {
         restore_exclusive_mode(
-            binding,
+            context,
             &runtime_state,
             &restore,
             "destack.display.window.close",
@@ -577,10 +632,10 @@ pub(crate) unsafe fn window_close(
 
     // remove mapping and resource entry
     event::unregister_xid(&runtime_state, binding_snapshot.window);
-    let removed = binding
-        .agent()
+    let removed = context
+        .runtime()
         .resources
-        .remove(window_handle.0, Some(binding.engine()))
+        .remove(window_handle.0, Some(context.engine()))
         .is_some();
     // evaluate this condition
     if !removed {

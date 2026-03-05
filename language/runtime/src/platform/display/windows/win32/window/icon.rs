@@ -6,7 +6,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::platform::display::{WindowIconPixelFormat, WindowIconSet};
 
-use super::{WINDOW_ICON_BITS_PER_PIXEL, WINDOW_ICON_COLOR_PLANES, core, dimension_to_i32};
+use super::constants::{WINDOW_ICON_BITS_PER_PIXEL, WINDOW_ICON_COLOR_PLANES};
+use super::{core, dimension_to_i32};
 
 /// Decoded icon-image payload normalized to BGRA8 bytes.
 #[derive(Debug, Clone)]

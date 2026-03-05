@@ -68,6 +68,7 @@ pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCap
             | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
             | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
             | display_platform::DISPLAY_BACKEND_CAP_THEME.0
+            | display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_FOCUS.0
@@ -79,7 +80,9 @@ pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCap
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0
-            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY.0,
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP.0
+            | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY.0,
     )
 }
 

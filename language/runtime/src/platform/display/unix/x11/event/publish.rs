@@ -7,6 +7,16 @@ use crate::runtime::BindingCallContext;
 use super::super::super::monitor;
 use super::*;
 
+/// Resolve one occlusion state from one visibility value.
+fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
+    // hidden and minimized windows are treated as occluded
+    if visibility == WindowVisibility::Hidden || visibility == WindowVisibility::Minimized {
+        return WindowOcclusionState::Occluded;
+    }
+
+    WindowOcclusionState::Unknown
+}
+
 /// Publish one monitor mode-changed event for one display.
 pub(in super::super::super) fn publish_monitor_mode_changed(
     runtime_state: &Arc<core::X11RuntimeState>,
@@ -105,6 +115,9 @@ pub(in super::super::super) fn publish_window_visibility_changed(
     previous_visibility: WindowVisibility,
     current_visibility: WindowVisibility,
 ) {
+    let previous_occlusion = occlusion_from_visibility(previous_visibility);
+    let current_occlusion = occlusion_from_visibility(current_visibility);
+
     publish_window_event(
         runtime_state,
         window_event_record(WindowEventRecordKind::VisibilityChanged {
@@ -113,6 +126,18 @@ pub(in super::super::super) fn publish_window_visibility_changed(
             current_visibility,
         }),
     );
+
+    // publish one occlusion transition when visibility implies one state change
+    if previous_occlusion != current_occlusion {
+        publish_window_event(
+            runtime_state,
+            window_event_record(WindowEventRecordKind::OcclusionChanged {
+                window,
+                previous_occlusion,
+                current_occlusion,
+            }),
+        );
+    }
 }
 
 /// Publish one position-changed window event.

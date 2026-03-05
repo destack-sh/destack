@@ -366,6 +366,23 @@ pub(super) fn window_event_from_record(
                 current_visibility,
             },
         }),
+        WindowEventRecordKind::OcclusionChanged {
+            window,
+            previous_occlusion,
+            current_occlusion,
+        } => WindowEvent::WindowOcclusionChangedEvent(WindowOcclusionChangedEvent {
+            kind: context.store_string("occlusionChanged"),
+            metadata: window_event_metadata(
+                window,
+                value.timestamp_ns,
+                value.sequence,
+                value.dropped_count,
+            ),
+            payload: WindowOcclusionPayload {
+                previous_occlusion,
+                current_occlusion,
+            },
+        }),
         WindowEventRecordKind::PositionChanged {
             window,
             previous_position,

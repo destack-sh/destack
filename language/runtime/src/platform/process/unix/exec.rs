@@ -159,7 +159,7 @@ pub(crate) unsafe fn destack_process_execat(
         let (environment_values, environment_pointers) = build_exec_environment(&environment)?;
 
         let _keep_alive = (argument_values, environment_values);
-        #[cfg(target_os = "android")]
+        // use the raw syscall lane to avoid toolchain libc symbol availability mismatches
         let result = unsafe {
             libc::syscall(
                 libc::SYS_execveat,
@@ -169,16 +169,6 @@ pub(crate) unsafe fn destack_process_execat(
                 environment_pointers.as_ptr() as *const *mut libc::c_char,
                 flags.0 as libc::c_int,
             ) as libc::c_int
-        };
-        #[cfg(not(target_os = "android"))]
-        let result = unsafe {
-            libc::execveat(
-                directory_fd,
-                path.as_ptr(),
-                argument_pointers.as_ptr() as *const *mut libc::c_char,
-                environment_pointers.as_ptr() as *const *mut libc::c_char,
-                flags.0 as libc::c_int,
-            )
         };
         if result != 0 {
             return Err(core_process::process_last_error(

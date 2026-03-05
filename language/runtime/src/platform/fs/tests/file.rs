@@ -230,7 +230,7 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
 
         // linux hosts may accept the flags or reject by kernel policy or support level
         if let Err(error) = preadv2_result {
-            assert_platform_error_codes_with_privileged_policy(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
                 &[
                     PlatformErrorCode::NotSupported,
@@ -242,7 +242,7 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
             )?;
         }
         if let Err(error) = pwritev2_result {
-            assert_platform_error_codes_with_privileged_policy(
+            assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
                 &[
                     PlatformErrorCode::NotSupported,

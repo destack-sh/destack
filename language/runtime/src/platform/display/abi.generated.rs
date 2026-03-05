@@ -700,6 +700,41 @@ impl VmValueCodec for WindowResizeEdge {
     }
 }
 
+/// ABI enum for WindowRole.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WindowRole {
+    /// Toplevel.
+    Toplevel = 1,
+    /// Popup.
+    Popup = 2,
+    /// Overlay.
+    Overlay = 3,
+}
+
+impl VmValueCodec for WindowRole {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Toplevel,
+            2u8 => Self::Popup,
+            3u8 => Self::Overlay,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowRole value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for WindowTheme.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -3998,6 +4033,8 @@ pub struct WindowDescriptorAbi<A: BindingAbi> {
     pub id: A::String,
     /// Current host-visible title.
     pub title: A::String,
+    /// Current host window role.
+    pub role: WindowRole,
     /// Current mode configuration.
     pub mode: platform_display::WindowModeOptionsAbi<A>,
     /// Current display association.
@@ -4067,10 +4104,10 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 17 {
+        if slots.len() != 18 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 17 fields",
+                "expected 18 fields",
             ))
             .boxed());
         }
@@ -4080,41 +4117,44 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_title =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_role = <WindowRole as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_mode =
-            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_display =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
+                context, slots[5],
             )?;
-        let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_chrome =
-            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_taskbar_visible =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_transparent = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_opacity = <f64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_transparent =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_opacity = <f64 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
         let field_always_on_top =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_parent =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[12],
-            )?;
-        let field_transient_for =
             <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[13],
             )?;
-        let field_modal = <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_transient_for =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[14],
+            )?;
+        let field_modal = <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
         let field_mouse_passthrough =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
         let field_aspect_ratio =
             <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[16],
+                context, slots[17],
             )?;
         Ok(Self {
             backend: field_backend,
             id: field_id,
             title: field_title,
+            role: field_role,
             mode: field_mode,
             display: field_display,
             resizable: field_resizable,
@@ -4140,6 +4180,7 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
             <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?,
             <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
                 self.display,
@@ -6680,6 +6721,8 @@ pub struct WindowOptionsAbi<A: BindingAbi> {
     pub backend_policy: DisplayBackendSelectionPolicy,
     /// Initial window title string.
     pub title: A::String,
+    /// Requested host window role.
+    pub role: WindowRole,
     /// Initial logical size.
     pub size_logical: WindowLogicalSize,
     /// Initial window position when explicitly requested.
@@ -6762,10 +6805,10 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 22 {
+        if slots.len() != 23 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 22 fields",
+                "expected 23 fields",
             ))
             .boxed());
         }
@@ -6777,56 +6820,58 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
             )?;
         let field_title =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_role = <WindowRole as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_size_logical =
-            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_position =
-            <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_constraints =
             <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[5],
+                context, slots[6],
             )?;
         let field_display =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[6],
+                context, slots[7],
             )?;
         let field_mode =
-            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
         let field_transparent =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_chrome =
-            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[13])?;
         let field_taskbar_visible =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
         let field_opacity =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[15])?;
         let field_focus_on_show =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_always_on_top =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_always_on_top =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
         let field_parent =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[17],
-            )?;
-        let field_transient_for =
             <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[18],
             )?;
+        let field_transient_for =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[19],
+            )?;
         let field_modal =
-            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[19])?;
-        let field_mouse_passthrough =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_mouse_passthrough =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[21])?;
         let field_aspect_ratio =
             <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[21],
+                context, slots[22],
             )?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
             title: field_title,
+            role: field_role,
             size_logical: field_size_logical,
             position: field_position,
             constraints: field_constraints,
@@ -6860,6 +6905,7 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
                 context,
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
             <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
                 self.size_logical,
                 context,
@@ -8007,6 +8053,8 @@ impl VmAggregateCodec for WindowSizePayload {
 pub struct WindowState {
     /// Resolved backend that owns this window.
     pub backend: DisplayBackend,
+    /// Current host window role.
+    pub role: WindowRole,
     /// Current desktop position.
     pub position: WindowPosition,
     /// Current logical size.
@@ -8064,62 +8112,64 @@ impl VmAggregateCodec for WindowState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 20 {
+        if slots.len() != 21 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 20 fields",
+                "expected 21 fields",
             ))
             .boxed());
         }
         let field_backend =
             <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_role = <WindowRole as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_position =
-            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_size_logical =
-            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_size_physical =
-            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_scale_factor_milli =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_display =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[6],
+                context, slots[7],
             )?;
-        let field_focused = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_focused = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_occlusion =
-            <WindowOcclusionState as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <WindowOcclusionState as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         let field_safe_area_insets =
             <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[9],
+                context, slots[10],
             )?;
         let field_theme =
-            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[11])?;
         let field_chrome =
-            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_taskbar_visible =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_opacity = <f64 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_opacity = <f64 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
         let field_always_on_top =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
         let field_parent =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[15],
-            )?;
-        let field_transient_for =
             <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[16],
             )?;
-        let field_modal = <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_transient_for =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[17],
+            )?;
+        let field_modal = <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
         let field_mouse_passthrough =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[19])?;
         let field_aspect_ratio =
             <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[19],
+                context, slots[20],
             )?;
         Ok(Self {
             backend: field_backend,
+            role: field_role,
             position: field_position,
             size_logical: field_size_logical,
             size_physical: field_size_physical,
@@ -8148,6 +8198,7 @@ impl VmAggregateCodec for WindowState {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
+            <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
             <WindowPositionVm as VmAggregateCodec>::encode_with_context(self.position, context)?,
             <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
                 self.size_logical,
@@ -9209,6 +9260,8 @@ pub struct WindowDescriptorReplayRecord {
     pub id: String,
     /// Current host-visible title.
     pub title: String,
+    /// Current host window role.
+    pub role: WindowRole,
     /// Current mode configuration.
     pub mode: WindowModeOptionsReplayRecord,
     /// Current display association.
@@ -9471,6 +9524,8 @@ pub struct WindowOptionsReplayRecord {
     pub backend_policy: DisplayBackendSelectionPolicy,
     /// Initial window title string.
     pub title: String,
+    /// Requested host window role.
+    pub role: WindowRole,
     /// Initial logical size.
     pub size_logical: WindowLogicalSize,
     /// Initial window position when explicitly requested.
@@ -9860,6 +9915,14 @@ pub const DISPLAY_BACKEND_CAP_WINDOW_PARENTING: DisplayBackendCapabilityFlags =
 /// Backend capability flag bit for explicit raise and stack-order requests.
 pub const DISPLAY_BACKEND_CAP_WINDOW_RAISE: DisplayBackendCapabilityFlags =
     DisplayBackendCapabilityFlags(134217728u64);
+
+/// Backend capability flag bit for overlay window role support.
+pub const DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(137438953472u64);
+
+/// Backend capability flag bit for popup window role support.
+pub const DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(68719476736u64);
 
 /// Backend capability flag bit for point-in-time window state and descriptor reads.
 pub const DISPLAY_BACKEND_CAP_WINDOW_STATE: DisplayBackendCapabilityFlags =

@@ -10,13 +10,14 @@ use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::display::{
-    DisplayAddedPayload, DisplayColorState, DisplayDescriptor, DisplayDescriptorChangedPayload,
-    DisplayGammaRamp, DisplayHdrMode, DisplayMode, DisplayModeChangedPayload, DisplayMonitorEvent,
-    DisplayMonitorEventOpenOptions, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
-    DisplayOrientation, DisplayPrimaryPayload, DisplayRemovedPayload, WindowAspectRatio,
-    WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowDescriptor,
-    WindowDisplayPayload, WindowEvent, WindowEventOpenOptions, WindowFocusPayload, WindowIconSet,
-    WindowLogicalSize, WindowModeOptions, WindowModePayload, WindowOcclusionPayload, WindowOptions,
+    DisplayAddedPayload, DisplayBackendCapabilityFlags, DisplayColorState, DisplayDescriptor,
+    DisplayDescriptorChangedPayload, DisplayGammaRamp, DisplayHdrMode, DisplayMode,
+    DisplayModeChangedPayload, DisplayMonitorEvent, DisplayMonitorEventOpenOptions,
+    DisplayMonitorListRequest, DisplayMonitorOpenOptions, DisplayOrientation,
+    DisplayPrimaryPayload, DisplayRemovedPayload, WindowAspectRatio, WindowAttentionLevel,
+    WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowDisplayPayload,
+    WindowEvent, WindowEventOpenOptions, WindowFocusPayload, WindowIconSet, WindowLogicalSize,
+    WindowModeOptions, WindowModePayload, WindowOcclusionPayload, WindowOptions,
     WindowPhysicalSize, WindowPosition, WindowPositionPayload, WindowResizeEdge,
     WindowScaleFactorPayload, WindowSizeConstraints, WindowSizePayload, WindowState, WindowTheme,
     WindowThemePayload, WindowVisibility, WindowVisibilityPayload,
@@ -667,6 +668,23 @@ pub(crate) unsafe fn destack_display_window_descriptor(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.descriptor",
+    ))
+    .boxed())
+}
+
+/// Read one capability mask for one opened window backend.
+pub(crate) unsafe fn destack_display_window_capabilities(
+    context: &BindingCallContext,
+    out: *mut DisplayBackendCapabilityFlags,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out, window);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.capabilities",
     ))
     .boxed())
 }

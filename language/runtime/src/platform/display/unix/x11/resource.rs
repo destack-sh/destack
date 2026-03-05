@@ -65,6 +65,17 @@ pub(super) fn resolve_display_id(
     Ok(resolved_binding.id)
 }
 
+/// Validate that one display handle resolves to one x11 display binding.
+pub(crate) fn ensure_display_binding_exists(
+    context: &BindingCallContext,
+    handle: resource::DisplayHandle,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    resolve_display_id(context, handle, operation)?;
+
+    Ok(())
+}
+
 /// Resolve one window binding payload from one opened window handle.
 pub(super) fn resolve_window_binding(
     binding: &BindingCallContext,
@@ -78,6 +89,17 @@ pub(super) fn resolve_window_binding(
         Some(core::WINDOW_RESOURCE_LABEL),
     )
     .ok_or_else(|| core::window_not_found(operation, window))
+}
+
+/// Validate that one window handle resolves to one x11 window binding.
+pub(crate) fn ensure_window_binding_exists(
+    context: &BindingCallContext,
+    window: resource::WindowHandle,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    resolve_window_binding(context, window, operation)?;
+
+    Ok(())
 }
 
 /// Resolve one monitor-event binding payload from one opened monitor-event handle.
@@ -100,6 +122,17 @@ pub(super) fn resolve_monitor_event_binding(
     })
 }
 
+/// Validate that one monitor-event handle resolves to one x11 event binding.
+pub(crate) fn ensure_monitor_event_binding_exists(
+    context: &BindingCallContext,
+    handle: resource::DisplayEventHandle,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    resolve_monitor_event_binding(context, handle, operation)?;
+
+    Ok(())
+}
+
 /// Resolve one window-event binding payload from one opened window-event handle.
 pub(super) fn resolve_window_event_binding(
     binding: &BindingCallContext,
@@ -118,6 +151,17 @@ pub(super) fn resolve_window_event_binding(
             format!("window event handle {} was not found", handle.0.0),
         )
     })
+}
+
+/// Validate that one window-event handle resolves to one x11 event binding.
+pub(crate) fn ensure_window_event_binding_exists(
+    context: &BindingCallContext,
+    handle: resource::WindowEventHandle,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    resolve_window_event_binding(context, handle, operation)?;
+
+    Ok(())
 }
 
 /// Build one resource entry for one opened x11 window binding.

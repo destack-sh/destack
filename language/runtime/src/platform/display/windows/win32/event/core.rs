@@ -21,7 +21,8 @@ use crate::platform::display::{
     WindowFileHoverLeftEvent, WindowFileHoveredEvent, WindowFocusChangedEvent, WindowFocusPayload,
     WindowLogicalSize, WindowModalChangedEvent, WindowModalPayload, WindowModeChangedEvent,
     WindowModeOptions, WindowModePayload, WindowMousePassthroughChangedEvent,
-    WindowMousePassthroughPayload, WindowOpacityChangedEvent, WindowOpacityPayload,
+    WindowMousePassthroughPayload, WindowOcclusionChangedEvent, WindowOcclusionPayload,
+    WindowOcclusionState, WindowOpacityChangedEvent, WindowOpacityPayload,
     WindowParentChangedEvent, WindowParentPayload, WindowPhysicalSize, WindowPosition,
     WindowPositionChangedEvent, WindowPositionPayload, WindowRefreshRequestedEvent,
     WindowScaleFactorChangedEvent, WindowScaleFactorPayload, WindowSizeChangedEvent,
@@ -36,21 +37,8 @@ use crate::runtime::BindingCallContext;
 
 use super::super::model::{DisplayDescriptorSnapshot, MonitorSnapshot, Win32WindowBinding};
 use super::super::{core, monitor, resource as display_resource, window};
-
-#[path = "codec.rs"]
-mod codec;
-#[path = "publish.rs"]
-mod publish;
-#[path = "queue.rs"]
-mod queue;
-#[path = "stream.rs"]
-mod stream;
-
-pub(in super::super) use publish::*;
-pub(crate) use stream::*;
-
-use self::codec::*;
-use self::queue::*;
+use super::codec::*;
+use super::queue::*;
 
 /// Stored monitor-event record payload.
 #[derive(Debug, Clone)]
@@ -155,6 +143,15 @@ enum WindowEventRecordKind {
         previous_visibility: WindowVisibility,
         /// Visibility state after this event.
         current_visibility: WindowVisibility,
+    },
+    /// Occlusion-changed payload.
+    OcclusionChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Occlusion state before this event.
+        previous_occlusion: WindowOcclusionState,
+        /// Occlusion state after this event.
+        current_occlusion: WindowOcclusionState,
     },
     /// Position-changed payload.
     PositionChanged {
@@ -394,6 +391,9 @@ impl WindowEventRecordKind {
             WindowEventRecordKind::VisibilityChanged { .. } => {
                 core::WINDOW_EVENT_KIND_VISIBILITY_CHANGED
             }
+            WindowEventRecordKind::OcclusionChanged { .. } => {
+                core::WINDOW_EVENT_KIND_OCCLUSION_CHANGED
+            }
             WindowEventRecordKind::PositionChanged { .. } => {
                 core::WINDOW_EVENT_KIND_POSITION_CHANGED
             }
@@ -442,6 +442,7 @@ impl WindowEventRecordKind {
             | WindowEventRecordKind::Destroyed { window }
             | WindowEventRecordKind::FocusChanged { window, .. }
             | WindowEventRecordKind::VisibilityChanged { window, .. }
+            | WindowEventRecordKind::OcclusionChanged { window, .. }
             | WindowEventRecordKind::PositionChanged { window, .. }
             | WindowEventRecordKind::SizeChanged { window, .. }
             | WindowEventRecordKind::ScaleFactorChanged { window, .. }

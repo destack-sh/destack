@@ -2850,9 +2850,16 @@ mod tests {
                 0,
                 0,
             );
-            assert_eq!(event.kind, InputEventKind::Scroll);
-            assert_eq!(event.payload.scroll.wheel_y, 1.0);
-            assert_eq!(event.payload.scroll.wheel_x, 0.0);
+
+            match event {
+                InputEvent::InputScrollEvent(event) => {
+                    assert_eq!(event.payload.wheel_y, 1.0);
+                    assert_eq!(event.payload.wheel_x, 0.0);
+                }
+                _ => {
+                    panic!("expected scroll event");
+                }
+            }
         });
     }
 
@@ -2986,11 +2993,18 @@ mod tests {
                 0,
                 0,
             );
-            assert_eq!(event.kind, InputEventKind::Sensor);
-            assert_eq!(event.payload.sensor.action, InputEventAction::Axis);
-            assert_eq!(event.payload.sensor.x, 0.0);
-            assert_eq!(event.payload.sensor.y, 0.0);
-            assert_eq!(event.payload.sensor.z, 7.0);
+
+            match event {
+                InputEvent::InputSensorEvent(event) => {
+                    assert_eq!(event.payload.action, InputEventAction::Axis);
+                    assert_eq!(event.payload.x, 0.0);
+                    assert_eq!(event.payload.y, 0.0);
+                    assert_eq!(event.payload.z, 7.0);
+                }
+                _ => {
+                    panic!("expected sensor event");
+                }
+            }
         });
     }
 }

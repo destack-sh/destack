@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::platform::abi::NativeAbi;
 use crate::platform::core as core_platform;
 use crate::platform::display::{
-    DisplayAddedEvent, DisplayAddedPayload, DisplayBackend, DisplayDescriptorChangedEvent,
+    DisplayAddedEvent, DisplayAddedPayload, DisplayDescriptorChangedEvent,
     DisplayDescriptorChangedPayload, DisplayMetricChangedMask, DisplayModeChangedEvent,
     DisplayModeChangedPayload, DisplayMonitorEvent, DisplayMonitorEventMetadata,
     DisplayPrimaryChangedEvent, DisplayPrimaryPayload, DisplayRemovedEvent, DisplayRemovedPayload,
@@ -12,14 +12,14 @@ use crate::platform::display::{
     WindowDropHoverPayload, WindowDropStartedEvent, WindowDropTextPayload, WindowEvent,
     WindowEventMetadata, WindowFileDroppedEvent, WindowFileHoverLeftEvent, WindowFileHoveredEvent,
     WindowFocusChangedEvent, WindowFocusPayload, WindowModeChangedEvent, WindowModePayload,
-    WindowPositionChangedEvent, WindowPositionPayload, WindowRefreshRequestedEvent,
-    WindowSizeChangedEvent, WindowSizePayload, WindowTextDroppedEvent,
-    WindowVisibilityChangedEvent, WindowVisibilityPayload,
+    WindowOcclusionChangedEvent, WindowOcclusionPayload, WindowPositionChangedEvent,
+    WindowPositionPayload, WindowRefreshRequestedEvent, WindowSizeChangedEvent, WindowSizePayload,
+    WindowTextDroppedEvent, WindowVisibilityChangedEvent, WindowVisibilityPayload,
 };
 use crate::platform::fs::{self as platform_fs, PathBytesAbi, core as core_fs};
 use crate::runtime::BindingCallContext;
 
-use super::super::super::monitor;
+use super::super::super::{core as x11_core, monitor};
 use super::*;
 
 /// Return the primary display identifier from one monitor snapshot list.
@@ -190,15 +190,15 @@ pub(super) fn monitor_topology_records(
 
 /// Build one monitor-event metadata payload.
 fn display_event_metadata(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     display_id: Option<&str>,
     timestamp_ns: u64,
     sequence: u64,
     dropped_count: u64,
 ) -> DisplayMonitorEventMetadata {
     DisplayMonitorEventMetadata {
-        backend: DisplayBackend::X11,
-        display_id: display_id.map(|value| binding.store_string(value)),
+        backend: x11_core::selected_backend(),
+        display_id: display_id.map(|value| context.store_string(value)),
         timestamp_ns,
         sequence,
         dropped_count,
@@ -213,7 +213,7 @@ fn window_event_metadata(
     dropped_count: u64,
 ) -> WindowEventMetadata {
     WindowEventMetadata {
-        backend: DisplayBackend::X11,
+        backend: x11_core::selected_backend(),
         window,
         timestamp_ns,
         sequence,
@@ -222,48 +222,48 @@ fn window_event_metadata(
 }
 
 /// Build one `OsPath` payload from one UTF-8 string path.
-fn os_path_from_utf8(binding: &BindingCallContext, value: &str) -> platform_fs::OsPath {
-    let bytes = PathBytesAbi::<NativeAbi>(binding.store_array(value.as_bytes().to_vec()));
+fn os_path_from_utf8(context: &BindingCallContext, value: &str) -> platform_fs::OsPath {
+    let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.as_bytes().to_vec()));
     core_fs::path_ref_from_bytes(bytes)
 }
 
 /// Convert one stored monitor-event record into one ABI event payload.
 pub(super) fn display_event_from_record(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     value: DisplayEventRecord,
 ) -> DisplayMonitorEvent {
     // resolve this variant
     match value.kind {
         DisplayEventRecordKind::Added { descriptor } => {
             DisplayMonitorEvent::DisplayAddedEvent(DisplayAddedEvent {
-                kind: binding.store_string("added"),
+                kind: context.store_string("added"),
                 metadata: display_event_metadata(
-                    binding,
+                    context,
                     Some(&descriptor.id),
                     value.timestamp_ns,
                     value.sequence,
                     value.dropped_count,
                 ),
                 payload: DisplayAddedPayload {
-                    descriptor: monitor::descriptor_from_owned(binding, &descriptor),
+                    descriptor: monitor::descriptor_from_owned(context, &descriptor),
                 },
             })
         }
         DisplayEventRecordKind::Removed { id, descriptor } => {
             DisplayMonitorEvent::DisplayRemovedEvent(DisplayRemovedEvent {
-                kind: binding.store_string("removed"),
+                kind: context.store_string("removed"),
                 metadata: display_event_metadata(
-                    binding,
+                    context,
                     Some(&id),
                     value.timestamp_ns,
                     value.sequence,
                     value.dropped_count,
                 ),
                 payload: DisplayRemovedPayload {
-                    id: binding.store_string(&id),
+                    id: context.store_string(&id),
                     descriptor: descriptor
                         .as_ref()
-                        .map(|value| monitor::descriptor_from_owned(binding, value)),
+                        .map(|value| monitor::descriptor_from_owned(context, value)),
                 },
             })
         }
@@ -271,17 +271,17 @@ pub(super) fn display_event_from_record(
             previous_id,
             current_id,
         } => DisplayMonitorEvent::DisplayPrimaryChangedEvent(DisplayPrimaryChangedEvent {
-            kind: binding.store_string("primaryChanged"),
+            kind: context.store_string("primaryChanged"),
             metadata: display_event_metadata(
-                binding,
+                context,
                 current_id.as_deref(),
                 value.timestamp_ns,
                 value.sequence,
                 value.dropped_count,
             ),
             payload: DisplayPrimaryPayload {
-                previous_id: previous_id.map(|value| binding.store_string(&value)),
-                current_id: current_id.map(|value| binding.store_string(&value)),
+                previous_id: previous_id.map(|value| context.store_string(&value)),
+                current_id: current_id.map(|value| context.store_string(&value)),
             },
         }),
         DisplayEventRecordKind::DescriptorChanged {
@@ -289,9 +289,9 @@ pub(super) fn display_event_from_record(
             current,
             changed_mask,
         } => DisplayMonitorEvent::DisplayDescriptorChangedEvent(DisplayDescriptorChangedEvent {
-            kind: binding.store_string("descriptorChanged"),
+            kind: context.store_string("descriptorChanged"),
             metadata: display_event_metadata(
-                binding,
+                context,
                 Some(&current.id),
                 value.timestamp_ns,
                 value.sequence,
@@ -300,8 +300,8 @@ pub(super) fn display_event_from_record(
             payload: DisplayDescriptorChangedPayload {
                 previous: previous
                     .as_ref()
-                    .map(|value| monitor::descriptor_from_owned(binding, value)),
-                current: monitor::descriptor_from_owned(binding, &current),
+                    .map(|value| monitor::descriptor_from_owned(context, value)),
+                current: monitor::descriptor_from_owned(context, &current),
                 changed_mask: DisplayMetricChangedMask(changed_mask),
             },
         }),
@@ -310,9 +310,9 @@ pub(super) fn display_event_from_record(
             previous,
             current,
         } => DisplayMonitorEvent::DisplayModeChangedEvent(DisplayModeChangedEvent {
-            kind: binding.store_string("modeChanged"),
+            kind: context.store_string("modeChanged"),
             metadata: display_event_metadata(
-                binding,
+                context,
                 Some(&id),
                 value.timestamp_ns,
                 value.sequence,
@@ -325,14 +325,14 @@ pub(super) fn display_event_from_record(
 
 /// Convert one stored window-event record into one ABI event payload.
 pub(super) fn window_event_from_record(
-    binding: &BindingCallContext,
+    context: &BindingCallContext,
     value: WindowEventRecord,
 ) -> WindowEvent {
     // resolve this variant
     match value.kind {
         WindowEventRecordKind::Created { window } => {
             WindowEvent::WindowCreatedEvent(WindowCreatedEvent {
-                kind: binding.store_string("created"),
+                kind: context.store_string("created"),
                 metadata: window_event_metadata(
                     window,
                     value.timestamp_ns,
@@ -343,7 +343,7 @@ pub(super) fn window_event_from_record(
         }
         WindowEventRecordKind::CloseRequested { window } => {
             WindowEvent::WindowCloseRequestedEvent(WindowCloseRequestedEvent {
-                kind: binding.store_string("closeRequested"),
+                kind: context.store_string("closeRequested"),
                 metadata: window_event_metadata(
                     window,
                     value.timestamp_ns,
@@ -354,7 +354,7 @@ pub(super) fn window_event_from_record(
         }
         WindowEventRecordKind::Destroyed { window } => {
             WindowEvent::WindowDestroyedEvent(WindowDestroyedEvent {
-                kind: binding.store_string("destroyed"),
+                kind: context.store_string("destroyed"),
                 metadata: window_event_metadata(
                     window,
                     value.timestamp_ns,
@@ -365,7 +365,7 @@ pub(super) fn window_event_from_record(
         }
         WindowEventRecordKind::RefreshRequested { window } => {
             WindowEvent::WindowRefreshRequestedEvent(WindowRefreshRequestedEvent {
-                kind: binding.store_string("refreshRequested"),
+                kind: context.store_string("refreshRequested"),
                 metadata: window_event_metadata(
                     window,
                     value.timestamp_ns,
@@ -379,7 +379,7 @@ pub(super) fn window_event_from_record(
             previous_visibility,
             current_visibility,
         } => WindowEvent::WindowVisibilityChangedEvent(WindowVisibilityChangedEvent {
-            kind: binding.store_string("visibilityChanged"),
+            kind: context.store_string("visibilityChanged"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -391,12 +391,29 @@ pub(super) fn window_event_from_record(
                 current_visibility,
             },
         }),
+        WindowEventRecordKind::OcclusionChanged {
+            window,
+            previous_occlusion,
+            current_occlusion,
+        } => WindowEvent::WindowOcclusionChangedEvent(WindowOcclusionChangedEvent {
+            kind: context.store_string("occlusionChanged"),
+            metadata: window_event_metadata(
+                window,
+                value.timestamp_ns,
+                value.sequence,
+                value.dropped_count,
+            ),
+            payload: WindowOcclusionPayload {
+                previous_occlusion,
+                current_occlusion,
+            },
+        }),
         WindowEventRecordKind::PositionChanged {
             window,
             previous_position,
             current_position,
         } => WindowEvent::WindowPositionChangedEvent(WindowPositionChangedEvent {
-            kind: binding.store_string("positionChanged"),
+            kind: context.store_string("positionChanged"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -415,7 +432,7 @@ pub(super) fn window_event_from_record(
             current_size_logical,
             current_size_physical,
         } => WindowEvent::WindowSizeChangedEvent(WindowSizeChangedEvent {
-            kind: binding.store_string("sizeChanged"),
+            kind: context.store_string("sizeChanged"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -434,7 +451,7 @@ pub(super) fn window_event_from_record(
             previous_focused,
             current_focused,
         } => WindowEvent::WindowFocusChangedEvent(WindowFocusChangedEvent {
-            kind: binding.store_string("focusChanged"),
+            kind: context.store_string("focusChanged"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -451,7 +468,7 @@ pub(super) fn window_event_from_record(
             previous_mode,
             current_mode,
         } => WindowEvent::WindowModeChangedEvent(WindowModeChangedEvent {
-            kind: binding.store_string("modeChanged"),
+            kind: context.store_string("modeChanged"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -465,7 +482,7 @@ pub(super) fn window_event_from_record(
         }),
         WindowEventRecordKind::DropStarted { window } => {
             WindowEvent::WindowDropStartedEvent(WindowDropStartedEvent {
-                kind: binding.store_string("dropStarted"),
+                kind: context.store_string("dropStarted"),
                 metadata: window_event_metadata(
                     window,
                     value.timestamp_ns,
@@ -479,7 +496,7 @@ pub(super) fn window_event_from_record(
             path,
             position,
         } => WindowEvent::WindowFileHoveredEvent(WindowFileHoveredEvent {
-            kind: binding.store_string("fileHovered"),
+            kind: context.store_string("fileHovered"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -487,13 +504,13 @@ pub(super) fn window_event_from_record(
                 value.dropped_count,
             ),
             payload: WindowDropHoverPayload {
-                path: path.as_ref().map(|value| os_path_from_utf8(binding, value)),
+                path: path.as_ref().map(|value| os_path_from_utf8(context, value)),
                 position,
             },
         }),
         WindowEventRecordKind::DropCancelled { window } => {
             WindowEvent::WindowDropCancelledEvent(WindowDropCancelledEvent {
-                kind: binding.store_string("dropCancelled"),
+                kind: context.store_string("dropCancelled"),
                 metadata: window_event_metadata(
                     window,
                     value.timestamp_ns,
@@ -504,7 +521,7 @@ pub(super) fn window_event_from_record(
         }
         WindowEventRecordKind::DropCompleted { window } => {
             WindowEvent::WindowDropCompletedEvent(WindowDropCompletedEvent {
-                kind: binding.store_string("dropCompleted"),
+                kind: context.store_string("dropCompleted"),
                 metadata: window_event_metadata(
                     window,
                     value.timestamp_ns,
@@ -518,7 +535,7 @@ pub(super) fn window_event_from_record(
             previous_path,
             position,
         } => WindowEvent::WindowFileHoverLeftEvent(WindowFileHoverLeftEvent {
-            kind: binding.store_string("fileHoverLeft"),
+            kind: context.store_string("fileHoverLeft"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -528,7 +545,7 @@ pub(super) fn window_event_from_record(
             payload: WindowDropHoverLeavePayload {
                 previous_path: previous_path
                     .as_ref()
-                    .map(|value| os_path_from_utf8(binding, value)),
+                    .map(|value| os_path_from_utf8(context, value)),
                 position,
             },
         }),
@@ -537,7 +554,7 @@ pub(super) fn window_event_from_record(
             path,
             position,
         } => WindowEvent::WindowFileDroppedEvent(WindowFileDroppedEvent {
-            kind: binding.store_string("fileDropped"),
+            kind: context.store_string("fileDropped"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -545,7 +562,7 @@ pub(super) fn window_event_from_record(
                 value.dropped_count,
             ),
             payload: WindowDropFilePayload {
-                path: path.as_ref().map(|value| os_path_from_utf8(binding, value)),
+                path: path.as_ref().map(|value| os_path_from_utf8(context, value)),
                 position,
             },
         }),
@@ -554,7 +571,7 @@ pub(super) fn window_event_from_record(
             text,
             position,
         } => WindowEvent::WindowTextDroppedEvent(WindowTextDroppedEvent {
-            kind: binding.store_string("textDropped"),
+            kind: context.store_string("textDropped"),
             metadata: window_event_metadata(
                 window,
                 value.timestamp_ns,
@@ -562,7 +579,7 @@ pub(super) fn window_event_from_record(
                 value.dropped_count,
             ),
             payload: WindowDropTextPayload {
-                text: binding.store_string(&text),
+                text: context.store_string(&text),
                 position,
             },
         }),

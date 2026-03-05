@@ -1,7 +1,11 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { DisplayHandle, WindowHandle } from "../resource/index.ds";
-import { DisplayBackend, DisplayBackendSelectionPolicy } from "./backend.ds";
+import {
+    DisplayBackend,
+    DisplayBackendCapabilityFlags,
+    DisplayBackendSelectionPolicy,
+} from "./backend.ds";
 import { DisplayMode } from "./monitor.ds";
 
 /// Window visibility state.
@@ -124,6 +128,16 @@ export enum WindowChromeKind {
     Tool = 2,
     /// Popup-style undecorated window.
     Popup = 3,
+}
+
+/// Window host role selector.
+export enum WindowRole {
+    /// Standard top-level application window role.
+    Toplevel = 1,
+    /// Popup window role with host-managed popup semantics.
+    Popup = 2,
+    /// Overlay window role for host overlay and layer surfaces.
+    Overlay = 3,
 }
 
 /// Attention request level.
@@ -267,6 +281,8 @@ export struct WindowOptions {
     backendPolicy: DisplayBackendSelectionPolicy;
     /// Initial window title string.
     title: string;
+    /// Requested host window role.
+    role: WindowRole;
     /// Initial logical size.
     sizeLogical: WindowLogicalSize;
     /// Initial window position when explicitly requested.
@@ -318,6 +334,8 @@ export struct WindowDescriptor {
     id: string;
     /// Current host-visible title.
     title: string;
+    /// Current host window role.
+    role: WindowRole;
     /// Current mode configuration.
     mode: WindowModeOptions;
     /// Current display association.
@@ -352,6 +370,8 @@ export struct WindowDescriptor {
 export struct WindowState {
     /// Resolved backend that owns this window.
     backend: DisplayBackend;
+    /// Current host window role.
+    role: WindowRole;
     /// Current desktop position.
     position: WindowPosition;
     /// Current logical size.
@@ -503,6 +523,34 @@ declare namespace display {
         blocking: "never",
     })
     export function windowState(window: WindowHandle): Result<WindowState, PlatformError>;
+
+    /// Read effective capabilities for one opened window.
+    ///
+    /// Read one effective capability set for one opened window after backend and role negotiation.
+    /// This set is one method-level contract and can be one strict subset of backend descriptor capability flags.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend and role specific capability resolution.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.capabilities", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+    })
+    export function windowCapabilities(window: WindowHandle): Result<DisplayBackendCapabilityFlags, PlatformError>;
 
     /// Set one window title string.
     ///

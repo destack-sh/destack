@@ -6,27 +6,14 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
     DisplayEventOverflowPolicy, DisplayMode, DisplayMonitorEventFilter,
     DisplayMonitorEventOpenOptions, WindowEventFilter, WindowEventOpenOptions, WindowLogicalSize,
-    WindowModeOptions, WindowPhysicalSize, WindowPosition, WindowVisibility,
+    WindowModeOptions, WindowOcclusionState, WindowPhysicalSize, WindowPosition, WindowVisibility,
 };
 use crate::platform::{core as core_platform, resource};
 
 use super::super::core;
 use super::super::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
-
-#[path = "codec.rs"]
-mod codec;
-#[path = "publish.rs"]
-mod publish;
-#[path = "queue.rs"]
-mod queue;
-#[path = "stream.rs"]
-mod stream;
-
-pub(in super::super) use publish::*;
-pub(in crate::platform::display::host::unix) use stream::*;
-
-use self::codec::*;
-use self::queue::*;
+use super::codec::*;
+use super::queue::*;
 
 /// Stored monitor-event record payload.
 #[derive(Debug, Clone)]
@@ -166,6 +153,15 @@ pub(super) enum WindowEventRecordKind {
         /// Visibility state after this event.
         current_visibility: WindowVisibility,
     },
+    /// Occlusion-changed payload.
+    OcclusionChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Occlusion state before this event.
+        previous_occlusion: WindowOcclusionState,
+        /// Occlusion state after this event.
+        current_occlusion: WindowOcclusionState,
+    },
     /// Position-changed payload.
     PositionChanged {
         /// Associated runtime window handle.
@@ -273,6 +269,9 @@ impl WindowEventRecordKind {
             WindowEventRecordKind::VisibilityChanged { .. } => {
                 core::WINDOW_EVENT_KIND_VISIBILITY_CHANGED
             }
+            WindowEventRecordKind::OcclusionChanged { .. } => {
+                core::WINDOW_EVENT_KIND_OCCLUSION_CHANGED
+            }
             WindowEventRecordKind::PositionChanged { .. } => {
                 core::WINDOW_EVENT_KIND_POSITION_CHANGED
             }
@@ -298,6 +297,7 @@ impl WindowEventRecordKind {
             | WindowEventRecordKind::Destroyed { window }
             | WindowEventRecordKind::RefreshRequested { window }
             | WindowEventRecordKind::VisibilityChanged { window, .. }
+            | WindowEventRecordKind::OcclusionChanged { window, .. }
             | WindowEventRecordKind::PositionChanged { window, .. }
             | WindowEventRecordKind::SizeChanged { window, .. }
             | WindowEventRecordKind::FocusChanged { window, .. }
@@ -531,7 +531,7 @@ mod tests {
         height_px: u32,
     ) -> DisplayDescriptorSnapshot {
         DisplayDescriptorSnapshot {
-            backend: DisplayBackend::X11,
+            backend: core::selected_backend(),
             id: id.to_string(),
             name: id.to_string(),
             primary,

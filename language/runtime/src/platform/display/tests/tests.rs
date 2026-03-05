@@ -352,6 +352,7 @@ pub(crate) fn default_window_options(
                 backend: display::DisplayBackend::Auto,
                 backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
                 title: vm::StringHandle::new(vm_context.intern_string(title)),
+                role: display::WindowRole::Toplevel,
                 size_logical: display::WindowLogicalSizeVm {
                     width: 1280.0,
                     height: 720.0,
@@ -384,6 +385,7 @@ pub(crate) fn default_window_options(
             backend: display::DisplayBackend::Auto,
             backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
             title: context.call_context.store_string(title),
+            role: display::WindowRole::Toplevel,
             size_logical: display::WindowLogicalSize {
                 width: 1280.0,
                 height: 720.0,
@@ -676,8 +678,60 @@ pub(crate) fn harness_window_physical_size(
     }
 }
 
+/// Build one window position payload for native and VM binding calls.
+pub(crate) fn harness_window_position(
+    context: &DisplayHarnessContext<'_>,
+    x: i32,
+    y: i32,
+) -> HarnessValue<display::WindowPosition, display::WindowPositionVm> {
+    let position = display::WindowPosition { x, y };
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(position)
+    } else {
+        HarnessValue::Native(position)
+    }
+}
+
+/// Build one window size-constraints payload for native and VM binding calls.
+pub(crate) fn harness_window_size_constraints(
+    context: &DisplayHarnessContext<'_>,
+    min_width: f64,
+    min_height: f64,
+    max_width: f64,
+    max_height: f64,
+) -> HarnessValue<Option<display::WindowSizeConstraints>, Option<display::WindowSizeConstraintsVm>>
+{
+    let constraints = Some(display::WindowSizeConstraints {
+        min: Some(display::WindowLogicalSize {
+            width: min_width,
+            height: min_height,
+        }),
+        max: Some(display::WindowLogicalSize {
+            width: max_width,
+            height: max_height,
+        }),
+    });
+
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(constraints)
+    } else {
+        HarnessValue::Native(constraints)
+    }
+}
+
+/// Build one cleared window size-constraints payload for native and VM binding calls.
+pub(crate) fn harness_window_size_constraints_none(
+    context: &DisplayHarnessContext<'_>,
+) -> HarnessValue<Option<display::WindowSizeConstraints>, Option<display::WindowSizeConstraintsVm>>
+{
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(None)
+    } else {
+        HarnessValue::Native(None)
+    }
+}
+
 /// Build one window icon-set payload for native and VM binding calls.
-#[cfg(windows)]
 pub(crate) fn harness_window_icon_set(
     context: &mut DisplayHarnessContext<'_>,
 ) -> RuntimeResult<HarnessValue<Option<display::WindowIconSet>, Option<display::WindowIconSetVm>>> {
@@ -718,7 +772,6 @@ pub(crate) fn harness_window_icon_set(
 }
 
 /// Build one empty icon-set payload for native and VM binding calls.
-#[cfg(windows)]
 pub(crate) fn harness_window_icon_set_none(
     context: &DisplayHarnessContext<'_>,
 ) -> HarnessValue<Option<display::WindowIconSet>, Option<display::WindowIconSetVm>> {

@@ -3,16 +3,17 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::VmAbi;
 use crate::platform::display::{
-    DisplayBackendDescriptor, DisplayBackendDescriptorVm, DisplayDescriptor, DisplayDescriptorVm,
-    DisplayGammaRamp, DisplayGammaRampVm, DisplayMode, DisplayModeVm, DisplayMonitorEvent,
-    DisplayMonitorEventFilter, DisplayMonitorEventFilterVm, DisplayMonitorEventOpenOptions,
-    DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm, DisplayMonitorListRequestVm,
-    DisplayMonitorOpenOptionsVm, WindowDescriptor, WindowDescriptorVm, WindowDropFilePayload,
-    WindowDropFilePayloadVm, WindowDropHoverLeavePayload, WindowDropHoverLeavePayloadVm,
-    WindowDropHoverPayload, WindowDropHoverPayloadVm, WindowDropTextPayload,
-    WindowDropTextPayloadVm, WindowEvent, WindowEventOpenOptionsVm, WindowEventVm, WindowIconImage,
-    WindowIconImageVm, WindowIconSet, WindowIconSetVm, WindowModeOptions, WindowModeOptionsVm,
-    WindowModePayload, WindowModePayloadVm, WindowOptions, WindowOptionsVm, host as host_display,
+    DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayBackendDescriptorVm,
+    DisplayDescriptor, DisplayDescriptorVm, DisplayGammaRamp, DisplayGammaRampVm, DisplayMode,
+    DisplayModeVm, DisplayMonitorEvent, DisplayMonitorEventFilter, DisplayMonitorEventFilterVm,
+    DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
+    DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm, WindowDescriptor, WindowDescriptorVm,
+    WindowDropFilePayload, WindowDropFilePayloadVm, WindowDropHoverLeavePayload,
+    WindowDropHoverLeavePayloadVm, WindowDropHoverPayload, WindowDropHoverPayloadVm,
+    WindowDropTextPayload, WindowDropTextPayloadVm, WindowEvent, WindowEventOpenOptionsVm,
+    WindowEventVm, WindowIconImage, WindowIconImageVm, WindowIconSet, WindowIconSetVm,
+    WindowModeOptions, WindowModeOptionsVm, WindowModePayload, WindowModePayloadVm, WindowOptions,
+    WindowOptionsVm, host as host_display,
 };
 use crate::platform::fs::{
     OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
@@ -338,6 +339,7 @@ fn window_descriptor_to_vm(
         backend: value.backend,
         id: vm::StringHandle::new(context.intern_string(id)),
         title: vm::StringHandle::new(context.intern_string(title)),
+        role: value.role,
         mode: window_mode_options_to_vm(context, value.mode)?,
         display: value.display,
         resizable: value.resizable,
@@ -909,6 +911,7 @@ fn window_options_from_vm(
         backend: options.backend,
         backend_policy: options.backend_policy,
         title,
+        role: options.role,
         size_logical: options.size_logical,
         position: options.position,
         constraints: options.constraints,
@@ -1140,6 +1143,17 @@ pub(crate) fn destack_display_window_descriptor(
     })?;
 
     window_descriptor_to_vm(context, descriptor)
+}
+
+/// Read one capability mask for one opened window backend.
+pub(crate) fn destack_display_window_capabilities(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<DisplayBackendCapabilityFlags> {
+    call_out(|out| unsafe {
+        host_display::destack_display_window_capabilities(runtime, out, window)
+    })
 }
 
 /// Close one window-event stream.

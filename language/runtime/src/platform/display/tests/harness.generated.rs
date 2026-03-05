@@ -55,7 +55,7 @@ use crate::platform::display::{
     WindowParentChangedEventVm, WindowParentPayload, WindowParentPayloadVm, WindowPhysicalSize,
     WindowPhysicalSizeVm, WindowPosition, WindowPositionChangedEvent, WindowPositionChangedEventVm,
     WindowPositionPayload, WindowPositionPayloadVm, WindowPositionVm, WindowRefreshRequestedEvent,
-    WindowRefreshRequestedEventVm, WindowResizeEdge, WindowSafeAreaChangedEvent,
+    WindowRefreshRequestedEventVm, WindowResizeEdge, WindowRole, WindowSafeAreaChangedEvent,
     WindowSafeAreaChangedEventVm, WindowSafeAreaInsets, WindowSafeAreaInsetsVm,
     WindowSafeAreaPayload, WindowSafeAreaPayloadVm, WindowScaleFactorChangedEvent,
     WindowScaleFactorChangedEventVm, WindowScaleFactorPayload, WindowScaleFactorPayloadVm,
@@ -1131,6 +1131,51 @@ impl<'call> DisplayHarnessContext<'call> {
                     edge,
                 )
             },
+        }
+    }
+
+    /// Read effective capabilities for one opened window.
+    ///
+    /// Read one effective capability set for one opened window after backend and role negotiation.
+    /// This set is one method-level contract and can be one strict subset of backend descriptor capability flags.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend and role specific capability resolution.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_capabilities(
+        &mut self,
+        window: resource::WindowHandle,
+    ) -> RuntimeResult<DisplayBackendCapabilityFlags> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_capabilities(
+                    self.call_context,
+                    context,
+                    window,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<DisplayBackendCapabilityFlags>::uninit();
+                unsafe {
+                    display_native::destack_display_window_capabilities(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        window,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
         }
     }
 
