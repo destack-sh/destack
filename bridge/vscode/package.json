@@ -264,7 +264,7 @@
         "publish:live": "bunx --bun @vscode/vsce@latest publish",
         "check:grammar": "node scripts/check-grammar.mjs",
         "test:grammar": "node scripts/check-grammar.mjs && bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"typescript/tests-grammar/*.txt\" && bunx vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"typescript/tests-grammar-mir/*.txt\"",
-        "test:host:build": "tsc -p tsconfig.tests.json",
+        "test:host:build": "node -e \"require('fs').rmSync('out-tests',{recursive:true,force:true})\" && bun run bundle && tsc -p tsconfig.tests.json",
         "test:host": "bun run test:host:build && node out-tests/tests-host/run.js"
     },
     "dependencies": {},

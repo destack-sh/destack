@@ -1,7 +1,10 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { PassThrough } from "node:stream";
-import * as vscode from "vscode";
+import type * as vscode from "vscode";
 import type { StreamInfo } from "vscode-languageclient/node";
+
+/** Enable verbose protocol tracing for extension-host and CI diagnostics. */
+const TEST_TRACE_ENABLED = process.env.DESTACK_VSCODE_TEST_TRACE == "1";
 
 /**
  * Spawn options for the Destack language server process.
@@ -34,14 +37,23 @@ export type SpawnServerOptions = {
 };
 
 /**
+ * The spawned server process and stream transport pair.
+ */
+export type SpawnServerResult = {
+    /**
+     * The spawned language server process handle.
+     */
+    process: ChildProcessWithoutNullStreams;
+    /**
+     * The language client stream transport wiring.
+     */
+    streamInfo: StreamInfo;
+};
+
+/**
  * Spawn the language server process and build language client stream info.
  */
-export async function spawnServerProcess(
-    options: SpawnServerOptions,
-): Promise<{
-    process: ChildProcessWithoutNullStreams;
-    streamInfo: StreamInfo;
-}> {
+export async function spawnServerProcess(options: SpawnServerOptions): Promise<SpawnServerResult> {
     const { command, args, cwd, workspaceRoot, serverLog, debug } = options;
 
     // create and initialize the process
@@ -64,7 +76,13 @@ export async function spawnServerProcess(
 
         // forward stderr to the server output channel
         serverProcess.stderr.setEncoding("utf8");
-        serverProcess.stderr.on("data", (chunk: string) => serverLog.append(chunk));
+        serverProcess.stderr.on("data", (chunk: string) => {
+            serverLog.append(chunk);
+
+            if (TEST_TRACE_ENABLED) {
+                console.error(`[destack.stderr] ${chunk}`);
+            }
+        });
 
         // resolve stream transports once the process is ready
         serverProcess.once("spawn", () => {
@@ -72,6 +90,11 @@ export async function spawnServerProcess(
             serverLog.info(
                 `spawned ${command} ${args.join(" ")} (pid ${serverProcess.pid ?? ""}) cwd=${workingDirectory}`,
             );
+            if (TEST_TRACE_ENABLED) {
+                console.error(
+                    `[destack.spawn] command=${command} args=${JSON.stringify(args)} pid=${serverProcess.pid ?? ""} cwd=${workingDirectory ?? ""}`,
+                );
+            }
 
             if (debug) {
                 const streamInfo = createDebugStreamInfo(serverProcess, serverLog);
@@ -94,12 +117,20 @@ export async function spawnServerProcess(
         // reject when spawn fails
         serverProcess.once("error", (error) => {
             serverLog.error(`failed to spawn ${command}: ${error.message}`);
+            if (TEST_TRACE_ENABLED) {
+                console.error(`[destack.spawn.error] command=${command} error=${error.message}`);
+            }
             reject(error);
         });
 
         // log process exit for observability
         serverProcess.on("exit", (code, signal) => {
             serverLog.warn(`${command} exited (code=${code}, signal=${signal ?? ""})`);
+            if (TEST_TRACE_ENABLED) {
+                console.error(
+                    `[destack.exit] command=${command} code=${code ?? ""} signal=${signal ?? ""}`,
+                );
+            }
         });
     });
 }
@@ -111,19 +142,33 @@ export async function stopServerProcess(
     serverProcess: ChildProcessWithoutNullStreams | undefined,
     serverLog: vscode.OutputChannel,
 ): Promise<void> {
+    // skip stop handling when no active process exists
     if (!serverProcess || serverProcess.killed) {
+        return;
+    }
+
+    // resolve process id once for signal operations
+    const serverProcessId = serverProcess.pid;
+    if (serverProcessId == undefined) {
+        serverLog.appendLine("server process has no pid, skipping signal shutdown");
         return;
     }
 
     // close stdin to allow graceful process shutdown
     try {
         serverProcess.stdin.end();
-    } catch {}
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        serverLog.appendLine(`failed to close server stdin: ${message}`);
+    }
 
     // send termination signal first
     try {
-        process.kill(serverProcess.pid!, "SIGTERM");
-    } catch {}
+        process.kill(serverProcessId, "SIGTERM");
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        serverLog.appendLine(`failed to send SIGTERM to server process: ${message}`);
+    }
 
     // wait briefly for clean exit
     const isExited = await new Promise<boolean>((resolve) => {
@@ -145,8 +190,11 @@ export async function stopServerProcess(
     // escalate to kill when graceful shutdown fails
     serverLog.appendLine("server did not exit on SIGTERM, sending SIGKILL.");
     try {
-        process.kill(serverProcess.pid!, "SIGKILL");
-    } catch {}
+        process.kill(serverProcessId, "SIGKILL");
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        serverLog.appendLine(`failed to send SIGKILL to server process: ${message}`);
+    }
 }
 
 /**
@@ -161,12 +209,18 @@ function createDebugStreamInfo(
     serverProcess.stdout.pipe(serverOutputTee);
     serverOutputTee.on("data", (chunk) => {
         serverLog.append(`[server -> client]\n${chunk.toString()}\n`);
+        if (TEST_TRACE_ENABLED) {
+            console.error(`[destack.protocol.server_to_client]\n${chunk.toString()}`);
+        }
     });
 
     // duplicate client input into the log output
     const clientInputTee = new PassThrough();
     clientInputTee.on("data", (chunk) => {
         serverLog.append(`[client -> server]\n${chunk.toString()}\n`);
+        if (TEST_TRACE_ENABLED) {
+            console.error(`[destack.protocol.client_to_server]\n${chunk.toString()}`);
+        }
     });
     clientInputTee.pipe(serverProcess.stdin);
 

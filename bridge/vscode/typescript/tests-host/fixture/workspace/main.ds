@@ -1,3 +1,4 @@
+/** return the input unchanged */
 export function answer(value: number): number {
     return value;
 }
