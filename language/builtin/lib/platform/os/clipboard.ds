@@ -34,6 +34,7 @@ declare namespace os {
         replay: "recordable",
         capabilities: ["os.clipboard.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -60,6 +61,7 @@ declare namespace os {
         replay: "recordable",
         capabilities: ["os.clipboard.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -86,6 +88,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.clipboard.write"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -112,6 +115,7 @@ declare namespace os {
         replay: "recordable",
         capabilities: ["os.clipboard.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -138,6 +142,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.clipboard.write"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -165,6 +170,7 @@ declare namespace os {
         replay: "recordable",
         capabilities: ["os.clipboard.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "never",
     })
@@ -191,6 +197,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.clipboard.write"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })

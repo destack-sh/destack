@@ -231,6 +231,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.calendar.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -257,6 +258,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.calendar.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -283,6 +285,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.calendar.read"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -309,6 +312,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.calendar.write"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -335,6 +339,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.calendar.write"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })
@@ -361,6 +366,7 @@ declare namespace os {
         replay: "nonrecordable",
         capabilities: ["os.calendar.write"],
         platforms: ["windows", "unix"],
+        simulation: "model",
         scope: "host",
         blocking: "sometimes",
     })

@@ -26,6 +26,7 @@ declare namespace process {
             replay: "recordable",
             capabilities: ["process.identity.write"],
             platforms: ["windows", "unix"],
+            simulation: "model",
             scope: "host",
             blocking: "never",
         },

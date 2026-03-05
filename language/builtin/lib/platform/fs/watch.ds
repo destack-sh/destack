@@ -112,7 +112,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.open", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.watch.open", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>;
 
     /// Start watching a path relative to a directory handle.
@@ -132,7 +132,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.openat", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.watch.openat", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function watchat(
         directory: DirectoryHandle,
         path: OsPath,
@@ -156,7 +156,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.openRead", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.watch.openRead", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>;
 
     /// Close a watch handle.
@@ -176,6 +176,6 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.openClose", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.watch.openClose", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function watchClose(handle: WatchHandle): Result<void, PlatformError>;
 }

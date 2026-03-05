@@ -25,6 +25,7 @@ declare namespace gpu {
         replay: "recordable",
         capabilities: ["gpu.debug"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })

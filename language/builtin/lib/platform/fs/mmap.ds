@@ -45,7 +45,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.mmap.mmapFile", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.mmap.mmapFile", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function mmapFile(
         handle: FileHandle,
         offset: FileOffset,
@@ -71,7 +71,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.mmap.mmapAnonymous", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.mmap.mmapAnonymous", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function mmapAnonymous(
         length: FileSize,
         prot: MmapProt,
@@ -95,7 +95,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.mmap.munmap", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.mmap.munmap", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>;
 
     /// Change memory protection for a mapping.
@@ -115,7 +115,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.mmap.mprotect", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.mmap.mprotect", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function mprotect(
         mapping: Slice<uint8>,
         prot: MmapProt,
@@ -138,7 +138,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.mmap.msync", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.mmap.msync", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function msync(
         mapping: Slice<uint8>,
         flags: MmapSyncFlags,
@@ -161,7 +161,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.mmap.madvise", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.mmap.madvise", { effect: "external", replay: "recordable", capabilities: ["fs.mmap"], platforms: ["windows", "unix"], simulation: "model", scope: "host", blocking: "sometimes" })
     export function madvise(
         mapping: Slice<uint8>,
         advice: MmapAdvice,

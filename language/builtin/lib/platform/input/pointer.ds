@@ -70,6 +70,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -99,6 +100,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -126,6 +128,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -156,6 +159,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.grab"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -187,6 +191,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.grab"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -220,6 +225,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

@@ -152,6 +152,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -178,6 +179,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -204,6 +206,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -230,6 +233,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -256,6 +260,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -282,6 +287,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -308,6 +314,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -334,6 +341,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -360,6 +368,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -386,6 +395,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -416,6 +426,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -442,6 +453,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -468,6 +480,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -497,6 +510,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -523,6 +537,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -549,6 +564,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -575,6 +591,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -605,6 +622,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -636,6 +654,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -667,6 +686,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -698,6 +718,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -729,6 +750,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -760,6 +782,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -791,6 +814,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -823,6 +847,7 @@ declare namespace device {
         replay: "nonrecordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -852,6 +877,7 @@ declare namespace device {
         replay: "nonrecordable",
         capabilities: ["device.usb.transfer"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -878,6 +904,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -907,6 +934,7 @@ declare namespace device {
         replay: "nonrecordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -933,6 +961,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -962,6 +991,7 @@ declare namespace device {
         replay: "nonrecordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -991,6 +1021,7 @@ declare namespace device {
         replay: "nonrecordable",
         capabilities: ["device.usb.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

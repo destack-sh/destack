@@ -159,6 +159,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.read"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

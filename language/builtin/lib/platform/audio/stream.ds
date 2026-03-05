@@ -231,6 +231,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -264,6 +265,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -295,6 +297,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -322,6 +325,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -349,6 +353,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -376,6 +381,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -403,6 +409,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.stream"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -430,6 +437,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -457,6 +465,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -485,6 +494,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -512,6 +522,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -539,6 +550,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -566,6 +578,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -593,6 +606,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -620,6 +634,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -647,6 +662,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -674,6 +690,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -701,6 +718,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -728,6 +746,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -755,6 +774,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -783,6 +803,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback.schedule"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -815,6 +836,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.playback.schedule"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -846,6 +868,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -873,6 +896,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -900,6 +924,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -927,6 +952,7 @@ declare namespace audio {
         replay: "recordable",
         capabilities: ["audio.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })

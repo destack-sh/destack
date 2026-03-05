@@ -57,6 +57,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.haptics"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -84,6 +85,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.haptics"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -114,6 +116,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.haptics"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

@@ -208,6 +208,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -234,6 +235,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -260,6 +262,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -288,6 +291,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -316,6 +320,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.device"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -342,6 +347,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -371,6 +377,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -397,6 +404,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -423,6 +431,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -449,6 +458,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -475,6 +485,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.capture"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -501,6 +512,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -531,6 +543,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -560,6 +573,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -589,6 +603,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -618,6 +633,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -644,6 +660,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -673,6 +690,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -701,6 +719,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -730,6 +749,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.camera.control"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

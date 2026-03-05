@@ -417,6 +417,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -443,6 +444,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -469,6 +471,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -495,6 +498,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -521,6 +525,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -549,6 +554,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -575,6 +581,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -601,6 +608,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -627,6 +635,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -654,6 +663,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -684,6 +694,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -713,6 +724,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -739,6 +751,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -765,6 +778,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -791,6 +805,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -817,6 +832,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -843,6 +859,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -869,6 +886,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -895,6 +913,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -921,6 +940,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -947,6 +967,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -973,6 +994,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -999,6 +1021,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -1025,6 +1048,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1051,6 +1075,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1079,6 +1104,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.parenting"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1107,6 +1133,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.parenting"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1137,6 +1164,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window.modal"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1163,6 +1191,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1189,6 +1218,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -1215,6 +1245,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -1241,6 +1272,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1267,6 +1299,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1293,6 +1326,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1321,6 +1355,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1347,6 +1382,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -1373,6 +1409,7 @@ declare namespace display {
         replay: "recordable",
         capabilities: ["display.window"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })

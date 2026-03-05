@@ -191,6 +191,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.scan"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -217,6 +218,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.scan"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -246,6 +248,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.scan"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -272,6 +275,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.scan"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -301,6 +305,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.scan"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -327,6 +332,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.connect"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -353,6 +359,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.connect"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -379,6 +386,7 @@ declare namespace device {
         replay: "nonrecordable",
         capabilities: ["device.bluetooth.connect"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -408,6 +416,7 @@ declare namespace device {
         replay: "nonrecordable",
         capabilities: ["device.bluetooth.connect"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -434,6 +443,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.connect"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -463,6 +473,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -489,6 +500,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -518,6 +530,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -548,6 +561,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -580,6 +594,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -613,6 +628,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -643,6 +659,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
@@ -669,6 +686,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -700,6 +718,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -733,6 +752,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -763,6 +783,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -789,6 +810,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "sometimes",
     })
@@ -818,6 +840,7 @@ declare namespace device {
         replay: "recordable",
         capabilities: ["device.bluetooth.gatt"],
         platforms: ["windows", "unix"],
+        simulation: "stub",
         scope: "host",
         blocking: "never",
     })
