@@ -8,16 +8,16 @@ use destack_source::{File, FileContent, FileId};
 
 use crate::{FormatterOptions, LinterOptions, ProfileConfig, ProfileConfigJson, RuntimeOptions};
 
-use super::cache::{DsConfigCacheJson, DsConfigCacheOptions};
-use super::compiler::{CompilerOptionsJson, DsConfigCompilerOptions};
-use super::daemon::{DsConfigDaemonJson, DsConfigDaemonOptions};
-use super::formatter::DsConfigFormatterJson;
-use super::linter::DsConfigLinterJson;
-use super::runtime::{
+use crate::config::cache::{DsConfigCacheJson, DsConfigCacheOptions};
+use crate::config::compiler::{DsConfigCompilerOptions, DsConfigCompilerOptionsJson};
+use crate::config::daemon::{DsConfigDaemonJson, DsConfigDaemonOptions};
+use crate::config::formatter::DsConfigFormatterJson;
+use crate::config::linter::DsConfigLinterJson;
+use crate::config::runtime::{
     DsConfigRuntimeOptionsJson, runtime_options_from_json, runtime_options_with_base,
 };
-use super::target::{DsConfigTargetJson, DsConfigTargetOptions};
-use super::watch::{DsConfigWatchJson, DsConfigWatchOptions};
+use crate::config::target::{DsConfigTargetJson, DsConfigTargetOptions};
+use crate::config::watch::{DsConfigWatchJson, DsConfigWatchOptions};
 
 /// Destack configuration (from `dsconfig.json`, 1:1 with Package).
 #[derive(Debug, Clone)]
@@ -381,10 +381,10 @@ impl DsConfig {
         if compiler.declaration_dir.is_none() {
             compiler.declaration_dir = parent_compiler.declaration_dir.clone();
         }
-        if self.content.compiler_options.declaration_map.is_none() {
+        if self.content.compiler.declaration_map.is_none() {
             compiler.declaration_map = parent_compiler.declaration_map;
         }
-        if self.content.compiler_options.no_emit.is_none() {
+        if self.content.compiler.no_emit.is_none() {
             compiler.no_emit = parent_compiler.no_emit;
         }
 
@@ -392,76 +392,56 @@ impl DsConfig {
         if compiler.tsconfig.is_none() {
             compiler.tsconfig = parent_compiler.tsconfig.clone();
         }
-        if self.content.compiler_options.module_resolution.is_none() {
+        if self.content.compiler.module_resolution.is_none() {
             compiler.module_resolution = parent_compiler.module_resolution;
         }
-        if self
-            .content
-            .compiler_options
-            .allow_arbitrary_extensions
-            .is_none()
-        {
+        if self.content.compiler.allow_arbitrary_extensions.is_none() {
             compiler.allow_arbitrary_extensions = parent_compiler.allow_arbitrary_extensions;
         }
         if self
             .content
-            .compiler_options
+            .compiler
             .allow_importing_ts_extensions
             .is_none()
         {
             compiler.allow_importing_ts_extensions = parent_compiler.allow_importing_ts_extensions;
         }
-        if self
-            .content
-            .compiler_options
-            .resolve_package_json_exports
-            .is_none()
-        {
+        if self.content.compiler.resolve_package_json_exports.is_none() {
             compiler.resolve_package_json_exports = parent_compiler.resolve_package_json_exports;
         }
-        if self
-            .content
-            .compiler_options
-            .resolve_package_json_imports
-            .is_none()
-        {
+        if self.content.compiler.resolve_package_json_imports.is_none() {
             compiler.resolve_package_json_imports = parent_compiler.resolve_package_json_imports;
         }
-        if self.content.compiler_options.custom_conditions.is_none() {
+        if self.content.compiler.custom_conditions.is_none() {
             compiler.custom_conditions = parent_compiler.custom_conditions.clone();
         }
-        if self.content.compiler_options.node_linker.is_none() {
+        if self.content.compiler.node_linker.is_none() {
             compiler.node_linker = parent_compiler.node_linker;
         }
-        if self.content.compiler_options.module_detection.is_none() {
+        if self.content.compiler.module_detection.is_none() {
             compiler.module_detection = parent_compiler.module_detection;
         }
-        if self.content.compiler_options.js_as_jsx.is_none() {
+        if self.content.compiler.js_as_jsx.is_none() {
             compiler.js_as_jsx = parent_compiler.js_as_jsx;
         }
-        if self.content.compiler_options.es_module_interop.is_none() {
+        if self.content.compiler.es_module_interop.is_none() {
             compiler.es_module_interop = parent_compiler.es_module_interop;
         }
         if self
             .content
-            .compiler_options
+            .compiler
             .allow_synthetic_default_imports
             .is_none()
         {
             compiler.allow_synthetic_default_imports =
                 parent_compiler.allow_synthetic_default_imports;
         }
-        if self
-            .content
-            .compiler_options
-            .verbatim_module_syntax
-            .is_none()
-        {
+        if self.content.compiler.verbatim_module_syntax.is_none() {
             compiler.verbatim_module_syntax = parent_compiler.verbatim_module_syntax;
         }
         if self
             .content
-            .compiler_options
+            .compiler
             .rewrite_relative_import_extensions
             .is_none()
         {
@@ -558,11 +538,11 @@ impl DsConfig {
         }
 
         // inherit runtime options (child overrides when set)
-        self.options.runtime_options =
-            runtime_options_with_base(&parent.runtime_options, Some(&self.content.runtime_options));
+        self.options.runtime =
+            runtime_options_with_base(&parent.runtime, Some(&self.content.runtime));
 
         // inherit compiler incremental settings (child overrides if explicitly set in JSON)
-        if self.content.compiler_options.incremental.is_none() {
+        if self.content.compiler.incremental.is_none() {
             self.options.compiler.incremental = parent.compiler.incremental;
         }
 
@@ -580,7 +560,7 @@ impl DsConfig {
             for (name, target_json) in targets {
                 let options = DsConfigTargetOptions::from_json_with_runtime(
                     target_json,
-                    &self.options.runtime_options,
+                    &self.options.runtime,
                 );
                 self.options.targets.insert(name.clone(), options);
             }
@@ -623,7 +603,7 @@ pub struct DsConfigOptions {
     /// Compiler options.
     pub compiler: DsConfigCompilerOptions,
     /// Runtime options.
-    pub runtime_options: RuntimeOptions,
+    pub runtime: RuntimeOptions,
     /// Formatter options.
     pub formatter: FormatterOptions,
     /// Linter options.
@@ -642,63 +622,21 @@ pub struct DsConfigOptions {
     pub default_target: Option<String>,
 }
 
-/// DsConfig JSON (usually from `dsconfig.json`)
-#[derive(Debug, Deserialize, Clone, Default)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct DsConfigJson {
-    /// Extends other dsconfigs or tsconfigs.
-    pub extends: Option<ExtendsFieldJson>,
-    /// Specific files to include in the project.
-    pub files: Option<Vec<String>>,
-    /// Glob patterns for files to include.
-    pub include: Option<Vec<String>>,
-    /// Glob patterns for files to exclude.
-    pub exclude: Option<Vec<String>>,
-    /// Compiler options.
-    #[serde(default)]
-    pub compiler_options: CompilerOptionsJson,
-    /// Runtime options.
-    #[serde(default)]
-    pub runtime_options: DsConfigRuntimeOptionsJson,
-    /// Formatter options.
-    #[serde(default)]
-    pub formatter: DsConfigFormatterJson,
-    /// Linter options.
-    #[serde(default)]
-    pub linter: DsConfigLinterJson,
-    /// Cache options.
-    #[serde(default)]
-    pub cache: DsConfigCacheJson,
-    /// Watch options.
-    #[serde(default)]
-    #[serde(alias = "watchOptions")]
-    pub watch: DsConfigWatchJson,
-    /// Daemon options.
-    #[serde(default)]
-    pub daemon: DsConfigDaemonJson,
-    /// Build targets.
-    pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
-    /// Named profiles for semantic configuration.
-    pub profiles: Option<IndexMap<String, ProfileConfigJson>>,
-    /// Default target for workspace.
-    pub default_target: Option<String>,
-}
-
 impl From<&DsConfigJson> for DsConfigOptions {
     fn from(json: &DsConfigJson) -> Self {
-        let compiler = DsConfigCompilerOptions::from(&json.compiler_options);
-        let runtime_options = runtime_options_from_json(Some(&json.runtime_options));
+        let compiler = DsConfigCompilerOptions::from(&json.compiler);
+        let runtime = runtime_options_from_json(Some(&json.runtime));
 
         let targets = json
             .targets
             .as_ref()
-            .map(|t| {
-                t.iter()
-                    .map(|(k, v)| {
+            .map(|target_map| {
+                target_map
+                    .iter()
+                    .map(|(name, target_json)| {
                         (
-                            k.clone(),
-                            DsConfigTargetOptions::from_json_with_runtime(v, &runtime_options),
+                            name.clone(),
+                            DsConfigTargetOptions::from_json_with_runtime(target_json, &runtime),
                         )
                     })
                     .collect()
@@ -720,7 +658,7 @@ impl From<&DsConfigJson> for DsConfigOptions {
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
             compiler,
-            runtime_options,
+            runtime,
             formatter,
             linter,
             cache,
@@ -730,16 +668,61 @@ impl From<&DsConfigJson> for DsConfigOptions {
             profiles: json
                 .profiles
                 .as_ref()
-                .map(|profiles| {
-                    profiles
+                .map(|profile_map| {
+                    profile_map
                         .iter()
-                        .map(|(name, profile)| (name.clone(), ProfileConfig::from_json(profile)))
+                        .map(|(name, profile_json)| {
+                            (name.clone(), ProfileConfig::from_json(profile_json))
+                        })
                         .collect()
                 })
                 .unwrap_or_default(),
             default_target: json.default_target.clone(),
         }
     }
+}
+
+/// DsConfig JSON (usually from `dsconfig.json`)
+#[derive(Debug, Deserialize, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigJson {
+    /// Extends other dsconfigs or tsconfigs.
+    pub extends: Option<ExtendsFieldJson>,
+    /// Specific files to include in the project.
+    pub files: Option<Vec<String>>,
+    /// Glob patterns for files to include.
+    pub include: Option<Vec<String>>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Option<Vec<String>>,
+    /// Compiler options.
+    #[serde(default)]
+    #[serde(alias = "compilerOptions")]
+    pub compiler: DsConfigCompilerOptionsJson,
+    /// Runtime options.
+    #[serde(default)]
+    pub runtime: DsConfigRuntimeOptionsJson,
+    /// Formatter options.
+    #[serde(default)]
+    pub formatter: DsConfigFormatterJson,
+    /// Linter options.
+    #[serde(default)]
+    pub linter: DsConfigLinterJson,
+    /// Cache options.
+    #[serde(default)]
+    pub cache: DsConfigCacheJson,
+    /// Watch options.
+    #[serde(default)]
+    pub watch: DsConfigWatchJson,
+    /// Daemon options.
+    #[serde(default)]
+    pub daemon: DsConfigDaemonJson,
+    /// Build targets.
+    pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
+    /// Named profiles for semantic configuration.
+    pub profiles: Option<IndexMap<String, ProfileConfigJson>>,
+    /// Default target for workspace.
+    pub default_target: Option<String>,
 }
 
 /// Value for the "extends" field of a dsconfig.

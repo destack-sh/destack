@@ -9,7 +9,7 @@ pub const DSCONFIG_CACHE_IGNORED_KEYS: [&str; 7] = [
     "watch",
     "formatter",
     "linter",
-    "runtimeOptions",
+    "runtime",
     "targets",
     "defaultTarget",
 ];
