@@ -52,7 +52,6 @@ This is the open source monorepo containing the language, library, service, app,
 | `app/`       | First-party applications and operator tools (cli, future apps) | [app/README](app/README.md) |
 | `bridge/`    | SDKs and external integrations (napi, wasm, rust, python, vscode, zed, bun, vite) | [bridge/README](bridge/README.md) |
 | `template/`  | Project templates and initializer package | [template/README](template/README.md) |
-| `docs/`      | Additional project documentation                                  | [docs/README](docs/README.md)          |
 
 ## Setup
 
