@@ -1444,7 +1444,7 @@ mod tests {
         }
 
         assert_eq!(event_binding.pending.len(), 2);
-        assert_eq!(binding.dropped_count, 1);
+        assert_eq!(event_binding.dropped_count, 1);
         assert!(event_binding.overflow_error_pending);
 
         let events = event_binding.pending.iter().collect::<Vec<_>>();
