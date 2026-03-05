@@ -1,9 +1,12 @@
 use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{const_i64, expression_method_call, is_array_type};
+use crate::rules::common::{
+    const_i64, expression_method_call, is_array_type, member_receiver_text,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -208,20 +211,72 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         filter_call_id: dir::LocalNodeId<dir::Expression>,
         method_name: &str,
     ) -> Option<String> {
-        let filter_call = expression_method_call(self.ctx.tree, filter_call_id)?;
-        if filter_call.method_name != self.filter_name {
+        let filter_call_expression = self.ctx.tree.get(filter_call_id);
+        let dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = filter_call_expression
+        else {
+            return None;
+        };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return None;
+        }
+        if dynamic_arguments.is_empty() || dynamic_arguments.len() > 2 {
             return None;
         }
 
-        // rewrite the matched call text itself to preserve receiver and arguments
-        let filter_span = self.ctx.get_span(filter_call_id);
-        let filter_text = self.ctx.get_span_text(filter_span);
-        let replacement = filter_text.replacen(".filter(", &format!(".{method_name}("), 1);
-        if replacement == filter_text {
+        for argument_id in dynamic_arguments {
+            let argument = self.ctx.tree.get(*argument_id);
+            if !matches!(argument, dir::Argument::Positional { .. }) {
+                return None;
+            }
+        }
+
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            left: receiver_expression_id,
+            name,
+            static_arguments,
+            ..
+        } = member_expression
+        else {
+            return None;
+        };
+        if *name != self.filter_name {
+            return None;
+        }
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
             return None;
         }
 
-        Some(replacement)
+        // derive receiver text from member expression text
+        let member_span = self.ctx.get_span(*left);
+        let member_text = self.ctx.get_span_text(member_span);
+        let receiver_text = member_receiver_text(
+            self.ctx,
+            *receiver_expression_id,
+            member_text.as_ref(),
+            *name,
+            false,
+        )?;
+
+        // preserve callback and optional this-arg source range
+        let first_argument_id = *dynamic_arguments.first()?;
+        let last_argument_id = *dynamic_arguments.last()?;
+        let first_span = self.ctx.get_span(first_argument_id);
+        let last_span = self.ctx.get_span(last_argument_id);
+        let arguments_span = Span::new(first_span.file, first_span.start, last_span.end);
+        let arguments_text = self.ctx.get_span_text(arguments_span);
+
+        Some(format!("{receiver_text}.{method_name}({arguments_text})"))
     }
 
     /// Return the literal numeric index for one `.at(index)` call.

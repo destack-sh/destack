@@ -94,24 +94,22 @@ impl LintRule for PreferAsConst {
                 continue;
             }
 
-            let Some(fix) = declarator_literal_annotation_fix(ctx, declarator_id) else {
-                continue;
-            };
-
             let type_span = ctx.tree.get_span(type_expression_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    PREFER_AS_CONST.id,
-                    PREFER_AS_CONST.code,
-                    PREFER_AS_CONST.category,
-                    severity,
-                    "use `as const` instead of literal type annotation",
-                    ctx.module.file_id,
-                    type_span,
-                )
-                .with_label("prefer `as const`")
-                .with_fix(fix),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                PREFER_AS_CONST.id,
+                PREFER_AS_CONST.code,
+                PREFER_AS_CONST.category,
+                severity,
+                "use `as const` instead of literal type annotation",
+                ctx.module.file_id,
+                type_span,
+            )
+            .with_label("prefer `as const`");
+            if let Some(fix) = declarator_literal_annotation_fix(ctx, declarator_id) {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
 
         // prefer `as const` for class field literal annotations
@@ -134,24 +132,22 @@ impl LintRule for PreferAsConst {
                 continue;
             }
 
-            let Some(fix) = member_field_literal_annotation_fix(ctx, member_id) else {
-                continue;
-            };
-
             let type_span = ctx.tree.get_span(*type_expression_id);
-            ctx.report(
-                LintDiagnostic::new(
-                    PREFER_AS_CONST.id,
-                    PREFER_AS_CONST.code,
-                    PREFER_AS_CONST.category,
-                    severity,
-                    "use `as const` instead of literal type annotation",
-                    ctx.module.file_id,
-                    type_span,
-                )
-                .with_label("prefer `as const`")
-                .with_fix(fix),
-            );
+            let mut diagnostic = LintDiagnostic::new(
+                PREFER_AS_CONST.id,
+                PREFER_AS_CONST.code,
+                PREFER_AS_CONST.category,
+                severity,
+                "use `as const` instead of literal type annotation",
+                ctx.module.file_id,
+                type_span,
+            )
+            .with_label("prefer `as const`");
+            if let Some(fix) = member_field_literal_annotation_fix(ctx, member_id) {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
@@ -269,6 +265,10 @@ fn is_exact_literal_self_cast(
             Expression::ScalarLiteral(ScalarLiteral::Bigint(left)),
             Expression::ScalarLiteral(ScalarLiteral::Bigint(right)),
         ) => left == right,
+        (
+            Expression::ScalarLiteral(ScalarLiteral::Float(left)),
+            Expression::ScalarLiteral(ScalarLiteral::Float(right)),
+        ) => left == right,
         _ => false,
     }
 }
@@ -348,6 +348,26 @@ const x = 42 as 42
             .assert_safe_fixed(
                 r#"
 const x = 42 as const;
+"#,
+            );
+    }
+
+    /// Fix float literal self-casts to `as const`.
+    #[test]
+    fn test_fix_float_literal_self_cast() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_fix_float_literal_self_cast.ds",
+            r#"
+const x = 1.5 as 1.5
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_fix("prefer-as-const")
+            .assert_safe_fixed(
+                r#"
+const x = 1.5 as const;
 "#,
             );
     }
@@ -515,5 +535,37 @@ let foo: 'bar' = value;
 "#,
         );
         test.result(result).assert_no_lint("prefer-as-const");
+    }
+
+    /// Keep a diagnostic when annotation rewrites are comment blocked.
+    #[test]
+    fn test_lint_without_fix_for_commented_variable_annotation() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_lint_without_fix_for_commented_variable_annotation.ds",
+            r#"
+let foo /* keep note */: 'bar' = 'bar';
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_no_fix("prefer-as-const");
+    }
+
+    /// Keep a diagnostic when class-field annotation rewrites are comment blocked.
+    #[test]
+    fn test_lint_without_fix_for_commented_field_annotation() {
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
+        let result = test.lint_ast(
+            "prefer_as_const/test_lint_without_fix_for_commented_field_annotation.ds",
+            r#"
+class Foo {
+    bar /* keep note */: 'baz' = 'baz';
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-as-const")
+            .assert_has_no_fix("prefer-as-const");
     }
 }

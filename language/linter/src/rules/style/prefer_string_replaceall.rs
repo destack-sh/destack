@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
@@ -6,9 +8,9 @@ use regex_syntax::hir::HirKind;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::analysis::LintRegexParse;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol,
-    expression_unwrap_parenthesized, is_string_type, single_quoted_string_literal,
-    span_has_comment_trivia,
+    expression_is_global_qualified_member, expression_static_string_literal,
+    expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
+    single_quoted_string_literal, span_has_comment_trivia, symbol_initializer_expression,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -269,6 +271,16 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
 
     /// Return true when the expression is a global regex literal.
     fn is_global_regex(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let mut visited_symbols = HashSet::new();
+        self.is_global_regex_expression(expression_id, &mut visited_symbols)
+    }
+
+    /// Return true when one expression is a global regex literal after alias resolution.
+    fn is_global_regex_expression(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        visited_symbols: &mut HashSet<dir::GlobalSymbolId>,
+    ) -> bool {
         // unwrap parenthesized expressions
         let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
 
@@ -281,7 +293,30 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
                 },
         } = expression
         else {
-            return self.is_regexp_constructor_with_global_flag(expression_id);
+            if self.is_regexp_constructor_with_global_flag(expression_id, visited_symbols) {
+                return true;
+            }
+
+            // follow direct symbol aliases for const regex bindings
+            let Some(target_symbol) = expression_target_symbol(self.ctx.tree, expression_id) else {
+                return false;
+            };
+            if !visited_symbols.insert(target_symbol) {
+                return false;
+            }
+
+            let Some(initializer_id) = symbol_initializer_expression(
+                &self.ctx.program,
+                self.ctx.profile_id,
+                self.ctx.module_id(),
+                self.ctx.symbols,
+                self.ctx.tree,
+                target_symbol,
+            ) else {
+                return false;
+            };
+
+            return self.is_global_regex_expression(initializer_id, visited_symbols);
         };
 
         // inspect regex flags
@@ -293,6 +328,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     fn is_regexp_constructor_with_global_flag(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
+        visited_symbols: &mut HashSet<dir::GlobalSymbolId>,
     ) -> bool {
         let expression = self.ctx.tree.get(expression_id);
         let (callee_id, arguments) = match expression {
@@ -313,26 +349,71 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return false;
         }
 
-        let Some(flags_argument_id) = arguments.get(1) else {
+        // when explicit flags are present they override regex-literal flags
+        if let Some(flags_argument_id) = arguments.get(1) {
+            let flags_argument = self.ctx.tree.get(*flags_argument_id);
+            let dir::Argument::Positional {
+                value: flags_expression_id,
+                ..
+            } = flags_argument
+            else {
+                return false;
+            };
+            let Some(flags_id) =
+                self.static_string_from_expression(*flags_expression_id, visited_symbols)
+            else {
+                return false;
+            };
+            let flags_text = self.ctx.program.strings.get(flags_id);
+            return flags_text.as_ref().contains('g');
+        }
+
+        // without explicit flags, inherit from first regex-literal argument
+        let Some(pattern_argument_id) = arguments.first() else {
             return false;
         };
-        let flags_argument = self.ctx.tree.get(*flags_argument_id);
+        let pattern_argument = self.ctx.tree.get(*pattern_argument_id);
         let dir::Argument::Positional {
-            value: flags_expression_id,
+            value: pattern_expression_id,
             ..
-        } = flags_argument
+        } = pattern_argument
         else {
             return false;
         };
-        let flags_expression = self.ctx.tree.get(*flags_expression_id);
-        let dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::String(flags_id),
-        } = flags_expression
-        else {
-            return false;
-        };
-        let flags_text = self.ctx.program.strings.get(*flags_id);
-        flags_text.as_ref().contains('g')
+
+        self.is_global_regex_expression(*pattern_expression_id, visited_symbols)
+    }
+
+    /// Resolve one static string literal through local symbol aliases.
+    fn static_string_from_expression(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        visited_symbols: &mut HashSet<dir::GlobalSymbolId>,
+    ) -> Option<StringId> {
+        // unwrap parenthesized wrappers
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+
+        // keep direct static string literals
+        if let Some(string_id) = expression_static_string_literal(self.ctx.tree, expression_id) {
+            return Some(string_id);
+        }
+
+        // follow local symbol aliases for const string flags
+        let target_symbol = expression_target_symbol(self.ctx.tree, expression_id)?;
+        if !visited_symbols.insert(target_symbol) {
+            return None;
+        }
+
+        let initializer_id = symbol_initializer_expression(
+            &self.ctx.program,
+            self.ctx.profile_id,
+            self.ctx.module_id(),
+            self.ctx.symbols,
+            self.ctx.tree,
+            target_symbol,
+        )?;
+
+        self.static_string_from_expression(initializer_id, visited_symbols)
     }
 
     /// Return true when one expression resolves to the global RegExp constructor.
@@ -544,6 +625,66 @@ let next = text.replace(new RegExp("l", "gi"), "x");
         test.result(result).assert_lint("prefer-string-replaceall");
     }
 
+    /// Flag RegExp constructor calls when flags come from a static string alias.
+    #[test]
+    fn test_flags_regexp_constructor_with_static_string_flag_alias() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_flags_regexp_constructor_with_static_string_flag_alias.ds",
+            r#"
+let text = "hello";
+const flags = "gi";
+let next = text.replace(RegExp("l", flags), "x");
+"#,
+        );
+        test.result(result).assert_lint("prefer-string-replaceall");
+    }
+
+    /// Allow RegExp constructor calls when static string alias flags are not global.
+    #[test]
+    fn test_allows_regexp_constructor_with_non_global_static_string_flag_alias() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_allows_regexp_constructor_with_non_global_static_string_flag_alias.ds",
+            r#"
+let text = "hello";
+const flags = "i";
+let next = text.replace(RegExp("l", flags), "x");
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-string-replaceall");
+    }
+
+    /// Flag RegExp constructor calls that inherit a global regex argument.
+    #[test]
+    fn test_flags_regexp_constructor_from_global_regex_argument() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_flags_regexp_constructor_from_global_regex_argument.ds",
+            r#"
+let text = "hello";
+let next = text.replace(RegExp(/l/g), "x");
+"#,
+        );
+        test.result(result).assert_lint("prefer-string-replaceall");
+    }
+
+    /// Allow RegExp constructor calls when explicit flags remove global matching.
+    #[test]
+    fn test_allows_regexp_constructor_with_non_global_override_flags() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_allows_regexp_constructor_with_non_global_override_flags.ds",
+            r#"
+let text = "hello";
+let next = text.replace(RegExp(/l/g, "i"), "x");
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-string-replaceall");
+    }
+
     #[test]
     fn test_no_fix_when_replace_contains_comments() {
         let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
@@ -591,6 +732,50 @@ let next = text.replaceAll('l', "x");
             r#"
 let text = "hello";
 let next = text.replaceAll(/l+/g, "x");
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-string-replaceall");
+    }
+
+    #[test]
+    fn test_flags_replace_with_global_regex_variable() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_flags_replace_with_global_regex_variable.ds",
+            r#"
+let text = "hello";
+const pattern = /l/g;
+let next = text.replace(pattern, "x");
+"#,
+        );
+        test.result(result).assert_lint("prefer-string-replaceall");
+    }
+
+    #[test]
+    fn test_flags_replace_with_global_regex_alias_chain() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_flags_replace_with_global_regex_alias_chain.ds",
+            r#"
+let text = "hello";
+const pattern = /l/g;
+const alias = pattern;
+let next = text.replace(alias, "x");
+"#,
+        );
+        test.result(result).assert_lint("prefer-string-replaceall");
+    }
+
+    #[test]
+    fn test_allows_replace_with_non_global_regex_variable() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringReplaceAll);
+        let result = test.lint_dir(
+            "prefer_string_replaceall/test_allows_replace_with_non_global_regex_variable.ds",
+            r#"
+let text = "hello";
+const pattern = /l/;
+let next = text.replace(pattern, "x");
 "#,
         );
         test.result(result)
