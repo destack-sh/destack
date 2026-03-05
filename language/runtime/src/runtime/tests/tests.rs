@@ -5,7 +5,7 @@ use destack_heap as heap;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::{HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
+use crate::host::{Host, HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
 use crate::platform::time::TimerClock;
 use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::Agent;
@@ -129,21 +129,23 @@ impl Engine for TestEngine {
 pub(super) struct TestRuntime {
     /// Wrapped agent under test.
     agent: Agent,
+    /// Wrapped host under test.
+    host: Host,
 }
 
 impl TestRuntime {
     /// Create one test agent with default options.
     pub(super) fn new() -> Self {
-        let agent = agent_for_options(&RuntimeOptions::default());
+        let (agent, host) = agent_for_options(&RuntimeOptions::default());
 
-        Self { agent }
+        Self { agent, host }
     }
 
     /// Create one test agent with explicit runtime options.
     pub(super) fn with_options(options: &RuntimeOptions) -> Self {
-        let agent = agent_for_options(options);
+        let (agent, host) = agent_for_options(options);
 
-        Self { agent }
+        Self { agent, host }
     }
 
     /// Create one test agent with explicit options and one host clock source.
@@ -151,9 +153,10 @@ impl TestRuntime {
         options: &RuntimeOptions,
         host_clock_source: Arc<dyn HostClockSource>,
     ) -> Self {
-        let agent = agent_for_options_with_host_clock_source(options, Some(host_clock_source));
+        let (agent, host) =
+            agent_for_options_with_host_clock_source(options, Some(host_clock_source));
 
-        Self { agent }
+        Self { agent, host }
     }
 
     /// Enqueue one native task with explicit identifiers.
@@ -292,14 +295,14 @@ impl TestRuntime {
     /// Tick once and fail loudly on runtime errors.
     pub(super) fn tick_once<E: Engine>(&mut self, engine: &mut E) -> bool {
         self.agent
-            .tick_once(engine)
+            .tick_once(&self.host, engine)
             .expect("tick should execute runtime work")
     }
 
     /// Tick until idle and fail loudly on runtime errors.
     pub(super) fn tick_until_idle<E: Engine>(&mut self, engine: &mut E) {
         self.agent
-            .tick_until_idle(engine)
+            .tick_until_idle(&self.host, engine)
             .expect("tick until idle should complete");
     }
 
@@ -310,7 +313,7 @@ impl TestRuntime {
         task_id: u64,
     ) -> RuntimeResult<EngineOutput> {
         self.agent
-            .run_loop_until_task_complete(engine, TaskId::new(task_id))
+            .run_loop_until_task_complete(&self.host, engine, TaskId::new(task_id))
     }
 
     /// Run until one task completes or one timeout elapses.
@@ -321,6 +324,7 @@ impl TestRuntime {
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<EngineOutput>> {
         self.agent.run_loop_until_task_complete_with_timeout(
+            &self.host,
             engine,
             TaskId::new(task_id),
             timeout_nanos,
@@ -364,7 +368,7 @@ impl TestRuntime {
 }
 
 /// Build one agent configured for runtime tests.
-fn agent_for_options(options: &RuntimeOptions) -> Agent {
+fn agent_for_options(options: &RuntimeOptions) -> (Agent, Host) {
     agent_for_options_with_host_clock_source(options, None)
 }
 
@@ -372,17 +376,17 @@ fn agent_for_options(options: &RuntimeOptions) -> Agent {
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> Agent {
+) -> (Agent, Host) {
     // construct one runtime agent from explicit options
     let mut agent = if let Some(host_clock_source) = host_clock_source {
-        Agent::from_options_with_host_clock_source(
+        Agent::new_with_host_clock_source(
             PlatformContext::new(Vec::new()),
             options,
             host_clock_source,
         )
         .expect("runtime test agent should build with host clock source")
     } else {
-        Agent::from_options(PlatformContext::new(Vec::new()), options)
+        Agent::new(PlatformContext::new(Vec::new()), options)
             .expect("runtime test agent should build")
     };
 
@@ -395,13 +399,14 @@ fn agent_for_options_with_host_clock_source(
     // apply runtime options to binding policy state
     agent.bindings.apply_runtime_defaults(options);
 
+    // build the host for this test agent
+    let host = Host::from_runtime_options(options);
+
     // drain initial host bootstrap events for deterministic scheduler tests
-    agent
-        .host()
-        .poll_events(Some(0))
+    host.poll_events(Some(0))
         .expect("host bootstrap events should drain");
 
-    agent
+    (agent, host)
 }
 
 /// Build one void runtime output.

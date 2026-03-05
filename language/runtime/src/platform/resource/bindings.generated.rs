@@ -117,7 +117,7 @@ fn encode_destack_resource_id_kind_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ResourceKindVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.0.value())
+    result.map(|value| value.value())
 }
 
 /// Decode arguments for destack.resource.id.remove.
@@ -188,7 +188,7 @@ pub const RESOURCE_ID_CLOSE: BindingDescriptor =
         "destack.resource.id.close",
         "export function close(id: ResourceId): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
+        BindingReplayKind::BindingCall,
         &["resource.close"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,

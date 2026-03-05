@@ -1,10 +1,13 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_workspace::RuntimeOptions;
+use destack_workspace::{RuntimeOptions, RuntimeSelector};
 
 use crate::diagnostic::RuntimeError;
+use crate::host::Host;
 use crate::platform::PlatformContext;
 use crate::runtime::bindings::BindingDescriptor;
+use crate::runtime::policy::{CustomEffect, Rule, Trigger};
 use crate::runtime::{Agent, BindingCallContext, Hook, HookDecision, HookSelector, World};
 
 /// Ensures before-binding callbacks can deny one matching binding call.
@@ -13,25 +16,25 @@ fn test_on_before_binding_allows_hook_callback_deny() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent =
-        Agent::from_options_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
-            .expect("agent should construct in world");
+    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+        .expect("agent should construct in world");
+    let host = Host::from_runtime_options(&options);
 
     // register one deny callback for matching binding names
-    let callback_id = agent.hooks.on(
-        Hook::BindingBefore,
-        HookSelector {
-            binding: Some("destack.test.hook.*".to_string()),
-        },
-        Arc::new(|_event| HookDecision::Deny {
-            message: "blocked by callback".to_string(),
-        }),
-    );
+    let callback_id =
+        agent
+            .hooks
+            .on_before(HookSelector::binding("destack.test.hook.*"), |_event| {
+                HookDecision::Deny {
+                    message: "blocked by callback".to_string(),
+                }
+            });
 
     // matching binding calls should fail with the callback message
     let call_context = BindingCallContext::new(
         &agent,
         agent.event_loop.as_ref(),
+        &host,
         agent.bindings.policy_snapshot(),
     );
     let descriptor = BindingDescriptor::pure("destack.test.hook.block", "()");
@@ -48,6 +51,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
     let call_context = BindingCallContext::new(
         &agent,
         agent.event_loop.as_ref(),
+        &host,
         agent.bindings.policy_snapshot(),
     );
     let result = call_context.on_before_binding(descriptor);
@@ -60,25 +64,23 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
     // create one agent in one shared world
     let options = RuntimeOptions::default();
     let world = Arc::new(World::default());
-    let agent =
-        Agent::from_options_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
-            .expect("agent should construct in world");
+    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+        .expect("agent should construct in world");
+    let host = Host::from_runtime_options(&options);
 
     // register one deny callback with one non-matching binding pattern
-    let callback_id = agent.hooks.on(
-        Hook::BindingBefore,
-        HookSelector {
-            binding: Some("destack.test.hook.nonmatching.*".to_string()),
-        },
-        Arc::new(|_event| HookDecision::Deny {
+    let callback_id = agent.hooks.on_before(
+        HookSelector::binding("destack.test.hook.nonmatching.*"),
+        |_event| HookDecision::Deny {
             message: "blocked by callback".to_string(),
-        }),
+        },
     );
 
     // non-matching binding calls should continue normally
     let call_context = BindingCallContext::new(
         &agent,
         agent.event_loop.as_ref(),
+        &host,
         agent.bindings.policy_snapshot(),
     );
     let descriptor = BindingDescriptor::pure("destack.test.hook.allowed", "()");
@@ -87,4 +89,52 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
 
     // unregister should remove exactly one callback
     assert!(agent.hooks.off(callback_id));
+}
+
+/// Ensures custom-effect handlers execute for matching runtime rules.
+#[test]
+fn test_on_before_binding_dispatches_custom_effect_handler() {
+    // create one agent in one shared world
+    let options = RuntimeOptions::default();
+    let world = Arc::new(World::default());
+    let agent = Agent::new_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
+        .expect("agent should construct in world");
+    let host = Host::from_runtime_options(&options);
+
+    // install one custom-effect rule for one binding pattern
+    world
+        .install_rule(
+            Rule::custom(
+                "test.hook.custom.effect",
+                CustomEffect::new("test.custom.handler").payload("{\"mock\":true}"),
+                Trigger::once(Hook::BindingBefore),
+            )
+            .when(RuntimeSelector::binding("destack.test.hook.custom.*")),
+        )
+        .expect("custom rule should install");
+
+    // register one custom effect handler callback
+    let invocations = Arc::new(AtomicU64::new(0));
+    let invocations_for_handler = invocations.clone();
+    agent
+        .hooks
+        .on_custom_effect("test.custom.handler", move |invocation| {
+            assert_eq!(invocation.rule_id, "test.hook.custom.effect");
+            assert_eq!(invocation.handler, "test.custom.handler");
+            assert_eq!(invocation.payload.as_deref(), Some("{\"mock\":true}"));
+            invocations_for_handler.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        });
+
+    // matching binding call should dispatch one custom effect invocation
+    let call_context = BindingCallContext::new(
+        &agent,
+        agent.event_loop.as_ref(),
+        &host,
+        agent.bindings.policy_snapshot(),
+    );
+    let descriptor = BindingDescriptor::pure("destack.test.hook.custom.call", "()");
+    let result = call_context.on_before_binding(descriptor);
+    assert!(result.is_ok());
+    assert_eq!(invocations.load(Ordering::Relaxed), 1);
 }

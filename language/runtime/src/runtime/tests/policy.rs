@@ -1,10 +1,18 @@
-use crate::runtime::AgentId;
+use std::collections::BTreeMap;
+
 use crate::runtime::policy::{
-    ActivationWindow, Effect, Fault, FaultTarget, FaultType, Hook, HookEvent, HookState, Lifetime,
-    Policy, PolicyIdentity, PolicyState, Rule, RuleId, Trigger,
+    ActivationWindow, Effect, Fault, FaultTarget, FaultType, Hook, HookEvent, Lifetime, Policy,
+    PolicyCallId, PolicyState, Rule, RuleId, Trigger, WorldEdgeSelector, WorldEntitySelector,
 };
 use crate::runtime::random::Random;
-use destack_workspace::{ExecutionMode, RandomMode, RuntimeSelector};
+use crate::runtime::world::topology::Topology;
+use crate::runtime::{AgentId, WorldEdgeKind, WorldEntityKind};
+use destack_workspace::{ExecutionMode, RandomMode, RuntimeAccess, RuntimeSelector};
+
+/// Stable runtime name used by policy tests.
+const TEST_RUNTIME_NAME: &str = "test-runtime";
+/// Stable agent name used by policy tests.
+const TEST_AGENT_NAME: &str = "test-agent";
 
 /// Ensures activation windows based on call counts gate initial firings.
 #[test]
@@ -29,22 +37,85 @@ fn test_on_event_respects_after_call_count_activation() {
     let mut state = PolicyState::new(policy);
 
     // first matching call should only advance activation state
-    state.on_event(
-        &hook_event(10, Hook::BindingBefore, true, 0),
-        &test_policy_identity(),
+    let first_decisions = state.on_event(
+        &policy_event(10, Hook::BindingBefore, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    assert_eq!(state.matched_decisions_seen_totals(), vec![0]);
+    assert!(first_decisions.is_empty());
 
     // second matching call should produce exactly one accepted fire
-    state.on_event(
-        &hook_event(10, Hook::BindingBefore, true, 0),
-        &test_policy_identity(),
+    let second_decisions = state.on_event(
+        &policy_event(10, Hook::BindingBefore, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    assert_eq!(state.matched_decisions_seen_totals(), vec![1]);
+    assert_eq!(second_decisions.len(), 1);
+}
+
+/// Ensures call-count activation windows are isolated per agent.
+#[test]
+fn test_on_event_respects_after_call_count_per_agent() {
+    // prepare one rule that activates after two call events per agent
+    let trigger = Trigger {
+        on: Hook::BindingBefore,
+        activation: Some(ActivationWindow::AfterCallCount { call_count: 2 }),
+        lifetime: None,
+        activation_ppm: None,
+        probability_ppm: None,
+        max_occurrences: Some(1),
+        cooldown_ns: None,
+        burst: None,
+        interval_hits: None,
+        skip_hits: None,
+    };
+    let policy = Policy {
+        rules: vec![effect_rule("after-call-count-per-agent", trigger)],
+    };
+    let random = Random::new(11, RandomMode::Deterministic);
+    let mut state = PolicyState::new(policy);
+
+    // first call for each agent should only advance that agent activation state
+    let agent_one_first = state.on_event(
+        &policy_event(1, Hook::BindingBefore, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
+        ExecutionMode::Fast,
+        &random,
+    );
+    let agent_two_first = state.on_event(
+        &policy_event(2, Hook::BindingBefore, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
+        ExecutionMode::Fast,
+        &random,
+    );
+    assert!(agent_one_first.is_empty());
+    assert!(agent_two_first.is_empty());
+
+    // second call for one agent should activate only that agent rule state
+    let agent_two_second = state.on_event(
+        &policy_event(2, Hook::BindingBefore, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
+        ExecutionMode::Fast,
+        &random,
+    );
+    assert_eq!(agent_two_second.len(), 1);
 }
 
 /// Ensures cadence and cooldown gates jointly shape accepted firings.
@@ -70,33 +141,46 @@ fn test_on_event_respects_cadence_and_cooldown() {
     let mut state = PolicyState::new(policy);
 
     // evaluate four matching events across one scope
-    state.on_event(
-        &hook_event(2, Hook::SchedulerDequeue, false, 0),
-        &test_policy_identity(),
+    let first = state.on_event(
+        &policy_event(2, Hook::SchedulerDequeue, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    state.on_event(
-        &hook_event(2, Hook::SchedulerDequeue, false, 0),
-        &test_policy_identity(),
+    let second = state.on_event(
+        &policy_event(2, Hook::SchedulerDequeue, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    state.on_event(
-        &hook_event(2, Hook::SchedulerDequeue, false, 5),
-        &test_policy_identity(),
+    let third = state.on_event(
+        &policy_event(2, Hook::SchedulerDequeue, 5),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    state.on_event(
-        &hook_event(2, Hook::SchedulerDequeue, false, 10),
-        &test_policy_identity(),
+    let fourth = state.on_event(
+        &policy_event(2, Hook::SchedulerDequeue, 10),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
 
     // cadence and cooldown should allow exactly two accepted firings
-    assert_eq!(state.matched_decisions_seen_totals(), vec![2]);
+    let total_decisions = first.len() + second.len() + third.len() + fourth.len();
+    assert_eq!(total_decisions, 2);
 }
 
 /// Ensures call-count lifetime expires rules after the configured active budget.
@@ -122,32 +206,42 @@ fn test_on_event_respects_call_count_lifetime() {
     let mut state = PolicyState::new(policy);
 
     // evaluate three matching events for one scope
-    state.on_event(
-        &hook_event(3, Hook::SchedulerDequeue, false, 0),
-        &test_policy_identity(),
+    let first = state.on_event(
+        &policy_event(3, Hook::SchedulerDequeue, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    state.on_event(
-        &hook_event(3, Hook::SchedulerDequeue, false, 0),
-        &test_policy_identity(),
+    let second = state.on_event(
+        &policy_event(3, Hook::SchedulerDequeue, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
-    state.on_event(
-        &hook_event(3, Hook::SchedulerDequeue, false, 0),
-        &test_policy_identity(),
+    let third = state.on_event(
+        &policy_event(3, Hook::SchedulerDequeue, 0),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
 
     // only two firings should be accepted before expiration
-    assert_eq!(state.matched_decisions_seen_totals(), vec![2]);
+    let total_decisions = first.len() + second.len() + third.len();
+    assert_eq!(total_decisions, 2);
 }
 
-/// Ensures policy decisions include deterministic metadata for execution wiring.
+/// Ensures policy decisions carry the minimum execution payload.
 #[test]
-fn test_on_event_emits_policy_decision_metadata() {
+fn test_on_event_emits_policy_decision_payload() {
     // prepare one always-on rule with deterministic trigger behavior
     let trigger = Trigger {
         on: Hook::BindingBefore,
@@ -169,23 +263,254 @@ fn test_on_event_emits_policy_decision_metadata() {
 
     // fire one matching call event
     let decisions = state.on_event(
-        &hook_event(99, Hook::BindingBefore, true, 1234),
-        &test_policy_identity(),
+        &policy_event(99, Hook::BindingBefore, 1234),
+        TEST_RUNTIME_NAME,
+        &BTreeMap::new(),
+        TEST_AGENT_NAME,
+        &BTreeMap::new(),
         ExecutionMode::Fast,
         &random,
     );
 
-    // the policy decision should carry deterministic event metadata
+    // the policy decision should carry execution payload
     assert_eq!(decisions.len(), 1);
     let decision = &decisions[0];
     assert_eq!(decision.rule_id.0, "test.active.metadata");
     assert_eq!(decision.hook, Hook::BindingBefore);
     assert_eq!(decision.agent_id, AgentId(99));
-    assert_eq!(decision.policy_revision, 1);
-    assert_eq!(decision.event_index, 1);
-    assert_eq!(decision.virtual_time_ns, 1234);
-    assert_eq!(decision.fire_count, 1);
+    assert!(decision.call_id.is_some());
     assert!(matches!(decision.effect, Effect::Fault { .. }));
+}
+
+/// Ensures fault rules require explicit triggers.
+#[test]
+fn test_policy_validate_rejects_fault_rule_without_trigger() {
+    // configure one fault rule with no trigger
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.shape.fault_missing_trigger".to_string()),
+            enabled: true,
+            when: Some(RuntimeSelector::default()),
+            action: Effect::Fault {
+                fault: Fault {
+                    target: FaultTarget::Call {},
+                    fault_type: FaultType::Error {
+                        code: "EFAULT".to_string(),
+                    },
+                },
+            },
+            trigger: None,
+        }],
+    };
+
+    // validation should reject missing trigger shape
+    let result = validate_policy(&policy);
+    assert!(result.is_err());
+}
+
+/// Ensures static dispatch rules reject triggers.
+#[test]
+fn test_policy_validate_rejects_dispatch_rule_with_trigger() {
+    // configure one dispatch rule with one trigger
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.shape.dispatch_with_trigger".to_string()),
+            enabled: true,
+            when: Some(RuntimeSelector::default()),
+            action: Effect::SetAccess {
+                access: RuntimeAccess::Allow,
+            },
+            trigger: Some(test_trigger()),
+        }],
+    };
+
+    // validation should reject dispatch trigger shape
+    let result = validate_policy(&policy);
+    assert!(result.is_err());
+}
+
+/// Ensures dispatch rules require one explicit call selector.
+#[test]
+fn test_policy_validate_rejects_dispatch_rule_without_call_selector() {
+    // configure one dispatch rule with no call selector
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.shape.dispatch_missing_call_selector".to_string()),
+            enabled: true,
+            when: None,
+            action: Effect::SetAccess {
+                access: RuntimeAccess::Allow,
+            },
+            trigger: None,
+        }],
+    };
+
+    // validation should reject missing call selector for dispatch rules
+    let result = validate_policy(&policy);
+    assert!(result.is_err());
+}
+
+/// Ensures call-target faults require one explicit call selector.
+#[test]
+fn test_policy_validate_rejects_call_fault_without_call_selector() {
+    // configure one call fault rule with no call selector
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.shape.call_fault_missing_call_selector".to_string()),
+            enabled: true,
+            when: None,
+            action: Effect::Fault {
+                fault: Fault {
+                    target: FaultTarget::Call {},
+                    fault_type: FaultType::Error {
+                        code: "EFAULT".to_string(),
+                    },
+                },
+            },
+            trigger: Some(test_trigger()),
+        }],
+    };
+
+    // validation should reject missing call selector for call-target faults
+    let result = validate_policy(&policy);
+    assert!(result.is_err());
+}
+
+/// Ensures unknown simulation entity kinds are rejected during policy validation.
+#[test]
+fn test_policy_validate_rejects_unknown_entity_kind() {
+    // configure one rule with one unknown entity kind id
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.kind.unknown".to_string()),
+            enabled: true,
+            when: None,
+            action: Effect::Fault {
+                fault: Fault {
+                    target: FaultTarget::Entity {
+                        kind: WorldEntityKind("unknown.kind".to_string()),
+                        selector: WorldEntitySelector::Any,
+                    },
+                    fault_type: FaultType::Drop {},
+                },
+            },
+            trigger: Some(test_trigger()),
+        }],
+    };
+
+    // validation should reject unknown kind ids
+    let result = validate_policy(&policy);
+    assert!(result.is_err());
+}
+
+/// Ensures registered simulation kinds accept compatible fault classes.
+#[test]
+fn test_policy_validate_accepts_registered_compatible_fault_kind() {
+    // configure one rule with one registered transport-capable entity kind
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.kind.compatible".to_string()),
+            enabled: true,
+            when: None,
+            action: Effect::Fault {
+                fault: Fault {
+                    target: FaultTarget::Entity {
+                        kind: WorldEntityKind("net.socket".to_string()),
+                        selector: WorldEntitySelector::Any,
+                    },
+                    fault_type: FaultType::Drop {},
+                },
+            },
+            trigger: Some(test_trigger()),
+        }],
+    };
+
+    // validation should accept compatible kind and fault pairs
+    let result = validate_policy(&policy);
+    assert!(result.is_ok());
+}
+
+/// Ensures registered simulation kinds reject incompatible fault classes.
+#[test]
+fn test_policy_validate_rejects_registered_incompatible_fault_kind() {
+    // configure one rule with one durability-only entity kind and one transport fault
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.kind.incompatible".to_string()),
+            enabled: true,
+            when: None,
+            action: Effect::Fault {
+                fault: Fault {
+                    target: FaultTarget::Entity {
+                        kind: WorldEntityKind("fs.inode".to_string()),
+                        selector: WorldEntitySelector::Any,
+                    },
+                    fault_type: FaultType::Drop {},
+                },
+            },
+            trigger: Some(test_trigger()),
+        }],
+    };
+
+    // validation should reject incompatible kind and fault pairs
+    let result = validate_policy(&policy);
+    assert!(result.is_err());
+}
+
+/// Ensures registered simulation edge kinds accept compatible fault classes.
+#[test]
+fn test_policy_validate_accepts_registered_compatible_fault_edge_kind() {
+    // configure one rule with one registered transport-capable edge kind
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.edge.compatible".to_string()),
+            enabled: true,
+            when: None,
+            action: Effect::Fault {
+                fault: Fault {
+                    target: FaultTarget::Edge {
+                        kind: WorldEdgeKind("net.stream_link".to_string()),
+                        selector: WorldEdgeSelector::Any,
+                        direction: None,
+                    },
+                    fault_type: FaultType::Drop {},
+                },
+            },
+            trigger: Some(test_trigger()),
+        }],
+    };
+
+    // validation should accept compatible edge and fault pairs
+    let result = validate_policy(&policy);
+    assert!(result.is_ok());
+}
+
+/// Ensures registered simulation edge kinds reject incompatible fault classes.
+#[test]
+fn test_policy_validate_rejects_registered_incompatible_fault_edge_kind() {
+    // configure one rule with one durability-only edge kind and one transport fault
+    let policy = Policy {
+        rules: vec![Rule {
+            id: RuleId("test.policy.edge.incompatible".to_string()),
+            enabled: true,
+            when: None,
+            action: Effect::Fault {
+                fault: Fault {
+                    target: FaultTarget::Edge {
+                        kind: WorldEdgeKind("fs.parent_child".to_string()),
+                        selector: WorldEdgeSelector::Any,
+                        direction: None,
+                    },
+                    fault_type: FaultType::Drop {},
+                },
+            },
+            trigger: Some(test_trigger()),
+        }],
+    };
+
+    // validation should reject incompatible edge and fault pairs
+    let result = validate_policy(&policy);
+    assert!(result.is_err());
 }
 
 /// Build one minimal fault effect rule for trigger tests.
@@ -193,35 +518,91 @@ fn effect_rule(id_suffix: &str, trigger: Trigger) -> Rule {
     Rule {
         id: RuleId(format!("test.active.{id_suffix}")),
         enabled: true,
-        when: RuntimeSelector::default(),
+        when: Some(RuntimeSelector::default()),
         action: Effect::Fault {
             fault: Fault {
                 target: FaultTarget::Call {},
-                fault_type: FaultType::Drop {},
+                fault_type: FaultType::Error {
+                    code: "EFAULT".to_string(),
+                },
             },
         },
         trigger: Some(trigger),
     }
 }
 
-/// Build one deterministic identity context for policy tests.
-fn test_policy_identity() -> PolicyIdentity {
-    PolicyIdentity {
-        runtime_name: "test-runtime".to_string(),
-        runtime_labels: Default::default(),
-        agent_name: "test-agent".to_string(),
-        agent_labels: Default::default(),
+/// Build one default trigger used by fault validation tests.
+fn test_trigger() -> Trigger {
+    Trigger {
+        on: Hook::BindingBefore,
+        activation: None,
+        lifetime: None,
+        activation_ppm: None,
+        probability_ppm: None,
+        max_occurrences: None,
+        cooldown_ns: None,
+        burst: None,
+        interval_hits: None,
+        skip_hits: None,
     }
 }
 
-/// Build one hook event for policy trigger tests.
-fn hook_event(agent_id: u64, hook: Hook, is_call_event: bool, virtual_time_ns: u64) -> HookEvent {
-    HookEvent {
-        hook,
-        agent_id: AgentId(agent_id),
-        descriptor: None,
-        state: HookState::empty(),
-        is_call_event,
-        virtual_time_ns,
+/// Validate one policy against standard world topology kinds.
+fn validate_policy(policy: &Policy) -> crate::diagnostic::RuntimeResult<()> {
+    let topology = Topology::with_builtin_kinds().expect("topology should include builtin kinds");
+    policy.validate_with_kind_catalog(&topology)
+}
+
+/// Build one policy event for policy trigger tests.
+fn policy_event(agent_id: u64, hook: Hook, virtual_time_ns: u64) -> HookEvent {
+    match hook {
+        Hook::BindingBefore => HookEvent::BindingBefore {
+            agent_id: AgentId(agent_id),
+            call_id: PolicyCallId(1),
+            descriptor: crate::runtime::bindings::BindingDescriptor::pure("destack.test", "()"),
+            engine: None,
+            virtual_time_ns,
+        },
+        Hook::BindingAfter => HookEvent::BindingAfter {
+            agent_id: AgentId(agent_id),
+            call_id: PolicyCallId(1),
+            descriptor: crate::runtime::bindings::BindingDescriptor::pure("destack.test", "()"),
+            engine: None,
+            virtual_time_ns,
+        },
+        Hook::SchedulerEnqueue => HookEvent::SchedulerEnqueue {
+            agent_id: AgentId(agent_id),
+            virtual_time_ns,
+        },
+        Hook::SchedulerDequeue => HookEvent::SchedulerDequeue {
+            agent_id: AgentId(agent_id),
+            virtual_time_ns,
+        },
+        Hook::SchedulerTimerFire => HookEvent::SchedulerTimerFire {
+            agent_id: AgentId(agent_id),
+            virtual_time_ns,
+        },
+        Hook::HostEventEnqueue => HookEvent::HostEventEnqueue {
+            agent_id: AgentId(agent_id),
+            virtual_time_ns,
+        },
+        Hook::TimeRead => HookEvent::TimeRead {
+            agent_id: AgentId(agent_id),
+            engine: None,
+            virtual_time_ns,
+        },
+        Hook::RandomRead => HookEvent::RandomRead {
+            agent_id: AgentId(agent_id),
+            engine: None,
+            virtual_time_ns,
+        },
+        Hook::ResourceAttach => HookEvent::ResourceAttach {
+            agent_id: AgentId(agent_id),
+            virtual_time_ns,
+        },
+        Hook::ResourceDetach => HookEvent::ResourceDetach {
+            agent_id: AgentId(agent_id),
+            virtual_time_ns,
+        },
     }
 }
