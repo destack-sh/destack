@@ -298,4 +298,16 @@ let y = 2.0
         );
         test.result(result).assert_no_lint("no-approx-constant");
     }
+
+    #[test]
+    fn test_detects_approx_pi_scientific_notation() {
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
+        let result = test.lint_ast(
+            "no_approx_constant/test_detects_approx_pi_scientific_notation.ds",
+            r#"
+let pi = 3.14159e0
+"#,
+        );
+        test.result(result).assert_lint("no-approx-constant");
+    }
 }

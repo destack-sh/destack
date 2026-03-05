@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::regex_pattern_info;
+use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
 use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 /// The set of accepted JavaScript regular expression flags.
@@ -37,11 +37,18 @@ impl LintRule for NoInvalidRegexp {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
+        let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
 
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // resolve regex literal or constructor pattern info
-            let Some(pattern_info) = regex_pattern_info(ctx.tree, node_id, regexp_name) else {
+            let Some(pattern_info) = regex_pattern_info(
+                ctx.strings,
+                ctx.tree,
+                node_id,
+                regexp_name,
+                &global_qualifier_names,
+            ) else {
                 continue;
             };
 
@@ -71,16 +78,42 @@ impl LintRule for NoInvalidRegexp {
             }
 
             // report invalid regex pattern parse errors
-            let parse = ctx.regex_parse(pattern_info.pattern_id);
+            let parse = ctx.regex_parse_with_flags(pattern_info.pattern_id, pattern_info.flags_id);
+
+            // keep unknown constructor flags conservative:
+            // only report when pattern is invalid in all relevant flag modes
+            if pattern_info.has_unknown_flags {
+                let Some(message) =
+                    unknown_flags_pattern_error_message(ctx, pattern_info.pattern_id)
+                else {
+                    continue;
+                };
+
+                // resolve effective lint severity
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                ctx.report(
+                    LintDiagnostic::new(
+                        NO_INVALID_REGEXP.id,
+                        NO_INVALID_REGEXP.code,
+                        NO_INVALID_REGEXP.category,
+                        severity,
+                        format!("invalid regular expression: {message}"),
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("this regex is invalid for all supported flag modes"),
+                );
+
+                continue;
+            }
+
             let Some(parse_error) = parse.error.as_ref() else {
                 continue;
             };
-
-            // keep constructor unknown flags conservative, like source behavior:
-            // pattern validity can change based on runtime flags
-            if pattern_info.has_unknown_flags {
-                continue;
-            }
 
             // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
@@ -126,6 +159,45 @@ fn invalid_regex_flags(flags: &str) -> Option<String> {
     }
 
     None
+}
+
+/// Return one parse error message if a pattern is invalid for all unknown constructor flag modes.
+fn unknown_flags_pattern_error_message(
+    ctx: &mut LintModuleAstContext<'_>,
+    pattern_id: ast::StringId,
+) -> Option<String> {
+    let pattern_has_set_notation_syntax = {
+        let pattern_text = ctx.strings.get(pattern_id);
+        pattern_text.contains('{') || pattern_text.contains('}')
+    };
+
+    // keep unknown flags conservative for `{` and `}` because JS `/v` set notation
+    // changes parse semantics and `regex_syntax` does not fully model those forms
+    if pattern_has_set_notation_syntax {
+        return None;
+    }
+
+    let unicode_flags = ctx.strings.intern("u");
+    let unicode_sets_flags = ctx.strings.intern("v");
+
+    let default_parse = ctx.regex_parse_with_flags(pattern_id, None);
+    let unicode_parse = ctx.regex_parse_with_flags(pattern_id, Some(unicode_flags));
+    let unicode_sets_parse = ctx.regex_parse_with_flags(pattern_id, Some(unicode_sets_flags));
+
+    let default_error = default_parse.error.as_ref()?;
+    let unicode_error = unicode_parse.error.as_ref()?;
+    let unicode_sets_error = unicode_sets_parse.error.as_ref()?;
+
+    // choose one stable message when all modes fail
+    let message = if !default_error.message.is_empty() {
+        default_error.message.clone()
+    } else if !unicode_error.message.is_empty() {
+        unicode_error.message.clone()
+    } else {
+        unicode_sets_error.message.clone()
+    };
+
+    Some(message)
 }
 
 #[cfg(test)]
@@ -254,5 +326,18 @@ let re = RegExp("{", flags)
 "#,
         );
         test.result(result).assert_no_lint("no-invalid-regexp");
+    }
+
+    #[test]
+    fn test_detects_unknown_flags_when_pattern_invalid_in_all_modes() {
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
+        let result = test.lint_ast(
+            "no_invalid_regexp/test_detects_unknown_flags_when_pattern_invalid_in_all_modes.ds",
+            r#"
+let flags = resolveFlags();
+let re = RegExp("(", flags)
+"#,
+        );
+        test.result(result).assert_lint("no-invalid-regexp");
     }
 }

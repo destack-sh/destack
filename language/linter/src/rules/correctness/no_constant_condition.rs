@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_statement_span;
+use crate::rules::common::{control_flow_condition_expression, expression_statement_span};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -36,12 +36,10 @@ impl LintRule for NoConstantCondition {
 
         // walk conditional expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let expression = ctx.tree.get(node_id);
+
             // resolve the condition expression to inspect
-            let condition_id = match ctx.tree.get(node_id) {
-                ast::Expression::If { condition, .. } => match condition {
-                    ast::IfCondition::Expression { condition } => *condition,
-                    ast::IfCondition::Let { .. } => continue,
-                },
+            let condition_id = match expression {
                 ast::Expression::While {
                     kind, condition, ..
                 } => {
@@ -51,11 +49,12 @@ impl LintRule for NoConstantCondition {
                     }
                     *condition
                 }
-                ast::Expression::For {
-                    condition: Some(condition),
-                    ..
-                } => *condition,
-                _ => continue,
+                _ => {
+                    let Some(condition_id) = control_flow_condition_expression(expression) else {
+                        continue;
+                    };
+                    condition_id
+                }
             };
 
             // only report statically known constants

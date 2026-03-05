@@ -3,7 +3,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_target_symbol, expression_unwrap_parenthesized, is_async_function_type,
+    CallLikeExpressionInfo, expression_call_like, expression_target_symbol,
+    expression_unwrap_parenthesized, is_async_function_type, remove_first_async_keyword,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -83,11 +84,10 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
     fn check_promise_executor(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
-        dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
+        call_like: CallLikeExpressionInfo<'_>,
     ) {
         // ignore non promise calls
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, left) else {
+        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, call_like.left) else {
             return;
         };
         if target_symbol != self.promise_symbol {
@@ -95,7 +95,7 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
         }
 
         // get the executor argument
-        let Some(argument_id) = dynamic_arguments.first() else {
+        let Some(argument_id) = call_like.dynamic_arguments.first() else {
             return;
         };
         let argument = self.ctx.tree.get(*argument_id);
@@ -154,7 +154,7 @@ fn async_promise_executor_fix(
     // strip one leading async keyword
     let expression_span = ctx.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
-    let rewritten = strip_leading_async(expression_text.as_ref())?;
+    let rewritten = remove_first_async_keyword(expression_text.as_ref())?;
     if rewritten == expression_text.as_ref() {
         return None;
     }
@@ -167,40 +167,6 @@ fn async_promise_executor_fix(
 
     // return unsafe rewrite fix
     Some(LintFix::r#unsafe("Remove async from Promise executor").with_edits(edits))
-}
-
-/// Strip one leading async keyword from a function expression text.
-fn strip_leading_async(expression_text: &str) -> Option<String> {
-    let leading_whitespace_count = expression_text
-        .chars()
-        .take_while(|character| character.is_whitespace())
-        .map(char::len_utf8)
-        .sum::<usize>();
-    let trimmed = &expression_text[leading_whitespace_count..];
-    if !trimmed.starts_with("async") {
-        return None;
-    }
-
-    let boundary = trimmed.chars().nth(5)?;
-    if !boundary.is_whitespace() && boundary != '(' && boundary != '<' {
-        return None;
-    }
-
-    let mut offset = leading_whitespace_count + "async".len();
-    while expression_text[offset..]
-        .chars()
-        .next()
-        .is_some_and(|character| character.is_whitespace())
-    {
-        offset += expression_text[offset..].chars().next()?.len_utf8();
-    }
-
-    let rewritten = format!(
-        "{}{}",
-        &expression_text[..leading_whitespace_count],
-        &expression_text[offset..]
-    );
-    Some(rewritten)
 }
 
 impl NodeVisitor for AsyncPromiseExecutorVisitor<'_, '_> {
@@ -217,18 +183,8 @@ impl NodeVisitor for AsyncPromiseExecutorVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check Promise calls and constructors
-        match expression {
-            dir::Expression::Call {
-                left,
-                dynamic_arguments,
-                ..
-            } => self.check_promise_executor(id, *left, dynamic_arguments),
-            dir::Expression::New {
-                left,
-                dynamic_arguments,
-                ..
-            } => self.check_promise_executor(id, *left, dynamic_arguments),
-            _ => {}
+        if let Some(call_like) = expression_call_like(expression) {
+            self.check_promise_executor(id, call_like);
         }
 
         // walk expression children
@@ -270,6 +226,23 @@ let task = new Promise((resolve, reject) => {
             "no_async_promise_executor/test_allows_sync_promise_executor.ds",
             r#"
 let task = new Promise((resolve, reject) => {
+    resolve(1);
+});
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-async-promise-executor");
+    }
+
+    #[test]
+    fn test_allows_async_executor_for_non_promise_constructor() {
+        let test = TestProgram::for_rule_with_prelude(NoAsyncPromiseExecutor);
+        let result = test.lint_dir(
+            "no_async_promise_executor/test_allows_async_executor_for_non_promise_constructor.ds",
+            r#"
+function Foo(executor) {}
+
+let task = new Foo(async (resolve, reject) => {
     resolve(1);
 });
 "#,

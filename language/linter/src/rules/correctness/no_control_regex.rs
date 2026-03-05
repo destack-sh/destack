@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::regex_pattern_info;
+use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
 use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -35,10 +35,17 @@ impl LintRule for NoControlRegex {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
+        let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
 
         // walk expression nodes
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let Some(pattern_info) = regex_pattern_info(ctx.tree, node_id, regexp_name) else {
+            let Some(pattern_info) = regex_pattern_info(
+                ctx.strings,
+                ctx.tree,
+                node_id,
+                regexp_name,
+                &global_qualifier_names,
+            ) else {
                 continue;
             };
 
@@ -190,7 +197,7 @@ let re = /\u{1F}/u
             "no_control_regex/test_allows_unicode_code_point_escape_with_unknown_constructor_flags.ds",
             r#"
 let flags = "u";
-RegExp("\u{1F}", flags);
+RegExp("\\u{1F}", flags);
 "#,
         );
         test.result(result).assert_no_lint("no-control-regex");
