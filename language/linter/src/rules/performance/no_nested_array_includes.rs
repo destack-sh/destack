@@ -7,7 +7,7 @@ use crate::rules::common::{expression_method_call, is_array_type};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow `includes` or `indexOf` inside loops over another array.
+    /// Disallow `includes` or `indexOf` style lookups inside loops over another array.
     ///
     /// Using `includes` or `indexOf` inside a loop results in O(n²) time
     /// complexity. Consider using a Set for O(1) lookups instead.
@@ -23,7 +23,7 @@ declare_lint! {
         stability = Stable
     )]
     pub NoNestedArrayIncludes,
-    "Disallow includes/indexOf inside loops (O(n²))"
+    "Disallow includes/indexOf style lookups inside loops (O(n²))"
 }
 
 impl LintRule for NoNestedArrayIncludes {
@@ -50,6 +50,8 @@ struct NoNestedArrayIncludesVisitor<'a, 'b> {
     includes_name: StringId,
     /// The string id for the indexOf method name.
     index_of_name: StringId,
+    /// The string id for the lastIndexOf method name.
+    last_index_of_name: StringId,
     /// Whether the current traversal is inside a loop.
     is_in_loop: bool,
     /// The visitor options.
@@ -62,6 +64,7 @@ impl<'a, 'b> NoNestedArrayIncludesVisitor<'a, 'b> {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let includes_name = ctx.program.strings.intern("includes");
         let index_of_name = ctx.program.strings.intern("indexOf");
+        let last_index_of_name = ctx.program.strings.intern("lastIndexOf");
 
         Self {
             ctx,
@@ -69,6 +72,7 @@ impl<'a, 'b> NoNestedArrayIncludesVisitor<'a, 'b> {
             array_symbol,
             includes_name,
             index_of_name,
+            last_index_of_name,
             is_in_loop: false,
             options: NodeVisitorOptions::default(),
         }
@@ -97,10 +101,11 @@ impl<'a, 'b> NoNestedArrayIncludesVisitor<'a, 'b> {
             return;
         };
 
-        // check if this is includes or indexOf
+        // check if this is includes/indexOf/lastIndexOf
         let is_includes = method_call.method_name == self.includes_name;
         let is_index_of = method_call.method_name == self.index_of_name;
-        if !is_includes && !is_index_of {
+        let is_last_index_of = method_call.method_name == self.last_index_of_name;
+        if !is_includes && !is_index_of && !is_last_index_of {
             return;
         }
 
@@ -119,7 +124,13 @@ impl<'a, 'b> NoNestedArrayIncludesVisitor<'a, 'b> {
         }
 
         // build diagnostic message
-        let method_name = if is_includes { "includes" } else { "indexOf" };
+        let method_name = if is_includes {
+            "includes"
+        } else if is_index_of {
+            "indexOf"
+        } else {
+            "lastIndexOf"
+        };
 
         // report the diagnostic
         let span = self.ctx.get_span(expression_id);
@@ -333,6 +344,25 @@ let items = [1, 2, 3];
 let lookup = [2, 4, 6];
 for (let i = 0; i < items.length; i += 1) {
     if (lookup.indexOf(items[i]) !== -1) {
+        console.log(items[i]);
+    }
+}
+"#,
+        );
+        test.result(result).assert_lint("no-nested-array-includes");
+    }
+
+    /// Flag lastIndexOf inside for loop.
+    #[test]
+    fn test_flags_last_index_of_in_for() {
+        let test = TestProgram::for_rule_without_prelude(NoNestedArrayIncludes);
+        let result = test.lint_dir(
+            "no_nested_array_includes/test_flags_last_index_of_in_for.ds",
+            r#"
+let items = [1, 2, 3];
+let lookup = [2, 4, 6];
+for (let i = 0; i < items.length; i += 1) {
+    if (lookup.lastIndexOf(items[i]) !== -1) {
         console.log(items[i]);
     }
 }

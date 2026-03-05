@@ -3,7 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_method_call, is_array_type};
+use crate::rules::common::{
+    expression_enters_nested_declaration_scope, expression_method_call, is_array_type,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -249,6 +251,11 @@ impl NodeVisitor for NoArrayUnshiftLoopVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        // avoid leaking loop context into nested declarations
+        if self.is_in_loop && expression_enters_nested_declaration_scope(tree, expression) {
+            return;
+        }
+
         // check call expressions
         if matches!(expression, dir::Expression::Call { .. }) {
             self.check_call(id);
@@ -372,6 +379,26 @@ let items = [1, 2, 3];
 let result: number[] = [];
 for (const item of items) {
     result.push(item);
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-array-unshift-loop");
+    }
+
+    /// Allow nested declaration calls inside loops.
+    #[test]
+    fn test_allows_nested_declaration_unshift_in_loop() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayUnshiftLoop);
+        let result = test.lint_dir(
+            "no_array_unshift_loop/test_allows_nested_declaration_unshift_in_loop.ds",
+            r#"
+let items = [1, 2, 3];
+let result: number[] = [];
+for (const item of items) {
+    const push_front = () => {
+        result.unshift(item);
+    };
+    push_front();
 }
 "#,
         );

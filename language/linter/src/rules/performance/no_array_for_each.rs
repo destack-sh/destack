@@ -3,7 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_method_call, is_array_type};
+use crate::rules::common::{
+    expression_method_call, is_array_type, statement_expression_ancestor, strip_dot_member_suffix,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -151,18 +153,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         }
 
         // keep statement-level calls only
-        let parent_id = self.ctx.tree.get_parent_id(expression_id.id)?;
-        if self.ctx.tree.get_node_type(parent_id) != dir::NodeType::Expression {
-            return None;
-        }
-        let statement_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
-        let parent_expression = self.ctx.tree.get(statement_id);
-        if !matches!(
-            parent_expression,
-            dir::Expression::Statement { statement } if *statement == expression_id
-        ) {
-            return None;
-        }
+        let statement_id = statement_expression_ancestor(self.ctx.tree, expression_id)?;
 
         // require a direct `.forEach` member access
         let member_expression = self.ctx.tree.get(*left);
@@ -236,12 +227,6 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
             .into_edits();
         Some(LintFix::r#unsafe("Rewrite forEach callback as for-of loop").with_edits(edits))
     }
-}
-
-/// Strip one `.member` suffix from member expression text.
-fn strip_dot_member_suffix<'a>(text: &'a str, member: &str) -> Option<&'a str> {
-    let suffix = format!(".{member}");
-    text.strip_suffix(&suffix).map(str::trim_end)
 }
 
 impl NodeVisitor for NoArrayForEachVisitor<'_, '_> {
@@ -355,7 +340,7 @@ let doubled = items.map((item) => item * 2);
         test.result(result).assert_no_lint("no-array-for-each");
     }
 
-    /// keep no fix for callbacks that depend on index parameter
+    /// Keep no fix for callbacks that depend on index parameter.
     #[test]
     fn test_no_fix_for_index_callback() {
         let test = TestProgram::for_rule_without_prelude(NoArrayForEach);
@@ -373,7 +358,7 @@ items.forEach((item, index) => {
             .assert_has_no_fix("no-array-for-each");
     }
 
-    /// keep no fix for non-inline callbacks
+    /// Keep no fix for non-inline callbacks.
     #[test]
     fn test_no_fix_for_non_inline_callback() {
         let test = TestProgram::for_rule_without_prelude(NoArrayForEach);

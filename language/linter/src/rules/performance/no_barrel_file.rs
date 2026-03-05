@@ -263,4 +263,16 @@ export * from "./foo";
         );
         test.result(result).assert_no_lint("no-barrel-file");
     }
+
+    #[test]
+    fn test_detects_mixed_type_and_value_reexport_items() {
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
+        let result = test.lint_ast(
+            "index.ds",
+            r#"
+export { foo, type Bar } from "./foo";
+"#,
+        );
+        test.result(result).assert_lint("no-barrel-file");
+    }
 }

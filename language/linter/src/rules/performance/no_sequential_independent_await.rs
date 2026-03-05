@@ -144,6 +144,19 @@ fn await_statement_from_expression(
         });
     }
 
+    // keep return await forms like: return await fetch()
+    if let dir::Expression::Return { value } = statement
+        && let Some(value_expression_id) = value
+        && let Some(await_operand_expression_id) =
+            await_operand_expression_id(ctx.tree.get(*value_expression_id))
+    {
+        return Some(AwaitStatement {
+            statement_expression_id: expression_id,
+            await_operand_expression_id,
+            bound_symbols: HashSet::new(),
+        });
+    }
+
     // keep single declarator await bindings like: const x = await foo()
     let (declarators, descriptor_symbol) = match statement {
         dir::Expression::Let {
@@ -471,6 +484,40 @@ async function run() {
     token = await first();
     value = await second(token);
     return value;
+}
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("no-sequential-independent-await");
+    }
+
+    /// Flag independent return-await after a prior await.
+    #[test]
+    fn test_flags_independent_return_await_after_prior_await() {
+        let test = TestProgram::for_rule_without_prelude(NoSequentialIndependentAwait);
+        let result = test.lint_dir(
+            "no_sequential_independent_await/test_flags_independent_return_await_after_prior_await.ds",
+            r#"
+async function run() {
+    await first();
+    return await second();
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-sequential-independent-await");
+    }
+
+    /// Allow dependent return-await after a prior bound await.
+    #[test]
+    fn test_allows_dependent_return_await_after_prior_await() {
+        let test = TestProgram::for_rule_without_prelude(NoSequentialIndependentAwait);
+        let result = test.lint_dir(
+            "no_sequential_independent_await/test_allows_dependent_return_await_after_prior_await.ds",
+            r#"
+async function run() {
+    const token = await first();
+    return await second(token);
 }
 "#,
         );

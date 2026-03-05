@@ -1,12 +1,15 @@
 use destack_base::StringId;
 use destack_dir::{
-    self as dir, Argument, Declaration, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
+    self as dir, Argument, Declaration, NodeVisitor, NodeVisitorOptions, Property, WellKnownSymbol,
     walk_expression,
 };
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_method_call, is_array_type};
+use crate::rules::common::{
+    expression_enters_nested_declaration_scope, expression_method_call, expression_target_symbol,
+    is_array_type,
+};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -20,7 +23,10 @@ declare_lint! {
         code = "LP001",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [
+            RequireWellKnownSymbol(WellKnownSymbol::Array),
+            RequireWellKnownSymbol(WellKnownSymbol::Object)
+        ],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -50,10 +56,14 @@ struct NoAccumulatingSpreadVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The well known Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
+    /// The well known Object symbol for this module.
+    object_symbol: dir::GlobalSymbolId,
     /// The string id for the reduce method name.
     reduce_name: StringId,
     /// The string id for the reduceRight method name.
     reduce_right_name: StringId,
+    /// The string id for the assign method name.
+    assign_name: StringId,
     /// The accumulator symbol when inside a reduce callback.
     accumulator_symbol: Option<dir::GlobalSymbolId>,
     /// The visitor options.
@@ -64,15 +74,19 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
     /// Build a visitor for no-accumulating-spread checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
         let reduce_name = ctx.program.strings.intern("reduce");
         let reduce_right_name = ctx.program.strings.intern("reduceRight");
+        let assign_name = ctx.program.strings.intern("assign");
 
         Self {
             ctx,
             meta,
             array_symbol,
+            object_symbol,
             reduce_name,
             reduce_right_name,
+            assign_name,
             accumulator_symbol: None,
             options: NodeVisitorOptions::default(),
         }
@@ -132,17 +146,22 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
         let callback_id = callback_arg.value();
         let callback = tree.get(callback_id);
 
-        // extract the accumulator parameter from function declaration
-        let local_symbol = match callback {
+        // extract the accumulator parameter and callback body from function declaration
+        let (local_symbol, callback_body_id) = match callback {
             dir::Expression::Declaration { declaration } => {
                 let decl = tree.get(*declaration);
                 match decl {
-                    Declaration::Function { signature, .. } => {
+                    Declaration::Function {
+                        signature,
+                        body: Some(body_id),
+                        ..
+                    } => {
                         if signature.dynamic_parameters.is_empty() {
                             return;
                         }
+
                         let param = tree.get(signature.dynamic_parameters[0]);
-                        param.symbol()
+                        (param.symbol(), *body_id)
                     }
                     _ => return,
                 }
@@ -155,15 +174,16 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
         self.accumulator_symbol =
             Some(dir::GlobalSymbolId::new(self.ctx.module_id(), local_symbol));
 
-        // visit the callback
-        self.visit_expression(tree, callback_id, callback);
+        // visit the callback body with accumulator context
+        let callback_body = tree.get(callback_body_id);
+        self.visit_expression(tree, callback_body_id, callback_body);
 
         // restore previous context
         self.accumulator_symbol = previous_accumulator;
     }
 
-    /// Check for spread of the accumulator in array expressions.
-    fn check_spread(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+    /// Check for accumulator spread in array literals.
+    fn check_array_spread(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         // only check when we have an accumulator context
         let Some(accumulator_symbol) = self.accumulator_symbol else {
             return;
@@ -189,29 +209,122 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
                 continue;
             }
 
-            // honor per node severity
-            let severity = self.ctx.get_effective_severity(self.meta, expression_id);
-            if !severity.is_enabled() {
-                return;
-            }
-
-            // report the diagnostic
-            let span = self.ctx.get_span(expression_id);
-            self.ctx.report(
-                LintDiagnostic::new(
-                    NO_ACCUMULATING_SPREAD.id,
-                    NO_ACCUMULATING_SPREAD.code,
-                    NO_ACCUMULATING_SPREAD.category,
-                    severity,
-                    "spreading accumulator causes O(n²) allocations",
-                    self.ctx.module.file_id,
-                    span,
-                )
-                .with_label("use push with mutation instead"),
+            // report the accumulating spread diagnostic
+            self.report_accumulator_diagnostic(
+                expression_id,
+                "spreading accumulator causes O(n²) allocations",
             );
-
             return;
         }
+    }
+
+    /// Check for accumulator spread in object literals.
+    fn check_object_spread(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        // only check when we have an accumulator context
+        let Some(accumulator_symbol) = self.accumulator_symbol else {
+            return;
+        };
+
+        // match object expression with properties
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::ObjectExpression { properties } = expression else {
+            return;
+        };
+
+        // check each property for spread of the accumulator
+        for property_id in properties {
+            let property = self.ctx.tree.get(*property_id);
+            let Property::Spread { value, .. } = property else {
+                continue;
+            };
+
+            let target_symbol = expression_target_symbol(self.ctx.tree, *value);
+            if target_symbol != Some(accumulator_symbol) {
+                continue;
+            }
+
+            // report the accumulating spread diagnostic
+            self.report_accumulator_diagnostic(
+                expression_id,
+                "spreading accumulator causes O(n²) allocations",
+            );
+            return;
+        }
+    }
+
+    /// Check for `Object.assign` accumulator cloning in reduce callbacks.
+    fn check_object_assign(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        // only check when we have an accumulator context
+        let Some(accumulator_symbol) = self.accumulator_symbol else {
+            return;
+        };
+
+        // match object assign method calls
+        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+            return;
+        };
+        if method_call.method_name != self.assign_name {
+            return;
+        }
+
+        let receiver_symbol = expression_target_symbol(self.ctx.tree, method_call.receiver_id);
+        if receiver_symbol != Some(self.object_symbol) {
+            return;
+        }
+
+        // require at least two arguments to inspect the source object
+        let expression = self.ctx.tree.get(expression_id);
+        let dir::Expression::Call {
+            dynamic_arguments, ..
+        } = expression
+        else {
+            return;
+        };
+        if dynamic_arguments.len() < 2 {
+            return;
+        }
+
+        // match Object.assign(target, accumulator, ...)
+        let source_argument = self.ctx.tree.get(dynamic_arguments[1]);
+        let source_expression_id = source_argument.value();
+        let source_symbol = expression_target_symbol(self.ctx.tree, source_expression_id);
+        if source_symbol != Some(accumulator_symbol) {
+            return;
+        }
+
+        // report the accumulating Object.assign diagnostic
+        self.report_accumulator_diagnostic(
+            expression_id,
+            "Object.assign with accumulator causes O(n²) allocations",
+        );
+    }
+
+    /// Report a no-accumulating-spread diagnostic for one expression.
+    fn report_accumulator_diagnostic(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        message: &'static str,
+    ) {
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // report one diagnostic
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                NO_ACCUMULATING_SPREAD.id,
+                NO_ACCUMULATING_SPREAD.code,
+                NO_ACCUMULATING_SPREAD.category,
+                severity,
+                message,
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("use in-place mutation instead"),
+        );
     }
 }
 
@@ -226,15 +339,27 @@ impl NodeVisitor for NoAccumulatingSpreadVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        // avoid leaking reduce accumulator context into nested declarations
+        if self.accumulator_symbol.is_some()
+            && expression_enters_nested_declaration_scope(tree, expression)
+        {
+            return;
+        }
+
         // check for reduce calls to enter reduce context
         if matches!(expression, dir::Expression::Call { .. }) {
             self.check_reduce_call(tree, id);
-            // still walk children in case of nested reduces
+            self.check_object_assign(id);
         }
 
         // check for array spread
         if matches!(expression, dir::Expression::ArrayExpression { .. }) {
-            self.check_spread(id);
+            self.check_array_spread(id);
+        }
+
+        // check for object spread
+        if matches!(expression, dir::Expression::ObjectExpression { .. }) {
+            self.check_object_spread(id);
         }
 
         // walk expression children
@@ -345,6 +470,48 @@ let more = [0, ...items, 4];
             r#"
 let items = [1, 2, 3];
 let doubled = items.map((x) => x * 2);
+"#,
+        );
+        test.result(result).assert_no_lint("no-accumulating-spread");
+    }
+
+    /// Flag spread accumulator in object reduce.
+    #[test]
+    fn test_flags_object_spread_in_reduce() {
+        let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
+        let result = test.lint_dir(
+            "no_accumulating_spread/test_flags_object_spread_in_reduce.ds",
+            r#"
+let items = ["a", "b", "c"];
+let mapping = items.reduce((acc, value) => ({ ...acc, [value]: true }), {});
+"#,
+        );
+        test.result(result).assert_lint("no-accumulating-spread");
+    }
+
+    /// Flag Object.assign accumulator cloning in reduce.
+    #[test]
+    fn test_flags_object_assign_accumulator_clone() {
+        let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
+        let result = test.lint_dir(
+            "no_accumulating_spread/test_flags_object_assign_accumulator_clone.ds",
+            r#"
+let items = ["a", "b", "c"];
+let mapping = items.reduce((acc, value) => Object.assign({}, acc, { [value]: true }), {});
+"#,
+        );
+        test.result(result).assert_lint("no-accumulating-spread");
+    }
+
+    /// Allow Object.assign mutation style reducers.
+    #[test]
+    fn test_allows_object_assign_mutation() {
+        let test = TestProgram::for_rule_without_prelude(NoAccumulatingSpread);
+        let result = test.lint_dir(
+            "no_accumulating_spread/test_allows_object_assign_mutation.ds",
+            r#"
+let items = ["a", "b", "c"];
+let mapping = items.reduce((acc, value) => Object.assign(acc, { [value]: true }), {});
 "#,
         );
         test.result(result).assert_no_lint("no-accumulating-spread");

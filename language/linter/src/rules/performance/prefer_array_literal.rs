@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use destack_base::StringId;
 use destack_dir::{
-    self as dir, GlobalSymbolId, LocalNodeId, Mutability, NodeVisitor, NodeVisitorOptions,
-    WellKnownSymbol, walk_expression,
+    self as dir, GlobalSymbolId, LocalNodeId, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
+    walk_expression,
 };
 use destack_workspace::LintSeverity;
 
@@ -107,12 +107,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
         expression: &dir::Expression,
     ) {
         // match let declarations
-        let dir::Expression::Let {
-            mutability: Mutability::Mutable,
-            declarators,
-            ..
-        } = expression
-        else {
+        let dir::Expression::Let { declarators, .. } = expression else {
             return;
         };
 
@@ -485,7 +480,28 @@ const items: number[] = [];
         test.result(result).assert_no_lint("prefer-array-literal");
     }
 
-    /// keep no fix when push value uses named arguments
+    /// Flag const empty arrays that are only populated with push calls.
+    #[test]
+    fn test_flags_const_array_with_pushes() {
+        let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);
+        let result = test.lint_dir(
+            "prefer_array_literal/test_flags_const_array_with_pushes.ds",
+            r#"
+const items: number[] = [];
+items.push(1);
+items.push(2);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-array-literal")
+            .assert_unsafe_fixed(
+                r#"
+const items: number[] = [1, 2];
+"#,
+            );
+    }
+
+    /// Keep no fix when push value uses named arguments.
     #[test]
     fn test_no_fix_for_non_positional_push_argument() {
         let test = TestProgram::for_rule_without_prelude(PreferArrayLiteral);

@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    const_i64, expression_unwrap_parenthesized, flip_binary_operator, is_string_type,
-    strip_dot_member_suffix,
+    const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
+    is_string_type, regex_prefix_literal, single_quoted_string_literal, strip_dot_member_suffix,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -55,6 +55,8 @@ struct PreferStringStartsWithVisitor<'a, 'b> {
     index_of_name: StringId,
     /// The string id for the startsWith method name.
     starts_with_name: StringId,
+    /// The string id for the test method name.
+    test_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -65,6 +67,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
         let index_of_name = ctx.program.strings.intern("indexOf");
         let starts_with_name = ctx.program.strings.intern("startsWith");
+        let test_name = ctx.program.strings.intern("test");
 
         Self {
             ctx,
@@ -72,6 +75,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
             string_symbol,
             index_of_name,
             starts_with_name,
+            test_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -189,6 +193,95 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let mut diagnostic = diagnostic;
         if self.ctx.include_fixes
             && let Some(fix) = self.starts_with_fix(expression_id, starts_with_match)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        self.ctx.report(diagnostic);
+    }
+
+    /// Check one call expression for anchored regex test patterns.
+    fn check_regex_test(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // match call expression
+        let dir::Expression::Call {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } = expression
+        else {
+            return;
+        };
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return;
+        }
+        if dynamic_arguments.len() != 1 {
+            return;
+        }
+
+        // match `.test(...)` call
+        let member_expression = self.ctx.tree.get(*left);
+        let dir::Expression::Member {
+            left: regex_expression_id,
+            name,
+            static_arguments,
+        } = member_expression
+        else {
+            return;
+        };
+        if *name != self.test_name {
+            return;
+        }
+        if static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return;
+        }
+
+        // require one static regex prefix pattern
+        let Some(prefix_text) = self.regex_prefix_text(*regex_expression_id) else {
+            return;
+        };
+
+        // require one positional string argument
+        let first_argument = self.ctx.tree.get(dynamic_arguments[0]);
+        let dir::Argument::Positional {
+            value: argument_id, ..
+        } = first_argument
+        else {
+            return;
+        };
+        if !self.is_string_receiver(*argument_id) {
+            return;
+        }
+
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // build diagnostic and attach safe fix
+        let span = self.ctx.get_span(expression_id);
+        let mut diagnostic = LintDiagnostic::new(
+            PREFER_STRING_STARTS_WITH.id,
+            PREFER_STRING_STARTS_WITH.code,
+            PREFER_STRING_STARTS_WITH.category,
+            severity,
+            "prefer startsWith() over regex test() prefix checks",
+            self.ctx.module.file_id,
+            span,
+        )
+        .with_label("use startsWith() for anchored prefix checks");
+        if self.ctx.include_fixes
+            && let Some(fix) = self.regex_starts_with_fix(expression_id, *argument_id, &prefix_text)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -318,6 +411,49 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
 
         is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
     }
+
+    /// Return one simple prefix string from a regex literal expression.
+    fn regex_prefix_text(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<String> {
+        let (pattern_id, flags_id) = expression_regex_literal(self.ctx.tree, expression_id)?;
+
+        let pattern = self.ctx.program.strings.get(pattern_id);
+        let flags = flags_id
+            .map(|flags_id| self.ctx.program.strings.get(flags_id).to_string())
+            .unwrap_or_default();
+        regex_prefix_literal(pattern.as_ref(), &flags)
+    }
+
+    /// Build a safe fix from one regex test prefix check to startsWith.
+    fn regex_starts_with_fix(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument_id: dir::LocalNodeId<dir::Expression>,
+        prefix_text: &str,
+    ) -> Option<LintFix> {
+        let argument_span = self.ctx.get_span(argument_id);
+        let argument_text = self.ctx.get_span_text(argument_span);
+        if argument_text.trim().is_empty() {
+            return None;
+        }
+
+        let quoted_prefix = single_quoted_string_literal(prefix_text);
+        let method_name = self.ctx.program.strings.get(self.starts_with_name);
+        let replacement = format!(
+            "({argument_text}).{}({quoted_prefix})",
+            method_name.as_ref()
+        );
+
+        let expression_span = self.ctx.get_span(expression_id);
+        let edits = self
+            .ctx
+            .edit_builder()
+            .replace(expression_span, replacement)
+            .into_edits();
+        Some(LintFix::safe("Replace regex test() prefix check with startsWith()").with_edits(edits))
+    }
 }
 
 impl NodeVisitor for PreferStringStartsWithVisitor<'_, '_> {
@@ -340,6 +476,9 @@ impl NodeVisitor for PreferStringStartsWithVisitor<'_, '_> {
         {
             self.check_binary(id, *operator, *left, *right);
         }
+
+        // check anchored regex test prefix patterns
+        self.check_regex_test(id, expression);
 
         // walk expression children
         walk_expression(self, tree, id, expression);
@@ -493,5 +632,56 @@ let has = (text.indexOf("he")) === (0);
 "#,
         );
         test.result(result).assert_lint("prefer-string-startswith");
+    }
+
+    /// Report anchored regex test prefix checks.
+    #[test]
+    fn test_flags_regex_test_prefix_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
+            "prefer_string_startswith/test_flags_regex_test_prefix_check.ds",
+            r#"
+let text = "hello";
+let has = /^he/.test(text);
+"#,
+        );
+        test.result(result).assert_lint("prefer-string-startswith");
+    }
+
+    /// Safely rewrite anchored regex prefix tests to startsWith.
+    #[test]
+    fn test_fix_regex_test_prefix_check() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
+            "prefer_string_startswith/test_fix_regex_test_prefix_check.ds",
+            r#"
+let text = "hello";
+let has = /^he/.test(text);
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-string-startswith")
+            .assert_has_fix("prefer-string-startswith")
+            .assert_safe_fixed(
+                r#"
+let text = "hello";
+let has = (text).startsWith('he');
+"#,
+            );
+    }
+
+    /// Allow regex test prefix checks with case insensitive flag.
+    #[test]
+    fn test_allows_regex_test_prefix_check_with_case_insensitive_flag() {
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
+            "prefer_string_startswith/test_allows_regex_test_prefix_check_with_case_insensitive_flag.ds",
+            r#"
+let text = "hello";
+let has = /^HE/i.test(text);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("prefer-string-startswith");
     }
 }

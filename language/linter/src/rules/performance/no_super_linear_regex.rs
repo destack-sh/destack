@@ -84,21 +84,23 @@ impl LintRule for NoSuperLinearRegex {
 }
 
 /// Walk the HIR for nested quantifiers and overlapping alternations.
-fn check_nested_quantifiers(hir: &Hir, in_unbounded_quantifier: bool) -> Option<String> {
+fn check_nested_quantifiers(hir: &Hir, in_repeating_quantifier: bool) -> Option<String> {
     match hir.kind() {
         HirKind::Repetition(rep) => {
             let is_unbounded = rep.max.is_none();
+            let repeats_multiple_times = rep.max.is_none_or(|max| max > 1);
 
-            if in_unbounded_quantifier && is_unbounded {
+            if in_repeating_quantifier && is_unbounded {
                 return Some("nested quantifiers can cause exponential backtracking".to_string());
             }
 
-            check_nested_quantifiers(&rep.sub, is_unbounded)
+            let nested_in_repeating_quantifier = in_repeating_quantifier || repeats_multiple_times;
+            check_nested_quantifiers(&rep.sub, nested_in_repeating_quantifier)
         }
 
         HirKind::Concat(items) => {
             for item in items {
-                if let Some(problem) = check_nested_quantifiers(item, in_unbounded_quantifier) {
+                if let Some(problem) = check_nested_quantifiers(item, in_repeating_quantifier) {
                     return Some(problem);
                 }
             }
@@ -107,19 +109,19 @@ fn check_nested_quantifiers(hir: &Hir, in_unbounded_quantifier: bool) -> Option<
 
         HirKind::Alternation(alts) => {
             for alt in alts {
-                if let Some(problem) = check_nested_quantifiers(alt, in_unbounded_quantifier) {
+                if let Some(problem) = check_nested_quantifiers(alt, in_repeating_quantifier) {
                     return Some(problem);
                 }
             }
 
-            if in_unbounded_quantifier && alts.iter().any(hir_can_match_empty) {
+            if in_repeating_quantifier && alts.iter().any(hir_can_match_empty) {
                 return Some(
                     "alternation with an empty branch in quantifier can cause exponential backtracking"
                         .to_string(),
                 );
             }
 
-            if in_unbounded_quantifier && alts.len() >= 2 && check_overlapping_alternatives(alts) {
+            if in_repeating_quantifier && alts.len() >= 2 && check_overlapping_alternatives(alts) {
                 return Some(
                     "overlapping alternatives in quantifier can cause exponential backtracking"
                         .to_string(),
@@ -129,7 +131,7 @@ fn check_nested_quantifiers(hir: &Hir, in_unbounded_quantifier: bool) -> Option<
             None
         }
 
-        HirKind::Capture(cap) => check_nested_quantifiers(&cap.sub, in_unbounded_quantifier),
+        HirKind::Capture(cap) => check_nested_quantifiers(&cap.sub, in_repeating_quantifier),
 
         HirKind::Empty | HirKind::Literal(_) | HirKind::Class(_) | HirKind::Look(_) => None,
     }
@@ -263,6 +265,18 @@ let re = /(a+)*/
     }
 
     #[test]
+    fn test_detects_unbounded_inside_bounded_repetition() {
+        let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
+        let result = test.lint_ast(
+            "no_super_linear_regex/test_detects_unbounded_inside_bounded_repetition.ds",
+            r#"
+let re = /(a+){10}/
+"#,
+        );
+        test.result(result).assert_lint("no-super-linear-regex");
+    }
+
+    #[test]
     fn test_detects_deeply_nested() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
         let result = test.lint_ast(
@@ -343,6 +357,18 @@ let re = /(ab?)+/
             "no_super_linear_regex/test_allows_simple_regex.ds",
             r#"
 let re = /^[a-z]+@[a-z]+\.[a-z]+$/
+"#,
+        );
+        test.result(result).assert_no_lint("no-super-linear-regex");
+    }
+
+    #[test]
+    fn test_allows_single_bounded_repetition_of_unbounded_inner() {
+        let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
+        let result = test.lint_ast(
+            "no_super_linear_regex/test_allows_single_bounded_repetition_of_unbounded_inner.ds",
+            r#"
+let re = /(a+){1}/
 "#,
         );
         test.result(result).assert_no_lint("no-super-linear-regex");
