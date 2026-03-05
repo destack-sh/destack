@@ -3,13 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use dashmap::mapref::entry::Entry;
-#[cfg(feature = "query")]
-use destack_compiler::AnalyzeTask;
-#[cfg(feature = "query")]
-use destack_compiler::TaskOutcome;
 use destack_compiler::{Compiler, CompilerOptions};
-#[cfg(feature = "query")]
-use destack_source::FileId;
 use destack_workspace::{Program, Session};
 
 use super::workspace::WorkspaceHandle;
@@ -266,33 +260,6 @@ impl LanguageService {
         Ok(handle.revision())
     }
 
-    /// Validate module semantics for file scoped queries.
-    #[cfg(feature = "query")]
-    pub(crate) fn validate_semantic_query_module(
-        &self,
-        program: &Program,
-        file_id: FileId,
-    ) -> Result<Option<TaskOutcome>, LanguageServiceError> {
-        // resolve the module and profile for this file
-        let session = self.session.as_ref();
-        let Some(module_id) = session.modules.get_id_by_file_id(file_id) else {
-            return Ok(None);
-        };
-        let profile_id = session.default_profile_for_module(module_id);
-
-        // serialize validation against this root compiler
-        let handle = self.workspace_handle_for_root(&program.cwd)?;
-        let _compile_guard = handle.compile_lock.lock();
-
-        // run module validation and return the typed outcome
-        let module = handle.compiler.module_stamp(module_id);
-        let profile = handle.compiler.profile_stamp(profile_id);
-        let analyze_task = AnalyzeTask::AnalyzeModuleValidate { module, profile };
-        let outcome = handle.compiler.run_task(analyze_task);
-
-        Ok(Some(outcome))
-    }
-
     /// Execute a callback with workspace program and compiler handles while holding the compile lock.
     pub fn with_workspace_handles_for_path<T, F>(
         &self,
@@ -304,7 +271,7 @@ impl LanguageService {
     {
         // resolve and lock the owning workspace handle
         let handle = self.workspace_handle_for_path(path)?;
-        let _compile_guard = handle.compile_lock.lock();
+        let _compile_guard = handle.enter_mutation();
 
         // run the callback with shared program and compiler handles
         Ok(callback(handle.program.clone(), handle.compiler.clone()))

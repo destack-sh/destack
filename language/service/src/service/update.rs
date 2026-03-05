@@ -77,6 +77,9 @@ impl LanguageService {
 
             // deleted files become removed virtual updates
             if matches!(event.kind, FileWatchEventKind::Deleted) {
+                // structural deletes require graph-level rediscovery
+                require_rescan = true;
+
                 if !self.is_watchable_path(&event.path) {
                     continue;
                 }
@@ -102,6 +105,9 @@ impl LanguageService {
 
             // renamed files are handled as remove then create
             if matches!(event.kind, FileWatchEventKind::Renamed) {
+                // structural renames require graph-level rediscovery
+                require_rescan = true;
+
                 if let Some(previous_path) = event.previous_path.as_ref()
                     && self.is_watchable_path(previous_path)
                 {
@@ -153,6 +159,11 @@ impl LanguageService {
             // ignore events for non-watchable files
             if !self.is_watchable_path(&event.path) {
                 continue;
+            }
+
+            // structural creates require graph-level rediscovery
+            if matches!(event.kind, FileWatchEventKind::Created) {
+                require_rescan = true;
             }
 
             // apply file content updates from disk
@@ -224,7 +235,7 @@ impl LanguageService {
         // rescan each requested root with compile serialization
         for root in roots {
             let handle = self.workspace_handle_for_root(root)?;
-            let _compile_guard = handle.compile_lock.lock();
+            let _compile_guard = handle.enter_mutation();
             let rescan = self.rescan_program(&handle, analyze)?;
             result.updates.extend(rescan.updates);
             result.messages.extend(rescan.messages);
@@ -252,7 +263,7 @@ impl LanguageService {
     ) -> Result<VirtualUpdateResult, LanguageServiceError> {
         // resolve and lock the owning workspace handle
         let handle = self.workspace_handle_for_path(path)?;
-        let _compile_guard = handle.compile_lock.lock();
+        let _compile_guard = handle.enter_mutation();
         let program = handle.program.clone();
         let compiler = handle.compiler.clone();
 

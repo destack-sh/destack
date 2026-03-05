@@ -24,14 +24,14 @@ fn test_workspace_service_routes_queries_across_roots() {
 
     let response_a = test
         .service
-        .execute_query_for_path(
+        .execute_read_query_for_path(
             &path_a,
             query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri: uri_a }),
         )
         .expect("expected root a query response");
     let response_b = test
         .service
-        .execute_query_for_path(
+        .execute_read_query_for_path(
             &path_b,
             query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri: uri_b }),
         )
