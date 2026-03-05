@@ -22,6 +22,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -359,14 +360,14 @@ fn encode_destack_security_sandbox_exit_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct SecuritySandboxEnterReplay {
     /// Replay result payload.
-    pub result: Result<resource::SandboxHandle, PlatformError>,
+    pub result: Result<resource::SandboxHandle, ReplayError>,
 }
 
 /// Replay payload for destack.security.sandbox.exit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct SecuritySandboxExitReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Binding descriptor for destack.security.capability.has.
@@ -639,7 +640,7 @@ fn destack_security_sandbox_enter_replay(
 ) -> RuntimeResult<()> {
     let _ = &name;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         SECURITY_SANDBOX_ENTER,
         binding.replay_payload_for(SECURITY_SANDBOX_ENTER)?,
         || unsafe { platform_runtime_native::destack_security_sandbox_enter(binding, out, name) },
@@ -660,7 +661,7 @@ fn destack_security_sandbox_enter_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     SecuritySandboxEnterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -678,7 +679,7 @@ fn destack_security_sandbox_enter_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -691,7 +692,7 @@ fn destack_security_sandbox_exit_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         SECURITY_SANDBOX_EXIT,
         binding.replay_payload_for(SECURITY_SANDBOX_EXIT)?,
         || unsafe { platform_runtime_native::destack_security_sandbox_exit(binding, handle) },
@@ -706,7 +707,7 @@ fn destack_security_sandbox_exit_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     SecuritySandboxExitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -718,7 +719,7 @@ fn destack_security_sandbox_exit_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -922,7 +923,7 @@ fn destack_security_sandbox_enter_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         SECURITY_SANDBOX_ENTER,
         binding.replay_payload_for(SECURITY_SANDBOX_ENTER)?,
         context,
@@ -940,7 +941,7 @@ fn destack_security_sandbox_enter_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     SecuritySandboxEnterReplay { result }
                 };
                 return Ok(Some(payload));
@@ -956,7 +957,7 @@ fn destack_security_sandbox_enter_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -970,7 +971,7 @@ fn destack_security_sandbox_exit_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         SECURITY_SANDBOX_EXIT,
         binding.replay_payload_for(SECURITY_SANDBOX_EXIT)?,
         context,
@@ -987,7 +988,7 @@ fn destack_security_sandbox_exit_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     SecuritySandboxExitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1000,7 +1001,7 @@ fn destack_security_sandbox_exit_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

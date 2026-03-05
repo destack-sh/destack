@@ -20,6 +20,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -481,112 +482,112 @@ fn encode_destack_memory_query_page_size_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryAdviseAdviseRangeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.advise.discard.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryAdviseDiscardReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.advise.hugePage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryAdviseHugePageReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.lock.lockRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryLockLockRangeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.lock.unlock.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryLockUnlockReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.map.commit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryMapCommitReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.map.decommit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryMapDecommitReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.map.numaBind.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryMapNumaBindReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.map.release.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryMapReleaseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.map.reserve.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryMapReserveReplay {
     /// Replay result payload.
-    pub result: Result<MemoryRange, PlatformError>,
+    pub result: Result<MemoryRange, ReplayError>,
 }
 
 /// Replay payload for destack.memory.protect.flushInstructionCache.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryProtectFlushInstructionCacheReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.protect.protectRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryProtectProtectRangeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.memory.protect.remap.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryProtectRemapReplay {
     /// Replay result payload.
-    pub result: Result<ProtectedMemoryRange, PlatformError>,
+    pub result: Result<ProtectedMemoryRange, ReplayError>,
 }
 
 /// Replay payload for destack.memory.query.allocationGranularity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryQueryAllocationGranularityReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.memory.query.hugePageSize.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryQueryHugePageSizeReplay {
     /// Replay result payload.
-    pub result: Result<Option<u64>, PlatformError>,
+    pub result: Result<Option<u64>, ReplayError>,
 }
 
 /// Replay payload for destack.memory.query.pageSize.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryQueryPageSizeReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Binding descriptor for destack.memory.advise.adviseRange.
@@ -1011,7 +1012,7 @@ fn destack_memory_advise_advise_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &advice);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_ADVISE_ADVISE_RANGE,
         binding.replay_payload_for(MEMORY_ADVISE_ADVISE_RANGE)?,
         || match world {
@@ -1033,7 +1034,7 @@ fn destack_memory_advise_advise_range_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryAdviseAdviseRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1045,7 +1046,7 @@ fn destack_memory_advise_advise_range_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1060,7 +1061,7 @@ fn destack_memory_advise_discard_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_ADVISE_DISCARD,
         binding.replay_payload_for(MEMORY_ADVISE_DISCARD)?,
         || match world {
@@ -1082,7 +1083,7 @@ fn destack_memory_advise_discard_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryAdviseDiscardReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1094,7 +1095,7 @@ fn destack_memory_advise_discard_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1110,7 +1111,7 @@ fn destack_memory_advise_huge_page_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &enabled);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_ADVISE_HUGE_PAGE,
         binding.replay_payload_for(MEMORY_ADVISE_HUGE_PAGE)?,
         || match world {
@@ -1134,7 +1135,7 @@ fn destack_memory_advise_huge_page_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryAdviseHugePageReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1146,7 +1147,7 @@ fn destack_memory_advise_huge_page_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1161,7 +1162,7 @@ fn destack_memory_lock_lock_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_LOCK_LOCK_RANGE,
         binding.replay_payload_for(MEMORY_LOCK_LOCK_RANGE)?,
         || match world {
@@ -1183,7 +1184,7 @@ fn destack_memory_lock_lock_range_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryLockLockRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1195,7 +1196,7 @@ fn destack_memory_lock_lock_range_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1210,7 +1211,7 @@ fn destack_memory_lock_unlock_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_LOCK_UNLOCK,
         binding.replay_payload_for(MEMORY_LOCK_UNLOCK)?,
         || match world {
@@ -1232,7 +1233,7 @@ fn destack_memory_lock_unlock_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryLockUnlockReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1244,7 +1245,7 @@ fn destack_memory_lock_unlock_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1260,7 +1261,7 @@ fn destack_memory_map_commit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &protection);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_MAP_COMMIT,
         binding.replay_payload_for(MEMORY_MAP_COMMIT)?,
         || match world {
@@ -1284,7 +1285,7 @@ fn destack_memory_map_commit_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapCommitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1296,7 +1297,7 @@ fn destack_memory_map_commit_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1311,7 +1312,7 @@ fn destack_memory_map_decommit_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_MAP_DECOMMIT,
         binding.replay_payload_for(MEMORY_MAP_DECOMMIT)?,
         || match world {
@@ -1333,7 +1334,7 @@ fn destack_memory_map_decommit_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapDecommitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1345,7 +1346,7 @@ fn destack_memory_map_decommit_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1362,7 +1363,7 @@ fn destack_memory_map_numa_bind_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &policy, &nodemask);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_MAP_NUMA_BIND,
         binding.replay_payload_for(MEMORY_MAP_NUMA_BIND)?,
         || match world {
@@ -1388,7 +1389,7 @@ fn destack_memory_map_numa_bind_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapNumaBindReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1400,7 +1401,7 @@ fn destack_memory_map_numa_bind_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1415,7 +1416,7 @@ fn destack_memory_map_release_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_MAP_RELEASE,
         binding.replay_payload_for(MEMORY_MAP_RELEASE)?,
         || match world {
@@ -1437,7 +1438,7 @@ fn destack_memory_map_release_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapReleaseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1449,7 +1450,7 @@ fn destack_memory_map_release_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1466,7 +1467,7 @@ fn destack_memory_map_reserve_replay(
 ) -> RuntimeResult<()> {
     let _ = (&length, &addresshint, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_MAP_RESERVE,
         binding.replay_payload_for(MEMORY_MAP_RESERVE)?,
         || match world {
@@ -1505,7 +1506,7 @@ fn destack_memory_map_reserve_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapReserveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1528,7 +1529,7 @@ fn destack_memory_map_reserve_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1543,7 +1544,7 @@ fn destack_memory_protect_flush_instruction_cache_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
         binding.replay_payload_for(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?,
         || match world {
@@ -1567,7 +1568,7 @@ fn destack_memory_protect_flush_instruction_cache_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryProtectFlushInstructionCacheReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1579,7 +1580,7 @@ fn destack_memory_protect_flush_instruction_cache_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1595,7 +1596,7 @@ fn destack_memory_protect_protect_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &length, &protection);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_PROTECT_PROTECT_RANGE,
         binding.replay_payload_for(MEMORY_PROTECT_PROTECT_RANGE)?,
         || match world {
@@ -1619,7 +1620,7 @@ fn destack_memory_protect_protect_range_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryProtectProtectRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1631,7 +1632,7 @@ fn destack_memory_protect_protect_range_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1649,7 +1650,7 @@ fn destack_memory_protect_remap_replay(
 ) -> RuntimeResult<()> {
     let _ = (&address, &oldlength, &newlength, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_PROTECT_REMAP,
         binding.replay_payload_for(MEMORY_PROTECT_REMAP)?,
         || match world {
@@ -1686,7 +1687,7 @@ fn destack_memory_protect_remap_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryProtectRemapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1709,7 +1710,7 @@ fn destack_memory_protect_remap_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1721,7 +1722,7 @@ fn destack_memory_query_allocation_granularity_replay(
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_QUERY_ALLOCATION_GRANULARITY,
         binding.replay_payload_for(MEMORY_QUERY_ALLOCATION_GRANULARITY)?,
         || match world {
@@ -1749,7 +1750,7 @@ fn destack_memory_query_allocation_granularity_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryQueryAllocationGranularityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1767,7 +1768,7 @@ fn destack_memory_query_allocation_granularity_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1779,7 +1780,7 @@ fn destack_memory_query_huge_page_size_replay(
     world: RuntimeWorld,
     out: *mut Option<u64>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_QUERY_HUGE_PAGE_SIZE,
         binding.replay_payload_for(MEMORY_QUERY_HUGE_PAGE_SIZE)?,
         || match world {
@@ -1812,7 +1813,7 @@ fn destack_memory_query_huge_page_size_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryQueryHugePageSizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1835,7 +1836,7 @@ fn destack_memory_query_huge_page_size_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -1847,7 +1848,7 @@ fn destack_memory_query_page_size_replay(
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         MEMORY_QUERY_PAGE_SIZE,
         binding.replay_payload_for(MEMORY_QUERY_PAGE_SIZE)?,
         || match world {
@@ -1875,7 +1876,7 @@ fn destack_memory_query_page_size_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryQueryPageSizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -1893,7 +1894,7 @@ fn destack_memory_query_page_size_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -2145,7 +2146,7 @@ fn destack_memory_advise_advise_range_vm_replay(
     length: u64,
     advice: MemoryAdvice,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_ADVISE_ADVISE_RANGE,
         binding.replay_payload_for(MEMORY_ADVISE_ADVISE_RANGE)?,
         context,
@@ -2169,7 +2170,7 @@ fn destack_memory_advise_advise_range_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryAdviseAdviseRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2182,7 +2183,7 @@ fn destack_memory_advise_advise_range_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2198,7 +2199,7 @@ fn destack_memory_advise_discard_vm_replay(
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_ADVISE_DISCARD,
         binding.replay_payload_for(MEMORY_ADVISE_DISCARD)?,
         context,
@@ -2222,7 +2223,7 @@ fn destack_memory_advise_discard_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryAdviseDiscardReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2235,7 +2236,7 @@ fn destack_memory_advise_discard_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2252,7 +2253,7 @@ fn destack_memory_advise_huge_page_vm_replay(
     length: u64,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_ADVISE_HUGE_PAGE,
         binding.replay_payload_for(MEMORY_ADVISE_HUGE_PAGE)?,
         context,
@@ -2276,7 +2277,7 @@ fn destack_memory_advise_huge_page_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryAdviseHugePageReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2289,7 +2290,7 @@ fn destack_memory_advise_huge_page_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2305,7 +2306,7 @@ fn destack_memory_lock_lock_range_vm_replay(
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_LOCK_LOCK_RANGE,
         binding.replay_payload_for(MEMORY_LOCK_LOCK_RANGE)?,
         context,
@@ -2329,7 +2330,7 @@ fn destack_memory_lock_lock_range_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryLockLockRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2342,7 +2343,7 @@ fn destack_memory_lock_lock_range_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2358,7 +2359,7 @@ fn destack_memory_lock_unlock_vm_replay(
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_LOCK_UNLOCK,
         binding.replay_payload_for(MEMORY_LOCK_UNLOCK)?,
         context,
@@ -2382,7 +2383,7 @@ fn destack_memory_lock_unlock_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryLockUnlockReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2395,7 +2396,7 @@ fn destack_memory_lock_unlock_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2412,7 +2413,7 @@ fn destack_memory_map_commit_vm_replay(
     length: u64,
     protection: MemoryProtection,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_MAP_COMMIT,
         binding.replay_payload_for(MEMORY_MAP_COMMIT)?,
         context,
@@ -2436,7 +2437,7 @@ fn destack_memory_map_commit_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapCommitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2449,7 +2450,7 @@ fn destack_memory_map_commit_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2465,7 +2466,7 @@ fn destack_memory_map_decommit_vm_replay(
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_MAP_DECOMMIT,
         binding.replay_payload_for(MEMORY_MAP_DECOMMIT)?,
         context,
@@ -2489,7 +2490,7 @@ fn destack_memory_map_decommit_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapDecommitReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2502,7 +2503,7 @@ fn destack_memory_map_decommit_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2520,7 +2521,7 @@ fn destack_memory_map_numa_bind_vm_replay(
     policy: MemoryNumaPolicy,
     nodemask: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_MAP_NUMA_BIND,
         binding.replay_payload_for(MEMORY_MAP_NUMA_BIND)?,
         context,
@@ -2544,7 +2545,7 @@ fn destack_memory_map_numa_bind_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapNumaBindReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2557,7 +2558,7 @@ fn destack_memory_map_numa_bind_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2573,7 +2574,7 @@ fn destack_memory_map_release_vm_replay(
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_MAP_RELEASE,
         binding.replay_payload_for(MEMORY_MAP_RELEASE)?,
         context,
@@ -2597,7 +2598,7 @@ fn destack_memory_map_release_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapReleaseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2610,7 +2611,7 @@ fn destack_memory_map_release_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2627,7 +2628,7 @@ fn destack_memory_map_reserve_vm_replay(
     addresshint: u64,
     flags: MemoryReserveFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_MAP_RESERVE,
         binding.replay_payload_for(MEMORY_MAP_RESERVE)?,
         context,
@@ -2661,7 +2662,7 @@ fn destack_memory_map_reserve_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryMapReserveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2682,7 +2683,7 @@ fn destack_memory_map_reserve_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2698,7 +2699,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
     address: u64,
     length: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
         binding.replay_payload_for(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?,
         context,
@@ -2724,7 +2725,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryProtectFlushInstructionCacheReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2737,7 +2738,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2754,7 +2755,7 @@ fn destack_memory_protect_protect_range_vm_replay(
     length: u64,
     protection: MemoryProtection,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_PROTECT_PROTECT_RANGE,
         binding.replay_payload_for(MEMORY_PROTECT_PROTECT_RANGE)?,
         context,
@@ -2778,7 +2779,7 @@ fn destack_memory_protect_protect_range_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryProtectProtectRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2791,7 +2792,7 @@ fn destack_memory_protect_protect_range_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2809,7 +2810,7 @@ fn destack_memory_protect_remap_vm_replay(
     newlength: u64,
     flags: MemoryRemapFlags,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_PROTECT_REMAP,
         binding.replay_payload_for(MEMORY_PROTECT_REMAP)?,
         context,
@@ -2839,7 +2840,7 @@ fn destack_memory_protect_remap_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryProtectRemapReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2860,7 +2861,7 @@ fn destack_memory_protect_remap_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2874,7 +2875,7 @@ fn destack_memory_query_allocation_granularity_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_QUERY_ALLOCATION_GRANULARITY,
         binding.replay_payload_for(MEMORY_QUERY_ALLOCATION_GRANULARITY)?,
         context,
@@ -2899,7 +2900,7 @@ fn destack_memory_query_allocation_granularity_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryQueryAllocationGranularityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2915,7 +2916,7 @@ fn destack_memory_query_allocation_granularity_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2929,7 +2930,7 @@ fn destack_memory_query_huge_page_size_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_QUERY_HUGE_PAGE_SIZE,
         binding.replay_payload_for(MEMORY_QUERY_HUGE_PAGE_SIZE)?,
         context,
@@ -2957,7 +2958,7 @@ fn destack_memory_query_huge_page_size_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryQueryHugePageSizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -2978,7 +2979,7 @@ fn destack_memory_query_huge_page_size_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -2992,7 +2993,7 @@ fn destack_memory_query_page_size_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         MEMORY_QUERY_PAGE_SIZE,
         binding.replay_payload_for(MEMORY_QUERY_PAGE_SIZE)?,
         context,
@@ -3015,7 +3016,7 @@ fn destack_memory_query_page_size_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     MemoryQueryPageSizeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -3031,7 +3032,7 @@ fn destack_memory_query_page_size_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

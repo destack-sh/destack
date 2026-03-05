@@ -5,8 +5,8 @@ use destack_dir::{EnumBackingType, IntType};
 use crate::model::{
     BindingCatalog, BindingEntry, BindingEnumValue, BindingEnumVariant, BindingField,
     BindingParameter, BindingType, CatalogBindingBlocking, CatalogBindingReplayKind,
-    CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogRandomEventKind,
-    CatalogReplayPayload, CatalogReplayPolicy, CatalogTimeEventKind,
+    CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind,
+    CatalogReplayPayload, CatalogReplayPolicy,
 };
 
 /// Catalog entry grouping bindings by extern name.
@@ -79,12 +79,9 @@ impl<'a> DomainSpec<'a> {
                 }
             ) && entry.replay_kind == CatalogBindingReplayKind::BindingCall
         });
-        let uses_time_replay_kind = bindings
+        let uses_entropy_replay_kind = bindings
             .values()
-            .any(|entry| matches!(entry.replay_kind, CatalogBindingReplayKind::Time(_)));
-        let uses_random_replay_kind = bindings
-            .values()
-            .any(|entry| matches!(entry.replay_kind, CatalogBindingReplayKind::Random(_)));
+            .any(|entry| matches!(entry.replay_kind, CatalogBindingReplayKind::Entropy(_)));
         let uses_replay_payload_type = bindings.values().any(|entry| {
             matches!(
                 entry.replay_payload,
@@ -131,8 +128,7 @@ impl<'a> DomainSpec<'a> {
                 native_usage,
                 uses_replay_policy,
                 uses_binding_replay,
-                uses_time_replay_kind,
-                uses_random_replay_kind,
+                uses_entropy_replay_kind,
                 uses_replay_payload_type,
                 uses_replay_payload,
                 needs_vm,
@@ -240,10 +236,8 @@ pub(super) struct RenderUsage {
     pub(super) uses_replay_policy: bool,
     /// Whether bindings use replay helpers.
     pub(super) uses_binding_replay: bool,
-    /// Whether time replay routing is referenced.
-    pub(super) uses_time_replay_kind: bool,
-    /// Whether random replay routing is referenced.
-    pub(super) uses_random_replay_kind: bool,
+    /// Whether entropy replay routing is referenced.
+    pub(super) uses_entropy_replay_kind: bool,
     /// Whether replay payload enum is referenced.
     pub(super) uses_replay_payload_type: bool,
     /// Whether replay payload helpers are needed.
@@ -584,20 +578,9 @@ impl<'a> DomainWriter<'a> {
             "use crate::runtime::bindings::{{{}}};\n",
             binding_imports.join(", ")
         ));
-        if usage.uses_time_replay_kind || usage.uses_random_replay_kind {
-            let mut replay_imports = Vec::new();
-            if usage.uses_time_replay_kind {
-                replay_imports.push("TimeEventKind");
-            }
-            if usage.uses_random_replay_kind {
-                replay_imports.push("RandomEventKind");
-            }
-            self.output.push_str(&format!(
-                "use crate::runtime::replay::{{{}}};\n",
-                replay_imports.join(", ")
-            ));
-        }
-        if usage.uses_random_replay_kind {
+        if usage.uses_entropy_replay_kind {
+            self.output
+                .push_str("use crate::runtime::replay::EntropyKind;\n");
             self.output
                 .push_str("use crate::runtime::random::RandomStreamId;\n");
         }
@@ -673,6 +656,8 @@ impl<'a> DomainWriter<'a> {
         if usage.uses_binding_replay {
             self.output
                 .push_str("use crate::runtime::BindingCallContext;\n");
+            self.output
+                .push_str("use crate::runtime::replay::ReplayError;\n");
         }
         self.output.push_str("use crate::binding;\n\n");
 
@@ -1285,89 +1270,106 @@ impl<'a> DomainWriter<'a> {
                         output.push_str(&format!("        {call}\n"));
                     }
                 }
-                CatalogBindingReplayKind::Time(kind) => {
-                    let kind_value = time_event_kind_value(kind);
-                    output.push_str(&format!(
-                        "        let value = context.replay().run_time_read({kind_value}, || {{\n"
-                    ));
-                    let call = render_native_checked_world_dispatch_expr(
-                        &binding.const_name,
-                        entry.scope,
-                        binding.entry.simulation,
-                        implementation_fn_name,
-                        &args,
-                    );
-                    output.push_str(&format!("            {call}?;\n"));
-                    output.push_str("            unsafe { Ok(*out) }\n");
-                    output.push_str("        })?;\n");
-                    output.push_str("        unsafe { *out = value; }\n");
-                    output.push_str("        Ok(())\n");
+                CatalogBindingReplayKind::Entropy(kind) => {
+                    let kind_value = entropy_kind_value(kind);
+                    let subject_expr = format!("context.entropy_subject({})", binding.const_name);
+
+                    match kind {
+                        CatalogEntropyKind::TimeReadMonotonic
+                        | CatalogEntropyKind::TimeReadWall => {
+                            output
+                                .push_str("        let value = context.replay().run_time_read(\n");
+                            output.push_str(&format!("            {kind_value},\n"));
+                            output.push_str(&format!("            {subject_expr},\n"));
+                            output.push_str("            || context.on_time_read(),\n");
+                            output.push_str("            || {\n");
+                            let call = render_native_checked_world_dispatch_expr(
+                                &binding.const_name,
+                                entry.scope,
+                                binding.entry.simulation,
+                                implementation_fn_name,
+                                &args,
+                            );
+                            output.push_str(&format!("            {call}?;\n"));
+                            output.push_str("            unsafe { Ok(*out) }\n");
+                            output.push_str("            },\n");
+                            output.push_str("        )?;\n");
+                            output.push_str("        unsafe { *out = value; }\n");
+                            output.push_str("        Ok(())\n");
+                        }
+                        CatalogEntropyKind::RandomStreamCreate => {
+                            output.push_str(
+                                "        let value = context.replay().run_random_stream(\n",
+                            );
+                            output.push_str(&format!("            {subject_expr},\n"));
+                            output.push_str("            || context.on_random_read(),\n");
+                            output.push_str("            || {\n");
+                            let call = render_native_checked_world_dispatch_expr(
+                                &binding.const_name,
+                                entry.scope,
+                                binding.entry.simulation,
+                                implementation_fn_name,
+                                &args,
+                            );
+                            output.push_str(&format!("            {call}?;\n"));
+                            output.push_str("            unsafe { Ok((*out).0) }\n");
+                            output.push_str("            },\n");
+                            output.push_str("        )?;\n");
+                            output.push_str("        unsafe { *out = RandomStream(value); }\n");
+                            output.push_str("        Ok(())\n");
+                        }
+                        CatalogEntropyKind::RandomReadU64 => {
+                            let stream_expr =
+                                binding_random_stream_id_expr(entry, "context.random_stream_id()");
+                            output
+                                .push_str("        let value = context.replay().run_random_u64(\n");
+                            output.push_str(&format!("            {subject_expr},\n"));
+                            output.push_str(&format!("            {stream_expr},\n"));
+                            output.push_str("            || context.on_random_read(),\n");
+                            output.push_str("            || {\n");
+                            let call = render_native_checked_world_dispatch_expr(
+                                &binding.const_name,
+                                entry.scope,
+                                binding.entry.simulation,
+                                implementation_fn_name,
+                                &args,
+                            );
+                            output.push_str(&format!("            {call}?;\n"));
+                            output.push_str("            unsafe { Ok(*out) }\n");
+                            output.push_str("            },\n");
+                            output.push_str("        )?;\n");
+                            output.push_str("        unsafe { *out = value; }\n");
+                            output.push_str("        Ok(())\n");
+                        }
+                        CatalogEntropyKind::RandomReadBytes => {
+                            let stream_expr =
+                                binding_random_stream_id_expr(entry, "context.random_stream_id()");
+                            let buffer_name = binding_random_bytes_buffer_arg(entry);
+                            output.push_str("        context.replay().run_random_bytes(\n");
+                            output.push_str(&format!("            {subject_expr},\n"));
+                            output.push_str(&format!("            {stream_expr},\n"));
+                            output.push_str(&format!("            {buffer_name}.len,\n"));
+                            output.push_str("            || context.on_random_read(),\n");
+                            output.push_str("            || {\n");
+                            let call = render_native_checked_world_dispatch_expr(
+                                &binding.const_name,
+                                entry.scope,
+                                binding.entry.simulation,
+                                implementation_fn_name,
+                                &args,
+                            );
+                            output.push_str(&format!("                {call}\n"));
+                            output.push_str("            },\n");
+                            output.push_str(&format!(
+                                "            || {{\n                let slice = unsafe {{ {buffer_name}.as_slice()? }};\n                Ok(slice.to_vec())\n            }},\n"
+                            ));
+                            output.push_str(&format!(
+                                "            |bytes| {{\n                let slice = unsafe {{ {buffer_name}.as_mut_slice()? }};\n                if slice.len() != bytes.len() {{\n                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(\n                        \"buffer\",\n                        \"buffer length mismatch\",\n                    ))\n                    .boxed());\n                }}\n                slice.copy_from_slice(&bytes);\n                Ok(())\n            }},\n"
+                            ));
+                            output.push_str("        )\n");
+                        }
+                    }
                 }
-                CatalogBindingReplayKind::Random(kind) => match kind {
-                    CatalogRandomEventKind::Stream => {
-                        output.push_str(
-                            "        let value = context.replay().run_random_stream(|| {\n",
-                        );
-                        let call = render_native_checked_world_dispatch_expr(
-                            &binding.const_name,
-                            entry.scope,
-                            binding.entry.simulation,
-                            implementation_fn_name,
-                            &args,
-                        );
-                        output.push_str(&format!("            {call}?;\n"));
-                        output.push_str("            unsafe { Ok((*out).0) }\n");
-                        output.push_str("        })?;\n");
-                        output.push_str("        unsafe { *out = RandomStream(value); }\n");
-                        output.push_str("        Ok(())\n");
-                    }
-                    CatalogRandomEventKind::NextU64 => {
-                        let stream_expr =
-                            binding_random_stream_id_expr(entry, "context.random_stream_id()");
-                        output.push_str(&format!(
-                            "        let value = context.replay().run_random_u64({stream_expr}, || {{\n"
-                        ));
-                        let call = render_native_checked_world_dispatch_expr(
-                            &binding.const_name,
-                            entry.scope,
-                            binding.entry.simulation,
-                            implementation_fn_name,
-                            &args,
-                        );
-                        output.push_str(&format!("            {call}?;\n"));
-                        output.push_str("            unsafe { Ok(*out) }\n");
-                        output.push_str("        })?;\n");
-                        output.push_str("        unsafe { *out = value; }\n");
-                        output.push_str("        Ok(())\n");
-                    }
-                    CatalogRandomEventKind::Bytes => {
-                        let stream_expr =
-                            binding_random_stream_id_expr(entry, "context.random_stream_id()");
-                        let buffer_name = binding_random_bytes_buffer_arg(entry);
-                        output.push_str("        context.replay().run_random_bytes(\n");
-                        output.push_str(&format!("            {stream_expr},\n"));
-                        output.push_str("            || {\n");
-                        let call = render_native_checked_world_dispatch_expr(
-                            &binding.const_name,
-                            entry.scope,
-                            binding.entry.simulation,
-                            implementation_fn_name,
-                            &args,
-                        );
-                        output.push_str(&format!("                {call}\n"));
-                        output.push_str("            },\n");
-                        output.push_str(&format!(
-                            "            || {{\n                let slice = unsafe {{ {buffer_name}.as_slice()? }};\n                Ok(slice.to_vec())\n            }},\n"
-                        ));
-                        output.push_str(&format!(
-                            "            |bytes| {{\n                let slice = unsafe {{ {buffer_name}.as_mut_slice()? }};\n                if slice.len() != bytes.len() {{\n                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(\n                        \"buffer\",\n                        \"buffer length mismatch\",\n                    ))\n                    .boxed());\n                }}\n                slice.copy_from_slice(&bytes);\n                Ok(())\n            }},\n"
-                        ));
-                        output.push_str("        )\n");
-                    }
-                    CatalogRandomEventKind::Seed => {
-                        panic!("random seed replay is not supported for bindings yet");
-                    }
-                },
             }
             output.push_str("    })\n");
             output.push_str("}\n\n");
@@ -1473,105 +1475,128 @@ impl<'a> DomainWriter<'a> {
                         ));
                     }
                 }
-                CatalogBindingReplayKind::Time(kind) => {
-                    let kind_value = time_event_kind_value(kind);
-                    let call = render_vm_checked_world_dispatch_expr(
-                        &binding.const_name,
-                        binding.entry.scope,
-                        binding.entry.simulation,
-                        implementation_fn_name,
-                        &invoke_args,
-                    );
-                    output.push_str(&format!(
-                        "                let result = binding.replay().run_time_read({kind_value}, || {{\n"
-                    ));
-                    output.push_str(&format!("                    {call}\n"));
-                    output.push_str("                });\n");
-                    output.push_str(&format!(
-                        "                {encode_helper}(context, result)\n"
-                    ));
+                CatalogBindingReplayKind::Entropy(kind) => {
+                    let kind_value = entropy_kind_value(kind);
+                    let subject_expr = format!("binding.entropy_subject({})", binding.const_name);
+
+                    match kind {
+                        CatalogEntropyKind::TimeReadMonotonic
+                        | CatalogEntropyKind::TimeReadWall => {
+                            let call = render_vm_checked_world_dispatch_expr(
+                                &binding.const_name,
+                                binding.entry.scope,
+                                binding.entry.simulation,
+                                implementation_fn_name,
+                                &invoke_args,
+                            );
+                            output.push_str(
+                                "                let result = binding.replay().run_time_read(\n",
+                            );
+                            output.push_str(&format!("                    {kind_value},\n"));
+                            output.push_str(&format!("                    {subject_expr},\n"));
+                            output.push_str("                    || binding.on_time_read(),\n");
+                            output.push_str("                    || {\n");
+                            output.push_str(&format!("                    {call}\n"));
+                            output.push_str("                    },\n");
+                            output.push_str("                );\n");
+                            output.push_str(&format!(
+                                "                {encode_helper}(context, result)\n"
+                            ));
+                        }
+                        CatalogEntropyKind::RandomStreamCreate => {
+                            let call = render_vm_checked_world_dispatch_expr(
+                                &binding.const_name,
+                                binding.entry.scope,
+                                binding.entry.simulation,
+                                implementation_fn_name,
+                                &invoke_args,
+                            );
+                            output.push_str(
+                                "                let result = binding.replay().run_random_stream(\n",
+                            );
+                            output.push_str(&format!("                    {subject_expr},\n"));
+                            output.push_str("                    || binding.on_random_read(),\n");
+                            output.push_str("                    || {\n");
+                            output.push_str(&format!(
+                                "                    {call}.map(|stream| stream.0)\n"
+                            ));
+                            output.push_str("                    },\n");
+                            output.push_str("                );\n");
+                            output.push_str(
+                                "                let result = result.map(RandomStream);\n",
+                            );
+                            output.push_str(&format!(
+                                "                {encode_helper}(context, result)\n"
+                            ));
+                        }
+                        CatalogEntropyKind::RandomReadU64 => {
+                            let stream_expr = binding_random_stream_id_expr(
+                                &binding.entry,
+                                "binding.random_stream_id()",
+                            );
+                            let call = render_vm_checked_world_dispatch_expr(
+                                &binding.const_name,
+                                binding.entry.scope,
+                                binding.entry.simulation,
+                                implementation_fn_name,
+                                &invoke_args,
+                            );
+                            output.push_str(
+                                "                let result = binding.replay().run_random_u64(\n",
+                            );
+                            output.push_str(&format!("                    {subject_expr},\n"));
+                            output.push_str(&format!("                    {stream_expr},\n"));
+                            output.push_str("                    || binding.on_random_read(),\n");
+                            output.push_str("                    || {\n");
+                            output.push_str(&format!("                    {call}\n"));
+                            output.push_str("                    },\n");
+                            output.push_str("                );\n");
+                            output.push_str(&format!(
+                                "                {encode_helper}(context, result)\n"
+                            ));
+                        }
+                        CatalogEntropyKind::RandomReadBytes => {
+                            let stream_expr = binding_random_stream_id_expr(
+                                &binding.entry,
+                                "binding.random_stream_id()",
+                            );
+                            let buffer_name = binding_random_bytes_buffer_arg(&binding.entry);
+                            output.push_str(
+                                "                let context_ptr = context as *mut vm::ExternalCallContext<'_>;\n",
+                            );
+                            output.push_str(
+                                "                let result = binding.replay().run_random_bytes(\n",
+                            );
+                            output.push_str(&format!("                    {subject_expr},\n"));
+                            output.push_str(&format!("                    {stream_expr},\n"));
+                            output.push_str(&format!("                    {buffer_name}.len,\n"));
+                            output.push_str("                    || binding.on_random_read(),\n");
+                            output.push_str("                    || {\n");
+                            let call = render_vm_checked_world_dispatch_expr(
+                                &binding.const_name,
+                                binding.entry.scope,
+                                binding.entry.simulation,
+                                implementation_fn_name,
+                                &invoke_args,
+                            )
+                            .replace("context", "&mut *context_ptr");
+                            output.push_str(&format!(
+                                "                        unsafe {{ {call} }}\n"
+                            ));
+                            output.push_str("                    },\n");
+                            output.push_str(&format!(
+                                "                    || unsafe {{ {buffer_name}.read_bytes(&*context_ptr) }},\n"
+                            ));
+                            output.push_str(&format!(
+                                "                    |bytes| unsafe {{ {buffer_name}.write_bytes(&mut *context_ptr, &bytes) }},\n"
+                            ));
+                            output.push_str("                );\n");
+                            output.push_str(&format!(
+                                "                {encode_helper}(context, result)\n"
+                            ));
+                        }
+                    }
                 }
-                CatalogBindingReplayKind::Random(kind) => match kind {
-                    CatalogRandomEventKind::Stream => {
-                        let call = render_vm_checked_world_dispatch_expr(
-                            &binding.const_name,
-                            binding.entry.scope,
-                            binding.entry.simulation,
-                            implementation_fn_name,
-                            &invoke_args,
-                        );
-                        output.push_str(
-                            "                let result = binding.replay().run_random_stream(|| {\n",
-                        );
-                        output.push_str(&format!(
-                            "                    {call}.map(|stream| stream.0)\n"
-                        ));
-                        output.push_str("                });\n");
-                        output.push_str("                let result = result.map(RandomStream);\n");
-                        output.push_str(&format!(
-                            "                {encode_helper}(context, result)\n"
-                        ));
-                    }
-                    CatalogRandomEventKind::NextU64 => {
-                        let stream_expr = binding_random_stream_id_expr(
-                            &binding.entry,
-                            "binding.random_stream_id()",
-                        );
-                        let call = render_vm_checked_world_dispatch_expr(
-                            &binding.const_name,
-                            binding.entry.scope,
-                            binding.entry.simulation,
-                            implementation_fn_name,
-                            &invoke_args,
-                        );
-                        output.push_str(&format!(
-                            "                let result = binding.replay().run_random_u64({stream_expr}, || {{\n"
-                        ));
-                        output.push_str(&format!("                    {call}\n"));
-                        output.push_str("                });\n");
-                        output.push_str(&format!(
-                            "                {encode_helper}(context, result)\n"
-                        ));
-                    }
-                    CatalogRandomEventKind::Bytes => {
-                        let stream_expr = binding_random_stream_id_expr(
-                            &binding.entry,
-                            "binding.random_stream_id()",
-                        );
-                        let buffer_name = binding_random_bytes_buffer_arg(&binding.entry);
-                        output.push_str(
-                            "                let context_ptr = context as *mut vm::ExternalCallContext<'_>;\n",
-                        );
-                        output.push_str(
-                            "                let result = binding.replay().run_random_bytes(\n",
-                        );
-                        output.push_str(&format!("                    {stream_expr},\n"));
-                        output.push_str("                    || {\n");
-                        let call = render_vm_checked_world_dispatch_expr(
-                            &binding.const_name,
-                            binding.entry.scope,
-                            binding.entry.simulation,
-                            implementation_fn_name,
-                            &invoke_args,
-                        )
-                        .replace("context", "&mut *context_ptr");
-                        output.push_str(&format!("                        unsafe {{ {call} }}\n"));
-                        output.push_str("                    },\n");
-                        output.push_str(&format!(
-                            "                    || unsafe {{ {buffer_name}.read_bytes(&*context_ptr) }},\n"
-                        ));
-                        output.push_str(&format!(
-                            "                    |bytes| unsafe {{ {buffer_name}.write_bytes(&mut *context_ptr, &bytes) }},\n"
-                        ));
-                        output.push_str("                );\n");
-                        output.push_str(&format!(
-                            "                {encode_helper}(context, result)\n"
-                        ));
-                    }
-                    CatalogRandomEventKind::Seed => {
-                        panic!("random seed replay is not supported for bindings yet");
-                    }
-                },
             }
             output.push_str("            })\n");
             output.push_str("            .map_err(Into::into)\n");
@@ -1603,16 +1628,13 @@ impl<'a> DomainWriter<'a> {
     }
 }
 
-fn time_event_kind_value(kind: CatalogTimeEventKind) -> &'static str {
+fn entropy_kind_value(kind: CatalogEntropyKind) -> &'static str {
     match kind {
-        CatalogTimeEventKind::Seed => "TimeEventKind::Seed",
-        CatalogTimeEventKind::MonotonicSample => "TimeEventKind::MonotonicSample",
-        CatalogTimeEventKind::WallClockRead => "TimeEventKind::WallClockRead",
-        CatalogTimeEventKind::TimerScheduled => "TimeEventKind::TimerScheduled",
-        CatalogTimeEventKind::TimerFired => "TimeEventKind::TimerFired",
-        CatalogTimeEventKind::TimerCanceled => "TimeEventKind::TimerCanceled",
-        CatalogTimeEventKind::SleepScheduled => "TimeEventKind::SleepScheduled",
-        CatalogTimeEventKind::SleepWake => "TimeEventKind::SleepWake",
+        CatalogEntropyKind::TimeReadMonotonic => "EntropyKind::TimeReadMonotonic",
+        CatalogEntropyKind::TimeReadWall => "EntropyKind::TimeReadWall",
+        CatalogEntropyKind::RandomStreamCreate => "EntropyKind::RandomStreamCreate",
+        CatalogEntropyKind::RandomReadBytes => "EntropyKind::RandomReadBytes",
+        CatalogEntropyKind::RandomReadU64 => "EntropyKind::RandomReadU64",
     }
 }
 
@@ -1705,25 +1727,12 @@ fn render_vm_checked_world_dispatch_expr(
     )
 }
 
-fn random_event_kind_value(kind: CatalogRandomEventKind) -> &'static str {
-    match kind {
-        CatalogRandomEventKind::Seed => "RandomEventKind::Seed",
-        CatalogRandomEventKind::Stream => "RandomEventKind::Stream",
-        CatalogRandomEventKind::Bytes => "RandomEventKind::Bytes",
-        CatalogRandomEventKind::NextU64 => "RandomEventKind::NextU64",
-    }
-}
-
 fn render_binding_replay_kind(kind: CatalogBindingReplayKind) -> String {
     match kind {
         CatalogBindingReplayKind::BindingCall => "BindingReplayKind::BindingCall".to_string(),
-        CatalogBindingReplayKind::Time(time_kind) => format!(
-            "BindingReplayKind::Time({})",
-            time_event_kind_value(time_kind)
-        ),
-        CatalogBindingReplayKind::Random(random_kind) => format!(
-            "BindingReplayKind::Random({})",
-            random_event_kind_value(random_kind)
+        CatalogBindingReplayKind::Entropy(entropy_kind) => format!(
+            "BindingReplayKind::Entropy({})",
+            entropy_kind_value(entropy_kind)
         ),
     }
 }

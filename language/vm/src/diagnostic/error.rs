@@ -1,4 +1,5 @@
 use destack_mir as mir;
+use serde::{Deserialize, Serialize};
 
 /// Anchor for MIR-level error locations.
 #[derive(Debug, Clone, PartialEq)]
@@ -32,7 +33,7 @@ pub struct FrameInfo {
 }
 
 /// Errors that can occur during interpreter execution.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Error {
     /// Attempted to execute an undefined function.

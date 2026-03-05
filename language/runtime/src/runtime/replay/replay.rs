@@ -1,8 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
 use crate::runtime::replay::{
-    BindingCallEvent, RandomEventKind, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
-    TimeEventKind,
+    BindingCallEvent, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
 };
 use crate::runtime::world::WorldCommand;
 use destack_workspace::ExecutionMode;
@@ -11,77 +10,14 @@ use postcard::experimental::serialized_size;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-/// Validation state for replay event ordering.
-#[derive(Debug, Default)]
-struct ReplayValidator {
-    /// Last observed task queue sequence.
-    last_task_queue_sequence: Option<u64>,
-    /// Last observed monotonic time sample.
-    last_monotonic_nanos: Option<u64>,
-}
+use super::validator::ReplayValidator;
 
-impl ReplayValidator {
-    /// Validate a replay event against ordering invariants.
-    fn validate(&mut self, event: &ReplayEvent) -> RuntimeResult<()> {
-        match event {
-            ReplayEvent::TaskQueueEvent(event) => {
-                if let Some(last) = self.last_task_queue_sequence
-                    && event.sequence < last
-                {
-                    return Err(RuntimeError::ReplayMismatch {
-                        name: "event_loop".to_string(),
-                    }
-                    .boxed());
-                }
-                self.last_task_queue_sequence = Some(event.sequence);
-            }
-            ReplayEvent::TimeEvent(event) => {
-                if event.kind == TimeEventKind::MonotonicSample {
-                    if let Some(last) = self.last_monotonic_nanos
-                        && event.time_nanos < last
-                    {
-                        return Err(RuntimeError::ReplayMismatch {
-                            name: "time".to_string(),
-                        }
-                        .boxed());
-                    }
-                    self.last_monotonic_nanos = Some(event.time_nanos);
-                }
-            }
-            ReplayEvent::RandomEvent(event) => match event.kind {
-                RandomEventKind::Stream => {
-                    if !event.bytes.is_empty() {
-                        return Err(RuntimeError::ReplayMismatch {
-                            name: "random".to_string(),
-                        }
-                        .boxed());
-                    }
-                }
-                RandomEventKind::NextU64 => {
-                    if event.bytes.len() != 8 {
-                        return Err(RuntimeError::ReplayMismatch {
-                            name: "random".to_string(),
-                        }
-                        .boxed());
-                    }
-                }
-                RandomEventKind::Bytes | RandomEventKind::Seed => {}
-            },
-            _ => {}
-        }
-
-        Ok(())
-    }
-}
-
-/// Replay controller for record/replay pipelines.
+/// Replay state for record/replay pipelines.
 #[derive(Debug)]
-pub struct ReplayController {
-    // NOTE #Incomplete: validate replay sequences and enforce log compatibility
+pub struct Replay {
+    /// TODO #Incomplete: validate replay sequences and enforce log compatibility
     /// Active execution mode.
     mode: ExecutionMode,
-    /// Replay payload policy for record mode.
-    payload_policy: BindingReplayPayload,
     /// Replay log backing store.
     log: ReplayLog,
     /// Replay reader for log playback.
@@ -92,35 +28,17 @@ pub struct ReplayController {
     scratch: Mutex<Vec<u8>>,
 }
 
-impl ReplayController {
-    /// Create a replay controller with an explicit execution mode.
+impl Replay {
+    /// Create replay state with an explicit execution mode.
     pub fn new(
         mode: ExecutionMode,
-        payload_policy: BindingReplayPayload,
         header: ReplayHeader,
     ) -> Self {
-        let log = ReplayLog::new(header);
-        let reader = match mode {
-            ExecutionMode::Replay => Some(log.reader()),
-            _ => None,
-        };
-
-        Self {
-            mode,
-            payload_policy,
-            log,
-            reader,
-            validator: Mutex::new(ReplayValidator::default()),
-            scratch: Mutex::new(Vec::new()),
-        }
+        Self::from_log(mode, ReplayLog::new(header))
     }
 
-    /// Create a replay controller with an existing log and execution mode.
-    pub fn from_log(
-        mode: ExecutionMode,
-        payload_policy: BindingReplayPayload,
-        log: ReplayLog,
-    ) -> Self {
+    /// Create replay state with one existing log and execution mode.
+    pub fn from_log(mode: ExecutionMode, log: ReplayLog) -> Self {
         let reader = match mode {
             ExecutionMode::Replay => Some(log.reader()),
             _ => None,
@@ -128,7 +46,6 @@ impl ReplayController {
 
         Self {
             mode,
-            payload_policy,
             log,
             reader,
             validator: Mutex::new(ReplayValidator::default()),
@@ -241,20 +158,11 @@ impl ReplayController {
         spec: BindingDescriptor,
         payload: &[u8],
     ) -> RuntimeResult<()> {
-        // skip recording when disabled
-        if self.mode() != ExecutionMode::Record {
-            return Ok(());
-        }
-
-        // record the binding call event
-        self.log
-            .record_event(ReplayEvent::BindingCall(BindingCallEvent {
-                binding_id: spec.id,
-                codec: spec.codec,
-                payload: payload.to_vec(),
-            }))?;
-
-        Ok(())
+        self.record_event(ReplayEvent::BindingCall(BindingCallEvent {
+            binding_id: spec.id,
+            codec: spec.codec,
+            payload: payload.to_vec(),
+        }))
     }
 
     /// Read the next binding call payload for replay.
@@ -282,11 +190,6 @@ impl ReplayController {
 
     /// Record one runtime world command for replay.
     pub fn record_world_command(&self, command: &WorldCommand) -> RuntimeResult<()> {
-        // skip recording when disabled
-        if self.mode() != ExecutionMode::Record {
-            return Ok(());
-        }
-
         // encode one stable world command payload
         let command_bytes = serde_json::to_vec(command).map_err(|_| {
             RuntimeError::ReplayEncodeFailed {
@@ -296,11 +199,9 @@ impl ReplayController {
         })?;
 
         // record one world command event
-        self.log.record_event(ReplayEvent::WorldCommand {
+        self.record_event(ReplayEvent::WorldCommand {
             payload: command_bytes,
-        })?;
-
-        Ok(())
+        })
     }
 
     /// Read the next runtime world command from replay.
@@ -395,99 +296,9 @@ impl ReplayController {
         Ok(payload)
     }
 
-    /// Run a binding with replay handling.
+    /// Run a binding with replay handling against one mutable context.
     #[inline]
-    pub fn run_binding<Payload, Value, Call, Encode, Decode>(
-        &self,
-        spec: BindingDescriptor,
-        call: Call,
-        encode: Encode,
-        decode: Decode,
-    ) -> RuntimeResult<Value>
-    where
-        Payload: Serialize + DeserializeOwned,
-        Call: FnOnce() -> RuntimeResult<Value>,
-        Encode: FnOnce(&RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
-        Decode: FnOnce(Payload) -> RuntimeResult<Value>,
-    {
-        self.run_binding_with_policy(spec, self.payload_policy, call, encode, decode)
-    }
-
-    /// Run a binding with replay handling and one requested payload policy.
-    #[inline]
-    pub fn run_binding_with_policy<Payload, Value, Call, Encode, Decode>(
-        &self,
-        spec: BindingDescriptor,
-        requested_payload: BindingReplayPayload,
-        call: Call,
-        encode: Encode,
-        decode: Decode,
-    ) -> RuntimeResult<Value>
-    where
-        Payload: Serialize + DeserializeOwned,
-        Call: FnOnce() -> RuntimeResult<Value>,
-        Encode: FnOnce(&RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
-        Decode: FnOnce(Payload) -> RuntimeResult<Value>,
-    {
-        let mut unit = ();
-        self.run_binding_internal(
-            spec,
-            requested_payload,
-            &mut unit,
-            move |_| call(),
-            move |_, result| encode(result),
-            move |_, payload| decode(payload),
-        )
-    }
-
-    /// Run a binding with replay handling and an explicit mutable context.
-    #[inline]
-    pub fn run_binding_with_context<Payload, Value, Context, Call, Encode, Decode>(
-        &self,
-        spec: BindingDescriptor,
-        context: &mut Context,
-        call: Call,
-        encode: Encode,
-        decode: Decode,
-    ) -> RuntimeResult<Value>
-    where
-        Payload: Serialize + DeserializeOwned,
-        Call: FnOnce(&mut Context) -> RuntimeResult<Value>,
-        Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
-        Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
-    {
-        self.run_binding_with_context_policy(
-            spec,
-            self.payload_policy,
-            context,
-            call,
-            encode,
-            decode,
-        )
-    }
-
-    /// Run a binding with replay handling, context, and one requested payload policy.
-    #[inline]
-    pub fn run_binding_with_context_policy<Payload, Value, Context, Call, Encode, Decode>(
-        &self,
-        spec: BindingDescriptor,
-        requested_payload: BindingReplayPayload,
-        context: &mut Context,
-        call: Call,
-        encode: Encode,
-        decode: Decode,
-    ) -> RuntimeResult<Value>
-    where
-        Payload: Serialize + DeserializeOwned,
-        Call: FnOnce(&mut Context) -> RuntimeResult<Value>,
-        Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
-        Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
-    {
-        self.run_binding_internal(spec, requested_payload, context, call, encode, decode)
-    }
-
-    /// Run one binding with replay handling against one mutable context.
-    fn run_binding_internal<Payload, Value, Context, Call, Encode, Decode>(
+    pub fn run_binding<Payload, Value, Context, Call, Encode, Decode>(
         &self,
         spec: BindingDescriptor,
         requested_payload: BindingReplayPayload,
@@ -539,13 +350,39 @@ impl ReplayController {
             }
         }
     }
+
+    /// Run a binding with replay handling and no explicit mutable context.
+    #[inline]
+    pub fn run_binding_without_context<Payload, Value, Call, Encode, Decode>(
+        &self,
+        spec: BindingDescriptor,
+        requested_payload: BindingReplayPayload,
+        call: Call,
+        encode: Encode,
+        decode: Decode,
+    ) -> RuntimeResult<Value>
+    where
+        Payload: Serialize + DeserializeOwned,
+        Call: FnOnce() -> RuntimeResult<Value>,
+        Encode: FnOnce(&RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
+        Decode: FnOnce(Payload) -> RuntimeResult<Value>,
+    {
+        let mut context = ();
+        self.run_binding(
+            spec,
+            requested_payload,
+            &mut context,
+            move |_| call(),
+            move |_, result| encode(result),
+            move |_, payload| decode(payload),
+        )
+    }
 }
 
-impl Default for ReplayController {
+impl Default for Replay {
     fn default() -> Self {
         Self::new(
             ExecutionMode::Fast,
-            BindingReplayPayload::Results,
             ReplayHeader::default(),
         )
     }

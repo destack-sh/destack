@@ -25,6 +25,7 @@ destack_source = { workspace = true }
 destack_vm_abi = { workspace = true }
 
 # util
+serde = { workspace = true }
 smallvec = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]

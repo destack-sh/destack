@@ -57,6 +57,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -3590,91 +3591,91 @@ fn encode_destack_crypto_store_probe_kinds_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeAgreementAlgorithmsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoKeyAgreementAlgorithm>, PlatformError>,
+    pub result: Result<Vec<CryptoKeyAgreementAlgorithm>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.cipherAlgorithms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeCipherAlgorithmsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoCipherAlgorithm>, PlatformError>,
+    pub result: Result<Vec<CryptoCipherAlgorithm>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.digestAlgorithms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeDigestAlgorithmsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoDigestAlgorithm>, PlatformError>,
+    pub result: Result<Vec<CryptoDigestAlgorithm>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.kdfAlgorithms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeKdfAlgorithmsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoKdfAlgorithm>, PlatformError>,
+    pub result: Result<Vec<CryptoKdfAlgorithm>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.keyAlgorithms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeKeyAlgorithmsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoKeyAlgorithm>, PlatformError>,
+    pub result: Result<Vec<CryptoKeyAlgorithm>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.keyFormats.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeKeyFormatsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoKeyFormat>, PlatformError>,
+    pub result: Result<Vec<CryptoKeyFormat>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.keyResidencies.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeKeyResidenciesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoKeyResidency>, PlatformError>,
+    pub result: Result<Vec<CryptoKeyResidency>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.keyWrapAlgorithms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeKeyWrapAlgorithmsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoKeyWrapAlgorithm>, PlatformError>,
+    pub result: Result<Vec<CryptoKeyWrapAlgorithm>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.macAlgorithms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeMacAlgorithmsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoMacAlgorithm>, PlatformError>,
+    pub result: Result<Vec<CryptoMacAlgorithm>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.namedCurves.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeNamedCurvesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoNamedCurve>, PlatformError>,
+    pub result: Result<Vec<CryptoNamedCurve>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.probe.signatureAlgorithms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeSignatureAlgorithmsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoSignatureAlgorithm>, PlatformError>,
+    pub result: Result<Vec<CryptoSignatureAlgorithm>, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.store.probeCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoStoreProbeCapabilityReplay {
     /// Replay result payload.
-    pub result: Result<CryptoStoreCapabilityReplayRecord, PlatformError>,
+    pub result: Result<CryptoStoreCapabilityReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.crypto.store.probeKinds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoStoreProbeKindsReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CryptoStoreKind>, PlatformError>,
+    pub result: Result<Vec<CryptoStoreKind>, ReplayError>,
 }
 
 /// Binding descriptor for destack.crypto.agreement.deriveKey.
@@ -5117,7 +5118,7 @@ fn destack_crypto_probe_agreement_algorithms_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoKeyAgreementAlgorithm>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_AGREEMENT_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?,
         || match world {
@@ -5151,7 +5152,7 @@ fn destack_crypto_probe_agreement_algorithms_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeAgreementAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5174,7 +5175,7 @@ fn destack_crypto_probe_agreement_algorithms_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5186,7 +5187,7 @@ fn destack_crypto_probe_cipher_algorithms_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoCipherAlgorithm>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_CIPHER_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_CIPHER_ALGORITHMS)?,
         || match world {
@@ -5220,7 +5221,7 @@ fn destack_crypto_probe_cipher_algorithms_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeCipherAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5243,7 +5244,7 @@ fn destack_crypto_probe_cipher_algorithms_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5255,7 +5256,7 @@ fn destack_crypto_probe_digest_algorithms_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoDigestAlgorithm>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_DIGEST_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_DIGEST_ALGORITHMS)?,
         || match world {
@@ -5289,7 +5290,7 @@ fn destack_crypto_probe_digest_algorithms_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeDigestAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5312,7 +5313,7 @@ fn destack_crypto_probe_digest_algorithms_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5324,7 +5325,7 @@ fn destack_crypto_probe_kdf_algorithms_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoKdfAlgorithm>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_KDF_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_KDF_ALGORITHMS)?,
         || match world {
@@ -5358,7 +5359,7 @@ fn destack_crypto_probe_kdf_algorithms_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKdfAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5381,7 +5382,7 @@ fn destack_crypto_probe_kdf_algorithms_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5393,7 +5394,7 @@ fn destack_crypto_probe_key_algorithms_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoKeyAlgorithm>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_KEY_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_KEY_ALGORITHMS)?,
         || match world {
@@ -5427,7 +5428,7 @@ fn destack_crypto_probe_key_algorithms_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKeyAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5450,7 +5451,7 @@ fn destack_crypto_probe_key_algorithms_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5462,7 +5463,7 @@ fn destack_crypto_probe_key_formats_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoKeyFormat>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_KEY_FORMATS,
         binding.replay_payload_for(CRYPTO_PROBE_KEY_FORMATS)?,
         || match world {
@@ -5496,7 +5497,7 @@ fn destack_crypto_probe_key_formats_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKeyFormatsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5519,7 +5520,7 @@ fn destack_crypto_probe_key_formats_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5531,7 +5532,7 @@ fn destack_crypto_probe_key_residencies_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoKeyResidency>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_KEY_RESIDENCIES,
         binding.replay_payload_for(CRYPTO_PROBE_KEY_RESIDENCIES)?,
         || match world {
@@ -5565,7 +5566,7 @@ fn destack_crypto_probe_key_residencies_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKeyResidenciesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5588,7 +5589,7 @@ fn destack_crypto_probe_key_residencies_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5600,7 +5601,7 @@ fn destack_crypto_probe_key_wrap_algorithms_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoKeyWrapAlgorithm>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_KEY_WRAP_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?,
         || match world {
@@ -5634,7 +5635,7 @@ fn destack_crypto_probe_key_wrap_algorithms_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKeyWrapAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5657,7 +5658,7 @@ fn destack_crypto_probe_key_wrap_algorithms_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5669,7 +5670,7 @@ fn destack_crypto_probe_mac_algorithms_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoMacAlgorithm>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_MAC_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_MAC_ALGORITHMS)?,
         || match world {
@@ -5703,7 +5704,7 @@ fn destack_crypto_probe_mac_algorithms_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeMacAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5726,7 +5727,7 @@ fn destack_crypto_probe_mac_algorithms_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5738,7 +5739,7 @@ fn destack_crypto_probe_named_curves_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoNamedCurve>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_NAMED_CURVES,
         binding.replay_payload_for(CRYPTO_PROBE_NAMED_CURVES)?,
         || match world {
@@ -5772,7 +5773,7 @@ fn destack_crypto_probe_named_curves_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeNamedCurvesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5795,7 +5796,7 @@ fn destack_crypto_probe_named_curves_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5807,7 +5808,7 @@ fn destack_crypto_probe_signature_algorithms_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CryptoSignatureAlgorithm>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?,
         || match world {
@@ -5841,7 +5842,7 @@ fn destack_crypto_probe_signature_algorithms_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeSignatureAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5864,7 +5865,7 @@ fn destack_crypto_probe_signature_algorithms_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5880,7 +5881,7 @@ fn destack_crypto_store_probe_capability_replay(
 ) -> RuntimeResult<()> {
     let _ = (&kind, &provider);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_STORE_PROBE_CAPABILITY,
         binding.replay_payload_for(CRYPTO_STORE_PROBE_CAPABILITY)?,
         || match world {
@@ -6150,7 +6151,7 @@ fn destack_crypto_store_probe_capability_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoStoreProbeCapabilityReplay {
                         result,
                     }
@@ -6400,7 +6401,7 @@ fn destack_crypto_store_probe_capability_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6412,7 +6413,7 @@ fn destack_crypto_store_probe_kinds_replay(
     world: RuntimeWorld,
     out: *mut NativeArray<CryptoStoreKind>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         CRYPTO_STORE_PROBE_KINDS,
         binding.replay_payload_for(CRYPTO_STORE_PROBE_KINDS)?,
         || match world {
@@ -6446,7 +6447,7 @@ fn destack_crypto_store_probe_kinds_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoStoreProbeKindsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6469,7 +6470,7 @@ fn destack_crypto_store_probe_kinds_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8296,7 +8297,7 @@ fn destack_crypto_probe_agreement_algorithms_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_AGREEMENT_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?,
         context,
@@ -8344,7 +8345,7 @@ fn destack_crypto_probe_agreement_algorithms_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeAgreementAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8366,7 +8367,7 @@ fn destack_crypto_probe_agreement_algorithms_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -8380,7 +8381,7 @@ fn destack_crypto_probe_cipher_algorithms_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_CIPHER_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_CIPHER_ALGORITHMS)?,
         context,
@@ -8429,7 +8430,7 @@ fn destack_crypto_probe_cipher_algorithms_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeCipherAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8451,7 +8452,7 @@ fn destack_crypto_probe_cipher_algorithms_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -8465,7 +8466,7 @@ fn destack_crypto_probe_digest_algorithms_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_DIGEST_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_DIGEST_ALGORITHMS)?,
         context,
@@ -8520,7 +8521,7 @@ fn destack_crypto_probe_digest_algorithms_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeDigestAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8542,7 +8543,7 @@ fn destack_crypto_probe_digest_algorithms_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -8556,7 +8557,7 @@ fn destack_crypto_probe_kdf_algorithms_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_KDF_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_KDF_ALGORITHMS)?,
         context,
@@ -8605,7 +8606,7 @@ fn destack_crypto_probe_kdf_algorithms_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKdfAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8627,7 +8628,7 @@ fn destack_crypto_probe_kdf_algorithms_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -8641,7 +8642,7 @@ fn destack_crypto_probe_key_algorithms_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_KEY_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_KEY_ALGORITHMS)?,
         context,
@@ -8695,7 +8696,7 @@ fn destack_crypto_probe_key_algorithms_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKeyAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8717,7 +8718,7 @@ fn destack_crypto_probe_key_algorithms_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -8731,7 +8732,7 @@ fn destack_crypto_probe_key_formats_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_KEY_FORMATS,
         binding.replay_payload_for(CRYPTO_PROBE_KEY_FORMATS)?,
         context,
@@ -8784,7 +8785,7 @@ fn destack_crypto_probe_key_formats_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKeyFormatsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8806,7 +8807,7 @@ fn destack_crypto_probe_key_formats_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -8820,7 +8821,7 @@ fn destack_crypto_probe_key_residencies_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_KEY_RESIDENCIES,
         binding.replay_payload_for(CRYPTO_PROBE_KEY_RESIDENCIES)?,
         context,
@@ -8868,7 +8869,7 @@ fn destack_crypto_probe_key_residencies_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKeyResidenciesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8890,7 +8891,7 @@ fn destack_crypto_probe_key_residencies_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -8904,7 +8905,7 @@ fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_KEY_WRAP_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?,
         context,
@@ -8952,7 +8953,7 @@ fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeKeyWrapAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8974,7 +8975,7 @@ fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -8988,7 +8989,7 @@ fn destack_crypto_probe_mac_algorithms_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_MAC_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_MAC_ALGORITHMS)?,
         context,
@@ -9034,7 +9035,7 @@ fn destack_crypto_probe_mac_algorithms_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeMacAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9056,7 +9057,7 @@ fn destack_crypto_probe_mac_algorithms_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -9070,7 +9071,7 @@ fn destack_crypto_probe_named_curves_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_NAMED_CURVES,
         binding.replay_payload_for(CRYPTO_PROBE_NAMED_CURVES)?,
         context,
@@ -9121,7 +9122,7 @@ fn destack_crypto_probe_named_curves_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeNamedCurvesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9143,7 +9144,7 @@ fn destack_crypto_probe_named_curves_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -9157,7 +9158,7 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
         binding.replay_payload_for(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?,
         context,
@@ -9207,7 +9208,7 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoProbeSignatureAlgorithmsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9229,7 +9230,7 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -9245,7 +9246,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
     kind: CryptoStoreKind,
     provider: CryptoStoreProvider,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_STORE_PROBE_CAPABILITY,
         binding.replay_payload_for(CRYPTO_STORE_PROBE_CAPABILITY)?,
         context,
@@ -9678,7 +9679,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoStoreProbeCapabilityReplay {
                         result,
                     }
@@ -9959,7 +9960,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -9973,7 +9974,7 @@ fn destack_crypto_store_probe_kinds_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         CRYPTO_STORE_PROBE_KINDS,
         binding.replay_payload_for(CRYPTO_STORE_PROBE_KINDS)?,
         context,
@@ -10020,7 +10021,7 @@ fn destack_crypto_store_probe_kinds_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     CryptoStoreProbeKindsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10042,7 +10043,7 @@ fn destack_crypto_store_probe_kinds_vm_replay(
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

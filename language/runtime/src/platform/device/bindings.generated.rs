@@ -60,6 +60,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -3263,574 +3264,574 @@ fn encode_destack_device_usb_watch_try_read_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothAdapterListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<BluetoothAdapterDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<BluetoothAdapterDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.characteristicList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattCharacteristicListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<BluetoothGattCharacteristicDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<BluetoothGattCharacteristicDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.descriptorList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattDescriptorListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<BluetoothGattDescriptorDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<BluetoothGattDescriptorDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.mtu.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattMtuReplay {
     /// Replay result payload.
-    pub result: Result<u16, PlatformError>,
+    pub result: Result<u16, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.readDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattReadDescriptorReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.readEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattReadEventReplay {
     /// Replay result payload.
-    pub result: Result<BluetoothGattValueEventReplayRecord, PlatformError>,
+    pub result: Result<BluetoothGattValueEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.requestMtu.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattRequestMtuReplay {
     /// Replay result payload.
-    pub result: Result<u16, PlatformError>,
+    pub result: Result<u16, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.serviceList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattServiceListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<BluetoothGattServiceDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<BluetoothGattServiceDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.subscribe.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattSubscribeReplay {
     /// Replay result payload.
-    pub result: Result<resource::BluetoothSubscriptionHandle, PlatformError>,
+    pub result: Result<resource::BluetoothSubscriptionHandle, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.tryReadEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattTryReadEventReplay {
     /// Replay result payload.
-    pub result: Result<BluetoothGattValueEventReplayRecord, PlatformError>,
+    pub result: Result<BluetoothGattValueEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.unsubscribe.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattUnsubscribeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattWriteReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.writeDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothGattWriteDescriptorReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.scan.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothScanCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.scan.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothScanOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::BluetoothScanHandle, PlatformError>,
+    pub result: Result<resource::BluetoothScanHandle, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.scan.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothScanReadReplay {
     /// Replay result payload.
-    pub result: Result<BluetoothDeviceDescriptorReplayRecord, PlatformError>,
+    pub result: Result<BluetoothDeviceDescriptorReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.scan.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothScanTryReadReplay {
     /// Replay result payload.
-    pub result: Result<BluetoothDeviceDescriptorReplayRecord, PlatformError>,
+    pub result: Result<BluetoothDeviceDescriptorReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.session.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothSessionCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.session.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothSessionOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::BluetoothDeviceHandle, PlatformError>,
+    pub result: Result<resource::BluetoothDeviceHandle, ReplayError>,
 }
 
 /// Replay payload for destack.device.bluetooth.session.rssi.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceBluetoothSessionRssiReplay {
     /// Replay result payload.
-    pub result: Result<i32, PlatformError>,
+    pub result: Result<i32, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.device.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraDeviceCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.device.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraDeviceListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CameraDeviceDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<CameraDeviceDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.device.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraDeviceOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::CameraDeviceHandle, PlatformError>,
+    pub result: Result<resource::CameraDeviceHandle, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.device.streamCapabilityList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraDeviceStreamCapabilityListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CameraStreamCapability>, PlatformError>,
+    pub result: Result<Vec<CameraStreamCapability>, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.device.streamConfigList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraDeviceStreamConfigListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<CameraStreamConfig>, PlatformError>,
+    pub result: Result<Vec<CameraStreamConfig>, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.controlRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamControlRangeReplay {
     /// Replay result payload.
-    pub result: Result<CameraControlRange, PlatformError>,
+    pub result: Result<CameraControlRange, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.exposureMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamExposureModeReplay {
     /// Replay result payload.
-    pub result: Result<CameraExposureMode, PlatformError>,
+    pub result: Result<CameraExposureMode, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.getControl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamGetControlReplay {
     /// Replay result payload.
-    pub result: Result<f64, PlatformError>,
+    pub result: Result<f64, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::CameraStreamHandle, PlatformError>,
+    pub result: Result<resource::CameraStreamHandle, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamReadReplay {
     /// Replay result payload.
-    pub result: Result<CameraFrameReplayRecord, PlatformError>,
+    pub result: Result<CameraFrameReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.setControl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamSetControlReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.setExposureMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamSetExposureModeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.setStabilizationMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamSetStabilizationModeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.setTorchMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamSetTorchModeReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.stabilizationMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamStabilizationModeReplay {
     /// Replay result payload.
-    pub result: Result<CameraStabilizationMode, PlatformError>,
+    pub result: Result<CameraStabilizationMode, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamStartReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.stop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamStopReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.torchMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamTorchModeReplay {
     /// Replay result payload.
-    pub result: Result<CameraTorchMode, PlatformError>,
+    pub result: Result<CameraTorchMode, ReplayError>,
 }
 
 /// Replay payload for destack.device.camera.stream.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamTryReadReplay {
     /// Replay result payload.
-    pub result: Result<CameraFrameReplayRecord, PlatformError>,
+    pub result: Result<CameraFrameReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.configure.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialConfigureReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.discardInput.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialDiscardInputReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.discardOutput.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialDiscardOutputReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.flush.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialFlushReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<SerialPortDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<SerialPortDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::SerialPortHandle, PlatformError>,
+    pub result: Result<resource::SerialPortHandle, ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.readEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialReadEventReplay {
     /// Replay result payload.
-    pub result: Result<SerialEventReplayRecord, PlatformError>,
+    pub result: Result<SerialEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.setBreak.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialSetBreakReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.setControlLines.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialSetControlLinesReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.signalBits.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialSignalBitsReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.tryEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialTryEventReplay {
     /// Replay result payload.
-    pub result: Result<SerialEventReplayRecord, PlatformError>,
+    pub result: Result<SerialEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialTryReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.device.serial.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceSerialWriteReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.bulkRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbBulkReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.bulkWrite.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbBulkWriteReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.claimInterface.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbClaimInterfaceReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.clearHalt.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbClearHaltReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.configurationGet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbConfigurationGetReplay {
     /// Replay result payload.
-    pub result: Result<u8, PlatformError>,
+    pub result: Result<u8, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.configurationList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbConfigurationListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<UsbConfigurationDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<UsbConfigurationDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.configurationSet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbConfigurationSetReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.controlRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbControlReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.controlWrite.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbControlWriteReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.descriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbDescriptorReplay {
     /// Replay result payload.
-    pub result: Result<UsbDeviceDescriptorReplayRecord, PlatformError>,
+    pub result: Result<UsbDeviceDescriptorReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.interruptRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbInterruptReadReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.interruptWrite.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbInterruptWriteReplay {
     /// Replay result payload.
-    pub result: Result<u32, PlatformError>,
+    pub result: Result<u32, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.isochronousRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbIsochronousReadReplay {
     /// Replay result payload.
-    pub result: Result<UsbIsochronousTransferResultReplayRecord, PlatformError>,
+    pub result: Result<UsbIsochronousTransferResultReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.isochronousWrite.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbIsochronousWriteReplay {
     /// Replay result payload.
-    pub result: Result<UsbIsochronousTransferResultReplayRecord, PlatformError>,
+    pub result: Result<UsbIsochronousTransferResultReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.kernelDriverActive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbKernelDriverActiveReplay {
     /// Replay result payload.
-    pub result: Result<bool, PlatformError>,
+    pub result: Result<bool, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<UsbDeviceDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<UsbDeviceDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::UsbDeviceHandle, PlatformError>,
+    pub result: Result<resource::UsbDeviceHandle, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.releaseInterface.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbReleaseInterfaceReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.setInterfaceAlternateSetting.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbSetInterfaceAlternateSettingReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.stringDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbStringDescriptorReplay {
     /// Replay result payload.
-    pub result: Result<UsbStringDescriptorReplayRecord, PlatformError>,
+    pub result: Result<UsbStringDescriptorReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.stringLanguageList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbStringLanguageListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u16>, PlatformError>,
+    pub result: Result<Vec<u16>, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.watchClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbWatchCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.watchOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbWatchOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::UsbWatchHandle, PlatformError>,
+    pub result: Result<resource::UsbWatchHandle, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.watchRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbWatchReadReplay {
     /// Replay result payload.
-    pub result: Result<UsbHotplugEventReplayRecord, PlatformError>,
+    pub result: Result<UsbHotplugEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.device.usb.watchTryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceUsbWatchTryReadReplay {
     /// Replay result payload.
-    pub result: Result<UsbHotplugEventReplayRecord, PlatformError>,
+    pub result: Result<UsbHotplugEventReplayRecord, ReplayError>,
 }
 
 /// Binding descriptor for destack.device.bluetooth.adapterList.
@@ -5649,7 +5650,7 @@ fn destack_device_bluetooth_adapter_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<BluetoothAdapterDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_ADAPTER_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_ADAPTER_LIST)?,
         || match world {
@@ -5694,7 +5695,7 @@ fn destack_device_bluetooth_adapter_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothAdapterListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5728,7 +5729,7 @@ fn destack_device_bluetooth_adapter_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5744,7 +5745,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &serviceuuid);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?,
         || match world {
@@ -5798,7 +5799,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattCharacteristicListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5830,7 +5831,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5847,7 +5848,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &serviceuuid, &characteristicuuid);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?,
         || match world {
@@ -5904,7 +5905,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattDescriptorListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5937,7 +5938,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -5952,7 +5953,7 @@ fn destack_device_bluetooth_gatt_mtu_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_MTU,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_MTU)?,
         || match world {
@@ -5980,7 +5981,7 @@ fn destack_device_bluetooth_gatt_mtu_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattMtuReplay { result }
                 };
                 return Ok(Some(payload));
@@ -5998,7 +5999,7 @@ fn destack_device_bluetooth_gatt_mtu_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6016,7 +6017,7 @@ fn destack_device_bluetooth_gatt_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &serviceuuid, &characteristicuuid, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_READ,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ)?,
         || match world {
@@ -6064,7 +6065,7 @@ fn destack_device_bluetooth_gatt_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6087,7 +6088,7 @@ fn destack_device_bluetooth_gatt_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6112,7 +6113,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
         &timeoutns,
     );
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?,
         || match world {
@@ -6162,7 +6163,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattReadDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6185,7 +6186,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6201,7 +6202,7 @@ fn destack_device_bluetooth_gatt_read_event_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_READ_EVENT,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_EVENT)?,
         || match world {
@@ -6250,7 +6251,7 @@ fn destack_device_bluetooth_gatt_read_event_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattReadEventReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6283,7 +6284,7 @@ fn destack_device_bluetooth_gatt_read_event_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6300,7 +6301,7 @@ fn destack_device_bluetooth_gatt_request_mtu_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mtu, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?,
         || match world {
@@ -6332,7 +6333,7 @@ fn destack_device_bluetooth_gatt_request_mtu_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattRequestMtuReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6350,7 +6351,7 @@ fn destack_device_bluetooth_gatt_request_mtu_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6365,7 +6366,7 @@ fn destack_device_bluetooth_gatt_service_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_SERVICE_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?,
         || match world {
@@ -6408,7 +6409,7 @@ fn destack_device_bluetooth_gatt_service_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattServiceListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6437,7 +6438,7 @@ fn destack_device_bluetooth_gatt_service_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6454,7 +6455,7 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &serviceuuid, &characteristicuuid);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_SUBSCRIBE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?,
         || match world {
@@ -6494,7 +6495,7 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattSubscribeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6512,7 +6513,7 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6527,7 +6528,7 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?,
         || match world {
@@ -6574,7 +6575,7 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattTryReadEventReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6607,7 +6608,7 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6621,7 +6622,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?,
         || match world {
@@ -6645,7 +6646,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattUnsubscribeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6657,7 +6658,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6683,7 +6684,7 @@ fn destack_device_bluetooth_gatt_write_replay(
         &timeoutns,
     );
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_WRITE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE)?,
         || match world {
@@ -6721,7 +6722,7 @@ fn destack_device_bluetooth_gatt_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6733,7 +6734,7 @@ fn destack_device_bluetooth_gatt_write_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6759,7 +6760,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
         &timeoutns,
     );
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?,
         || match world {
@@ -6797,7 +6798,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattWriteDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6809,7 +6810,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6823,7 +6824,7 @@ fn destack_device_bluetooth_scan_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_SCAN_CLOSE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_CLOSE)?,
         || match world {
@@ -6845,7 +6846,7 @@ fn destack_device_bluetooth_scan_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothScanCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6857,7 +6858,7 @@ fn destack_device_bluetooth_scan_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6873,7 +6874,7 @@ fn destack_device_bluetooth_scan_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&adapterid, &filter);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_SCAN_OPEN,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_OPEN)?,
         || match world {
@@ -6903,7 +6904,7 @@ fn destack_device_bluetooth_scan_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothScanOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -6921,7 +6922,7 @@ fn destack_device_bluetooth_scan_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -6937,7 +6938,7 @@ fn destack_device_bluetooth_scan_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_SCAN_READ,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_READ)?,
         || match world {
@@ -7029,7 +7030,7 @@ fn destack_device_bluetooth_scan_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothScanReadReplay {
                         result,
                     }
@@ -7112,7 +7113,7 @@ fn destack_device_bluetooth_scan_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7127,7 +7128,7 @@ fn destack_device_bluetooth_scan_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_SCAN_TRY_READ,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_TRY_READ)?,
         || match world {
@@ -7219,7 +7220,7 @@ fn destack_device_bluetooth_scan_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothScanTryReadReplay {
                         result,
                     }
@@ -7302,7 +7303,7 @@ fn destack_device_bluetooth_scan_try_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7316,7 +7317,7 @@ fn destack_device_bluetooth_session_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_SESSION_CLOSE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_CLOSE)?,
         || match world {
@@ -7338,7 +7339,7 @@ fn destack_device_bluetooth_session_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothSessionCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7350,7 +7351,7 @@ fn destack_device_bluetooth_session_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7366,7 +7367,7 @@ fn destack_device_bluetooth_session_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&adapterid, &deviceid);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_SESSION_OPEN,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_OPEN)?,
         || match world {
@@ -7396,7 +7397,7 @@ fn destack_device_bluetooth_session_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothSessionOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7414,7 +7415,7 @@ fn destack_device_bluetooth_session_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7430,7 +7431,7 @@ fn destack_device_bluetooth_session_rssi_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_BLUETOOTH_SESSION_RSSI,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_RSSI)?,
         || match world {
@@ -7460,7 +7461,7 @@ fn destack_device_bluetooth_session_rssi_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothSessionRssiReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7478,7 +7479,7 @@ fn destack_device_bluetooth_session_rssi_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7492,7 +7493,7 @@ fn destack_device_camera_device_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_DEVICE_CLOSE,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_CLOSE)?,
         || match world {
@@ -7514,7 +7515,7 @@ fn destack_device_camera_device_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7526,7 +7527,7 @@ fn destack_device_camera_device_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7538,7 +7539,7 @@ fn destack_device_camera_device_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<CameraDeviceDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_DEVICE_LIST,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_LIST)?,
         || match world {
@@ -7588,7 +7589,7 @@ fn destack_device_camera_device_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7626,7 +7627,7 @@ fn destack_device_camera_device_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7641,7 +7642,7 @@ fn destack_device_camera_device_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_DEVICE_OPEN,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_OPEN)?,
         || match world {
@@ -7669,7 +7670,7 @@ fn destack_device_camera_device_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7687,7 +7688,7 @@ fn destack_device_camera_device_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7702,7 +7703,7 @@ fn destack_device_camera_device_stream_capability_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?,
         || match world {
@@ -7772,7 +7773,7 @@ fn destack_device_camera_device_stream_capability_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceStreamCapabilityListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7826,7 +7827,7 @@ fn destack_device_camera_device_stream_capability_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7841,7 +7842,7 @@ fn destack_device_camera_device_stream_config_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?,
         || match world {
@@ -7889,7 +7890,7 @@ fn destack_device_camera_device_stream_config_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceStreamConfigListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7922,7 +7923,7 @@ fn destack_device_camera_device_stream_config_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7936,7 +7937,7 @@ fn destack_device_camera_stream_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_CLOSE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_CLOSE)?,
         || match world {
@@ -7958,7 +7959,7 @@ fn destack_device_camera_stream_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7970,7 +7971,7 @@ fn destack_device_camera_stream_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7986,7 +7987,7 @@ fn destack_device_camera_stream_control_range_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &control);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_CONTROL_RANGE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?,
         || match world {
@@ -8031,7 +8032,7 @@ fn destack_device_camera_stream_control_range_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamControlRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8062,7 +8063,7 @@ fn destack_device_camera_stream_control_range_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8077,7 +8078,7 @@ fn destack_device_camera_stream_exposure_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_EXPOSURE_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?,
         || match world {
@@ -8107,7 +8108,7 @@ fn destack_device_camera_stream_exposure_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamExposureModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8125,7 +8126,7 @@ fn destack_device_camera_stream_exposure_mode_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8141,7 +8142,7 @@ fn destack_device_camera_stream_get_control_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &control);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_GET_CONTROL,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_GET_CONTROL)?,
         || match world {
@@ -8173,7 +8174,7 @@ fn destack_device_camera_stream_get_control_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamGetControlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8191,7 +8192,7 @@ fn destack_device_camera_stream_get_control_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8207,7 +8208,7 @@ fn destack_device_camera_stream_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&device, &config);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_OPEN,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_OPEN)?,
         || match world {
@@ -8237,7 +8238,7 @@ fn destack_device_camera_stream_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8255,7 +8256,7 @@ fn destack_device_camera_stream_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8271,7 +8272,7 @@ fn destack_device_camera_stream_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_READ,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_READ)?,
         || match world {
@@ -8360,7 +8361,7 @@ fn destack_device_camera_stream_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8433,7 +8434,7 @@ fn destack_device_camera_stream_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8449,7 +8450,7 @@ fn destack_device_camera_stream_set_control_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &control, &argument_value);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_SET_CONTROL,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_CONTROL)?,
         || match world {
@@ -8481,7 +8482,7 @@ fn destack_device_camera_stream_set_control_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamSetControlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8493,7 +8494,7 @@ fn destack_device_camera_stream_set_control_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8508,7 +8509,7 @@ fn destack_device_camera_stream_set_exposure_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?,
         || match world {
@@ -8534,7 +8535,7 @@ fn destack_device_camera_stream_set_exposure_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamSetExposureModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8546,7 +8547,7 @@ fn destack_device_camera_stream_set_exposure_mode_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8561,7 +8562,7 @@ fn destack_device_camera_stream_set_stabilization_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?,
         || match world {
@@ -8587,7 +8588,7 @@ fn destack_device_camera_stream_set_stabilization_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamSetStabilizationModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8599,7 +8600,7 @@ fn destack_device_camera_stream_set_stabilization_mode_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8614,7 +8615,7 @@ fn destack_device_camera_stream_set_torch_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &mode);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_SET_TORCH_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?,
         || match world {
@@ -8638,7 +8639,7 @@ fn destack_device_camera_stream_set_torch_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamSetTorchModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8650,7 +8651,7 @@ fn destack_device_camera_stream_set_torch_mode_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8665,7 +8666,7 @@ fn destack_device_camera_stream_stabilization_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_STABILIZATION_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?,
         || match world {
@@ -8697,7 +8698,7 @@ fn destack_device_camera_stream_stabilization_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamStabilizationModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8715,7 +8716,7 @@ fn destack_device_camera_stream_stabilization_mode_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8729,7 +8730,7 @@ fn destack_device_camera_stream_start_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_START,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_START)?,
         || match world {
@@ -8751,7 +8752,7 @@ fn destack_device_camera_stream_start_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8763,7 +8764,7 @@ fn destack_device_camera_stream_start_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8777,7 +8778,7 @@ fn destack_device_camera_stream_stop_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_STOP,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_STOP)?,
         || match world {
@@ -8799,7 +8800,7 @@ fn destack_device_camera_stream_stop_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8811,7 +8812,7 @@ fn destack_device_camera_stream_stop_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8826,7 +8827,7 @@ fn destack_device_camera_stream_torch_mode_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_TORCH_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_TORCH_MODE)?,
         || match world {
@@ -8856,7 +8857,7 @@ fn destack_device_camera_stream_torch_mode_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamTorchModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8874,7 +8875,7 @@ fn destack_device_camera_stream_torch_mode_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8889,7 +8890,7 @@ fn destack_device_camera_stream_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_CAMERA_STREAM_TRY_READ,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_TRY_READ)?,
         || match world {
@@ -8978,7 +8979,7 @@ fn destack_device_camera_stream_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9051,7 +9052,7 @@ fn destack_device_camera_stream_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9065,7 +9066,7 @@ fn destack_device_serial_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_CLOSE,
         binding.replay_payload_for(DEVICE_SERIAL_CLOSE)?,
         || match world {
@@ -9087,7 +9088,7 @@ fn destack_device_serial_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9099,7 +9100,7 @@ fn destack_device_serial_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9114,7 +9115,7 @@ fn destack_device_serial_configure_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &config);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_CONFIGURE,
         binding.replay_payload_for(DEVICE_SERIAL_CONFIGURE)?,
         || match world {
@@ -9136,7 +9137,7 @@ fn destack_device_serial_configure_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialConfigureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9148,7 +9149,7 @@ fn destack_device_serial_configure_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9162,7 +9163,7 @@ fn destack_device_serial_discard_input_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_DISCARD_INPUT,
         binding.replay_payload_for(DEVICE_SERIAL_DISCARD_INPUT)?,
         || match world {
@@ -9184,7 +9185,7 @@ fn destack_device_serial_discard_input_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialDiscardInputReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9196,7 +9197,7 @@ fn destack_device_serial_discard_input_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9210,7 +9211,7 @@ fn destack_device_serial_discard_output_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_DISCARD_OUTPUT,
         binding.replay_payload_for(DEVICE_SERIAL_DISCARD_OUTPUT)?,
         || match world {
@@ -9232,7 +9233,7 @@ fn destack_device_serial_discard_output_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialDiscardOutputReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9244,7 +9245,7 @@ fn destack_device_serial_discard_output_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9258,7 +9259,7 @@ fn destack_device_serial_flush_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_FLUSH,
         binding.replay_payload_for(DEVICE_SERIAL_FLUSH)?,
         || match world {
@@ -9280,7 +9281,7 @@ fn destack_device_serial_flush_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialFlushReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9292,7 +9293,7 @@ fn destack_device_serial_flush_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9304,7 +9305,7 @@ fn destack_device_serial_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<SerialPortDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_LIST,
         binding.replay_payload_for(DEVICE_SERIAL_LIST)?,
         || match world {
@@ -9376,7 +9377,7 @@ fn destack_device_serial_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialListReplay {
                         result,
                     }
@@ -9443,7 +9444,7 @@ fn destack_device_serial_list_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9459,7 +9460,7 @@ fn destack_device_serial_open_replay(
 ) -> RuntimeResult<()> {
     let _ = (&id, &config);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_OPEN,
         binding.replay_payload_for(DEVICE_SERIAL_OPEN)?,
         || match world {
@@ -9487,7 +9488,7 @@ fn destack_device_serial_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9505,7 +9506,7 @@ fn destack_device_serial_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9522,7 +9523,7 @@ fn destack_device_serial_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_READ,
         binding.replay_payload_for(DEVICE_SERIAL_READ)?,
         || match world {
@@ -9560,7 +9561,7 @@ fn destack_device_serial_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9583,7 +9584,7 @@ fn destack_device_serial_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9599,7 +9600,7 @@ fn destack_device_serial_read_event_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_READ_EVENT,
         binding.replay_payload_for(DEVICE_SERIAL_READ_EVENT)?,
         || match world {
@@ -9700,7 +9701,7 @@ fn destack_device_serial_read_event_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialReadEventReplay {
                         result,
                     }
@@ -9797,7 +9798,7 @@ fn destack_device_serial_read_event_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9812,7 +9813,7 @@ fn destack_device_serial_set_break_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &enabled);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_SET_BREAK,
         binding.replay_payload_for(DEVICE_SERIAL_SET_BREAK)?,
         || match world {
@@ -9836,7 +9837,7 @@ fn destack_device_serial_set_break_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialSetBreakReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9848,7 +9849,7 @@ fn destack_device_serial_set_break_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9864,7 +9865,7 @@ fn destack_device_serial_set_control_lines_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &dtr, &rts);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_SET_CONTROL_LINES,
         binding.replay_payload_for(DEVICE_SERIAL_SET_CONTROL_LINES)?,
         || match world {
@@ -9888,7 +9889,7 @@ fn destack_device_serial_set_control_lines_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialSetControlLinesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9900,7 +9901,7 @@ fn destack_device_serial_set_control_lines_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9915,7 +9916,7 @@ fn destack_device_serial_signal_bits_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_SIGNAL_BITS,
         binding.replay_payload_for(DEVICE_SERIAL_SIGNAL_BITS)?,
         || match world {
@@ -9943,7 +9944,7 @@ fn destack_device_serial_signal_bits_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialSignalBitsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9961,7 +9962,7 @@ fn destack_device_serial_signal_bits_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9976,7 +9977,7 @@ fn destack_device_serial_try_event_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_TRY_EVENT,
         binding.replay_payload_for(DEVICE_SERIAL_TRY_EVENT)?,
         || match world {
@@ -10077,7 +10078,7 @@ fn destack_device_serial_try_event_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialTryEventReplay {
                         result,
                     }
@@ -10174,7 +10175,7 @@ fn destack_device_serial_try_event_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10190,7 +10191,7 @@ fn destack_device_serial_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &maxbytes);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_TRY_READ,
         binding.replay_payload_for(DEVICE_SERIAL_TRY_READ)?,
         || match world {
@@ -10226,7 +10227,7 @@ fn destack_device_serial_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10249,7 +10250,7 @@ fn destack_device_serial_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10266,7 +10267,7 @@ fn destack_device_serial_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &data, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_SERIAL_WRITE,
         binding.replay_payload_for(DEVICE_SERIAL_WRITE)?,
         || match world {
@@ -10296,7 +10297,7 @@ fn destack_device_serial_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10314,7 +10315,7 @@ fn destack_device_serial_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10332,7 +10333,7 @@ fn destack_device_usb_bulk_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &maxbytes, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_BULK_READ,
         binding.replay_payload_for(DEVICE_USB_BULK_READ)?,
         || match world {
@@ -10380,7 +10381,7 @@ fn destack_device_usb_bulk_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbBulkReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10403,7 +10404,7 @@ fn destack_device_usb_bulk_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10421,7 +10422,7 @@ fn destack_device_usb_bulk_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &argument_bytes, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_BULK_WRITE,
         binding.replay_payload_for(DEVICE_USB_BULK_WRITE)?,
         || match world {
@@ -10463,7 +10464,7 @@ fn destack_device_usb_bulk_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbBulkWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10481,7 +10482,7 @@ fn destack_device_usb_bulk_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10496,7 +10497,7 @@ fn destack_device_usb_claim_interface_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfacenumber);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_CLAIM_INTERFACE,
         binding.replay_payload_for(DEVICE_USB_CLAIM_INTERFACE)?,
         || match world {
@@ -10526,7 +10527,7 @@ fn destack_device_usb_claim_interface_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbClaimInterfaceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10538,7 +10539,7 @@ fn destack_device_usb_claim_interface_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10553,7 +10554,7 @@ fn destack_device_usb_clear_halt_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_CLEAR_HALT,
         binding.replay_payload_for(DEVICE_USB_CLEAR_HALT)?,
         || match world {
@@ -10579,7 +10580,7 @@ fn destack_device_usb_clear_halt_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbClearHaltReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10591,7 +10592,7 @@ fn destack_device_usb_clear_halt_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10605,7 +10606,7 @@ fn destack_device_usb_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_CLOSE,
         binding.replay_payload_for(DEVICE_USB_CLOSE)?,
         || match world {
@@ -10627,7 +10628,7 @@ fn destack_device_usb_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10639,7 +10640,7 @@ fn destack_device_usb_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10654,7 +10655,7 @@ fn destack_device_usb_configuration_get_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_CONFIGURATION_GET,
         binding.replay_payload_for(DEVICE_USB_CONFIGURATION_GET)?,
         || match world {
@@ -10684,7 +10685,7 @@ fn destack_device_usb_configuration_get_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbConfigurationGetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10702,7 +10703,7 @@ fn destack_device_usb_configuration_get_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10717,7 +10718,7 @@ fn destack_device_usb_configuration_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_CONFIGURATION_LIST,
         binding.replay_payload_for(DEVICE_USB_CONFIGURATION_LIST)?,
         || match world {
@@ -10788,7 +10789,7 @@ fn destack_device_usb_configuration_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbConfigurationListReplay {
                         result,
                     }
@@ -10852,7 +10853,7 @@ fn destack_device_usb_configuration_list_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10867,7 +10868,7 @@ fn destack_device_usb_configuration_set_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &configurationvalue);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_CONFIGURATION_SET,
         binding.replay_payload_for(DEVICE_USB_CONFIGURATION_SET)?,
         || match world {
@@ -10897,7 +10898,7 @@ fn destack_device_usb_configuration_set_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbConfigurationSetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10909,7 +10910,7 @@ fn destack_device_usb_configuration_set_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10926,7 +10927,7 @@ fn destack_device_usb_control_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &setup, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_CONTROL_READ,
         binding.replay_payload_for(DEVICE_USB_CONTROL_READ)?,
         || match world {
@@ -10964,7 +10965,7 @@ fn destack_device_usb_control_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbControlReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10987,7 +10988,7 @@ fn destack_device_usb_control_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11005,7 +11006,7 @@ fn destack_device_usb_control_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &setup, &argument_bytes, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_CONTROL_WRITE,
         binding.replay_payload_for(DEVICE_USB_CONTROL_WRITE)?,
         || match world {
@@ -11047,7 +11048,7 @@ fn destack_device_usb_control_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbControlWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11065,7 +11066,7 @@ fn destack_device_usb_control_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11080,7 +11081,7 @@ fn destack_device_usb_descriptor_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_DESCRIPTOR,
         binding.replay_payload_for(DEVICE_USB_DESCRIPTOR)?,
         || match world {
@@ -11129,7 +11130,7 @@ fn destack_device_usb_descriptor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11166,7 +11167,7 @@ fn destack_device_usb_descriptor_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11184,7 +11185,7 @@ fn destack_device_usb_interrupt_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &maxbytes, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_INTERRUPT_READ,
         binding.replay_payload_for(DEVICE_USB_INTERRUPT_READ)?,
         || match world {
@@ -11232,7 +11233,7 @@ fn destack_device_usb_interrupt_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbInterruptReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11255,7 +11256,7 @@ fn destack_device_usb_interrupt_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11273,7 +11274,7 @@ fn destack_device_usb_interrupt_write_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &argument_bytes, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_INTERRUPT_WRITE,
         binding.replay_payload_for(DEVICE_USB_INTERRUPT_WRITE)?,
         || match world {
@@ -11315,7 +11316,7 @@ fn destack_device_usb_interrupt_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbInterruptWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11333,7 +11334,7 @@ fn destack_device_usb_interrupt_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11351,7 +11352,7 @@ fn destack_device_usb_isochronous_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &endpointaddress, &packetsizes, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_ISOCHRONOUS_READ,
         binding.replay_payload_for(DEVICE_USB_ISOCHRONOUS_READ)?,
         || match world {
@@ -11432,7 +11433,7 @@ fn destack_device_usb_isochronous_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbIsochronousReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11480,7 +11481,7 @@ fn destack_device_usb_isochronous_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11505,7 +11506,7 @@ fn destack_device_usb_isochronous_write_replay(
         &timeoutns,
     );
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_ISOCHRONOUS_WRITE,
         binding.replay_payload_for(DEVICE_USB_ISOCHRONOUS_WRITE)?,
         || match world {
@@ -11588,7 +11589,7 @@ fn destack_device_usb_isochronous_write_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbIsochronousWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11636,7 +11637,7 @@ fn destack_device_usb_isochronous_write_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11652,7 +11653,7 @@ fn destack_device_usb_kernel_driver_active_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfacenumber);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_KERNEL_DRIVER_ACTIVE,
         binding.replay_payload_for(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?,
         || match world {
@@ -11690,7 +11691,7 @@ fn destack_device_usb_kernel_driver_active_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbKernelDriverActiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11708,7 +11709,7 @@ fn destack_device_usb_kernel_driver_active_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11720,7 +11721,7 @@ fn destack_device_usb_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<UsbDeviceDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_LIST,
         binding.replay_payload_for(DEVICE_USB_LIST)?,
         || match world {
@@ -11777,7 +11778,7 @@ fn destack_device_usb_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11825,7 +11826,7 @@ fn destack_device_usb_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11840,7 +11841,7 @@ fn destack_device_usb_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &id;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_OPEN,
         binding.replay_payload_for(DEVICE_USB_OPEN)?,
         || match world {
@@ -11868,7 +11869,7 @@ fn destack_device_usb_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11886,7 +11887,7 @@ fn destack_device_usb_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11901,7 +11902,7 @@ fn destack_device_usb_release_interface_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfacenumber);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_RELEASE_INTERFACE,
         binding.replay_payload_for(DEVICE_USB_RELEASE_INTERFACE)?,
         || match world {
@@ -11931,7 +11932,7 @@ fn destack_device_usb_release_interface_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbReleaseInterfaceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11943,7 +11944,7 @@ fn destack_device_usb_release_interface_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11959,7 +11960,7 @@ fn destack_device_usb_set_interface_alternate_setting_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &interfacenumber, &alternatesetting);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING,
         binding.replay_payload_for(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?,
         || match world {
@@ -11991,7 +11992,7 @@ fn destack_device_usb_set_interface_alternate_setting_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbSetInterfaceAlternateSettingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12003,7 +12004,7 @@ fn destack_device_usb_set_interface_alternate_setting_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12019,7 +12020,7 @@ fn destack_device_usb_string_descriptor_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &languageid);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_STRING_DESCRIPTOR,
         binding.replay_payload_for(DEVICE_USB_STRING_DESCRIPTOR)?,
         || match world {
@@ -12062,7 +12063,7 @@ fn destack_device_usb_string_descriptor_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbStringDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12089,7 +12090,7 @@ fn destack_device_usb_string_descriptor_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12104,7 +12105,7 @@ fn destack_device_usb_string_language_list_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_STRING_LANGUAGE_LIST,
         binding.replay_payload_for(DEVICE_USB_STRING_LANGUAGE_LIST)?,
         || match world {
@@ -12140,7 +12141,7 @@ fn destack_device_usb_string_language_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbStringLanguageListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12163,7 +12164,7 @@ fn destack_device_usb_string_language_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12177,7 +12178,7 @@ fn destack_device_usb_watch_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_WATCH_CLOSE,
         binding.replay_payload_for(DEVICE_USB_WATCH_CLOSE)?,
         || match world {
@@ -12199,7 +12200,7 @@ fn destack_device_usb_watch_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbWatchCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12211,7 +12212,7 @@ fn destack_device_usb_watch_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12223,7 +12224,7 @@ fn destack_device_usb_watch_open_replay(
     world: RuntimeWorld,
     out: *mut resource::UsbWatchHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_WATCH_OPEN,
         binding.replay_payload_for(DEVICE_USB_WATCH_OPEN)?,
         || match world {
@@ -12251,7 +12252,7 @@ fn destack_device_usb_watch_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12269,7 +12270,7 @@ fn destack_device_usb_watch_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12285,7 +12286,7 @@ fn destack_device_usb_watch_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_WATCH_READ,
         binding.replay_payload_for(DEVICE_USB_WATCH_READ)?,
         || match world {
@@ -12378,7 +12379,7 @@ fn destack_device_usb_watch_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbWatchReadReplay {
                         result,
                     }
@@ -12467,7 +12468,7 @@ fn destack_device_usb_watch_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12482,7 +12483,7 @@ fn destack_device_usb_watch_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         DEVICE_USB_WATCH_TRY_READ,
         binding.replay_payload_for(DEVICE_USB_WATCH_TRY_READ)?,
         || match world {
@@ -12575,7 +12576,7 @@ fn destack_device_usb_watch_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbWatchTryReadReplay {
                         result,
                     }
@@ -12664,7 +12665,7 @@ fn destack_device_usb_watch_try_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -14384,7 +14385,7 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_ADAPTER_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_ADAPTER_LIST)?,
         context,
@@ -14466,7 +14467,7 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothAdapterListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14515,7 +14516,7 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14531,7 +14532,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?,
         context,
@@ -14625,7 +14626,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattCharacteristicListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14672,7 +14673,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14689,7 +14690,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
     serviceuuid: vm::StringHandle,
     characteristicuuid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?,
         context,
@@ -14792,7 +14793,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattDescriptorListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14841,7 +14842,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14856,7 +14857,7 @@ fn destack_device_bluetooth_gatt_mtu_vm_replay(
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_MTU,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_MTU)?,
         context,
@@ -14881,7 +14882,7 @@ fn destack_device_bluetooth_gatt_mtu_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattMtuReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14897,7 +14898,7 @@ fn destack_device_bluetooth_gatt_mtu_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14915,7 +14916,7 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
     characteristicuuid: vm::StringHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_READ,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ)?,
         context,
@@ -14950,7 +14951,7 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14966,7 +14967,7 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14985,7 +14986,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
     descriptoruuid: vm::StringHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?,
         context,
@@ -15024,7 +15025,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattReadDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15040,7 +15041,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15056,7 +15057,7 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
     handle: resource::BluetoothSubscriptionHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_READ_EVENT,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_READ_EVENT)?,
         context,
@@ -15102,7 +15103,7 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattReadEventReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15133,7 +15134,7 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15150,7 +15151,7 @@ fn destack_device_bluetooth_gatt_request_mtu_vm_replay(
     mtu: u16,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?,
         context,
@@ -15177,7 +15178,7 @@ fn destack_device_bluetooth_gatt_request_mtu_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattRequestMtuReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15193,7 +15194,7 @@ fn destack_device_bluetooth_gatt_request_mtu_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15208,7 +15209,7 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_SERVICE_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?,
         context,
@@ -15278,7 +15279,7 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattServiceListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15318,7 +15319,7 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15335,7 +15336,7 @@ fn destack_device_bluetooth_gatt_subscribe_vm_replay(
     serviceuuid: vm::StringHandle,
     characteristicuuid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_SUBSCRIBE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?,
         context,
@@ -15370,7 +15371,7 @@ fn destack_device_bluetooth_gatt_subscribe_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattSubscribeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15386,7 +15387,7 @@ fn destack_device_bluetooth_gatt_subscribe_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15401,7 +15402,7 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?,
         context,
@@ -15447,7 +15448,7 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattTryReadEventReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15478,7 +15479,7 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15493,7 +15494,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_vm_replay(
     world: RuntimeWorld,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?,
         context,
@@ -15519,7 +15520,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattUnsubscribeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15532,7 +15533,7 @@ fn destack_device_bluetooth_gatt_unsubscribe_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15552,7 +15553,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
     withresponse: bool,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_WRITE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE)?,
         context,
@@ -15592,7 +15593,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15605,7 +15606,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15625,7 +15626,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
     argument_value: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?,
         context,
@@ -15665,7 +15666,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothGattWriteDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15678,7 +15679,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15693,7 +15694,7 @@ fn destack_device_bluetooth_scan_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_SCAN_CLOSE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_CLOSE)?,
         context,
@@ -15719,7 +15720,7 @@ fn destack_device_bluetooth_scan_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothScanCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15732,7 +15733,7 @@ fn destack_device_bluetooth_scan_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15748,7 +15749,7 @@ fn destack_device_bluetooth_scan_open_vm_replay(
     adapterid: vm::StringHandle,
     filter: BluetoothScanFilterVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_SCAN_OPEN,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_OPEN)?,
         context,
@@ -15773,7 +15774,7 @@ fn destack_device_bluetooth_scan_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothScanOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15789,7 +15790,7 @@ fn destack_device_bluetooth_scan_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15805,7 +15806,7 @@ fn destack_device_bluetooth_scan_read_vm_replay(
     handle: resource::BluetoothScanHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_SCAN_READ,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_READ)?,
         context,
@@ -15924,7 +15925,7 @@ fn destack_device_bluetooth_scan_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothScanReadReplay {
                         result,
                     }
@@ -16009,7 +16010,7 @@ fn destack_device_bluetooth_scan_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16024,7 +16025,7 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_SCAN_TRY_READ,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SCAN_TRY_READ)?,
         context,
@@ -16143,7 +16144,7 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothScanTryReadReplay {
                         result,
                     }
@@ -16228,7 +16229,7 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16243,7 +16244,7 @@ fn destack_device_bluetooth_session_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_SESSION_CLOSE,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_CLOSE)?,
         context,
@@ -16267,7 +16268,7 @@ fn destack_device_bluetooth_session_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothSessionCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16280,7 +16281,7 @@ fn destack_device_bluetooth_session_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16296,7 +16297,7 @@ fn destack_device_bluetooth_session_open_vm_replay(
     adapterid: vm::StringHandle,
     deviceid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_SESSION_OPEN,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_OPEN)?,
         context,
@@ -16321,7 +16322,7 @@ fn destack_device_bluetooth_session_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothSessionOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16337,7 +16338,7 @@ fn destack_device_bluetooth_session_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16353,7 +16354,7 @@ fn destack_device_bluetooth_session_rssi_vm_replay(
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_BLUETOOTH_SESSION_RSSI,
         binding.replay_payload_for(DEVICE_BLUETOOTH_SESSION_RSSI)?,
         context,
@@ -16378,7 +16379,7 @@ fn destack_device_bluetooth_session_rssi_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceBluetoothSessionRssiReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16394,7 +16395,7 @@ fn destack_device_bluetooth_session_rssi_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16409,7 +16410,7 @@ fn destack_device_camera_device_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_DEVICE_CLOSE,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_CLOSE)?,
         context,
@@ -16433,7 +16434,7 @@ fn destack_device_camera_device_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16446,7 +16447,7 @@ fn destack_device_camera_device_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16460,7 +16461,7 @@ fn destack_device_camera_device_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_DEVICE_LIST,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_LIST)?,
         context,
@@ -16563,7 +16564,7 @@ fn destack_device_camera_device_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16620,7 +16621,7 @@ fn destack_device_camera_device_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16635,7 +16636,7 @@ fn destack_device_camera_device_open_vm_replay(
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_DEVICE_OPEN,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_OPEN)?,
         context,
@@ -16660,7 +16661,7 @@ fn destack_device_camera_device_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16676,7 +16677,7 @@ fn destack_device_camera_device_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16691,7 +16692,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?,
         context,
@@ -16869,7 +16870,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceStreamCapabilityListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -16957,7 +16958,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16973,7 +16974,7 @@ fn destack_device_camera_device_stream_config_list_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST,
         binding.replay_payload_for(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?,
         context,
@@ -17066,7 +17067,7 @@ fn destack_device_camera_device_stream_config_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraDeviceStreamConfigListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17114,7 +17115,7 @@ fn destack_device_camera_device_stream_config_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17129,7 +17130,7 @@ fn destack_device_camera_stream_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_CLOSE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_CLOSE)?,
         context,
@@ -17153,7 +17154,7 @@ fn destack_device_camera_stream_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17166,7 +17167,7 @@ fn destack_device_camera_stream_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17182,7 +17183,7 @@ fn destack_device_camera_stream_control_range_vm_replay(
     handle: resource::CameraStreamHandle,
     control: CameraControl,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_CONTROL_RANGE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?,
         context,
@@ -17222,7 +17223,7 @@ fn destack_device_camera_stream_control_range_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamControlRangeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17251,7 +17252,7 @@ fn destack_device_camera_stream_control_range_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17266,7 +17267,7 @@ fn destack_device_camera_stream_exposure_mode_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_EXPOSURE_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?,
         context,
@@ -17293,7 +17294,7 @@ fn destack_device_camera_stream_exposure_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamExposureModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17309,7 +17310,7 @@ fn destack_device_camera_stream_exposure_mode_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17325,7 +17326,7 @@ fn destack_device_camera_stream_get_control_vm_replay(
     handle: resource::CameraStreamHandle,
     control: CameraControl,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_GET_CONTROL,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_GET_CONTROL)?,
         context,
@@ -17352,7 +17353,7 @@ fn destack_device_camera_stream_get_control_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamGetControlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17368,7 +17369,7 @@ fn destack_device_camera_stream_get_control_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17384,7 +17385,7 @@ fn destack_device_camera_stream_open_vm_replay(
     device: resource::CameraDeviceHandle,
     config: CameraStreamConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_OPEN,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_OPEN)?,
         context,
@@ -17409,7 +17410,7 @@ fn destack_device_camera_stream_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17425,7 +17426,7 @@ fn destack_device_camera_stream_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17441,7 +17442,7 @@ fn destack_device_camera_stream_read_vm_replay(
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_READ,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_READ)?,
         context,
@@ -17563,7 +17564,7 @@ fn destack_device_camera_stream_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17655,7 +17656,7 @@ fn destack_device_camera_stream_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17672,7 +17673,7 @@ fn destack_device_camera_stream_set_control_vm_replay(
     control: CameraControl,
     argument_value: f64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_SET_CONTROL,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_CONTROL)?,
         context,
@@ -17706,7 +17707,7 @@ fn destack_device_camera_stream_set_control_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamSetControlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17719,7 +17720,7 @@ fn destack_device_camera_stream_set_control_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17735,7 +17736,7 @@ fn destack_device_camera_stream_set_exposure_mode_vm_replay(
     handle: resource::CameraStreamHandle,
     mode: CameraExposureMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?,
         context,
@@ -17761,7 +17762,7 @@ fn destack_device_camera_stream_set_exposure_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamSetExposureModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17774,7 +17775,7 @@ fn destack_device_camera_stream_set_exposure_mode_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17790,7 +17791,7 @@ fn destack_device_camera_stream_set_stabilization_mode_vm_replay(
     handle: resource::CameraStreamHandle,
     mode: CameraStabilizationMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?,
         context,
@@ -17816,7 +17817,7 @@ fn destack_device_camera_stream_set_stabilization_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamSetStabilizationModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17829,7 +17830,7 @@ fn destack_device_camera_stream_set_stabilization_mode_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17846,7 +17847,7 @@ fn destack_device_camera_stream_set_torch_mode_vm_replay(
     handle: resource::CameraStreamHandle,
     mode: CameraTorchMode,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_SET_TORCH_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?,
         context,
@@ -17872,7 +17873,7 @@ fn destack_device_camera_stream_set_torch_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamSetTorchModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17885,7 +17886,7 @@ fn destack_device_camera_stream_set_torch_mode_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17900,7 +17901,7 @@ fn destack_device_camera_stream_stabilization_mode_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_STABILIZATION_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?,
         context,
@@ -17927,7 +17928,7 @@ fn destack_device_camera_stream_stabilization_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamStabilizationModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17943,7 +17944,7 @@ fn destack_device_camera_stream_stabilization_mode_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17958,7 +17959,7 @@ fn destack_device_camera_stream_start_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_START,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_START)?,
         context,
@@ -17982,7 +17983,7 @@ fn destack_device_camera_stream_start_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamStartReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17995,7 +17996,7 @@ fn destack_device_camera_stream_start_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18010,7 +18011,7 @@ fn destack_device_camera_stream_stop_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_STOP,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_STOP)?,
         context,
@@ -18034,7 +18035,7 @@ fn destack_device_camera_stream_stop_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamStopReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18047,7 +18048,7 @@ fn destack_device_camera_stream_stop_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18062,7 +18063,7 @@ fn destack_device_camera_stream_torch_mode_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_TORCH_MODE,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_TORCH_MODE)?,
         context,
@@ -18089,7 +18090,7 @@ fn destack_device_camera_stream_torch_mode_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamTorchModeReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18105,7 +18106,7 @@ fn destack_device_camera_stream_torch_mode_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18120,7 +18121,7 @@ fn destack_device_camera_stream_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_CAMERA_STREAM_TRY_READ,
         binding.replay_payload_for(DEVICE_CAMERA_STREAM_TRY_READ)?,
         context,
@@ -18244,7 +18245,7 @@ fn destack_device_camera_stream_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceCameraStreamTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18336,7 +18337,7 @@ fn destack_device_camera_stream_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18351,7 +18352,7 @@ fn destack_device_serial_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_CLOSE,
         binding.replay_payload_for(DEVICE_SERIAL_CLOSE)?,
         context,
@@ -18375,7 +18376,7 @@ fn destack_device_serial_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18388,7 +18389,7 @@ fn destack_device_serial_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18404,7 +18405,7 @@ fn destack_device_serial_configure_vm_replay(
     handle: resource::SerialPortHandle,
     config: SerialPortConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_CONFIGURE,
         binding.replay_payload_for(DEVICE_SERIAL_CONFIGURE)?,
         context,
@@ -18428,7 +18429,7 @@ fn destack_device_serial_configure_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialConfigureReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18441,7 +18442,7 @@ fn destack_device_serial_configure_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18456,7 +18457,7 @@ fn destack_device_serial_discard_input_vm_replay(
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_DISCARD_INPUT,
         binding.replay_payload_for(DEVICE_SERIAL_DISCARD_INPUT)?,
         context,
@@ -18482,7 +18483,7 @@ fn destack_device_serial_discard_input_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialDiscardInputReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18495,7 +18496,7 @@ fn destack_device_serial_discard_input_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18510,7 +18511,7 @@ fn destack_device_serial_discard_output_vm_replay(
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_DISCARD_OUTPUT,
         binding.replay_payload_for(DEVICE_SERIAL_DISCARD_OUTPUT)?,
         context,
@@ -18536,7 +18537,7 @@ fn destack_device_serial_discard_output_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialDiscardOutputReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18549,7 +18550,7 @@ fn destack_device_serial_discard_output_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18564,7 +18565,7 @@ fn destack_device_serial_flush_vm_replay(
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_FLUSH,
         binding.replay_payload_for(DEVICE_SERIAL_FLUSH)?,
         context,
@@ -18588,7 +18589,7 @@ fn destack_device_serial_flush_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialFlushReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18601,7 +18602,7 @@ fn destack_device_serial_flush_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18615,7 +18616,7 @@ fn destack_device_serial_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_LIST,
         binding.replay_payload_for(DEVICE_SERIAL_LIST)?,
         context,
@@ -18714,7 +18715,7 @@ fn destack_device_serial_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialListReplay {
                         result,
                     }
@@ -18784,7 +18785,7 @@ fn destack_device_serial_list_vm_replay(
                     let vm_result: VmSlice<SerialPortDescriptorVm> = VmSlice { data: vm_result_data, len: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18800,7 +18801,7 @@ fn destack_device_serial_open_vm_replay(
     id: vm::StringHandle,
     config: SerialPortConfigVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_OPEN,
         binding.replay_payload_for(DEVICE_SERIAL_OPEN)?,
         context,
@@ -18825,7 +18826,7 @@ fn destack_device_serial_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18841,7 +18842,7 @@ fn destack_device_serial_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18858,7 +18859,7 @@ fn destack_device_serial_read_vm_replay(
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_READ,
         binding.replay_payload_for(DEVICE_SERIAL_READ)?,
         context,
@@ -18883,7 +18884,7 @@ fn destack_device_serial_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18899,7 +18900,7 @@ fn destack_device_serial_read_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18915,7 +18916,7 @@ fn destack_device_serial_read_event_vm_replay(
     handle: resource::SerialPortHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_READ_EVENT,
         binding.replay_payload_for(DEVICE_SERIAL_READ_EVENT)?,
         context,
@@ -19029,7 +19030,7 @@ fn destack_device_serial_read_event_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialReadEventReplay {
                         result,
                     }
@@ -19130,7 +19131,7 @@ fn destack_device_serial_read_event_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19146,7 +19147,7 @@ fn destack_device_serial_set_break_vm_replay(
     handle: resource::SerialPortHandle,
     enabled: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_SET_BREAK,
         binding.replay_payload_for(DEVICE_SERIAL_SET_BREAK)?,
         context,
@@ -19170,7 +19171,7 @@ fn destack_device_serial_set_break_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialSetBreakReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19183,7 +19184,7 @@ fn destack_device_serial_set_break_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19200,7 +19201,7 @@ fn destack_device_serial_set_control_lines_vm_replay(
     dtr: bool,
     rts: bool,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_SET_CONTROL_LINES,
         binding.replay_payload_for(DEVICE_SERIAL_SET_CONTROL_LINES)?,
         context,
@@ -19226,7 +19227,7 @@ fn destack_device_serial_set_control_lines_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialSetControlLinesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19239,7 +19240,7 @@ fn destack_device_serial_set_control_lines_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19254,7 +19255,7 @@ fn destack_device_serial_signal_bits_vm_replay(
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_SIGNAL_BITS,
         binding.replay_payload_for(DEVICE_SERIAL_SIGNAL_BITS)?,
         context,
@@ -19279,7 +19280,7 @@ fn destack_device_serial_signal_bits_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialSignalBitsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19295,7 +19296,7 @@ fn destack_device_serial_signal_bits_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19310,7 +19311,7 @@ fn destack_device_serial_try_event_vm_replay(
     world: RuntimeWorld,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_TRY_EVENT,
         binding.replay_payload_for(DEVICE_SERIAL_TRY_EVENT)?,
         context,
@@ -19424,7 +19425,7 @@ fn destack_device_serial_try_event_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialTryEventReplay {
                         result,
                     }
@@ -19525,7 +19526,7 @@ fn destack_device_serial_try_event_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19541,7 +19542,7 @@ fn destack_device_serial_try_read_vm_replay(
     handle: resource::SerialPortHandle,
     maxbytes: u32,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_TRY_READ,
         binding.replay_payload_for(DEVICE_SERIAL_TRY_READ)?,
         context,
@@ -19566,7 +19567,7 @@ fn destack_device_serial_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19582,7 +19583,7 @@ fn destack_device_serial_try_read_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19599,7 +19600,7 @@ fn destack_device_serial_write_vm_replay(
     data: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_SERIAL_WRITE,
         binding.replay_payload_for(DEVICE_SERIAL_WRITE)?,
         context,
@@ -19624,7 +19625,7 @@ fn destack_device_serial_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceSerialWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19640,7 +19641,7 @@ fn destack_device_serial_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19658,7 +19659,7 @@ fn destack_device_usb_bulk_read_vm_replay(
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_BULK_READ,
         binding.replay_payload_for(DEVICE_USB_BULK_READ)?,
         context,
@@ -19693,7 +19694,7 @@ fn destack_device_usb_bulk_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbBulkReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19709,7 +19710,7 @@ fn destack_device_usb_bulk_read_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19727,7 +19728,7 @@ fn destack_device_usb_bulk_write_vm_replay(
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_BULK_WRITE,
         binding.replay_payload_for(DEVICE_USB_BULK_WRITE)?,
         context,
@@ -19762,7 +19763,7 @@ fn destack_device_usb_bulk_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbBulkWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19778,7 +19779,7 @@ fn destack_device_usb_bulk_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19794,7 +19795,7 @@ fn destack_device_usb_claim_interface_vm_replay(
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_CLAIM_INTERFACE,
         binding.replay_payload_for(DEVICE_USB_CLAIM_INTERFACE)?,
         context,
@@ -19824,7 +19825,7 @@ fn destack_device_usb_claim_interface_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbClaimInterfaceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19837,7 +19838,7 @@ fn destack_device_usb_claim_interface_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19853,7 +19854,7 @@ fn destack_device_usb_clear_halt_vm_replay(
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_CLEAR_HALT,
         binding.replay_payload_for(DEVICE_USB_CLEAR_HALT)?,
         context,
@@ -19883,7 +19884,7 @@ fn destack_device_usb_clear_halt_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbClearHaltReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19896,7 +19897,7 @@ fn destack_device_usb_clear_halt_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19911,7 +19912,7 @@ fn destack_device_usb_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_CLOSE,
         binding.replay_payload_for(DEVICE_USB_CLOSE)?,
         context,
@@ -19933,7 +19934,7 @@ fn destack_device_usb_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19946,7 +19947,7 @@ fn destack_device_usb_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19961,7 +19962,7 @@ fn destack_device_usb_configuration_get_vm_replay(
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_CONFIGURATION_GET,
         binding.replay_payload_for(DEVICE_USB_CONFIGURATION_GET)?,
         context,
@@ -19988,7 +19989,7 @@ fn destack_device_usb_configuration_get_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbConfigurationGetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20004,7 +20005,7 @@ fn destack_device_usb_configuration_get_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20019,7 +20020,7 @@ fn destack_device_usb_configuration_list_vm_replay(
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_CONFIGURATION_LIST,
         binding.replay_payload_for(DEVICE_USB_CONFIGURATION_LIST)?,
         context,
@@ -20137,7 +20138,7 @@ fn destack_device_usb_configuration_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbConfigurationListReplay {
                         result,
                     }
@@ -20210,7 +20211,7 @@ fn destack_device_usb_configuration_list_vm_replay(
                     let vm_result: VmSlice<UsbConfigurationDescriptorVm> = VmSlice { data: vm_result_data, len: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20226,7 +20227,7 @@ fn destack_device_usb_configuration_set_vm_replay(
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_CONFIGURATION_SET,
         binding.replay_payload_for(DEVICE_USB_CONFIGURATION_SET)?,
         context,
@@ -20258,7 +20259,7 @@ fn destack_device_usb_configuration_set_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbConfigurationSetReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20271,7 +20272,7 @@ fn destack_device_usb_configuration_set_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20288,7 +20289,7 @@ fn destack_device_usb_control_read_vm_replay(
     setup: UsbControlSetupVm,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_CONTROL_READ,
         binding.replay_payload_for(DEVICE_USB_CONTROL_READ)?,
         context,
@@ -20313,7 +20314,7 @@ fn destack_device_usb_control_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbControlReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20329,7 +20330,7 @@ fn destack_device_usb_control_read_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20347,7 +20348,7 @@ fn destack_device_usb_control_write_vm_replay(
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_CONTROL_WRITE,
         binding.replay_payload_for(DEVICE_USB_CONTROL_WRITE)?,
         context,
@@ -20382,7 +20383,7 @@ fn destack_device_usb_control_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbControlWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20398,7 +20399,7 @@ fn destack_device_usb_control_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20413,7 +20414,7 @@ fn destack_device_usb_descriptor_vm_replay(
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_DESCRIPTOR,
         binding.replay_payload_for(DEVICE_USB_DESCRIPTOR)?,
         context,
@@ -20477,7 +20478,7 @@ fn destack_device_usb_descriptor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20520,7 +20521,7 @@ fn destack_device_usb_descriptor_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20538,7 +20539,7 @@ fn destack_device_usb_interrupt_read_vm_replay(
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_INTERRUPT_READ,
         binding.replay_payload_for(DEVICE_USB_INTERRUPT_READ)?,
         context,
@@ -20573,7 +20574,7 @@ fn destack_device_usb_interrupt_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbInterruptReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20589,7 +20590,7 @@ fn destack_device_usb_interrupt_read_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20607,7 +20608,7 @@ fn destack_device_usb_interrupt_write_vm_replay(
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_INTERRUPT_WRITE,
         binding.replay_payload_for(DEVICE_USB_INTERRUPT_WRITE)?,
         context,
@@ -20642,7 +20643,7 @@ fn destack_device_usb_interrupt_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbInterruptWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20658,7 +20659,7 @@ fn destack_device_usb_interrupt_write_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20676,7 +20677,7 @@ fn destack_device_usb_isochronous_read_vm_replay(
     packetsizes: VmSlice<u32>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_ISOCHRONOUS_READ,
         binding.replay_payload_for(DEVICE_USB_ISOCHRONOUS_READ)?,
         context,
@@ -20752,7 +20753,7 @@ fn destack_device_usb_isochronous_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbIsochronousReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20794,7 +20795,7 @@ fn destack_device_usb_isochronous_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20813,7 +20814,7 @@ fn destack_device_usb_isochronous_write_vm_replay(
     packetsizes: VmSlice<u32>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_ISOCHRONOUS_WRITE,
         binding.replay_payload_for(DEVICE_USB_ISOCHRONOUS_WRITE)?,
         context,
@@ -20891,7 +20892,7 @@ fn destack_device_usb_isochronous_write_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbIsochronousWriteReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20933,7 +20934,7 @@ fn destack_device_usb_isochronous_write_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -20949,7 +20950,7 @@ fn destack_device_usb_kernel_driver_active_vm_replay(
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_KERNEL_DRIVER_ACTIVE,
         binding.replay_payload_for(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?,
         context,
@@ -20982,7 +20983,7 @@ fn destack_device_usb_kernel_driver_active_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbKernelDriverActiveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -20998,7 +20999,7 @@ fn destack_device_usb_kernel_driver_active_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21012,7 +21013,7 @@ fn destack_device_usb_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_LIST,
         binding.replay_payload_for(DEVICE_USB_LIST)?,
         context,
@@ -21150,7 +21151,7 @@ fn destack_device_usb_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21228,7 +21229,7 @@ fn destack_device_usb_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21243,7 +21244,7 @@ fn destack_device_usb_open_vm_replay(
     world: RuntimeWorld,
     id: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_OPEN,
         binding.replay_payload_for(DEVICE_USB_OPEN)?,
         context,
@@ -21266,7 +21267,7 @@ fn destack_device_usb_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21282,7 +21283,7 @@ fn destack_device_usb_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21298,7 +21299,7 @@ fn destack_device_usb_release_interface_vm_replay(
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_RELEASE_INTERFACE,
         binding.replay_payload_for(DEVICE_USB_RELEASE_INTERFACE)?,
         context,
@@ -21330,7 +21331,7 @@ fn destack_device_usb_release_interface_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbReleaseInterfaceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21343,7 +21344,7 @@ fn destack_device_usb_release_interface_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21360,7 +21361,7 @@ fn destack_device_usb_set_interface_alternate_setting_vm_replay(
     interfacenumber: u8,
     alternatesetting: u8,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING,
         binding.replay_payload_for(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?,
         context,
@@ -21394,7 +21395,7 @@ fn destack_device_usb_set_interface_alternate_setting_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbSetInterfaceAlternateSettingReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21407,7 +21408,7 @@ fn destack_device_usb_set_interface_alternate_setting_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21423,7 +21424,7 @@ fn destack_device_usb_string_descriptor_vm_replay(
     handle: resource::UsbDeviceHandle,
     languageid: u16,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_STRING_DESCRIPTOR,
         binding.replay_payload_for(DEVICE_USB_STRING_DESCRIPTOR)?,
         context,
@@ -21474,7 +21475,7 @@ fn destack_device_usb_string_descriptor_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbStringDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21506,7 +21507,7 @@ fn destack_device_usb_string_descriptor_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21521,7 +21522,7 @@ fn destack_device_usb_string_language_list_vm_replay(
     world: RuntimeWorld,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_STRING_LANGUAGE_LIST,
         binding.replay_payload_for(DEVICE_USB_STRING_LANGUAGE_LIST)?,
         context,
@@ -21555,7 +21556,7 @@ fn destack_device_usb_string_language_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbStringLanguageListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21577,7 +21578,7 @@ fn destack_device_usb_string_language_list_vm_replay(
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21592,7 +21593,7 @@ fn destack_device_usb_watch_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_WATCH_CLOSE,
         binding.replay_payload_for(DEVICE_USB_WATCH_CLOSE)?,
         context,
@@ -21616,7 +21617,7 @@ fn destack_device_usb_watch_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbWatchCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21629,7 +21630,7 @@ fn destack_device_usb_watch_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21643,7 +21644,7 @@ fn destack_device_usb_watch_open_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_WATCH_OPEN,
         binding.replay_payload_for(DEVICE_USB_WATCH_OPEN)?,
         context,
@@ -21666,7 +21667,7 @@ fn destack_device_usb_watch_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -21682,7 +21683,7 @@ fn destack_device_usb_watch_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21698,7 +21699,7 @@ fn destack_device_usb_watch_read_vm_replay(
     handle: resource::UsbWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_WATCH_READ,
         binding.replay_payload_for(DEVICE_USB_WATCH_READ)?,
         context,
@@ -21822,7 +21823,7 @@ fn destack_device_usb_watch_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbWatchReadReplay {
                         result,
                     }
@@ -21921,7 +21922,7 @@ fn destack_device_usb_watch_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -21936,7 +21937,7 @@ fn destack_device_usb_watch_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         DEVICE_USB_WATCH_TRY_READ,
         binding.replay_payload_for(DEVICE_USB_WATCH_TRY_READ)?,
         context,
@@ -22060,7 +22061,7 @@ fn destack_device_usb_watch_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     DeviceUsbWatchTryReadReplay {
                         result,
                     }
@@ -22159,7 +22160,7 @@ fn destack_device_usb_watch_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

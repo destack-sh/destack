@@ -37,46 +37,24 @@ pub(crate) enum CatalogBindingSimulation {
 pub(crate) enum CatalogBindingReplayKind {
     /// Binding call replay behavior.
     BindingCall,
-    /// Time read bindings with specialized replay.
-    Time(CatalogTimeEventKind),
-    /// Randomness bindings with specialized replay.
-    Random(CatalogRandomEventKind),
+    /// Entropy bindings with specialized replay.
+    Entropy(CatalogEntropyKind),
 }
 
-/// Time event kinds supported by replay routing.
+/// Entropy event kinds supported by replay routing.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CatalogTimeEventKind {
-    /// Virtual clock seed event.
-    Seed,
+pub(crate) enum CatalogEntropyKind {
     /// Monotonic clock sample.
-    MonotonicSample,
+    TimeReadMonotonic,
     /// Wall clock read.
-    WallClockRead,
-    /// Timer scheduled event.
-    TimerScheduled,
-    /// Timer fired event.
-    TimerFired,
-    /// Timer canceled event.
-    TimerCanceled,
-    /// Sleep scheduled event.
-    SleepScheduled,
-    /// Sleep wake event.
-    SleepWake,
-}
-
-/// Random event kinds supported by replay routing.
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CatalogRandomEventKind {
-    /// Stream seed or reseed event.
-    Seed,
+    TimeReadWall,
     /// Stream allocation event.
-    Stream,
+    RandomStreamCreate,
     /// Random bytes produced by the stream.
-    Bytes,
+    RandomReadBytes,
     /// Random u64 produced by the stream.
-    NextU64,
+    RandomReadU64,
 }
 
 /// Replay behavior for external bindings.

@@ -15,7 +15,7 @@ use crate::runtime::bindings::{
 };
 use crate::runtime::policy::BindingDispatchDecision;
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::replay::ReplayController;
+use crate::runtime::replay::{EntropySubject, Replay};
 use crate::runtime::scheduler::{
     EventLoop, EventLoopScope, MicrotaskId, TaskId, current_event_loop_scope,
 };
@@ -247,8 +247,20 @@ impl BindingCallContext {
 
     /// Borrow the replay state.
     #[inline]
-    pub fn replay(&self) -> &ReplayController {
+    pub fn replay(&self) -> &Replay {
         self.world().replay()
+    }
+
+    /// Build one entropy replay subject for the current call and one binding.
+    pub fn entropy_subject(&self, spec: BindingDescriptor) -> EntropySubject {
+        EntropySubject {
+            runtime_id: self.agent().runtime_id,
+            agent_id: self.agent().id,
+            binding_id: spec.id,
+            engine: Some(self.engine()),
+            task_id: self.task_id(),
+            microtask_id: self.microtask_id(),
+        }
     }
 
     /// Borrow the runtime hook state.
@@ -325,15 +337,25 @@ impl BindingCallContext {
     /// Return one runtime-backed wall clock sample.
     #[inline]
     pub fn wall_nanos(&self) -> u64 {
-        self.hooks().on_time_read(Some(self.engine()));
         self.world().wall_nanos()
     }
 
     /// Return one runtime-backed monotonic clock sample.
     #[inline]
     pub fn mono_nanos(&self) -> u64 {
-        self.hooks().on_time_read(Some(self.engine()));
         self.world().mono_nanos()
+    }
+
+    /// Notify policy hooks about one clock-read operation.
+    #[inline]
+    pub fn on_time_read(&self) {
+        self.hooks().on_time_read(Some(self.engine()));
+    }
+
+    /// Notify policy hooks about one random-read operation.
+    #[inline]
+    pub fn on_random_read(&self) {
+        self.hooks().on_random_read(Some(self.engine()));
     }
 
     /// Sleep one runtime-backed duration.

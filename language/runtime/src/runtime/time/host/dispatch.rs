@@ -93,6 +93,9 @@ pub(crate) unsafe fn host_mono_nanos(
         return Err(null_pointer_error("out"));
     }
 
+    // mark one explicit time-read operation
+    context.on_time_read();
+
     // read monotonic time from the runtime clock service
     let value = context.mono_nanos();
 
@@ -117,11 +120,24 @@ pub(crate) unsafe fn host_now_nanos(
 
     // route the selected clock through runtime policy and host backend
     let value = match clock {
-        ClockId::Wall => context.wall_nanos(),
-        ClockId::Monotonic => context.mono_nanos(),
-        ClockId::ProcessCpu => host_time::host_process_cpu_nanos()?,
-        ClockId::ThreadCpu => host_time::host_thread_cpu_nanos()?,
+        ClockId::Wall => {
+            context.on_time_read();
+            context.wall_nanos()
+        }
+        ClockId::Monotonic => {
+            context.on_time_read();
+            context.mono_nanos()
+        }
+        ClockId::ProcessCpu => {
+            context.on_time_read();
+            host_time::host_process_cpu_nanos()?
+        }
+        ClockId::ThreadCpu => {
+            context.on_time_read();
+            host_time::host_thread_cpu_nanos()?
+        }
         ClockId::Boot | ClockId::MonotonicRaw => {
+            context.on_time_read();
             if context.is_virtual_clock() {
                 context.mono_nanos()
             } else {
@@ -148,7 +164,8 @@ pub(crate) unsafe fn host_process_cpu_nanos(
         return Err(null_pointer_error("out"));
     }
 
-    context.hooks().on_time_read(Some(context.engine()));
+    // mark one explicit time-read operation
+    context.on_time_read();
 
     // sample process cpu time from the host backend
     let value = host_time::host_process_cpu_nanos()?;
@@ -171,7 +188,8 @@ pub(crate) unsafe fn host_thread_cpu_nanos(
         return Err(null_pointer_error("out"));
     }
 
-    context.hooks().on_time_read(Some(context.engine()));
+    // mark one explicit time-read operation
+    context.on_time_read();
 
     // sample thread cpu time from the host backend
     let value = host_time::host_thread_cpu_nanos()?;
@@ -193,6 +211,9 @@ pub(crate) unsafe fn host_wall_nanos(
     if out.is_null() {
         return Err(null_pointer_error("out"));
     }
+
+    // mark one explicit time-read operation
+    context.on_time_read();
 
     // read wall time from the runtime clock service
     let value = context.wall_nanos();

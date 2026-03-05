@@ -83,6 +83,7 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
+use crate::runtime::replay::ReplayError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 use serde::{Deserialize, Serialize};
@@ -4578,315 +4579,315 @@ fn encode_destack_os_power_suspend_result(
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsBackgroundEventCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.os.background.event.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsBackgroundEventOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::BackgroundEventHandle, PlatformError>,
+    pub result: Result<resource::BackgroundEventHandle, ReplayError>,
 }
 
 /// Replay payload for destack.os.background.event.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsBackgroundEventReadReplay {
     /// Replay result payload.
-    pub result: Result<BackgroundEventReplayRecord, PlatformError>,
+    pub result: Result<BackgroundEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.os.background.event.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsBackgroundEventTryReadReplay {
     /// Replay result payload.
-    pub result: Result<BackgroundEventReplayRecord, PlatformError>,
+    pub result: Result<BackgroundEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.os.background.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsBackgroundListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<BackgroundTaskDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<BackgroundTaskDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.os.background.status.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsBackgroundStatusReplay {
     /// Replay result payload.
-    pub result: Result<BackgroundStatus, PlatformError>,
+    pub result: Result<BackgroundStatus, ReplayError>,
 }
 
 /// Replay payload for destack.os.clipboard.hasText.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsClipboardHasTextReplay {
     /// Replay result payload.
-    pub result: Result<bool, PlatformError>,
+    pub result: Result<bool, ReplayError>,
 }
 
 /// Replay payload for destack.os.clipboard.readBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsClipboardReadBytesReplay {
     /// Replay result payload.
-    pub result: Result<Vec<u8>, PlatformError>,
+    pub result: Result<Vec<u8>, ReplayError>,
 }
 
 /// Replay payload for destack.os.clipboard.readText.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsClipboardReadTextReplay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<String, ReplayError>,
 }
 
 /// Replay payload for destack.os.clipboard.sequence.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsClipboardSequenceReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.os.host.identity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsHostIdentityReplay {
     /// Replay result payload.
-    pub result: Result<HostIdentityReplayRecord, PlatformError>,
+    pub result: Result<HostIdentityReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.os.info.bootTimeUnixNs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsInfoBootTimeUnixNsReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.os.info.loadAverage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsInfoLoadAverageReplay {
     /// Replay result payload.
-    pub result: Result<LoadAverage, PlatformError>,
+    pub result: Result<LoadAverage, ReplayError>,
 }
 
 /// Replay payload for destack.os.info.systemSnapshot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsInfoSystemSnapshotReplay {
     /// Replay result payload.
-    pub result: Result<SystemSnapshot, PlatformError>,
+    pub result: Result<SystemSnapshot, ReplayError>,
 }
 
 /// Replay payload for destack.os.info.uptimeNs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsInfoUptimeNsReplay {
     /// Replay result payload.
-    pub result: Result<u64, PlatformError>,
+    pub result: Result<u64, ReplayError>,
 }
 
 /// Replay payload for destack.os.intent.canOpenUrl.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsIntentCanOpenUrlReplay {
     /// Replay result payload.
-    pub result: Result<bool, PlatformError>,
+    pub result: Result<bool, ReplayError>,
 }
 
 /// Replay payload for destack.os.intent.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsIntentCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.os.intent.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsIntentOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::IntentHandle, PlatformError>,
+    pub result: Result<resource::IntentHandle, ReplayError>,
 }
 
 /// Replay payload for destack.os.intent.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsIntentReadReplay {
     /// Replay result payload.
-    pub result: Result<IntentEventReplayRecord, PlatformError>,
+    pub result: Result<IntentEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.os.intent.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsIntentTryReadReplay {
     /// Replay result payload.
-    pub result: Result<IntentEventReplayRecord, PlatformError>,
+    pub result: Result<IntentEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.os.lifecycle.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLifecycleCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.os.lifecycle.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLifecycleOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::LifecycleEventHandle, PlatformError>,
+    pub result: Result<resource::LifecycleEventHandle, ReplayError>,
 }
 
 /// Replay payload for destack.os.lifecycle.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLifecycleReadReplay {
     /// Replay result payload.
-    pub result: Result<LifecycleEventReplayRecord, PlatformError>,
+    pub result: Result<LifecycleEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.os.lifecycle.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLifecycleStateReplay {
     /// Replay result payload.
-    pub result: Result<LifecycleState, PlatformError>,
+    pub result: Result<LifecycleState, ReplayError>,
 }
 
 /// Replay payload for destack.os.lifecycle.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLifecycleTryReadReplay {
     /// Replay result payload.
-    pub result: Result<LifecycleEventReplayRecord, PlatformError>,
+    pub result: Result<LifecycleEventReplayRecord, ReplayError>,
 }
 
 /// Replay payload for destack.os.location.lastKnown.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLocationLastKnownReplay {
     /// Replay result payload.
-    pub result: Result<LocationSample, PlatformError>,
+    pub result: Result<LocationSample, ReplayError>,
 }
 
 /// Replay payload for destack.os.location.servicesEnabled.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLocationServicesEnabledReplay {
     /// Replay result payload.
-    pub result: Result<bool, PlatformError>,
+    pub result: Result<bool, ReplayError>,
 }
 
 /// Replay payload for destack.os.location.watchClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLocationWatchCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.os.location.watchOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLocationWatchOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::LocationWatchHandle, PlatformError>,
+    pub result: Result<resource::LocationWatchHandle, ReplayError>,
 }
 
 /// Replay payload for destack.os.location.watchRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLocationWatchReadReplay {
     /// Replay result payload.
-    pub result: Result<LocationSample, PlatformError>,
+    pub result: Result<LocationSample, ReplayError>,
 }
 
 /// Replay payload for destack.os.location.watchTryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsLocationWatchTryReadReplay {
     /// Replay result payload.
-    pub result: Result<LocationSample, PlatformError>,
+    pub result: Result<LocationSample, ReplayError>,
 }
 
 /// Replay payload for destack.os.mount.add.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsMountAddReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.os.mount.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsMountListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<MountEntryReplayRecord>, PlatformError>,
+    pub result: Result<Vec<MountEntryReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.os.mount.remove.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsMountRemoveReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.os.network.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsNetworkStateReplay {
     /// Replay result payload.
-    pub result: Result<NetworkState, PlatformError>,
+    pub result: Result<NetworkState, ReplayError>,
 }
 
 /// Replay payload for destack.os.network.watchClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsNetworkWatchCloseReplay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<(), ReplayError>,
 }
 
 /// Replay payload for destack.os.network.watchOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsNetworkWatchOpenReplay {
     /// Replay result payload.
-    pub result: Result<resource::NetworkWatchHandle, PlatformError>,
+    pub result: Result<resource::NetworkWatchHandle, ReplayError>,
 }
 
 /// Replay payload for destack.os.network.watchRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsNetworkWatchReadReplay {
     /// Replay result payload.
-    pub result: Result<NetworkEvent, PlatformError>,
+    pub result: Result<NetworkEvent, ReplayError>,
 }
 
 /// Replay payload for destack.os.network.watchTryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsNetworkWatchTryReadReplay {
     /// Replay result payload.
-    pub result: Result<NetworkEvent, PlatformError>,
+    pub result: Result<NetworkEvent, ReplayError>,
 }
 
 /// Replay payload for destack.os.notification.categoryList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsNotificationCategoryListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<NotificationCategoryReplayRecord>, PlatformError>,
+    pub result: Result<Vec<NotificationCategoryReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.os.notification.pendingList.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsNotificationPendingListReplay {
     /// Replay result payload.
-    pub result: Result<Vec<NotificationScheduledDescriptorReplayRecord>, PlatformError>,
+    pub result: Result<Vec<NotificationScheduledDescriptorReplayRecord>, ReplayError>,
 }
 
 /// Replay payload for destack.os.notification.permissionState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsNotificationPermissionStateReplay {
     /// Replay result payload.
-    pub result: Result<NotificationPermissionState, PlatformError>,
+    pub result: Result<NotificationPermissionState, ReplayError>,
 }
 
 /// Replay payload for destack.os.permission.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsPermissionStateReplay {
     /// Replay result payload.
-    pub result: Result<PermissionState, PlatformError>,
+    pub result: Result<PermissionState, ReplayError>,
 }
 
 /// Replay payload for destack.os.permission.stateMany.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsPermissionStateManyReplay {
     /// Replay result payload.
-    pub result: Result<Vec<PermissionEntry>, PlatformError>,
+    pub result: Result<Vec<PermissionEntry>, ReplayError>,
 }
 
 /// Replay payload for destack.os.power.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsPowerStateReplay {
     /// Replay result payload.
-    pub result: Result<PowerState, PlatformError>,
+    pub result: Result<PowerState, ReplayError>,
 }
 
 /// Binding descriptor for destack.os.background.complete.
@@ -7380,7 +7381,7 @@ fn destack_os_background_event_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_BACKGROUND_EVENT_CLOSE,
         binding.replay_payload_for(OS_BACKGROUND_EVENT_CLOSE)?,
         || match world {
@@ -7402,7 +7403,7 @@ fn destack_os_background_event_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7414,7 +7415,7 @@ fn destack_os_background_event_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7429,7 +7430,7 @@ fn destack_os_background_event_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_BACKGROUND_EVENT_OPEN,
         binding.replay_payload_for(OS_BACKGROUND_EVENT_OPEN)?,
         || match world {
@@ -7457,7 +7458,7 @@ fn destack_os_background_event_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7475,7 +7476,7 @@ fn destack_os_background_event_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7491,7 +7492,7 @@ fn destack_os_background_event_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_BACKGROUND_EVENT_READ,
         binding.replay_payload_for(OS_BACKGROUND_EVENT_READ)?,
         || match world {
@@ -7554,7 +7555,7 @@ fn destack_os_background_event_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundEventReadReplay {
                         result,
                     }
@@ -7613,7 +7614,7 @@ fn destack_os_background_event_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7628,7 +7629,7 @@ fn destack_os_background_event_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_BACKGROUND_EVENT_TRY_READ,
         binding.replay_payload_for(OS_BACKGROUND_EVENT_TRY_READ)?,
         || match world {
@@ -7691,7 +7692,7 @@ fn destack_os_background_event_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundEventTryReadReplay {
                         result,
                     }
@@ -7750,7 +7751,7 @@ fn destack_os_background_event_try_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7762,7 +7763,7 @@ fn destack_os_background_list_replay(
     world: RuntimeWorld,
     out: *mut NativeArray<BackgroundTaskDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_BACKGROUND_LIST,
         binding.replay_payload_for(OS_BACKGROUND_LIST)?,
         || match world {
@@ -7824,7 +7825,7 @@ fn destack_os_background_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7874,7 +7875,7 @@ fn destack_os_background_list_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7886,7 +7887,7 @@ fn destack_os_background_status_replay(
     world: RuntimeWorld,
     out: *mut BackgroundStatus,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_BACKGROUND_STATUS,
         binding.replay_payload_for(OS_BACKGROUND_STATUS)?,
         || match world {
@@ -7914,7 +7915,7 @@ fn destack_os_background_status_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundStatusReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7932,7 +7933,7 @@ fn destack_os_background_status_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -7944,7 +7945,7 @@ fn destack_os_clipboard_has_text_replay(
     world: RuntimeWorld,
     out: *mut bool,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_CLIPBOARD_HAS_TEXT,
         binding.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
         || match world {
@@ -7972,7 +7973,7 @@ fn destack_os_clipboard_has_text_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsClipboardHasTextReplay { result }
                 };
                 return Ok(Some(payload));
@@ -7990,7 +7991,7 @@ fn destack_os_clipboard_has_text_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8005,7 +8006,7 @@ fn destack_os_clipboard_read_bytes_replay(
 ) -> RuntimeResult<()> {
     let _ = &format;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_CLIPBOARD_READ_BYTES,
         binding.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
         || match world {
@@ -8039,7 +8040,7 @@ fn destack_os_clipboard_read_bytes_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsClipboardReadBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8062,7 +8063,7 @@ fn destack_os_clipboard_read_bytes_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8074,7 +8075,7 @@ fn destack_os_clipboard_read_text_replay(
     world: RuntimeWorld,
     out: *mut NativeStringRef,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_CLIPBOARD_READ_TEXT,
         binding.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
         || match world {
@@ -8102,7 +8103,7 @@ fn destack_os_clipboard_read_text_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsClipboardReadTextReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8120,7 +8121,7 @@ fn destack_os_clipboard_read_text_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8132,7 +8133,7 @@ fn destack_os_clipboard_sequence_replay(
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_CLIPBOARD_SEQUENCE,
         binding.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
         || match world {
@@ -8160,7 +8161,7 @@ fn destack_os_clipboard_sequence_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsClipboardSequenceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8178,7 +8179,7 @@ fn destack_os_clipboard_sequence_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8190,7 +8191,7 @@ fn destack_os_host_identity_replay(
     world: RuntimeWorld,
     out: *mut HostIdentity,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_HOST_IDENTITY,
         binding.replay_payload_for(OS_HOST_IDENTITY)?,
         || match world {
@@ -8229,7 +8230,7 @@ fn destack_os_host_identity_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsHostIdentityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8256,7 +8257,7 @@ fn destack_os_host_identity_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8268,7 +8269,7 @@ fn destack_os_info_boot_time_unix_ns_replay(
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INFO_BOOT_TIME_UNIX_NS,
         binding.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
         || match world {
@@ -8296,7 +8297,7 @@ fn destack_os_info_boot_time_unix_ns_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsInfoBootTimeUnixNsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8314,7 +8315,7 @@ fn destack_os_info_boot_time_unix_ns_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8326,7 +8327,7 @@ fn destack_os_info_load_average_replay(
     world: RuntimeWorld,
     out: *mut LoadAverage,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INFO_LOAD_AVERAGE,
         binding.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
         || match world {
@@ -8359,7 +8360,7 @@ fn destack_os_info_load_average_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsInfoLoadAverageReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8384,7 +8385,7 @@ fn destack_os_info_load_average_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8396,7 +8397,7 @@ fn destack_os_info_system_snapshot_replay(
     world: RuntimeWorld,
     out: *mut SystemSnapshot,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INFO_SYSTEM_SNAPSHOT,
         binding.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
         || match world {
@@ -8433,7 +8434,7 @@ fn destack_os_info_system_snapshot_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsInfoSystemSnapshotReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8460,7 +8461,7 @@ fn destack_os_info_system_snapshot_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8472,7 +8473,7 @@ fn destack_os_info_uptime_ns_replay(
     world: RuntimeWorld,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INFO_UPTIME_NS,
         binding.replay_payload_for(OS_INFO_UPTIME_NS)?,
         || match world {
@@ -8498,7 +8499,7 @@ fn destack_os_info_uptime_ns_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsInfoUptimeNsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8516,7 +8517,7 @@ fn destack_os_info_uptime_ns_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8531,7 +8532,7 @@ fn destack_os_intent_can_open_url_replay(
 ) -> RuntimeResult<()> {
     let _ = &url;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INTENT_CAN_OPEN_URL,
         binding.replay_payload_for(OS_INTENT_CAN_OPEN_URL)?,
         || match world {
@@ -8559,7 +8560,7 @@ fn destack_os_intent_can_open_url_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentCanOpenUrlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8577,7 +8578,7 @@ fn destack_os_intent_can_open_url_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8591,7 +8592,7 @@ fn destack_os_intent_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INTENT_CLOSE,
         binding.replay_payload_for(OS_INTENT_CLOSE)?,
         || match world {
@@ -8613,7 +8614,7 @@ fn destack_os_intent_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8625,7 +8626,7 @@ fn destack_os_intent_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8640,7 +8641,7 @@ fn destack_os_intent_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INTENT_OPEN,
         binding.replay_payload_for(OS_INTENT_OPEN)?,
         || match world {
@@ -8668,7 +8669,7 @@ fn destack_os_intent_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -8686,7 +8687,7 @@ fn destack_os_intent_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -8702,7 +8703,7 @@ fn destack_os_intent_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INTENT_READ,
         binding.replay_payload_for(OS_INTENT_READ)?,
         || match world {
@@ -8979,7 +8980,7 @@ fn destack_os_intent_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentReadReplay {
                         result,
                     }
@@ -9250,7 +9251,7 @@ fn destack_os_intent_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9265,7 +9266,7 @@ fn destack_os_intent_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_INTENT_TRY_READ,
         binding.replay_payload_for(OS_INTENT_TRY_READ)?,
         || match world {
@@ -9542,7 +9543,7 @@ fn destack_os_intent_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentTryReadReplay {
                         result,
                     }
@@ -9813,7 +9814,7 @@ fn destack_os_intent_try_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9827,7 +9828,7 @@ fn destack_os_lifecycle_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LIFECYCLE_CLOSE,
         binding.replay_payload_for(OS_LIFECYCLE_CLOSE)?,
         || match world {
@@ -9849,7 +9850,7 @@ fn destack_os_lifecycle_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9861,7 +9862,7 @@ fn destack_os_lifecycle_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9873,7 +9874,7 @@ fn destack_os_lifecycle_open_replay(
     world: RuntimeWorld,
     out: *mut resource::LifecycleEventHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LIFECYCLE_OPEN,
         binding.replay_payload_for(OS_LIFECYCLE_OPEN)?,
         || match world {
@@ -9901,7 +9902,7 @@ fn destack_os_lifecycle_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -9919,7 +9920,7 @@ fn destack_os_lifecycle_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -9935,7 +9936,7 @@ fn destack_os_lifecycle_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LIFECYCLE_READ,
         binding.replay_payload_for(OS_LIFECYCLE_READ)?,
         || match world {
@@ -10080,7 +10081,7 @@ fn destack_os_lifecycle_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleReadReplay {
                         result,
                     }
@@ -10221,7 +10222,7 @@ fn destack_os_lifecycle_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10233,7 +10234,7 @@ fn destack_os_lifecycle_state_replay(
     world: RuntimeWorld,
     out: *mut LifecycleState,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LIFECYCLE_STATE,
         binding.replay_payload_for(OS_LIFECYCLE_STATE)?,
         || match world {
@@ -10261,7 +10262,7 @@ fn destack_os_lifecycle_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10279,7 +10280,7 @@ fn destack_os_lifecycle_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10294,7 +10295,7 @@ fn destack_os_lifecycle_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LIFECYCLE_TRY_READ,
         binding.replay_payload_for(OS_LIFECYCLE_TRY_READ)?,
         || match world {
@@ -10439,7 +10440,7 @@ fn destack_os_lifecycle_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleTryReadReplay {
                         result,
                     }
@@ -10580,7 +10581,7 @@ fn destack_os_lifecycle_try_read_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10592,7 +10593,7 @@ fn destack_os_location_last_known_replay(
     world: RuntimeWorld,
     out: *mut LocationSample,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LOCATION_LAST_KNOWN,
         binding.replay_payload_for(OS_LOCATION_LAST_KNOWN)?,
         || match world {
@@ -10639,7 +10640,7 @@ fn destack_os_location_last_known_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationLastKnownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10674,7 +10675,7 @@ fn destack_os_location_last_known_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10686,7 +10687,7 @@ fn destack_os_location_services_enabled_replay(
     world: RuntimeWorld,
     out: *mut bool,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LOCATION_SERVICES_ENABLED,
         binding.replay_payload_for(OS_LOCATION_SERVICES_ENABLED)?,
         || match world {
@@ -10714,7 +10715,7 @@ fn destack_os_location_services_enabled_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationServicesEnabledReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10732,7 +10733,7 @@ fn destack_os_location_services_enabled_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10746,7 +10747,7 @@ fn destack_os_location_watch_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LOCATION_WATCH_CLOSE,
         binding.replay_payload_for(OS_LOCATION_WATCH_CLOSE)?,
         || match world {
@@ -10768,7 +10769,7 @@ fn destack_os_location_watch_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationWatchCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10780,7 +10781,7 @@ fn destack_os_location_watch_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10795,7 +10796,7 @@ fn destack_os_location_watch_open_replay(
 ) -> RuntimeResult<()> {
     let _ = &options;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LOCATION_WATCH_OPEN,
         binding.replay_payload_for(OS_LOCATION_WATCH_OPEN)?,
         || match world {
@@ -10823,7 +10824,7 @@ fn destack_os_location_watch_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10841,7 +10842,7 @@ fn destack_os_location_watch_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10857,7 +10858,7 @@ fn destack_os_location_watch_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LOCATION_WATCH_READ,
         binding.replay_payload_for(OS_LOCATION_WATCH_READ)?,
         || match world {
@@ -10906,7 +10907,7 @@ fn destack_os_location_watch_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationWatchReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -10941,7 +10942,7 @@ fn destack_os_location_watch_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -10956,7 +10957,7 @@ fn destack_os_location_watch_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_LOCATION_WATCH_TRY_READ,
         binding.replay_payload_for(OS_LOCATION_WATCH_TRY_READ)?,
         || match world {
@@ -11003,7 +11004,7 @@ fn destack_os_location_watch_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationWatchTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11038,7 +11039,7 @@ fn destack_os_location_watch_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11056,7 +11057,7 @@ fn destack_os_mount_add_replay(
 ) -> RuntimeResult<()> {
     let _ = (&source, &target, &filesystem, &flags, &data);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_MOUNT_ADD,
         binding.replay_payload_for(OS_MOUNT_ADD)?,
         || match world {
@@ -11082,7 +11083,7 @@ fn destack_os_mount_add_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsMountAddReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11094,7 +11095,7 @@ fn destack_os_mount_add_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11106,7 +11107,7 @@ fn destack_os_mount_list_replay(
     world: RuntimeWorld,
     out: *mut NativeArray<MountEntry>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_MOUNT_LIST,
         binding.replay_payload_for(OS_MOUNT_LIST)?,
         || match world {
@@ -11174,7 +11175,7 @@ fn destack_os_mount_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsMountListReplay {
                         result,
                     }
@@ -11237,7 +11238,7 @@ fn destack_os_mount_list_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11252,7 +11253,7 @@ fn destack_os_mount_remove_replay(
 ) -> RuntimeResult<()> {
     let _ = (&target, &flags);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_MOUNT_REMOVE,
         binding.replay_payload_for(OS_MOUNT_REMOVE)?,
         || match world {
@@ -11274,7 +11275,7 @@ fn destack_os_mount_remove_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsMountRemoveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11286,7 +11287,7 @@ fn destack_os_mount_remove_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11298,7 +11299,7 @@ fn destack_os_network_state_replay(
     world: RuntimeWorld,
     out: *mut NetworkState,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_NETWORK_STATE,
         binding.replay_payload_for(OS_NETWORK_STATE)?,
         || match world {
@@ -11345,7 +11346,7 @@ fn destack_os_network_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11382,7 +11383,7 @@ fn destack_os_network_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11396,7 +11397,7 @@ fn destack_os_network_watch_close_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_NETWORK_WATCH_CLOSE,
         binding.replay_payload_for(OS_NETWORK_WATCH_CLOSE)?,
         || match world {
@@ -11418,7 +11419,7 @@ fn destack_os_network_watch_close_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkWatchCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11430,7 +11431,7 @@ fn destack_os_network_watch_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11442,7 +11443,7 @@ fn destack_os_network_watch_open_replay(
     world: RuntimeWorld,
     out: *mut resource::NetworkWatchHandle,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_NETWORK_WATCH_OPEN,
         binding.replay_payload_for(OS_NETWORK_WATCH_OPEN)?,
         || match world {
@@ -11470,7 +11471,7 @@ fn destack_os_network_watch_open_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11488,7 +11489,7 @@ fn destack_os_network_watch_open_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11504,7 +11505,7 @@ fn destack_os_network_watch_read_replay(
 ) -> RuntimeResult<()> {
     let _ = (&handle, &timeoutns);
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_NETWORK_WATCH_READ,
         binding.replay_payload_for(OS_NETWORK_WATCH_READ)?,
         || match world {
@@ -11562,7 +11563,7 @@ fn destack_os_network_watch_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkWatchReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11606,7 +11607,7 @@ fn destack_os_network_watch_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11621,7 +11622,7 @@ fn destack_os_network_watch_try_read_replay(
 ) -> RuntimeResult<()> {
     let _ = &handle;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_NETWORK_WATCH_TRY_READ,
         binding.replay_payload_for(OS_NETWORK_WATCH_TRY_READ)?,
         || match world {
@@ -11677,7 +11678,7 @@ fn destack_os_network_watch_try_read_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkWatchTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -11721,7 +11722,7 @@ fn destack_os_network_watch_try_read_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11733,7 +11734,7 @@ fn destack_os_notification_category_list_replay(
     world: RuntimeWorld,
     out: *mut NativeArray<NotificationCategory>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_NOTIFICATION_CATEGORY_LIST,
         binding.replay_payload_for(OS_NOTIFICATION_CATEGORY_LIST)?,
         || match world {
@@ -11787,7 +11788,7 @@ fn destack_os_notification_category_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNotificationCategoryListReplay {
                         result,
                     }
@@ -11835,7 +11836,7 @@ fn destack_os_notification_category_list_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -11847,7 +11848,7 @@ fn destack_os_notification_pending_list_replay(
     world: RuntimeWorld,
     out: *mut NativeArray<NotificationScheduledDescriptor>,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_NOTIFICATION_PENDING_LIST,
         binding.replay_payload_for(OS_NOTIFICATION_PENDING_LIST)?,
         || match world {
@@ -11952,7 +11953,7 @@ fn destack_os_notification_pending_list_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNotificationPendingListReplay {
                         result,
                     }
@@ -12052,7 +12053,7 @@ fn destack_os_notification_pending_list_replay(
                     unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12064,7 +12065,7 @@ fn destack_os_notification_permission_state_replay(
     world: RuntimeWorld,
     out: *mut NotificationPermissionState,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_NOTIFICATION_PERMISSION_STATE,
         binding.replay_payload_for(OS_NOTIFICATION_PERMISSION_STATE)?,
         || match world {
@@ -12092,7 +12093,7 @@ fn destack_os_notification_permission_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNotificationPermissionStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12110,7 +12111,7 @@ fn destack_os_notification_permission_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12125,7 +12126,7 @@ fn destack_os_permission_state_replay(
 ) -> RuntimeResult<()> {
     let _ = &permission;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_PERMISSION_STATE,
         binding.replay_payload_for(OS_PERMISSION_STATE)?,
         || match world {
@@ -12153,7 +12154,7 @@ fn destack_os_permission_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsPermissionStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12171,7 +12172,7 @@ fn destack_os_permission_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12186,7 +12187,7 @@ fn destack_os_permission_state_many_replay(
 ) -> RuntimeResult<()> {
     let _ = &permissions;
 
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_PERMISSION_STATE_MANY,
         binding.replay_payload_for(OS_PERMISSION_STATE_MANY)?,
         || match world {
@@ -12229,7 +12230,7 @@ fn destack_os_permission_state_many_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsPermissionStateManyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12257,7 +12258,7 @@ fn destack_os_permission_state_many_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -12269,7 +12270,7 @@ fn destack_os_power_state_replay(
     world: RuntimeWorld,
     out: *mut PowerState,
 ) -> RuntimeResult<()> {
-    binding.replay().run_binding_with_policy(
+    binding.replay().run_binding_without_context(
         OS_POWER_STATE,
         binding.replay_payload_for(OS_POWER_STATE)?,
         || match world {
@@ -12295,7 +12296,7 @@ fn destack_os_power_state_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsPowerStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -12313,7 +12314,7 @@ fn destack_os_power_state_replay(
                     }
                     Ok(())
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     )
@@ -14411,7 +14412,7 @@ fn destack_os_background_event_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_BACKGROUND_EVENT_CLOSE,
         binding.replay_payload_for(OS_BACKGROUND_EVENT_CLOSE)?,
         context,
@@ -14435,7 +14436,7 @@ fn destack_os_background_event_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundEventCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14448,7 +14449,7 @@ fn destack_os_background_event_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14463,7 +14464,7 @@ fn destack_os_background_event_open_vm_replay(
     world: RuntimeWorld,
     options: BackgroundEventOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_BACKGROUND_EVENT_OPEN,
         binding.replay_payload_for(OS_BACKGROUND_EVENT_OPEN)?,
         context,
@@ -14488,7 +14489,7 @@ fn destack_os_background_event_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundEventOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -14504,7 +14505,7 @@ fn destack_os_background_event_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14520,7 +14521,7 @@ fn destack_os_background_event_read_vm_replay(
     handle: resource::BackgroundEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_BACKGROUND_EVENT_READ,
         binding.replay_payload_for(OS_BACKGROUND_EVENT_READ)?,
         context,
@@ -14602,7 +14603,7 @@ fn destack_os_background_event_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundEventReadReplay {
                         result,
                     }
@@ -14667,7 +14668,7 @@ fn destack_os_background_event_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14682,7 +14683,7 @@ fn destack_os_background_event_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_BACKGROUND_EVENT_TRY_READ,
         binding.replay_payload_for(OS_BACKGROUND_EVENT_TRY_READ)?,
         context,
@@ -14764,7 +14765,7 @@ fn destack_os_background_event_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundEventTryReadReplay {
                         result,
                     }
@@ -14829,7 +14830,7 @@ fn destack_os_background_event_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -14843,7 +14844,7 @@ fn destack_os_background_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_BACKGROUND_LIST,
         binding.replay_payload_for(OS_BACKGROUND_LIST)?,
         context,
@@ -14988,7 +14989,7 @@ fn destack_os_background_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundListReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15062,7 +15063,7 @@ fn destack_os_background_list_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15076,7 +15077,7 @@ fn destack_os_background_status_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_BACKGROUND_STATUS,
         binding.replay_payload_for(OS_BACKGROUND_STATUS)?,
         context,
@@ -15099,7 +15100,7 @@ fn destack_os_background_status_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsBackgroundStatusReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15115,7 +15116,7 @@ fn destack_os_background_status_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15129,7 +15130,7 @@ fn destack_os_clipboard_has_text_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_CLIPBOARD_HAS_TEXT,
         binding.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
         context,
@@ -15152,7 +15153,7 @@ fn destack_os_clipboard_has_text_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsClipboardHasTextReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15168,7 +15169,7 @@ fn destack_os_clipboard_has_text_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15183,7 +15184,7 @@ fn destack_os_clipboard_read_bytes_vm_replay(
     world: RuntimeWorld,
     format: ClipboardBinaryFormat,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_CLIPBOARD_READ_BYTES,
         binding.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
         context,
@@ -15208,7 +15209,7 @@ fn destack_os_clipboard_read_bytes_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsClipboardReadBytesReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15224,7 +15225,7 @@ fn destack_os_clipboard_read_bytes_vm_replay(
                     let vm_result = VmSlice::from_bytes(context, value.as_slice());
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15238,7 +15239,7 @@ fn destack_os_clipboard_read_text_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_CLIPBOARD_READ_TEXT,
         binding.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
         context,
@@ -15266,7 +15267,7 @@ fn destack_os_clipboard_read_text_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsClipboardReadTextReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15283,7 +15284,7 @@ fn destack_os_clipboard_read_text_vm_replay(
                     let vm_result = vm::StringHandle::new(vm_result_value);
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15297,7 +15298,7 @@ fn destack_os_clipboard_sequence_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_CLIPBOARD_SEQUENCE,
         binding.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
         context,
@@ -15320,7 +15321,7 @@ fn destack_os_clipboard_sequence_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsClipboardSequenceReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15336,7 +15337,7 @@ fn destack_os_clipboard_sequence_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15350,7 +15351,7 @@ fn destack_os_host_identity_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_HOST_IDENTITY,
         binding.replay_payload_for(OS_HOST_IDENTITY)?,
         context,
@@ -15402,7 +15403,7 @@ fn destack_os_host_identity_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsHostIdentityReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15433,7 +15434,7 @@ fn destack_os_host_identity_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15447,7 +15448,7 @@ fn destack_os_info_boot_time_unix_ns_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INFO_BOOT_TIME_UNIX_NS,
         binding.replay_payload_for(OS_INFO_BOOT_TIME_UNIX_NS)?,
         context,
@@ -15470,7 +15471,7 @@ fn destack_os_info_boot_time_unix_ns_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsInfoBootTimeUnixNsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15486,7 +15487,7 @@ fn destack_os_info_boot_time_unix_ns_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15500,7 +15501,7 @@ fn destack_os_info_load_average_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INFO_LOAD_AVERAGE,
         binding.replay_payload_for(OS_INFO_LOAD_AVERAGE)?,
         context,
@@ -15530,7 +15531,7 @@ fn destack_os_info_load_average_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsInfoLoadAverageReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15553,7 +15554,7 @@ fn destack_os_info_load_average_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15567,7 +15568,7 @@ fn destack_os_info_system_snapshot_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INFO_SYSTEM_SNAPSHOT,
         binding.replay_payload_for(OS_INFO_SYSTEM_SNAPSHOT)?,
         context,
@@ -15599,7 +15600,7 @@ fn destack_os_info_system_snapshot_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsInfoSystemSnapshotReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15624,7 +15625,7 @@ fn destack_os_info_system_snapshot_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15638,7 +15639,7 @@ fn destack_os_info_uptime_ns_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INFO_UPTIME_NS,
         binding.replay_payload_for(OS_INFO_UPTIME_NS)?,
         context,
@@ -15661,7 +15662,7 @@ fn destack_os_info_uptime_ns_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsInfoUptimeNsReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15677,7 +15678,7 @@ fn destack_os_info_uptime_ns_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15692,7 +15693,7 @@ fn destack_os_intent_can_open_url_vm_replay(
     world: RuntimeWorld,
     url: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INTENT_CAN_OPEN_URL,
         binding.replay_payload_for(OS_INTENT_CAN_OPEN_URL)?,
         context,
@@ -15717,7 +15718,7 @@ fn destack_os_intent_can_open_url_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentCanOpenUrlReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15733,7 +15734,7 @@ fn destack_os_intent_can_open_url_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15748,7 +15749,7 @@ fn destack_os_intent_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INTENT_CLOSE,
         binding.replay_payload_for(OS_INTENT_CLOSE)?,
         context,
@@ -15770,7 +15771,7 @@ fn destack_os_intent_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15783,7 +15784,7 @@ fn destack_os_intent_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15798,7 +15799,7 @@ fn destack_os_intent_open_vm_replay(
     world: RuntimeWorld,
     options: IntentOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INTENT_OPEN,
         binding.replay_payload_for(OS_INTENT_OPEN)?,
         context,
@@ -15821,7 +15822,7 @@ fn destack_os_intent_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -15837,7 +15838,7 @@ fn destack_os_intent_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -15853,7 +15854,7 @@ fn destack_os_intent_read_vm_replay(
     handle: resource::IntentHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INTENT_READ,
         binding.replay_payload_for(OS_INTENT_READ)?,
         context,
@@ -16194,7 +16195,7 @@ fn destack_os_intent_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentReadReplay {
                         result,
                     }
@@ -16484,7 +16485,7 @@ fn destack_os_intent_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -16499,7 +16500,7 @@ fn destack_os_intent_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_INTENT_TRY_READ,
         binding.replay_payload_for(OS_INTENT_TRY_READ)?,
         context,
@@ -16840,7 +16841,7 @@ fn destack_os_intent_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsIntentTryReadReplay {
                         result,
                     }
@@ -17130,7 +17131,7 @@ fn destack_os_intent_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17145,7 +17146,7 @@ fn destack_os_lifecycle_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LIFECYCLE_CLOSE,
         binding.replay_payload_for(OS_LIFECYCLE_CLOSE)?,
         context,
@@ -17167,7 +17168,7 @@ fn destack_os_lifecycle_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17180,7 +17181,7 @@ fn destack_os_lifecycle_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17194,7 +17195,7 @@ fn destack_os_lifecycle_open_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LIFECYCLE_OPEN,
         binding.replay_payload_for(OS_LIFECYCLE_OPEN)?,
         context,
@@ -17217,7 +17218,7 @@ fn destack_os_lifecycle_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17233,7 +17234,7 @@ fn destack_os_lifecycle_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17249,7 +17250,7 @@ fn destack_os_lifecycle_read_vm_replay(
     handle: resource::LifecycleEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LIFECYCLE_READ,
         binding.replay_payload_for(OS_LIFECYCLE_READ)?,
         context,
@@ -17419,7 +17420,7 @@ fn destack_os_lifecycle_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleReadReplay {
                         result,
                     }
@@ -17568,7 +17569,7 @@ fn destack_os_lifecycle_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17582,7 +17583,7 @@ fn destack_os_lifecycle_state_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LIFECYCLE_STATE,
         binding.replay_payload_for(OS_LIFECYCLE_STATE)?,
         context,
@@ -17605,7 +17606,7 @@ fn destack_os_lifecycle_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -17621,7 +17622,7 @@ fn destack_os_lifecycle_state_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17636,7 +17637,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LIFECYCLE_TRY_READ,
         binding.replay_payload_for(OS_LIFECYCLE_TRY_READ)?,
         context,
@@ -17806,7 +17807,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLifecycleTryReadReplay {
                         result,
                     }
@@ -17955,7 +17956,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -17969,7 +17970,7 @@ fn destack_os_location_last_known_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LOCATION_LAST_KNOWN,
         binding.replay_payload_for(OS_LOCATION_LAST_KNOWN)?,
         context,
@@ -18011,7 +18012,7 @@ fn destack_os_location_last_known_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationLastKnownReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18044,7 +18045,7 @@ fn destack_os_location_last_known_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18058,7 +18059,7 @@ fn destack_os_location_services_enabled_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LOCATION_SERVICES_ENABLED,
         binding.replay_payload_for(OS_LOCATION_SERVICES_ENABLED)?,
         context,
@@ -18083,7 +18084,7 @@ fn destack_os_location_services_enabled_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationServicesEnabledReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18099,7 +18100,7 @@ fn destack_os_location_services_enabled_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18114,7 +18115,7 @@ fn destack_os_location_watch_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LOCATION_WATCH_CLOSE,
         binding.replay_payload_for(OS_LOCATION_WATCH_CLOSE)?,
         context,
@@ -18138,7 +18139,7 @@ fn destack_os_location_watch_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationWatchCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18151,7 +18152,7 @@ fn destack_os_location_watch_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18166,7 +18167,7 @@ fn destack_os_location_watch_open_vm_replay(
     world: RuntimeWorld,
     options: LocationWatchOptionsVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LOCATION_WATCH_OPEN,
         binding.replay_payload_for(OS_LOCATION_WATCH_OPEN)?,
         context,
@@ -18191,7 +18192,7 @@ fn destack_os_location_watch_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18207,7 +18208,7 @@ fn destack_os_location_watch_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18223,7 +18224,7 @@ fn destack_os_location_watch_read_vm_replay(
     handle: resource::LocationWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LOCATION_WATCH_READ,
         binding.replay_payload_for(OS_LOCATION_WATCH_READ)?,
         context,
@@ -18267,7 +18268,7 @@ fn destack_os_location_watch_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationWatchReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18300,7 +18301,7 @@ fn destack_os_location_watch_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18315,7 +18316,7 @@ fn destack_os_location_watch_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_LOCATION_WATCH_TRY_READ,
         binding.replay_payload_for(OS_LOCATION_WATCH_TRY_READ)?,
         context,
@@ -18359,7 +18360,7 @@ fn destack_os_location_watch_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsLocationWatchTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18392,7 +18393,7 @@ fn destack_os_location_watch_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18411,7 +18412,7 @@ fn destack_os_mount_add_vm_replay(
     flags: u64,
     data: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_MOUNT_ADD,
         binding.replay_payload_for(OS_MOUNT_ADD)?,
         context,
@@ -18435,7 +18436,7 @@ fn destack_os_mount_add_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsMountAddReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18448,7 +18449,7 @@ fn destack_os_mount_add_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18462,7 +18463,7 @@ fn destack_os_mount_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_MOUNT_LIST,
         binding.replay_payload_for(OS_MOUNT_LIST)?,
         context,
@@ -18553,7 +18554,7 @@ fn destack_os_mount_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsMountListReplay {
                         result,
                     }
@@ -18619,7 +18620,7 @@ fn destack_os_mount_list_vm_replay(
                     let vm_result: VmArray<MountEntryVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18635,7 +18636,7 @@ fn destack_os_mount_remove_vm_replay(
     target: fs::OsPathVm,
     flags: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_MOUNT_REMOVE,
         binding.replay_payload_for(OS_MOUNT_REMOVE)?,
         context,
@@ -18659,7 +18660,7 @@ fn destack_os_mount_remove_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsMountRemoveReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18672,7 +18673,7 @@ fn destack_os_mount_remove_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18686,7 +18687,7 @@ fn destack_os_network_state_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_NETWORK_STATE,
         binding.replay_payload_for(OS_NETWORK_STATE)?,
         context,
@@ -18728,7 +18729,7 @@ fn destack_os_network_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18763,7 +18764,7 @@ fn destack_os_network_state_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18778,7 +18779,7 @@ fn destack_os_network_watch_close_vm_replay(
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_NETWORK_WATCH_CLOSE,
         binding.replay_payload_for(OS_NETWORK_WATCH_CLOSE)?,
         context,
@@ -18802,7 +18803,7 @@ fn destack_os_network_watch_close_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkWatchCloseReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18815,7 +18816,7 @@ fn destack_os_network_watch_close_vm_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18829,7 +18830,7 @@ fn destack_os_network_watch_open_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_NETWORK_WATCH_OPEN,
         binding.replay_payload_for(OS_NETWORK_WATCH_OPEN)?,
         context,
@@ -18852,7 +18853,7 @@ fn destack_os_network_watch_open_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkWatchOpenReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18868,7 +18869,7 @@ fn destack_os_network_watch_open_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18884,7 +18885,7 @@ fn destack_os_network_watch_read_vm_replay(
     handle: resource::NetworkWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_NETWORK_WATCH_READ,
         binding.replay_payload_for(OS_NETWORK_WATCH_READ)?,
         context,
@@ -18937,7 +18938,7 @@ fn destack_os_network_watch_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkWatchReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -18979,7 +18980,7 @@ fn destack_os_network_watch_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -18994,7 +18995,7 @@ fn destack_os_network_watch_try_read_vm_replay(
     world: RuntimeWorld,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_NETWORK_WATCH_TRY_READ,
         binding.replay_payload_for(OS_NETWORK_WATCH_TRY_READ)?,
         context,
@@ -19047,7 +19048,7 @@ fn destack_os_network_watch_try_read_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNetworkWatchTryReadReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19089,7 +19090,7 @@ fn destack_os_network_watch_try_read_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19103,7 +19104,7 @@ fn destack_os_notification_category_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_NOTIFICATION_CATEGORY_LIST,
         binding.replay_payload_for(OS_NOTIFICATION_CATEGORY_LIST)?,
         context,
@@ -19204,7 +19205,7 @@ fn destack_os_notification_category_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNotificationCategoryListReplay {
                         result,
                     }
@@ -19263,7 +19264,7 @@ fn destack_os_notification_category_list_vm_replay(
                     let vm_result: VmArray<NotificationCategoryVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19277,7 +19278,7 @@ fn destack_os_notification_pending_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_NOTIFICATION_PENDING_LIST,
         binding.replay_payload_for(OS_NOTIFICATION_PENDING_LIST)?,
         context,
@@ -19473,7 +19474,7 @@ fn destack_os_notification_pending_list_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNotificationPendingListReplay {
                         result,
                     }
@@ -19591,7 +19592,7 @@ fn destack_os_notification_pending_list_vm_replay(
                     let vm_result: VmArray<NotificationScheduledDescriptorVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19605,7 +19606,7 @@ fn destack_os_notification_permission_state_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_NOTIFICATION_PERMISSION_STATE,
         binding.replay_payload_for(OS_NOTIFICATION_PERMISSION_STATE)?,
         context,
@@ -19630,7 +19631,7 @@ fn destack_os_notification_permission_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsNotificationPermissionStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19646,7 +19647,7 @@ fn destack_os_notification_permission_state_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19661,7 +19662,7 @@ fn destack_os_permission_state_vm_replay(
     world: RuntimeWorld,
     permission: Permission,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_PERMISSION_STATE,
         binding.replay_payload_for(OS_PERMISSION_STATE)?,
         context,
@@ -19686,7 +19687,7 @@ fn destack_os_permission_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsPermissionStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19702,7 +19703,7 @@ fn destack_os_permission_state_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19717,7 +19718,7 @@ fn destack_os_permission_state_many_vm_replay(
     world: RuntimeWorld,
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_PERMISSION_STATE_MANY,
         binding.replay_payload_for(OS_PERMISSION_STATE_MANY)?,
         context,
@@ -19826,7 +19827,7 @@ fn destack_os_permission_state_many_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsPermissionStateManyReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19866,7 +19867,7 @@ fn destack_os_permission_state_many_vm_replay(
                     };
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
@@ -19880,7 +19881,7 @@ fn destack_os_power_state_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
 ) -> RuntimeResult<vm::Value> {
-    let result = binding.replay().run_binding_with_context_policy(
+    let result = binding.replay().run_binding(
         OS_POWER_STATE,
         binding.replay_payload_for(OS_POWER_STATE)?,
         context,
@@ -19903,7 +19904,7 @@ fn destack_os_power_state_vm_replay(
 
             if let Err(error) = result {
                 let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
+                    let result = Err(ReplayError::from(error.as_ref()));
                     OsPowerStateReplay { result }
                 };
                 return Ok(Some(payload));
@@ -19919,7 +19920,7 @@ fn destack_os_power_state_vm_replay(
                     let vm_result = value;
                     Ok(vm_result)
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );

@@ -30,7 +30,7 @@ pub(crate) unsafe fn destack_random_secure_bytes(
     binding: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // resolve one mutable native slice
     let bytes = unsafe { buffer.as_mut_slice()? };
@@ -62,7 +62,7 @@ pub(crate) unsafe fn destack_random_secure_bytes_try(
     binding: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // resolve one mutable native slice
     let bytes = unsafe { buffer.as_mut_slice()? };
@@ -188,7 +188,7 @@ pub(crate) unsafe fn destack_random_fill_bytes(
     binding: &BindingCallContext,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // resolve one mutable native slice
     let bytes = unsafe { buffer.as_mut_slice()? };
@@ -222,7 +222,7 @@ pub(crate) unsafe fn destack_random_fill_bytes_from(
     stream: RandomStream,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // resolve one mutable native slice
     let bytes = unsafe { buffer.as_mut_slice()? };
@@ -382,7 +382,7 @@ pub(crate) unsafe fn destack_random_next_u64(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // sample one value from the current runtime stream
     let value = binding
@@ -424,7 +424,7 @@ pub(crate) unsafe fn destack_random_next_u64_from(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    binding.hooks().on_random_read(Some(binding.engine()));
+    binding.on_random_read();
 
     // sample one value from the requested runtime stream
     let value = binding
